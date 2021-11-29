@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+option java_multiple_files = true;
+option java_package = "com.nike.inventory.api";
+
+package com.nike.inventory.api;
+
+message AddItemRequest {
+    string sku = 1;
+    string metadata = 2;
+    string location = 3;
+}
+
+message RemoveItemRequest {
+    string sku = 1;
+}
+
+message GetAvailabilityRequest {
+    string sku = 1;
+}
+
+message ProductAvailabilityResponse {
+    string sku = 1;
+    string metadata = 2;
+    string location = 3;
+    int64 quantity = 4;
+}
+
+service ProductAvailabilityService {
+    rpc GetAvailability(GetAvailabilityRequest) returns (ProductAvailabilityResponse) {}
+
+    rpc AddItem(AddItemRequest) returns (google.protobuf.Empty) {}
+
+    rpc RemoveItem(RemoveItemRequest) returns (google.protobuf.Empty) {}
+}

@@ -1,7 +1,8 @@
 package com.nike.inventory
 
-import akka.actor.typed.Behavior
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
+import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import akka.persistence.typed.PersistenceId
 import org.slf4j.Logger
@@ -11,8 +12,12 @@ object ProductAvailability {
     def sku: String
   }
 
-  final case class AddItem(sku: String, metadata: String, location: String) extends Command
-  final case class RemoveItem(sku: String) extends Command
+  final case class AddItemCommand(sku: String, metadata: String, location: String) extends Command
+  final case class RemoveItemCommand(sku: String) extends Command
+  final case class GetProductAvailabilityCommand(sku: String, replyTo: ActorRef[Reply]) extends Command
+
+  sealed trait Reply extends CborSerializable
+  final case class ProductAvailabilityReply(sku: String, metadata: String, location: String, quantity: Int) extends Reply
 
   sealed trait Event extends CborSerializable {
     def sku: String
@@ -40,6 +45,9 @@ object ProductAvailability {
       copy(quantity = quantity - 1)
   }
 
+  val TypeKey: EntityTypeKey[Command] =
+    EntityTypeKey[Command]("ProductAvailability")
+
   def apply(sku: String): Behavior[Command] =
     Behaviors.setup { context =>
       EventSourcedBehavior[Command, Event, State](
@@ -51,23 +59,29 @@ object ProductAvailability {
 
   private def commandHandler(log: Logger): (State, Command) => Effect[Event, State] = { (state, command) =>
     state match {
-      case EmptyState(_) =>
+      case EmptyState(sku) =>
         command match {
-          case addItem @ AddItem(sku, metadata, location) =>
+          case addItem @ AddItemCommand(sku, metadata, location) =>
             log.debug(s"AddItem $addItem")
             Effect.persist(ItemAdded(sku, metadata, location))
+          case command: GetProductAvailabilityCommand =>
+            command.replyTo ! ProductAvailabilityReply(sku, "", "", 0)
+            Effect.none
           case command: Command =>
             log.error(s"unexpected command [$command] in state [$state]")
             Effect.none
         }
-      case _: ActiveState =>
+      case ActiveState(sku, metadata, location, quantity) =>
         command match {
-          case addItem @ AddItem(sku, metadata, location) =>
+          case addItem @ AddItemCommand(sku, metadata, location) =>
             log.debug(s"AddItem $addItem")
             Effect.persist(ItemAdded(sku, metadata, location))
-          case removeItem @ RemoveItem(sku) =>
+          case removeItem @ RemoveItemCommand(sku) =>
             log.debug(s"RemoveItem $removeItem")
             Effect.persist(ItemRemoved(sku))
+          case command: GetProductAvailabilityCommand =>
+            command.replyTo ! ProductAvailabilityReply(sku, metadata, location, quantity)
+            Effect.none
         }
     }
   }
