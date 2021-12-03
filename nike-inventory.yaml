@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: nike-inventory
+  name: nike-inventory
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nike-inventory
+  template:
+    metadata:
+      labels:
+        app: nike-inventory
+    spec:
+      containers:
+        - name: nike-inventory
+          image: nike-inventory/docker.io/t3chi3/nike-inventory:latest
+          imagePullPolicy: Always
+          ports:
+            # akka remoting
+            - name: remoting
+              containerPort: 2551
+              protocol: TCP
+            - name: web
+              containerPort: 8080
+              protocol: TCP
+            # When
+            # akka.management.cluster.bootstrap.contact-point-discovery.port-name
+            # is defined, it must correspond to this name:
+            - name: management
+              containerPort: 8558
+              protocol: TCP
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: nike-inventory-service
+spec:
+  selector:
+    app: frontend
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+      
