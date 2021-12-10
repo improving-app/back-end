@@ -1,6 +1,6 @@
 name := "nike-inventory"
 
-version := "0.1.0"
+version := "0.1.1"
 
 scalaVersion := "2.13.4"
 lazy val AkkaVersion = "2.6.17"
@@ -14,14 +14,22 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka"             %% "akka-http2-support"                % AkkaHttpVersion,
   "com.typesafe.akka"             %% "akka-actor-typed"                  % AkkaVersion,
   "com.typesafe.akka"             %% "akka-persistence-typed"            % AkkaVersion,
+  "com.lightbend.akka"            %% "akka-persistence-jdbc"             % "5.0.4",
+  "org.postgresql"                 % "postgresql"                        % "42.3.1",
+  "com.google.cloud.sql"           % "postgres-socket-factory"           % "1.4.1",
+  "com.typesafe.akka"             %% "akka-persistence-query"            % AkkaVersion,
   "com.typesafe.akka"             %% "akka-cluster-sharding-typed"       % AkkaVersion,
   "com.typesafe.akka"             %% "akka-stream"                       % AkkaVersion,
   "com.typesafe.akka"             %% "akka-discovery"                    % AkkaVersion,
-  //"com.lightbend.akka.discovery"  %% "akka-discovery-kubernetes-api"     % AkkaManagementVersion,
+  "com.lightbend.akka.discovery"  %% "akka-discovery-kubernetes-api"     % AkkaManagementVersion,
   "com.lightbend.akka.management" %% "akka-management-cluster-bootstrap" % AkkaManagementVersion,
+  "com.lightbend.akka.management" %% "akka-management-cluster-http"      % AkkaManagementVersion,
   "com.typesafe.akka"             %% "akka-pki"                          % AkkaVersion,
   "com.typesafe.akka"             %% "akka-serialization-jackson"        % AkkaVersion,
   "com.typesafe.akka"             %% "akka-slf4j"                        % AkkaVersion,
+  "com.typesafe.slick"            %% "slick"                             % "3.3.3",
+  "com.typesafe.slick"            %% "slick-hikaricp"                    % "3.3.3",
+  "com.google.api.grpc"            % "proto-google-common-protos"        % "2.6.0",
 
   // The Akka HTTP overwrites are required because Akka-gRPC depends on 10.1.x
   "com.typesafe.akka"             %% "akka-http"                         % AkkaHttpVersion,
@@ -36,7 +44,7 @@ libraryDependencies ++= Seq(
 
 enablePlugins(AkkaGrpcPlugin)
 
-enablePlugins(DockerPlugin, AshScriptPlugin)
+enablePlugins(AkkaGrpcPlugin, DockerPlugin, JavaAppPackaging, AshScriptPlugin)
 dockerBaseImage := "adoptopenjdk/openjdk13:alpine-slim"
-dockerExposedPorts ++= Seq(2551, 8080)
+dockerExposedPorts := Seq(8080, 8558, 25520) // http, management and artery remoting
 dockerUpdateLatest := true

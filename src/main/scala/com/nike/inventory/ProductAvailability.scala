@@ -62,9 +62,10 @@ object ProductAvailability {
       case EmptyState(sku) =>
         command match {
           case addItem @ AddItemCommand(sku, metadata, location) =>
-            log.debug(s"AddItem $addItem")
+            log.info(s"AddItem $addItem")
             Effect.persist(ItemAdded(sku, metadata, location))
           case command: GetProductAvailabilityCommand =>
+            log.info(s"GetProductAvailabilityCommand ${command.sku}")
             command.replyTo ! ProductAvailabilityReply(sku, "", "", 0)
             Effect.none
           case command: Command =>
@@ -74,10 +75,10 @@ object ProductAvailability {
       case ActiveState(sku, metadata, location, quantity) =>
         command match {
           case addItem @ AddItemCommand(sku, metadata, location) =>
-            log.debug(s"AddItem $addItem")
+            log.info(s"AddItem $addItem")
             Effect.persist(ItemAdded(sku, metadata, location))
           case removeItem @ RemoveItemCommand(sku) =>
-            log.debug(s"RemoveItem $removeItem")
+            log.info(s"RemoveItem $removeItem")
             Effect.persist(ItemRemoved(sku))
           case command: GetProductAvailabilityCommand =>
             command.replyTo ! ProductAvailabilityReply(sku, metadata, location, quantity)

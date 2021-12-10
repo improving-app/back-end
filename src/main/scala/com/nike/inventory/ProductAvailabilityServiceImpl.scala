@@ -1,4 +1,5 @@
 package com.nike.inventory
+
 import akka.actor.typed.ActorSystem
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.util.Timeout
@@ -8,6 +9,9 @@ import com.nike.inventory.api.{AddItemRequest, GetAvailabilityRequest, ProductAv
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
+/**
+ * GRPC service implementation.
+ */
 class ProductAvailabilityServiceImpl(system: ActorSystem[_])
   extends api.ProductAvailabilityService {
 
@@ -18,8 +22,11 @@ class ProductAvailabilityServiceImpl(system: ActorSystem[_])
   private implicit val askTimeout: Timeout = Timeout(5.seconds)
 
   override def getAvailability(in: GetAvailabilityRequest): Future[ProductAvailabilityResponse] = {
+    system.log.debug(s"GetProductAvailabilityCommand $in")
     val entityRef = sharding.entityRefFor(ProductAvailability.TypeKey, in.sku)
+    system.log.debug(s"GetProductAvailabilityCommand $entityRef")
     val res = entityRef.ask(ref => ProductAvailability.GetProductAvailabilityCommand(in.sku, ref)).mapTo[ProductAvailabilityReply]
+    system.log.debug(s"GetProductAvailabilityCommand $res")
     res.map(reply => ProductAvailabilityResponse(reply.sku, reply.metadata, reply.location, reply.quantity))
   }
 
