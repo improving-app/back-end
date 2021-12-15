@@ -1,0 +1,5 @@
+steps:
+  - name: eed3si9n/sbt
+    entrypoint: sbt
+    args: ['--version']
+    
