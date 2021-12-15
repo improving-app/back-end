@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: nike-inventory
-          image: us-east4-docker.pkg.dev/nike-pov/nike-inventory/nike-inventory@sha256:b41151d7e22844843f1e42010a0cc58e21183c990b0b2128eb47d4ea9f37bf2c
+          image: us-east4-docker.pkg.dev/nike-pov/nike-inventory/nike-inventory:latest
+          image: us-east4-docker.pkg.dev/nike-pov/nike-inventory/nike-inventory:latest
           readinessProbe:
             httpGet:
               path: "/ready"
