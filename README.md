@@ -1,14 +1,12 @@
 # To build, publish dockerize and deploy to GKE
 
-`sbt clean docker:publishLocal`
+`sbt clean test`
 
 Run `docker images` and take note of your newly created image id.
 
 `docker tag <<YOURIMAGEID>> us-east4-docker.pkg.dev/nike-pov/nike-inventory/nike-inventory:latest`
 
 `docker push us-east4-docker.pkg.dev/nike-pov/nike-inventory/nike-inventory:latest`
-
-**take note of the GCP artifact sha you just pushed and update the image in /kubernetes/deployment.yaml.
 
 ## To deploy to kubernetes:
 

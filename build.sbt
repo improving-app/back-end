@@ -43,9 +43,3 @@ libraryDependencies ++= Seq(
 )
 
 enablePlugins(AkkaGrpcPlugin)
-
-enablePlugins(AshScriptPlugin)
-//enablePlugins(AkkaGrpcPlugin, DockerPlugin, JavaAppPackaging, AshScriptPlugin)
-//dockerBaseImage := "adoptopenjdk/openjdk13:alpine-slim"
-//dockerExposedPorts := Seq(8080, 8558, 25520) // http, management and artery remoting
-//dockerUpdateLatest := true
