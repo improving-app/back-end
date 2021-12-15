@@ -44,4 +44,4 @@ libraryDependencies ++= Seq(
 
 enablePlugins(AkkaGrpcPlugin)
 
-enablePlugins(AshScriptPlugin)
+enablePlugins(JavaAppPackaging, AshScriptPlugin)
