@@ -1,4 +1,4 @@
 steps:
   - name: eed3si9n/sbt
     entrypoint: sbt
-    args: ['test docker:publish']
+    args: ['docker:publish']
