@@ -42,6 +42,10 @@ libraryDependencies ++= Seq(
   "org.scalatest"                 %% "scalatest"                         % ScalatestVersion % Test
 )
 
-enablePlugins(AkkaGrpcPlugin)
+enablePlugins(AkkaGrpcPlugin, DockerPlugin, JavaAppPackaging, AshScriptPlugin)
 
-enablePlugins(JavaAppPackaging, AshScriptPlugin)
+dockerBaseImage := "adoptopenjdk/openjdk13:alpine-slim"
+dockerExposedPorts := Seq(8080, 8558, 25520) // http, management and artery remoting
+packageName in Docker := "nike-pov/nike-inventory/nike-inventory"
+dockerRepository := Some("us-east4-docker.pkg.dev")
+dockerUpdateLatest := true
