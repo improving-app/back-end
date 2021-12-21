@@ -12,7 +12,7 @@ class ProductAvailabilitySpec
   "Product Availability" should {
 
     "get" in {
-      val productAvailability = testKit.spawn(ProductAvailability("12345"))
+      val productAvailability = testKit.spawn(ProductAvailability("12345", "product-availability"))
       val probe = testKit.createTestProbe[Reply]
       productAvailability ! GetProductAvailabilityCommand("12345", probe.ref)
       probe.expectMessage(ProductAvailabilityReply("12345", "", "", 0))

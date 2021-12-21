@@ -3,7 +3,7 @@ name := "nike-inventory"
 version := "0.1.1"
 
 scalaVersion := "2.13.4"
-lazy val AkkaVersion = "2.6.17"
+lazy val AkkaVersion = "2.6.18"
 lazy val AkkaHttpVersion = "10.2.7"
 lazy val AkkaGrpcVersion = "2.1.1"
 lazy val AkkaManagementVersion = "1.1.1"
