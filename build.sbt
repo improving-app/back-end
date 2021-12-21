@@ -7,17 +7,25 @@ lazy val AkkaVersion = "2.6.17"
 lazy val AkkaHttpVersion = "10.2.7"
 lazy val AkkaGrpcVersion = "2.1.1"
 lazy val AkkaManagementVersion = "1.1.1"
-lazy val ScalatestVersion = "3.1.1"
+lazy val AkkaProjectionVersion = "1.2.2"
+lazy val AkkaPersistenceJdbcVersion = "5.0.4"
+lazy val PostgresVersion = "42.3.1"
+lazy val PostgresSocketFactoryVersion = "1.4.1"
+lazy val SlickVersion = "3.3.3"
+lazy val ScalatestVersion = "3.2.9"
 
 libraryDependencies ++= Seq(
   "com.typesafe.akka"             %% "akka-http"                         % AkkaHttpVersion,
   "com.typesafe.akka"             %% "akka-http2-support"                % AkkaHttpVersion,
   "com.typesafe.akka"             %% "akka-actor-typed"                  % AkkaVersion,
   "com.typesafe.akka"             %% "akka-persistence-typed"            % AkkaVersion,
-  "com.lightbend.akka"            %% "akka-persistence-jdbc"             % "5.0.4",
-  "org.postgresql"                 % "postgresql"                        % "42.3.1",
-  "com.google.cloud.sql"           % "postgres-socket-factory"           % "1.4.1",
+  "com.lightbend.akka"            %% "akka-persistence-jdbc"             % AkkaPersistenceJdbcVersion,
+  "org.postgresql"                 % "postgresql"                        % PostgresVersion,
+  "com.google.cloud.sql"           % "postgres-socket-factory"           % PostgresSocketFactoryVersion,
   "com.typesafe.akka"             %% "akka-persistence-query"            % AkkaVersion,
+  "com.lightbend.akka"            %% "akka-projection-eventsourced"      % AkkaProjectionVersion,
+  "com.lightbend.akka"            %% "akka-projection-slick"             % AkkaProjectionVersion,
+  "com.lightbend.akka"            %% "akka-projection-jdbc"              % AkkaProjectionVersion,
   "com.typesafe.akka"             %% "akka-cluster-sharding-typed"       % AkkaVersion,
   "com.typesafe.akka"             %% "akka-stream"                       % AkkaVersion,
   "com.typesafe.akka"             %% "akka-discovery"                    % AkkaVersion,
@@ -27,9 +35,8 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka"             %% "akka-pki"                          % AkkaVersion,
   "com.typesafe.akka"             %% "akka-serialization-jackson"        % AkkaVersion,
   "com.typesafe.akka"             %% "akka-slf4j"                        % AkkaVersion,
-  "com.typesafe.slick"            %% "slick"                             % "3.3.3",
-  "com.typesafe.slick"            %% "slick-hikaricp"                    % "3.3.3",
-  "com.google.api.grpc"            % "proto-google-common-protos"        % "2.6.0",
+  "com.typesafe.slick"            %% "slick"                             % SlickVersion,
+  "com.typesafe.slick"            %% "slick-hikaricp"                    % SlickVersion,
 
   // The Akka HTTP overwrites are required because Akka-gRPC depends on 10.1.x
   "com.typesafe.akka"             %% "akka-http"                         % AkkaHttpVersion,

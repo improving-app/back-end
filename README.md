@@ -1,12 +1,8 @@
 # To build, publish dockerize and deploy to GKE
 
-`sbt clean test`
+`sbt clean docker:publishLocal` to test locally or...
 
-Run `docker images` and take note of your newly created image id.
-
-`docker tag <<YOURIMAGEID>> us-east4-docker.pkg.dev/nike-pov/nike-inventory/nike-inventory:latest`
-
-`docker push us-east4-docker.pkg.dev/nike-pov/nike-inventory/nike-inventory:latest`
+`sbt clean docker:publish` to publish to gcp artifact registry, ensure authenticated with gcloud.
 
 ## To deploy to kubernetes:
 
@@ -35,6 +31,12 @@ Transfer all files in /kubernetes to your cloud console VM.
 `kubectl apply -f deployment.yaml`
 
 `kubectl expose deployment nike-inventory --type=LoadBalancer --name=nike-inventory-service`
+
+### To Redeploy to Kubernetes
+
+`kubectl delete deploy nike-inventory`
+
+`kubectl apply -r deployment.sh`
 
 ## to test:
 

@@ -21,10 +21,11 @@ object ProductAvailability {
 
   sealed trait Event extends CborSerializable {
     def sku: String
+    def onHandQuantity: Int
   }
 
-  final case class ItemAdded(sku: String, metadata: String, location: String) extends Event
-  final case class ItemRemoved(sku: String) extends Event
+  final case class ItemAdded(sku: String, metadata: String, location: String, onHandQuantity: Int) extends Event
+  final case class ItemRemoved(sku: String, onHandQuantity: Int) extends Event
 
   sealed trait State extends CborSerializable {
     def sku: String
@@ -48,13 +49,13 @@ object ProductAvailability {
   val TypeKey: EntityTypeKey[Command] =
     EntityTypeKey[Command]("ProductAvailability")
 
-  def apply(sku: String): Behavior[Command] =
+  def apply(sku: String, tag: String): Behavior[Command] =
     Behaviors.setup { context =>
       EventSourcedBehavior[Command, Event, State](
         persistenceId = PersistenceId.ofUniqueId(sku),
         emptyState = EmptyState(sku),
         commandHandler = commandHandler(context.log),
-        eventHandler = eventHandler(sku, context.log))
+        eventHandler = eventHandler(sku, context.log)).withTagger(_ => Set(tag))
     }
 
   private def commandHandler(log: Logger): (State, Command) => Effect[Event, State] = { (state, command) =>
@@ -63,7 +64,7 @@ object ProductAvailability {
         command match {
           case addItem @ AddItemCommand(sku, metadata, location) =>
             log.info(s"AddItem $addItem")
-            Effect.persist(ItemAdded(sku, metadata, location))
+            Effect.persist(ItemAdded(sku, metadata, location, 1))
           case command: GetProductAvailabilityCommand =>
             log.info(s"GetProductAvailabilityCommand ${command.sku}")
             command.replyTo ! ProductAvailabilityReply(sku, "", "", 0)
@@ -76,10 +77,10 @@ object ProductAvailability {
         command match {
           case addItem @ AddItemCommand(sku, metadata, location) =>
             log.info(s"AddItem $addItem")
-            Effect.persist(ItemAdded(sku, metadata, location))
+            Effect.persist(ItemAdded(sku, metadata, location, quantity + 1))
           case removeItem @ RemoveItemCommand(sku) =>
             log.info(s"RemoveItem $removeItem")
-            Effect.persist(ItemRemoved(sku))
+            Effect.persist(ItemRemoved(sku, quantity - 1))
           case command: GetProductAvailabilityCommand =>
             command.replyTo ! ProductAvailabilityReply(sku, metadata, location, quantity)
             Effect.none

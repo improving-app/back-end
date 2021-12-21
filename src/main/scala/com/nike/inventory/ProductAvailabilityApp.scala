@@ -9,9 +9,13 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
-import akka.persistence.jdbc.testkit.scaladsl.SchemaUtils
-import akka.{actor => classic}
+import akka.persistence.jdbc.query.javadsl.JdbcReadJournal
+import akka.projection.{ProjectionBehavior, ProjectionId}
+import akka.projection.eventsourced.scaladsl.EventSourcedProvider
+import akka.projection.slick.SlickProjection
 import com.nike.inventory.api.ProductAvailabilityServiceHandler
+import slick.basic.DatabaseConfig
+import slick.jdbc.PostgresProfile
 
 import scala.concurrent.Future
 
@@ -20,23 +24,54 @@ import scala.concurrent.Future
  */
 object ProductAvailabilityApp extends App {
 
+  val ProductAvailabilityTag = "product-availability"
+
   ActorSystem[Nothing](Behaviors.setup[Nothing] { context =>
     import akka.actor.typed.scaladsl.adapter._
-    implicit val classicSystem: classic.ActorSystem = context.system.toClassic
     implicit val ec = context.system.executionContext
+    implicit val system = context.system
 
-    val cluster = Cluster(context.system)
-    context.log.info("Started [" + context.system + "], cluster.selfAddress = " + cluster.selfMember.address + ")")
+    val cluster = Cluster(system)
+    context.log.info("Started [" + system + "], cluster.selfAddress = " + cluster.selfMember.address + ")")
+
+    val sharding = ClusterSharding(system)
+
+    //SchemaUtils.createIfNotExists()
+
+    sharding.init(Entity(typeKey = ProductAvailability.TypeKey) { entityContext =>
+      ProductAvailability(entityContext.entityId, ProductAvailabilityTag)
+    })
+
+    val dbConfig: DatabaseConfig[PostgresProfile] =
+      DatabaseConfig.forConfig("akka.projection.slick", system.settings.config)
+
+    SlickProjection.createTablesIfNotExists(dbConfig)
+
+    val sourceProvider =
+      EventSourcedProvider
+        .eventsByTag[ProductAvailability.Event](context.system, readJournalPluginId = JdbcReadJournal.Identifier,
+          tag = ProductAvailabilityTag)
+
+    val projection = SlickProjection.exactlyOnce(
+      projectionId = ProjectionId("ProductAvailability", "sku"),
+      sourceProvider,
+      dbConfig,
+      handler = () => new ProductAvailabilityHandler(new LowInventoryRepository(dbConfig)))
+
+    context.spawn(ProjectionBehavior(projection), projection.projectionId.id)
 
     // Create service handlers
     val service: HttpRequest => Future[HttpResponse] =
-      ProductAvailabilityServiceHandler.withServerReflection(new ProductAvailabilityServiceImpl(context.system))
+      ProductAvailabilityServiceHandler.withServerReflection(new ProductAvailabilityServiceImpl(system))
 
     // Bind service handler servers to localhost:8080
-    val binding = Http().newServerAt("0.0.0.0", 8080).bind(service)
+    val binding = Http()(system.toClassic).newServerAt("0.0.0.0", 8080).bind(service)
 
     // report successful binding
     binding.foreach { binding => println(s"gRPC server bound to: ${binding.localAddress}") }
+
+    AkkaManagement.get((system.toClassic)).start()
+    ClusterBootstrap.get((system.toClassic)).start()
 
     // Create an actor that handles cluster domain events
     val listener = context.spawn(Behaviors.receive[ClusterEvent.MemberEvent]((ctx, event) => {
@@ -44,17 +79,7 @@ object ProductAvailabilityApp extends App {
       Behaviors.same
     }), "listener")
 
-    Cluster(context.system).subscriptions ! Subscribe(listener, classOf[ClusterEvent.MemberEvent])
-
-    AkkaManagement.get(classicSystem).start()
-    ClusterBootstrap.get(classicSystem).start()
-    val sharding = ClusterSharding(context.system)
-
-    SchemaUtils.createIfNotExists()
-
-    sharding.init(Entity(typeKey = ProductAvailability.TypeKey) { entityContext =>
-      ProductAvailability(entityContext.entityId)
-    })
+    Cluster(system).subscriptions ! Subscribe(listener, classOf[ClusterEvent.MemberEvent])
 
     Behaviors.empty
   }, "nike-inventory")
