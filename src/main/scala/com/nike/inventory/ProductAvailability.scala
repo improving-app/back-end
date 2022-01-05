@@ -12,19 +12,19 @@ object ProductAvailability {
     def sku: String
   }
 
-  final case class AddItemCommand(sku: String, metadata: String, location: String) extends Command
+  final case class AddItemCommand(sku: String) extends Command
   final case class RemoveItemCommand(sku: String) extends Command
   final case class GetProductAvailabilityCommand(sku: String, replyTo: ActorRef[Reply]) extends Command
 
   sealed trait Reply extends CborSerializable
-  final case class ProductAvailabilityReply(sku: String, metadata: String, location: String, quantity: Int) extends Reply
+  final case class ProductAvailabilityReply(sku: String, quantity: Int) extends Reply
 
   sealed trait Event extends CborSerializable {
     def sku: String
     def onHandQuantity: Int
   }
 
-  final case class ItemAdded(sku: String, metadata: String, location: String, onHandQuantity: Int) extends Event
+  final case class ItemAdded(sku: String, onHandQuantity: Int) extends Event
   final case class ItemRemoved(sku: String, onHandQuantity: Int) extends Event
 
   sealed trait State extends CborSerializable {
@@ -35,12 +35,10 @@ object ProductAvailability {
 
   final case class ActiveState(
     sku: String,
-    metadata: String = "",
-    location: String = "",
     quantity: Int = 0) extends State {
 
     def withItemAdded(event: ItemAdded): ActiveState =
-      copy(metadata = event.metadata, location = event.location, quantity = quantity + 1)
+      copy(quantity = quantity + 1)
 
     def withItemRemoved(event: ItemRemoved): ActiveState =
       copy(quantity = quantity - 1)
@@ -62,27 +60,27 @@ object ProductAvailability {
     state match {
       case EmptyState(sku) =>
         command match {
-          case addItem @ AddItemCommand(sku, metadata, location) =>
+          case addItem @ AddItemCommand(sku) =>
             log.info(s"AddItem $addItem")
-            Effect.persist(ItemAdded(sku, metadata, location, 1))
+            Effect.persist(ItemAdded(sku, 1))
           case command: GetProductAvailabilityCommand =>
             log.info(s"GetProductAvailabilityCommand ${command.sku}")
-            command.replyTo ! ProductAvailabilityReply(sku, "", "", 0)
+            command.replyTo ! ProductAvailabilityReply(sku, 0)
             Effect.none
           case command: Command =>
             log.error(s"unexpected command [$command] in state [$state]")
             Effect.none
         }
-      case ActiveState(sku, metadata, location, quantity) =>
+      case ActiveState(sku, quantity) =>
         command match {
-          case addItem @ AddItemCommand(sku, metadata, location) =>
+          case addItem @ AddItemCommand(sku) =>
             log.info(s"AddItem $addItem")
-            Effect.persist(ItemAdded(sku, metadata, location, quantity + 1))
+            Effect.persist(ItemAdded(sku, quantity + 1))
           case removeItem @ RemoveItemCommand(sku) =>
             log.info(s"RemoveItem $removeItem")
             Effect.persist(ItemRemoved(sku, quantity - 1))
           case command: GetProductAvailabilityCommand =>
-            command.replyTo ! ProductAvailabilityReply(sku, metadata, location, quantity)
+            command.replyTo ! ProductAvailabilityReply(sku, quantity)
             Effect.none
         }
     }

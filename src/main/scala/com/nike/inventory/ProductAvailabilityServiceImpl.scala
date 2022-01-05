@@ -27,12 +27,12 @@ class ProductAvailabilityServiceImpl(system: ActorSystem[_])
     system.log.debug(s"GetProductAvailabilityCommand $entityRef")
     val res = entityRef.ask(ref => ProductAvailability.GetProductAvailabilityCommand(in.sku, ref)).mapTo[ProductAvailabilityReply]
     system.log.debug(s"GetProductAvailabilityCommand $res")
-    res.map(reply => ProductAvailabilityResponse(reply.sku, reply.metadata, reply.location, reply.quantity))
+    res.map(reply => ProductAvailabilityResponse(reply.sku, reply.quantity))
   }
 
   override def addItem(in: AddItemRequest): Future[Empty] = {
     val entityRef = sharding.entityRefFor(ProductAvailability.TypeKey, in.sku)
-    entityRef ! AddItemCommand(in.sku, in.metadata, in.location)
+    entityRef ! AddItemCommand(in.sku)
     Future(Empty.defaultInstance)
   }
 

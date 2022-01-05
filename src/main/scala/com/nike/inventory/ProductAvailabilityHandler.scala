@@ -18,7 +18,7 @@ class ProductAvailabilityHandler(repository: LowInventoryRepository)(implicit ec
   override def process(envelope: EventEnvelope[ProductAvailability.Event]): DBIO[Done] = {
     envelope.event match {
 
-      case event @ (ProductAvailability.ItemAdded(_, _, _, _) | ProductAvailability.ItemRemoved(_, _)) =>
+      case event @ (ProductAvailability.ItemAdded(_, _) | ProductAvailability.ItemRemoved(_, _)) =>
         logger.debug(s"ProductAvailability:ItemAdded with sku of ${event.sku}")
         if (event.onHandQuantity <= LowInventoryThreshold) {
           logger.debug(s"Low inventory condition for sku of ${event.sku}")

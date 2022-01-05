@@ -6,7 +6,8 @@ import akka.cluster.ClusterEvent
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Subscribe}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpRequest, HttpResponse}
+import akka.http.scaladsl.server.Directives._
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
 import akka.persistence.jdbc.query.javadsl.JdbcReadJournal
@@ -35,8 +36,6 @@ object ProductAvailabilityApp extends App {
     context.log.info("Started [" + system + "], cluster.selfAddress = " + cluster.selfMember.address + ")")
 
     val sharding = ClusterSharding(system)
-
-    //SchemaUtils.createIfNotExists()
 
     sharding.init(Entity(typeKey = ProductAvailability.TypeKey) { entityContext =>
       ProductAvailability(entityContext.entityId, ProductAvailabilityTag)

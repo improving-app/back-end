@@ -9,8 +9,6 @@ package com.nike.inventory.api;
 
 message AddItemRequest {
     string sku = 1;
-    string metadata = 2;
-    string location = 3;
 }
 
 message RemoveItemRequest {
@@ -23,8 +21,6 @@ message GetAvailabilityRequest {
 
 message ProductAvailabilityResponse {
     string sku = 1;
-    string metadata = 2;
-    string location = 3;
     int64 quantity = 4;
 }
 
