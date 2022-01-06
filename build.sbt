@@ -1,6 +1,6 @@
 name := "nike-inventory"
 
-version := "0.1.1"
+version := "0.1.2" // Must update app-version in conf as well.
 
 scalaVersion := "2.13.4"
 lazy val AkkaVersion = "2.6.18"

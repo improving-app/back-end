@@ -11,6 +11,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
 import akka.persistence.jdbc.query.javadsl.JdbcReadJournal
+import akka.persistence.jdbc.testkit.javadsl.SchemaUtils
 import akka.projection.{ProjectionBehavior, ProjectionId}
 import akka.projection.eventsourced.scaladsl.EventSourcedProvider
 import akka.projection.slick.SlickProjection
@@ -34,6 +35,11 @@ object ProductAvailabilityApp extends App {
 
     val cluster = Cluster(system)
     context.log.info("Started [" + system + "], cluster.selfAddress = " + cluster.selfMember.address + ")")
+
+    // Use for resetting data after breaking refactor.
+    //SchemaUtils.dropIfExists(system)
+    //SchemaUtils.createIfNotExists(system)
+    //
 
     val sharding = ClusterSharding(system)
 
@@ -59,9 +65,12 @@ object ProductAvailabilityApp extends App {
 
     context.spawn(ProjectionBehavior(projection), projection.projectionId.id)
 
+    // Get app version for reporting
+    val version = system.settings.config.getString("app-version")
+
     // Create service handlers
     val service: HttpRequest => Future[HttpResponse] =
-      ProductAvailabilityServiceHandler.withServerReflection(new ProductAvailabilityServiceImpl(system))
+      ProductAvailabilityServiceHandler.withServerReflection(new ProductAvailabilityServiceImpl(system, version))
 
     // Bind service handler servers to localhost:8080
     val binding = Http()(system.toClassic).newServerAt("0.0.0.0", 8080).bind(service)
