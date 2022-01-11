@@ -30,7 +30,9 @@ Transfer all files in /kubernetes to your cloud console VM.
 
 `kubectl apply -f deployment.yaml`
 
-`kubectl expose deployment nike-inventory --type=LoadBalancer --name=nike-inventory-service`
+`kubectl expose deployment nike-inventory-domain --type=LoadBalancer --name=nike-inventory-domain-service`
+
+`kubectl expose deployment nike-inventory-query --type=LoadBalancer --name=nike-inventory-query-service`
 
 ### To Redeploy to Kubernetes
 

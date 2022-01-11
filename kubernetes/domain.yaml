@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: nike-inventory-domain
+  name: nike-inventory-domain
+  namespace: nike-inventory
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nike-inventory-domain
+  template:
+    metadata:
+      labels:
+        app: nike-inventory-domain
+    spec:
+      containers:
+        - name: nike-inventory-domain
+          image: us-east4-docker.pkg.dev/nike-pov/nike-inventory/nike-inventory-domain:0.1.1-SNAPSHOT
+          readinessProbe:
+            httpGet:
+              path: "/ready"
+              port: management
+            periodSeconds: 10
+            failureThreshold: 3
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet:
+              path: "/alive"
+              port: management
+            periodSeconds: 10
+            failureThreshold: 5
+            initialDelaySeconds: 20
+          ports:
+            - name: management
+              containerPort: 8558
+              protocol: TCP
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: REQUIRED_CONTACT_POINT_NR
+              value: "2"

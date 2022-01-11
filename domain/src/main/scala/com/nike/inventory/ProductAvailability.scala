@@ -6,27 +6,10 @@ import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import akka.persistence.typed.PersistenceId
 import org.slf4j.Logger
+import ProductAvailabilityCommands._
+import ProductAvailabilityEvents._
 
 object ProductAvailability {
-  sealed trait Command {
-    def sku: String
-  }
-
-  final case class AddItemCommand(sku: String) extends Command
-  final case class RemoveItemCommand(sku: String) extends Command
-  final case class GetProductAvailabilityCommand(sku: String, replyTo: ActorRef[Reply]) extends Command
-
-  sealed trait Reply extends CborSerializable
-  final case class ProductAvailabilityReply(sku: String, quantity: Int) extends Reply
-
-  sealed trait Event extends CborSerializable {
-    def sku: String
-    def onHandQuantity: Int
-  }
-
-  final case class ItemAdded(sku: String, onHandQuantity: Int) extends Event
-  final case class ItemRemoved(sku: String, onHandQuantity: Int) extends Event
-
   sealed trait State extends CborSerializable {
     def sku: String
   }

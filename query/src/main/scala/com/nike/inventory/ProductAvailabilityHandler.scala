@@ -5,20 +5,21 @@ import akka.projection.eventsourced.EventEnvelope
 import akka.projection.slick.SlickHandler
 import org.slf4j.LoggerFactory
 import slick.dbio.DBIO
+import ProductAvailabilityEvents._
 
 import scala.concurrent.ExecutionContext
 
 class ProductAvailabilityHandler(repository: LowInventoryRepository)(implicit ec: ExecutionContext)
-  extends SlickHandler[EventEnvelope[ProductAvailability.Event]] {
+  extends SlickHandler[EventEnvelope[Event]] {
 
   private val logger = LoggerFactory.getLogger(getClass)
 
   private val LowInventoryThreshold = 5
 
-  override def process(envelope: EventEnvelope[ProductAvailability.Event]): DBIO[Done] = {
+  override def process(envelope: EventEnvelope[Event]): DBIO[Done] = {
     envelope.event match {
 
-      case event @ (ProductAvailability.ItemAdded(_, _) | ProductAvailability.ItemRemoved(_, _)) =>
+      case event @ (ItemAdded(_, _) | ItemRemoved(_, _)) =>
         logger.debug(s"ProductAvailability:ItemAdded with sku of ${event.sku}")
         if (event.onHandQuantity <= LowInventoryThreshold) {
           logger.debug(s"Low inventory condition for sku of ${event.sku}")
