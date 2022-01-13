@@ -1,11 +1,11 @@
-package com.example.inventory
+package com.yoppworks.inventory
 
 import akka.actor.typed.ActorSystem
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.util.Timeout
 import com.google.protobuf.empty.Empty
 import ProductAvailabilityCommands._
-import com.example.inventory.api.{AddItemRequest, GetAvailabilityRequest, GetVersionRequest, ProductAvailabilityResponse, RemoveItemRequest, Version}
+import com.yoppworks.inventory.api.{AddItemRequest, GetAvailabilityRequest, GetVersionRequest, ProductAvailabilityResponse, RemoveItemRequest, Version}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._

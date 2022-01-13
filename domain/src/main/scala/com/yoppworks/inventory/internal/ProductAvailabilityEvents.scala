@@ -1,4 +1,4 @@
-package com.example.inventory.internal
+package com.yoppworks.inventory.internal
 
 sealed trait Event {
   def sku: String

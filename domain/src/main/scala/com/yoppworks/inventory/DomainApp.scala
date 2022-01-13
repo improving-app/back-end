@@ -1,4 +1,4 @@
-package com.example.inventory
+package com.yoppworks.inventory
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
@@ -9,7 +9,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
-import com.example.inventory.api.ProductAvailabilityServiceHandler
+import com.yoppworks.inventory.api.ProductAvailabilityServiceHandler
 
 import scala.concurrent.Future
 

@@ -1,4 +1,4 @@
-package com.example.inventory
+package com.yoppworks.inventory
 
 import akka.actor.typed.ActorRef
 
