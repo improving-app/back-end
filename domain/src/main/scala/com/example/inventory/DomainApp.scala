@@ -1,4 +1,4 @@
-package com.nike.inventory
+package com.example.inventory
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
@@ -9,7 +9,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
-import com.nike.inventory.api.ProductAvailabilityServiceHandler
+import com.example.inventory.api.ProductAvailabilityServiceHandler
 
 import scala.concurrent.Future
 
@@ -55,5 +55,5 @@ object DomainApp extends App {
     Cluster(system).subscriptions ! Subscribe(listener, classOf[ClusterEvent.MemberEvent])
 
     Behaviors.empty
-  }, "nike-inventory-domain")
+  }, "inventory-domain")
 }

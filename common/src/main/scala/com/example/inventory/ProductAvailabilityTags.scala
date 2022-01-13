@@ -1,4 +1,4 @@
-package com.nike.inventory
+package com.example.inventory
 
 object ProductAvailabilityTags {
   val Single = "product-availability"

@@ -1,4 +1,4 @@
-package com.nike.inventory
+package com.example.inventory
 
 import scala.concurrent.Future
 
@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory
 
 /**
  * Example customer health check.
+ * Would need to update config to enable this.
  */
 class HealthCheck(system: ActorSystem) extends (() => Future[Boolean]) {
   private val log = LoggerFactory.getLogger(getClass)

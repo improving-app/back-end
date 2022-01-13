@@ -1,4 +1,4 @@
-package com.nike.inventory.internal
+package com.example.inventory.internal
 
 sealed trait Event {
   def sku: String

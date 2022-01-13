@@ -1,4 +1,7 @@
-# To build, publish dockerize and deploy to GKE
+NOTE: query side will be pushed very soon!
+      we'll need to create a new GCP project to match example.inventory and unwind all the Nike stuff.
+
+# To build, publish dockerize and deploy to GKE (using Nike project for example)
 
 `sbt clean docker:publishLocal` to test locally or...
 

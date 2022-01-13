@@ -1,4 +1,4 @@
-package com.nike.inventory
+package com.example.inventory
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import com.typesafe.config.ConfigFactory

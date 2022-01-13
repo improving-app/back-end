@@ -3,9 +3,9 @@ syntax = "proto3";
 import "google/protobuf/empty.proto";
 
 option java_multiple_files = true;
-option java_package = "com.nike.inventory.api";
+option java_package = "com.example.inventory.api";
 
-package com.nike.inventory.api;
+package com.example.inventory.api;
 
 message AddItemRequest {
     string sku = 1;
@@ -19,17 +19,11 @@ message GetAvailabilityRequest {
     string sku = 1;
 }
 
-message GetShardStatsRequest {}
-
 message GetVersionRequest {}
 
 message ProductAvailabilityResponse {
     string sku = 1;
     int64 quantity = 4;
-}
-
-message ShardStats {
-    string stats = 1;
 }
 
 message Version {
@@ -42,8 +36,6 @@ service ProductAvailabilityService {
     rpc AddItem(AddItemRequest) returns (google.protobuf.Empty) {}
 
     rpc RemoveItem(RemoveItemRequest) returns (google.protobuf.Empty) {}
-
-    rpc GetShardStats(GetShardStatsRequest) returns (ShardStats) {}
 
     rpc GetVersion(GetVersionRequest) returns (Version) {}
 }

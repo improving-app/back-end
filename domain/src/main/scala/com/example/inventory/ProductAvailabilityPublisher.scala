@@ -1,4 +1,4 @@
-//package com.nike.inventory
+//package com.example.inventory
 //
 //import akka.Done
 //import akka.projection.eventsourced.EventEnvelope

@@ -1,14 +1,11 @@
-package com.nike.inventory
+package com.example.inventory
 
 import akka.actor.typed.ActorSystem
-import akka.cluster.sharding.typed.GetShardRegionState
-import akka.cluster.sharding.ShardRegion.CurrentShardRegionState
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
-import akka.actor.typed.scaladsl.AskPattern._
 import akka.util.Timeout
 import com.google.protobuf.empty.Empty
-import com.nike.inventory.api.{AddItemRequest, GetAvailabilityRequest, GetShardStatsRequest, GetVersionRequest, ProductAvailabilityResponse, RemoveItemRequest, ShardStats, Version}
 import ProductAvailabilityCommands._
+import com.example.inventory.api.{AddItemRequest, GetAvailabilityRequest, GetVersionRequest, ProductAvailabilityResponse, RemoveItemRequest, Version}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -29,7 +26,12 @@ class ProductAvailabilityServiceImpl(system: ActorSystem[_], appVersion: String)
     val entityRef = sharding.entityRefFor(ProductAvailability.TypeKey, in.sku)
     val res = entityRef.ask(ref => GetProductAvailabilityCommand(in.sku, ref)).mapTo[ProductAvailabilityReply]
     system.log.debug(s"GetProductAvailabilityCommand $res")
-    res.map(reply => ProductAvailabilityResponse(reply.sku, reply.quantity))
+    res.map(
+      reply =>
+        ProductAvailabilityResponse.defaultInstance
+          .withSku(reply.sku)
+          .withQuantity(reply.quantity)
+    )
   }
 
   override def addItem(in: AddItemRequest): Future[Empty] = {
@@ -44,23 +46,6 @@ class ProductAvailabilityServiceImpl(system: ActorSystem[_], appVersion: String)
     val entityRef = sharding.entityRefFor(ProductAvailability.TypeKey, in.sku)
     entityRef ! RemoveItemCommand(in.sku)
     Future(Empty.defaultInstance)
-  }
-
-  /**
-   * temporary helper function used to witness shard allocation.
-   */
-  override def getShardStats(in: GetShardStatsRequest): Future[ShardStats] = {
-    implicit val scheduler = system.scheduler
-    implicit val askTimeout: Timeout = Timeout(5.seconds)
-
-    val result: Future[CurrentShardRegionState] = ClusterSharding(system).shardState.ask(
-      ref => GetShardRegionState(ProductAvailability.TypeKey, ref)
-    )
-
-    result.map (s =>
-      ShardStats(s"total in memory entities:${s.shards.foldLeft(0)((accum, shard) =>
-        accum + shard.entityIds.size).toString}")
-    )
   }
 
   override def getVersion(in: GetVersionRequest): Future[Version] =
