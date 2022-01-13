@@ -28,11 +28,6 @@ object DomainApp extends App {
     val cluster = Cluster(system)
     context.log.info("Started [" + system + "], cluster.selfAddress = " + cluster.selfMember.address + ")")
 
-    // Use for resetting data after breaking refactor.
-    //SchemaUtils.dropIfExists(system)
-    //SchemaUtils.createIfNotExists(system)
-    //
-
     val sharding = ClusterSharding(system)
 
     sharding.init(Entity(typeKey = ProductAvailability.TypeKey) { entityContext =>
@@ -42,14 +37,10 @@ object DomainApp extends App {
     // Get app version for reporting
     val version = system.settings.config.getString("app-version")
 
-    // Create service handlers
+    // Create service handler and bind service handler servers to localhost:8080
     val service: HttpRequest => Future[HttpResponse] =
       ProductAvailabilityServiceHandler.withServerReflection(new ProductAvailabilityServiceImpl(system, version))
-
-    // Bind service handler servers to localhost:8080
     val binding = Http()(system.toClassic).newServerAt("0.0.0.0", 8080).bind(service)
-
-    // report successful binding
     binding.foreach { binding => println(s"gRPC server bound to: ${binding.localAddress}") }
 
     AkkaManagement.get((system.toClassic)).start()
@@ -64,5 +55,5 @@ object DomainApp extends App {
     Cluster(system).subscriptions ! Subscribe(listener, classOf[ClusterEvent.MemberEvent])
 
     Behaviors.empty
-  }, "nike-inventory")
+  }, "nike-inventory-domain")
 }

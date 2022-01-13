@@ -4,7 +4,7 @@ metadata:
   labels:
     app: nike-inventory-domain
   name: nike-inventory-domain
-  namespace: nike-inventory
+  namespace: nike-inventory-domain
 spec:
   replicas: 3
   selector:
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: nike-inventory-domain
-          image: us-east4-docker.pkg.dev/nike-pov/nike-inventory/nike-inventory-domain:0.1.1-SNAPSHOT
+          image: us-east4-docker.pkg.dev/nike-pov/nike-inventory/nike-inventory-domain:0.1.7-SNAPSHOT
           readinessProbe:
             httpGet:
               path: "/ready"

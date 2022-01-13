@@ -2,9 +2,9 @@
   "kind": "Namespace",
   "apiVersion": "v1",
   "metadata": {
-    "name": "nike-inventory",
+    "name": "nike-inventory-domain",
     "labels": {
-      "name": "nike-inventory"
+      "name": "nike-inventory-domain"
     }
   }
 }

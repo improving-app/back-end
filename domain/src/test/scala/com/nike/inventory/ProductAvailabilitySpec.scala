@@ -4,7 +4,6 @@ import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import com.typesafe.config.ConfigFactory
 import org.scalatest.wordspec.AnyWordSpecLike
 import ProductAvailabilityCommands._
-import ProductAvailabilityEvents._
 
 class ProductAvailabilitySpec
   extends ScalaTestWithActorTestKit(ConfigFactory.load("test-application.conf"))

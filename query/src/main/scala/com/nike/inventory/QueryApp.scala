@@ -6,12 +6,6 @@ import akka.cluster.ClusterEvent
 import akka.cluster.typed.{Cluster, Subscribe}
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.javadsl.AkkaManagement
-import akka.persistence.jdbc.query.javadsl.JdbcReadJournal
-import akka.projection.{ProjectionBehavior, ProjectionId}
-import akka.projection.eventsourced.scaladsl.EventSourcedProvider
-import akka.projection.slick.SlickProjection
-import slick.basic.DatabaseConfig
-import slick.jdbc.PostgresProfile
 
 /**
  * Contains the bootstrapping of this entire app/cluster/persistence/discover/management.
@@ -28,23 +22,23 @@ object QueryApp extends App {
     val cluster = Cluster(system)
     context.log.info("Started [" + system + "], cluster.selfAddress = " + cluster.selfMember.address + ")")
 
-    val dbConfig: DatabaseConfig[PostgresProfile] =
-      DatabaseConfig.forConfig("akka.projection.slick", system.settings.config)
-
-    SlickProjection.createTablesIfNotExists(dbConfig)
-
-    val sourceProvider =
-      EventSourcedProvider
-        .eventsByTag[ProductAvailabilityEvents.Event](context.system, readJournalPluginId = JdbcReadJournal.Identifier,
-          tag = ProductAvailabilityTag)
-
-    val projection = SlickProjection.exactlyOnce(
-      projectionId = ProjectionId("ProductAvailability", "sku"),
-      sourceProvider,
-      dbConfig,
-      handler = () => new ProductAvailabilityHandler(new LowInventoryRepository(dbConfig)))
-
-    context.spawn(ProjectionBehavior(projection), projection.projectionId.id)
+//    val dbConfig: DatabaseConfig[PostgresProfile] =
+//      DatabaseConfig.forConfig("akka.projection.slick", system.settings.config)
+//
+//    SlickProjection.createTablesIfNotExists(dbConfig)
+//
+//    val sourceProvider =
+//      EventSourcedProvider
+//        .eventsByTag[ProductAvailabilityEvents.Event](context.system, readJournalPluginId = JdbcReadJournal.Identifier,
+//          tag = ProductAvailabilityTag)
+//
+//    val projection = SlickProjection.exactlyOnce(
+//      projectionId = ProjectionId("ProductAvailability", "sku"),
+//      sourceProvider,
+//      dbConfig,
+//      handler = () => new ProductAvailabilityHandler(new LowInventoryRepository(dbConfig)))
+//
+//    context.spawn(ProjectionBehavior(projection), projection.projectionId.id)
 
     AkkaManagement.get((system.toClassic)).start()
     ClusterBootstrap.get((system.toClassic)).start()

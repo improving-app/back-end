@@ -11,6 +11,6 @@ object ProductAvailabilityCommands {
   final case class RemoveItemCommand(sku: String) extends Command
   final case class GetProductAvailabilityCommand(sku: String, replyTo: ActorRef[Reply]) extends Command
 
-  sealed trait Reply extends CborSerializable
+  sealed trait Reply
   final case class ProductAvailabilityReply(sku: String, quantity: Int) extends Reply
 }

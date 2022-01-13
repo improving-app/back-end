@@ -1,16 +1,16 @@
 package com.nike.inventory
 
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import akka.persistence.typed.PersistenceId
 import org.slf4j.Logger
 import ProductAvailabilityCommands._
-import ProductAvailabilityEvents._
+import internal._
 
 object ProductAvailability {
-  sealed trait State extends CborSerializable {
+  sealed trait State {
     def sku: String
   }
 

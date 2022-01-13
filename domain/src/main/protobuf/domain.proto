@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.nike.inventory.domain";
+
+package com.nike.inventory.domain;
+
+message ItemAdded {
+    string sku = 1;
+    int32 on_hand_quantity = 2;
+    string meta = 3;
+}
+
+message ItemRemoved {
+    string sku = 1;
+    int32 on_hand_quantity = 2;
+    string meta = 3;
+}

@@ -2,22 +2,22 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: nike-inventory
-  name: nike-inventory
-  namespace: nike-inventory
+    app: nike-inventory-query
+  name: nike-inventory-query
+  namespace: nike-inventory-query
 spec:
-  replicas: 4
+  replicas: 3
   selector:
     matchLabels:
-      app: nike-inventory
+      app: nike-inventory-query
   template:
     metadata:
       labels:
-        app: nike-inventory
+        app: nike-inventory-query
     spec:
       containers:
-        - name: nike-inventory
-          image: us-east4-docker.pkg.dev/nike-pov/nike-inventory/nike-inventory:0.1.11
+        - name: nike-inventory-query
+          image: us-east4-docker.pkg.dev/nike-pov/nike-inventory/nike-inventory-query:0.1.2-SNAPSHOT
           readinessProbe:
             httpGet:
               path: "/ready"
