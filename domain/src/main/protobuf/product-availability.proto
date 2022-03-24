@@ -3,26 +3,34 @@ syntax = "proto3";
 import "google/protobuf/empty.proto";
 
 option java_multiple_files = true;
-option java_package = "com.yoppworks.inventory.api";
+option java_package = "com.inventory.api.v1";
 
-package com.yoppworks.inventory.api;
+package com.inventory.api.v1;
 
 message AddItemRequest {
-    string sku = 1;
+    string style = 1;
+    string color = 2;
+    string size = 3;
 }
 
 message RemoveItemRequest {
-    string sku = 1;
+    string style = 1;
+    string color = 2;
+    string size = 3;
 }
 
 message GetAvailabilityRequest {
-    string sku = 1;
+    string style = 1;
+    string color = 2;
+    string size = 3;
 }
 
 message GetVersionRequest {}
 
 message ProductAvailabilityResponse {
-    string sku = 1;
+    string style = 1;
+    string color = 2;
+    string size = 3;
     int64 quantity = 4;
 }
 
@@ -32,10 +40,7 @@ message Version {
 
 service ProductAvailabilityService {
     rpc GetAvailability(GetAvailabilityRequest) returns (ProductAvailabilityResponse) {}
-
     rpc AddItem(AddItemRequest) returns (google.protobuf.Empty) {}
-
     rpc RemoveItem(RemoveItemRequest) returns (google.protobuf.Empty) {}
-
     rpc GetVersion(GetVersionRequest) returns (Version) {}
 }

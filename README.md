@@ -1,7 +1,4 @@
-NOTE: query side will be pushed very soon!
-      we'll need to create a new GCP project to match example.inventory and unwind all the Nike stuff.
-
-# To build, publish dockerize and deploy to GKE (using Nike project for example)
+# To build, publish dockerize and deploy to GKE
 
 `sbt clean docker:publishLocal` to test locally or...
 
@@ -24,52 +21,41 @@ than query, which makes things much more clear during rolling updates, etc.
 
 Choose which namespace you'll be working with:
 
-    `kubectl config set-context --current --namespace=nike-inventory-command`
+    `kubectl config set-context --current --namespace=inventory-domain`
 
     or
 
-    `kubectl config set-context --current --namespace=nike-inventory-query`
-
+    `kubectl config set-context --current --namespace=inventory-query`
 
 `kubectl apply -f akka-cluster-role.yaml`
 
-`kubectl apply -f command.yaml`
+`kubectl apply -f domain.yaml`
 
-`kubectl expose deployment nike-inventory-domain --type=LoadBalancer --name=nike-inventory-domain-service`
+`kubectl expose deployment inventory-domain --type=LoadBalancer --port=80 --target-port=8080 --name=inventory-domain-service`
 
-`kubectl apply -f command.yaml`
+`kubectl apply -f query.yaml`
 
-`kubectl expose deployment nike-inventory-query --type=LoadBalancer --name=nike-inventory-query-service`
-
-### FUTURE (todo):
-    `gcloud secrets create nike-sql-secret \
-    --replication-policy="automatic"`
-
-    `gcloud secrets update nike-sql-secret \
-    --update-labels=username=postgres`
-
-    `gcloud secrets update nike-sql-secret \
-    --update-labels=password=postgres`
+`kubectl expose deployment inventory-query --type=LoadBalancer --port=80 --target-port=8080 --name=inventory-query-service`
 
 ### To Redeploy to Kubernetes from scratch
 
-`kubectl delete deploy nike-inventory-command`
+`kubectl delete deploy inventory-command`
 
-`kubectl apply -f nike-inventory-command`
+`kubectl apply -f inventory-command`
 
-`kubectl delete deploy nike-inventory-query`
+`kubectl delete deploy inventory-query`
 
-`kubectl apply -f nike-inventory-query`
+`kubectl apply -f inventory-query`
 
 ### To perform a rolling update (for command, same process for query)
 
 Bump the app version in build.sbt, application.conf and command.yaml. Akka will see the version increase and recognize
 it and start routing to the pods containing that version and shut down the others.
 
-`kubectl apply -f nike-inventory-command`
+`kubectl apply -f inventory-domain`
 
 ## to test:
 
-Run `kubectl describe services nike-inventory-service` and take note of LoadBalancer External IP.
+Run `kubectl describe services inventory-service` and take note of LoadBalancer External IP.
 
-`grpcurl -plaintext -d '{"sku": "1234"}' <<EXTERNALIP>>:8080 com.nike.inventory.api.ProductAvailabilityService/GetAvailability`
+`grpcurl -plaintext -d '{"sku": "1234"}' <<EXTERNALIP>>:8080 com.inventory.api.ProductAvailabilityService/GetAvailability`

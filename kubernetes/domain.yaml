@@ -2,22 +2,23 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: nike-inventory-domain
-  name: nike-inventory-domain
-  namespace: nike-inventory-domain
+    app: inventory-domain
+  name: inventory-domain
+  namespace: inventory-domain
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
-      app: nike-inventory-domain
+      app: inventory-domain
   template:
     metadata:
       labels:
-        app: nike-inventory-domain
+        app: inventory-domain
     spec:
       containers:
-        - name: nike-inventory-domain
-          image: us-east4-docker.pkg.dev/nike-pov/nike-inventory/nike-inventory-domain:0.1.7-SNAPSHOT
+        - name: inventory-domain
+          image: {TODO:FULL PATH TO ARTIFACT}
+          imagePullPolicy: Always
           readinessProbe:
             httpGet:
               path: "/ready"

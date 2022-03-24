@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.inventory.domain.v1";
+
+package com.inventory.domain.v1;
+
+// This would be either ItemAdded or ItemRemoved from the domain, we don't care which.
+message BaseEvent {
+    string entity_id = 1;
+    string style = 2;
+    string color = 3;
+    string size = 4;
+    int32 on_hand_quantity = 5;
+}

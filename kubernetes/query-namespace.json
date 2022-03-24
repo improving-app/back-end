@@ -2,9 +2,9 @@
   "kind": "Namespace",
   "apiVersion": "v1",
   "metadata": {
-    "name": "nike-inventory-query",
+    "name": "inventory-query",
     "labels": {
-      "name": "nike-inventory-query"
+      "name": "inventory-query"
     }
   }
 }

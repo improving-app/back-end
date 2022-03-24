@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.inventory.publishing.v1";
+
+package com.inventory.publishing.v1;
+
+message ItemAddedExternal {
+    string entity_id = 1;
+    string style = 2;
+    string color = 3;
+    string size = 4;
+    int32 on_hand_quantity = 5;
+    string event_type = 6; // set to "ItemAdded"
+}
+
+message ItemRemovedExternal {
+    string entity_id = 1;
+    string style = 2;
+    string color = 3;
+    string size = 4;
+    int32 on_hand_quantity = 5;
+    string event_type = 6; // set to "ItemRemoved"
+}
