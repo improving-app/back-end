@@ -5,10 +5,13 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.io.Source
 
 class RoutesSpec extends AnyWordSpec with ScalatestRouteTest with Matchers with JsonFormats {
 
-  override def testConfigSource: String =
+  Console.println(s"getting env var value as:${sys.env.get("QUERY_PROJECTION_DB_PASSWORD")}")
+
+  override def testConfigSource: String = 
     s"""
     akka {
       loglevel = DEBUG
@@ -16,6 +19,7 @@ class RoutesSpec extends AnyWordSpec with ScalatestRouteTest with Matchers with 
         jackson-cbor = "akka.serialization.jackson.JacksonCborSerializer"
       }
     }
+    akka.coordinated-shutdown.exit-jvm = off
     """.stripMargin
 
   final val TestData: Seq[LowInventory] = Seq(

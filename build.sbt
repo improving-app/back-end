@@ -1,6 +1,6 @@
 name := "inventory"
 
-scalaVersion := "2.13.4"
+scalaVersion := "2.13.8"
 lazy val AkkaVersion = "2.6.18"
 lazy val AkkaHttpVersion = "10.2.7"
 lazy val AkkaGrpcVersion = "2.1.3"
@@ -15,12 +15,17 @@ lazy val CorsVersion = "1.1.3"
 lazy val LogbackVersion = "1.2.10"
 lazy val ScalatestVersion = "3.2.10"
 
-version in ThisBuild := "1.12-SNAPSHOT"
+
+//Test / fork := true
+
+//lazy val envVars = Map("QUERY_PROJECTION_DB_PASSWORD"->"fred","QUERY_PROJECTION_DB_USER"->"george")
+
+ThisBuild / version := "1.12-SNAPSHOT"
 
 lazy val root = (project in file("."))
   .aggregate(domain, query)
   .settings(
-    skip in publish := true
+    publish / skip:= true
   )
 
 lazy val domain = (project in file("domain"))
@@ -29,8 +34,10 @@ lazy val domain = (project in file("domain"))
     dockerExposedPorts := Seq(8080, 8558, 25520), // http, management and artery remoting
     dockerBaseImage := "adoptopenjdk/openjdk13:alpine-slim",
     dockerRepository := Some("us-east4-docker.pkg.dev"),
+    Test / fork := true,
+    Test / envVars ++= Map("QUERY_PROJECTION_DB_PASSWORD"->"fred","QUERY_PROJECTION_DB_USER"->"george"),
     dockerUpdateLatest := true,
-    packageName in Docker := "nike-pov/nike-inventory/inventory-domain",
+    Docker / packageName := "nike-pov/nike-inventory/inventory-domain",
     libraryDependencies ++= Seq(
       "com.typesafe.akka"             %% "akka-http"                         % AkkaHttpVersion,
       "com.typesafe.akka"             %% "akka-http2-support"                % AkkaHttpVersion,
@@ -67,7 +74,9 @@ lazy val query = (project in file("query"))
     dockerBaseImage := "adoptopenjdk/openjdk13:alpine-slim",
     dockerRepository := Some("us-east4-docker.pkg.dev"),
     dockerUpdateLatest := false,
-    packageName in Docker := "nike-pov/nike-inventory/inventory-query",
+    Test / fork := true,
+    Test / envVars ++= Map("QUERY_PROJECTION_DB_PASSWORD"->"fred","QUERY_PROJECTION_DB_USER"->"george"),
+    Docker / packageName := "nike-pov/nike-inventory/inventory-query",
     libraryDependencies ++= Seq(
       "com.typesafe.akka"             %% "akka-http"                         % AkkaHttpVersion,
       "com.typesafe.akka"             %% "akka-http2-support"                % AkkaHttpVersion,
