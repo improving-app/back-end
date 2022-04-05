@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: inventory-domain
-          image: {TODO:FULL PATH TO ARTIFACT}
+          image: us-east4-docker.pkg.dev/nike-pov/nike-inventory/inventory-domain:1.12-SNAPSHOT
           imagePullPolicy: Always
           readinessProbe:
             httpGet:

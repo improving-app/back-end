@@ -3,22 +3,20 @@ import uuid
 from grpc import aio
 import asyncio
 from asyncio import gather
-from aiomultiprocess import Pool
-from aiomultiprocess import Worker
+from aiomultiprocess import Pool, Worker
 import time
 
 import product_availability_pb2
 import product_availability_pb2_grpc
 
-#logging.basicConfig(filename=str(uuid.uuid4().hex) + '.log', level=logging.INFO)
 logging.basicConfig(filename='process.log', level=logging.INFO)
 
-ENTITY_COUNT = 1
+ENTITY_COUNT = 100
 ITEMS_PER_ENTITY = 100
 COUNTER_OUTPUT_GRANULARITY = 1000
 PROCESSES = 10
 ON_ERROR_SLEEP_SECONDS = 10
-SERVER_IP = '35.245.173.170:80'
+SERVER_IP = '34.86.125.164:80' #sub with real ip
 
 channel = aio.insecure_channel(SERVER_IP)
 stub = product_availability_pb2_grpc.ProductAvailabilityServiceStub(channel)
@@ -31,7 +29,7 @@ async def process(name):
 
     async def call(uniqueStyle):
         await stub.AddItem(product_availability_pb2.AddItemRequest(style=uniqueStyle, color='red', size='10'))
-    
+
     for entity in range(0, ENTITY_COUNT):
         uniqueStyle = str(uuid.uuid4().hex)
 
@@ -44,8 +42,6 @@ async def process(name):
             try:
                 logging.warning("retrying for style:" + uniqueStyle)
                 time.sleep(ON_ERROR_SLEEP_SECONDS)
-#                 channel = grpc.insecure_channel(SERVER_IP)
-#                 stub = product_availability_pb2_grpc.ProductAvailabilityServiceStub(channel)
                 await call(uniqueStyle) # do a single retry
                 successes += 1
             except:

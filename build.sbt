@@ -15,7 +15,7 @@ lazy val CorsVersion = "1.1.3"
 lazy val LogbackVersion = "1.2.10"
 lazy val ScalatestVersion = "3.2.10"
 
-version in ThisBuild := "1.08-SNAPSHOT"
+version in ThisBuild := "1.12-SNAPSHOT"
 
 lazy val root = (project in file("."))
   .aggregate(domain, query)
@@ -30,7 +30,7 @@ lazy val domain = (project in file("domain"))
     dockerBaseImage := "adoptopenjdk/openjdk13:alpine-slim",
     dockerRepository := Some("us-east4-docker.pkg.dev"),
     dockerUpdateLatest := true,
-    packageName in Docker := "{PATH TO ARTIFACT REPO}",
+    packageName in Docker := "nike-pov/nike-inventory/inventory-domain",
     libraryDependencies ++= Seq(
       "com.typesafe.akka"             %% "akka-http"                         % AkkaHttpVersion,
       "com.typesafe.akka"             %% "akka-http2-support"                % AkkaHttpVersion,
@@ -67,7 +67,7 @@ lazy val query = (project in file("query"))
     dockerBaseImage := "adoptopenjdk/openjdk13:alpine-slim",
     dockerRepository := Some("us-east4-docker.pkg.dev"),
     dockerUpdateLatest := false,
-    packageName in Docker := "PATH TO ARTIFACT REPO",
+    packageName in Docker := "nike-pov/nike-inventory/inventory-query",
     libraryDependencies ++= Seq(
       "com.typesafe.akka"             %% "akka-http"                         % AkkaHttpVersion,
       "com.typesafe.akka"             %% "akka-http2-support"                % AkkaHttpVersion,
