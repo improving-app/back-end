@@ -32,7 +32,8 @@ lazy val domain = (project in file("domain"))
   .enablePlugins(AkkaGrpcPlugin, DockerPlugin, JavaAppPackaging, AshScriptPlugin)
   .settings(
     dockerExposedPorts := Seq(8080, 8558, 25520), // http, management and artery remoting
-    dockerBaseImage := "adoptopenjdk/openjdk13:alpine-slim",
+    //dockerBaseImage := "adoptopenjdk/openjdk13:alpine-slim",
+    dockerBaseImage := "adoptopenjdk/openjdk11:centos-slim",
     dockerRepository := Some("us-east4-docker.pkg.dev"),
     Test / fork := true,
     Test / envVars ++= Map("QUERY_PROJECTION_DB_PASSWORD"->"fred","QUERY_PROJECTION_DB_USER"->"george"),
@@ -71,7 +72,8 @@ lazy val query = (project in file("query"))
   .enablePlugins(AkkaGrpcPlugin, DockerPlugin, JavaAppPackaging, AshScriptPlugin)
   .settings(
     dockerExposedPorts := Seq(8080, 8558, 25520), // http, management and artery remoting
-    dockerBaseImage := "adoptopenjdk/openjdk13:alpine-slim",
+   // dockerBaseImage := "adoptopenjdk/openjdk13:alpine-slim",
+    dockerBaseImage := "adoptopenjdk/openjdk11:centos-slim",
     dockerRepository := Some("us-east4-docker.pkg.dev"),
     dockerUpdateLatest := false,
     Test / fork := true,
