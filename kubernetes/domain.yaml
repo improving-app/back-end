@@ -18,7 +18,7 @@ spec:
       containers:
         - name: inventory-domain
           image: us-east4-docker.pkg.dev/nike-pov/nike-inventory/inventory-domain:1.12-SNAPSHOT
-          imagePullPolicy: Always
+          imagePullPolicy: seeOverlays
           readinessProbe:
             httpGet:
               path: "/ready"

@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-domain
+  spec:
+    template:
+      spec:
+        containers:
+          - name : inventory-domain
+            imagePullPolicy: Always
+            env:
+              - name: JDBC_URL
+                value: jdbc:postgresql:///postgres?cloudSqlInstance=nike-pov:us-east4:nike1&socketFactory=com.google.cloud.sql.postgres.SocketFactory
