@@ -19,11 +19,11 @@ class ProductAvailabilityConsumer(repository: LowInventoryRepository)(implicit s
 
   implicit val ec = system.executionContext
 
-  val ProjectId = "nike-POV"
-  val SubscriptionId = "nike-inventory-query"
+  val ProjectId = "reference-applications" // todo: pull from config, which derives from secret
+  val SubscriptionId = "inventory-query"
   val LowInventoryThreshold = 3
 
-  val serialization = SerializationExtension(system)
+  //val serialization = SerializationExtension(system)
   var subscriber: Subscriber = null
 
   val subscriptionName: ProjectSubscriptionName = ProjectSubscriptionName.of(ProjectId, SubscriptionId)

@@ -1,6 +1,6 @@
 name := "inventory"
 
-scalaVersion := "2.13.4"
+scalaVersion := "2.13.8"
 lazy val AkkaVersion = "2.6.18"
 lazy val AkkaHttpVersion = "10.2.7"
 lazy val AkkaGrpcVersion = "2.1.3"

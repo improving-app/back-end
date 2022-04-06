@@ -1,22 +1,15 @@
 package com.inventory
 
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class RoutesSpec extends AnyWordSpec with ScalatestRouteTest with Matchers with JsonFormats {
+class RoutesSpec extends AnyWordSpec with Matchers with JsonFormats with ScalatestRouteTest {
 
-  override def testConfigSource: String =
-    s"""
-    akka {
-      loglevel = DEBUG
-      serializers {
-        jackson-cbor = "akka.serialization.jackson.JacksonCborSerializer"
-      }
-    }
-    """.stripMargin
+  override def testConfig: Config = ConfigFactory.load("routes-spec.conf")
 
   final val TestData: Seq[LowInventory] = Seq(
     LowInventory("test-style1_blue_12", "test-style1", "blue", "12", 1),
@@ -37,7 +30,7 @@ class RoutesSpec extends AnyWordSpec with ScalatestRouteTest with Matchers with 
   //TODO: why am I not getting any output or reports of success?
   "the service" should {
     "return low inventory data" in {
-      Get() ~> route ~> check {
+      Get("/low-inventory") ~> route ~> check {
         responseAs[Seq[LowInventory]].shouldEqual(TestData)
       }
     }
