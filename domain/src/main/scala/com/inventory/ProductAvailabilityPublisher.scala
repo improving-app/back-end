@@ -23,8 +23,8 @@ class ProductAvailabilityPublisher(implicit system: ActorSystem[_]) extends Slic
 
   private val logger = LoggerFactory.getLogger(getClass)
 
-  val ProjectId = "" // todo
-  val TopicId = "" // todo
+  val ProjectId = "reference-applications" // todo: pull from config, which derives from secret
+  val TopicId = "inventory-events" // todo: todo: pull from config, which derives from secret
 
   val serialization = SerializationExtension(system)
   var publisher: Publisher = null
