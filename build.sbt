@@ -1,24 +1,19 @@
 name := "inventory"
 
 scalaVersion := "2.13.8"
-lazy val AkkaVersion = "2.6.18"
-lazy val AkkaHttpVersion = "10.2.7"
+lazy val AkkaVersion = "2.6.19"
+lazy val AkkaHttpVersion = "10.2.9"
 lazy val AkkaGrpcVersion = "2.1.3"
 lazy val AkkaManagementVersion = "1.1.3"
 lazy val AkkaProjectionVersion = "1.2.3"
 lazy val AkkaPersistenceJdbcVersion = "5.0.4"
-lazy val PostgresVersion = "42.3.1"
-lazy val PostgresSocketFactoryVersion = "1.4.1"
-lazy val PubsubVersion = "1.115.1"
+lazy val PostgresVersion = "42.3.3"
+lazy val PostgresSocketFactoryVersion = "1.5.0"
+lazy val PubsubVersion = "1.116.3"
 lazy val SlickVersion = "3.3.3"
 lazy val CorsVersion = "1.1.3"
-lazy val LogbackVersion = "1.2.10"
-lazy val ScalatestVersion = "3.2.10"
-
-
-//Test / fork := true
-
-//lazy val envVars = Map("QUERY_PROJECTION_DB_PASSWORD"->"fred","QUERY_PROJECTION_DB_USER"->"george")
+lazy val LogbackVersion = "1.2.11"
+lazy val ScalatestVersion = "3.2.11"
 
 ThisBuild / version := "1.12-SNAPSHOT"
 
@@ -35,13 +30,12 @@ lazy val domain = (project in file("domain"))
     //dockerBaseImage := "adoptopenjdk/openjdk13:alpine-slim",
     dockerBaseImage := "adoptopenjdk/openjdk11:centos-slim",
     dockerRepository := Some("us-east4-docker.pkg.dev"),
-    Test / fork := true,
-    Test / envVars ++= Map("QUERY_PROJECTION_DB_PASSWORD"->"fred","QUERY_PROJECTION_DB_USER"->"george"),
     dockerUpdateLatest := true,
     Docker / packageName := "nike-pov/nike-inventory/inventory-domain",
     libraryDependencies ++= Seq(
       "com.typesafe.akka"             %% "akka-http"                         % AkkaHttpVersion,
       "com.typesafe.akka"             %% "akka-http2-support"                % AkkaHttpVersion,
+      "com.typesafe.akka"             %% "akka-http-spray-json"              % AkkaHttpVersion,
       "com.typesafe.akka"             %% "akka-actor-typed"                  % AkkaVersion,
       "com.typesafe.akka"             %% "akka-persistence-typed"            % AkkaVersion,
       "com.lightbend.akka"            %% "akka-persistence-jdbc"             % AkkaPersistenceJdbcVersion,
@@ -76,15 +70,16 @@ lazy val query = (project in file("query"))
     dockerBaseImage := "adoptopenjdk/openjdk11:centos-slim",
     dockerRepository := Some("us-east4-docker.pkg.dev"),
     dockerUpdateLatest := false,
-    Test / fork := true,
-    Test / envVars ++= Map("QUERY_PROJECTION_DB_PASSWORD"->"fred","QUERY_PROJECTION_DB_USER"->"george"),
     Docker / packageName := "nike-pov/nike-inventory/inventory-query",
     libraryDependencies ++= Seq(
       "com.typesafe.akka"             %% "akka-http"                         % AkkaHttpVersion,
       "com.typesafe.akka"             %% "akka-http2-support"                % AkkaHttpVersion,
+      "com.typesafe.akka"             %% "akka-http-spray-json"              % AkkaHttpVersion,
       "ch.megard"                     %% "akka-http-cors"                    % CorsVersion,
       "com.typesafe.akka"             %% "akka-actor-typed"                  % AkkaVersion,
       "com.typesafe.akka"             %% "akka-cluster-typed"                % AkkaVersion,
+      "com.typesafe.akka"             %% "akka-persistence-query"            % AkkaVersion,
+      "com.typesafe.akka"             %% "akka-persistence"                  % AkkaVersion,
       "org.postgresql"                 % "postgresql"                        % PostgresVersion,
       "com.google.cloud.sql"           % "postgres-socket-factory"           % PostgresSocketFactoryVersion,
       "com.google.cloud"               % "google-cloud-pubsub"               % PubsubVersion,
