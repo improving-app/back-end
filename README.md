@@ -58,4 +58,106 @@ it and start routing to the pods containing that version and shut down the other
 
 Run `kubectl describe services inventory-service` and take note of LoadBalancer External IP.
 
-`grpcurl -plaintext -d '{"sku": "1234"}' <<EXTERNALIP>>:8080 com.inventory.api.ProductAvailabilityService/GetAvailability`
+`grpcurl -plaintext -d '{"size": "1", "color":"2", "style":"3"}' <<EXTERNALIP>>:8080 com.inventory.api.v1.ProductAvailabilityService/GetAvailability`
+
+
+# Configuration Customization
+
+This kubernetes file setup supports setting separate jdbc urls for the projection and persistence database and setting the user/password secrets in kubernetes files instead of hardcoding them in the application.confs.
+
+The projection url (which is used by both query and domain) is located here
+`kubernetes/overlays/test/shared/projection-jdbc.yaml`
+
+The persistence url (used only by domain) is located here
+`kubernetes/overlays/test/domain/query-deployment-patches.yaml`
+
+The projection db user/password are stored in
+`kubernetes/overlays/test/shared/projection-secret.yaml`
+
+The persistence db user/password are stored in 
+`kubernetes/overlays/test/domain/persistence-secret.yaml`
+
+The user/password values are stored in base64 encoding.
+use `echo -n user | base64` to encode the value, then copy it to the file. 
+
+
+
+
+# Minikube
+
+## To run this on minikube
+
+First you need to install minikube see here [minikube get started](https://minikube.sigs.k8s.io/docs/start/)
+
+
+You will also need access to a postgres cluster (eg instance of postgres) (#other-databases)
+
+You will also need to run the ddl per `scripts/ddl/domain.sql` (or see the slick documentation)
+
+Update the yamls as per (#configuration-customization)
+
+Once the yaml's have been updated (as per above) we proceed to the building phase
+
+First we use kubectl kustomize to merge the files into a single yaml
+
+Change directory to `kubernetes/overlays/test/domain` and the run 
+
+`kubectl kustomize > ../../../domain-test-deploymen.yaml`
+
+Then switch to `kubernetes/overlays/test/query` and run
+
+`kubectl kustomize > ../../../query-test-deployment.yaml`
+
+
+Go to the project root directory and run `sbt clean docker:publishLocal`
+
+For the following applies to work minikube needs to be running.
+
+`minikube start` to start it.  Or `minikube status` to check its state.
+
+Then we need to load the images into minikube (this may take some minute(s)):
+
+`minikube image load us-east4-docker.pkg.dev/nike-pov/nike-inventory/inventory-domain:1.12-SNAPSHOT`
+
+`minikube image load us-east4-docker.pkg.dev/nike-pov/nike-inventory/inventory-query:1.12-SNAPSHOT`
+
+Now we are ready to start applying the yamls.
+
+Go to the `kubernetes` directory and run
+
+`kubectl apply -f akka-cluster-role.yaml`
+
+`kubectl apply -f domain-test-deployment.yaml`
+
+`kubectl apply -f query-test-deployment.yaml`
+
+`kubectl expose -n inventory-domain deployment inventory-domain --type=LoadBalancer --port=80 --target-port=8080 --name=inventory-domain-service`
+
+`kubectl expose -n inventory-query deployment inventory-query --type=LoadBalancer --port=80 --target-port=8080 --name=inventory-query-service`
+
+
+To test this setup, you will need [grpcurl](https://github.com/fullstorydev/grpcurl)
+
+
+In a separate terminal window run the following:
+
+`kubectl port-forward -n inventory-query service/inventory-query-service 8080:80`
+
+This will not exit -and once it does you will no longer have access to the interface.
+
+Back in the original window, switch to the project root and run:
+
+`grpcurl -plaintext -proto domain/src/main/protobuf/product-availability.proto -d '{"style":"1","color":"2","size":"3"}' localhost:8080 com.inventory.api.v1.ProductAvailabilityService/GetAvailability`
+
+You should get back a non error response like 
+`{
+
+}`
+
+
+This process creates services, secrets, deployments - to remove this setup completely, you'll need to delete them all.
+
+
+# Other Databases
+
+If you need to use a database other than postgresql then you will need to modify the slick sections in both query/domain application conf files, as well as the necessary dependencies in the build.sbt and possibly add settings to the yaml depending on the database requirements. - Definitely simplest to get a local version of postgres (local, docker, or even in minikube)
