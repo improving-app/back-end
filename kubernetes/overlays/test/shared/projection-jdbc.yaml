@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: projection_jdbc
+spec:
+  replicas:
+  template:
+    spec:
+      containers:
+          env:
+            - name: PROJECTION_JDBC_URL
+              value: "jdbc:postgresql://192.168.5.150:5432/gcp_ref?reWriteBatchedInserts=true"

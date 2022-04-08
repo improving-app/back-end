@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    name: inventory-domain
+  name: inventory-domain
+---
+apiVersion: v1
+data:
+  password: Z2NwX3JlZl9wYXNzd29yZA==
+  user: Z2NwX3JlZg==
+kind: Secret
+metadata:
+  labels:
+    app: inventory-domain
+  name: persistence-db-credentials
+  namespace: inventory-domain
+type: Opaque
+---
+apiVersion: v1
+data:
+  password: MS1jYXJTcmVyYTJA
+  user: cG9zdGdyZXM=
+kind: Secret
+metadata:
+  name: projection-db-credentials
+  namespace: inventory-domain
+type: Opaque
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: inventory-domain
+  name: inventory-domain
+  namespace: inventory-domain
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: inventory-domain
+  template:
+    metadata:
+      labels:
+        app: inventory-domain
+    spec:
+      containers:
+      - env:
+        - name: PERSISTENCE_JDBC_URL
+          value: jdbc:postgresql:///postgres?cloudSqlInstance=nike-pov:us-east4:nike1&socketFactory=com.google.cloud.sql.postgres.SocketFactory
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: REQUIRED_CONTACT_POINT_NR
+          value: "2"
+        - name: PERSISTENCE_DB_USER
+          valueFrom:
+            secretKeyRef:
+              key: user
+              name: persistence-db-credentials
+        - name: PERSISTENCE_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: persistence-db-credentials
+        - name: PROJECTION_DB_USER
+          valueFrom:
+            secretKeyRef:
+              key: user
+              name: projection-db-credentials
+        - name: PROJECTION_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: projection-db-credentials
+        image: us-east4-docker.pkg.dev/nike-pov/nike-inventory/inventory-domain:1.12-SNAPSHOT
+        imagePullPolicy: Never
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /alive
+            port: management
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        name: inventory-domain
+        ports:
+        - containerPort: 8558
+          name: management
+          protocol: TCP
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /ready
+            port: management
+          initialDelaySeconds: 10
+          periodSeconds: 10
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: projection_jdbc
+  namespace: inventory-domain
+spec:
+  replicas: null
+  template:
+    spec:
+      containers:
+        env:
+        - name: PROJECTION_JDBC_URL
+          value: jdbc:postgresql:///postgres?cloudSqlInstance=nike-pov:us-east4:nike1&socketFactory=com.google.cloud.sql.postgres.SocketFactory

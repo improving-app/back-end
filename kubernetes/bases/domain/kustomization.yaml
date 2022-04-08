@@ -1,0 +1,3 @@
+resources:
+- domain-namespace.json
+- domain.yaml

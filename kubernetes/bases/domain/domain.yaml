@@ -47,23 +47,23 @@ spec:
                   fieldPath: metadata.namespace
             - name: REQUIRED_CONTACT_POINT_NR
               value: "2"
-            - name: DOMAIN_ES_DB_USER
+            - name: PERSISTENCE_DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: domain-es-db-credentials
+                  name: persistence-db-credentials
                   key: user
-            - name: DOMAIN_ES_DB_PASSWORD
+            - name: PERSISTENCE_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: domain-es-db-credentials
+                  name: persistence-db-credentials
                   key: password
-            - name: DOMAIN_PROJECTION_DB_USER
+            - name: PROJECTION_DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: domain-projection-db-credentials
+                  name: projection-db-credentials
                   key: user
-            - name: DOMAIN_PROJECTION_DB_PASSWORD
+            - name: PROJECTION_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: domain-projection-db-credentials
+                  name: projection-db-credentials
                   key: password

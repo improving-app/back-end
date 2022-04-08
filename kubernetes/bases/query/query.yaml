@@ -47,13 +47,13 @@ spec:
                   fieldPath: metadata.namespace
             - name: REQUIRED_CONTACT_POINT_NR
               value: "2"
-            - name: QUERY_PROJECTION_DB_USER
+            - name: PROJECTION_DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: query-projection-db-credentials
+                  name: projection-db-credentials
                   key: user
-            - name: QUERY_PROJECTION_DB_PASSWORD
+            - name: PROJECTION_DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: query-projection-db-credentials
+                  name: projection-db-credentials
                   key: password

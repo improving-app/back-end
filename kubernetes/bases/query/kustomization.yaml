@@ -1,0 +1,3 @@
+resources:
+- query-namespace.json
+- query.yaml
