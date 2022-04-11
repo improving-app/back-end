@@ -31,7 +31,7 @@ lazy val domain = (project in file("domain"))
     dockerBaseImage := "adoptopenjdk/openjdk11:centos-slim",
     dockerRepository := Some("us-east4-docker.pkg.dev"),
     dockerUpdateLatest := true,
-    Docker / packageName := "nike-pov/nike-inventory/inventory-domain",
+    Docker / packageName := "reference-applications/inventory-demo/inventory-domain",
     libraryDependencies ++= Seq(
       "com.typesafe.akka"             %% "akka-http"                         % AkkaHttpVersion,
       "com.typesafe.akka"             %% "akka-http2-support"                % AkkaHttpVersion,
@@ -70,7 +70,7 @@ lazy val query = (project in file("query"))
     dockerBaseImage := "adoptopenjdk/openjdk11:centos-slim",
     dockerRepository := Some("us-east4-docker.pkg.dev"),
     dockerUpdateLatest := false,
-    Docker / packageName := "nike-pov/nike-inventory/inventory-query",
+    Docker / packageName := "reference-applications/inventory-demo/inventory-query",
     libraryDependencies ++= Seq(
       "com.typesafe.akka"             %% "akka-http"                         % AkkaHttpVersion,
       "com.typesafe.akka"             %% "akka-http2-support"                % AkkaHttpVersion,
