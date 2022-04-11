@@ -74,7 +74,7 @@ spec:
             secretKeyRef:
               key: password
               name: projection-db-credentials
-        image: us-east4-docker.pkg.dev/nike-pov/nike-inventory/inventory-domain:1.12-SNAPSHOT
+        image: us-east4-docker.pkg.dev/reference-applications/inventory-demo/inventory-domain:1.13-SNAPSHOT
         imagePullPolicy: Never
         livenessProbe:
           failureThreshold: 5
