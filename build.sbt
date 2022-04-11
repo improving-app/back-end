@@ -15,7 +15,7 @@ lazy val CorsVersion = "1.1.3"
 lazy val LogbackVersion = "1.2.11"
 lazy val ScalatestVersion = "3.2.11"
 
-ThisBuild / version := "1.12-SNAPSHOT"
+ThisBuild / version := "1.13-SNAPSHOT"
 
 lazy val root = (project in file("."))
   .aggregate(domain, query)
