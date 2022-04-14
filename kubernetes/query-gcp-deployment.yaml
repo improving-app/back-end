@@ -7,6 +7,14 @@ metadata:
 ---
 apiVersion: v1
 data:
+  projection_jdbc_url: jdbc:postgresql:///postgres?cloudSqlInstance=reference-applications:us-east4:db-1&socketFactory=com.google.cloud.sql.postgres.SocketFactory
+kind: ConfigMap
+metadata:
+  name: jdbc-info
+  namespace: inventory-query
+---
+apiVersion: v1
+data:
   password: MS1jYXJTcmVyYTJA
   user: cG9zdGdyZXM=
 kind: Secret
@@ -14,6 +22,18 @@ metadata:
   name: projection-db-credentials
   namespace: inventory-query
 type: Opaque
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-query-service
+  namespace: inventory-query
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+  type: LoadBalancer
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -34,7 +54,10 @@ spec:
       containers:
       - env:
         - name: PROJECTION_JDBC_URL
-          value: jdbc:postgresql://192.168.5.150:5432/gcp_ref?reWriteBatchedInserts=true
+          valueFrom:
+            configMapKeyRef:
+              key: projection_jdbc_url
+              name: jdbc-info
         - name: NAMESPACE
           valueFrom:
             fieldRef:
@@ -51,8 +74,8 @@ spec:
             secretKeyRef:
               key: password
               name: projection-db-credentials
-        image: us-east4-docker.pkg.dev/reference-applications/inventory-demo/inventory-domain:1.13-SNAPSHOT
-        imagePullPolicy: Never
+        image: us-east4-docker.pkg.dev/reference-applications/inventory-demo/inventory-query:1.13-SNAPSHOT
+        imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 5
           httpGet:
@@ -75,17 +98,3 @@ spec:
             port: management
           initialDelaySeconds: 10
           periodSeconds: 10
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: projection_jdbc
-  namespace: inventory-query
-spec:
-  replicas: null
-  template:
-    spec:
-      containers:
-        env:
-        - name: PROJECTION_JDBC_URL
-          value: jdbc:postgresql:///postgres?cloudSqlInstance=nike-pov:us-east4:nike1&socketFactory=com.google.cloud.sql.postgres.SocketFactory

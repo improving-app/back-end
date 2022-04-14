@@ -131,9 +131,9 @@ Go to the `kubernetes` directory and run
 
 `kubectl apply -f query-test-deployment.yaml`
 
-`kubectl expose -n inventory-domain deployment inventory-domain --type=LoadBalancer --port=80 --target-port=8080 --name=inventory-domain-service`
+-- now part of the main yaml `kubectl expose -n inventory-domain deployment inventory-domain --type=LoadBalancer --port=80 --target-port=8080 --name=inventory-domain-service`
 
-`kubectl expose -n inventory-query deployment inventory-query --type=LoadBalancer --port=80 --target-port=8080 --name=inventory-query-service`
+-- now part of the main yaml `kubectl expose -n inventory-query deployment inventory-query --type=LoadBalancer --port=80 --target-port=8080 --name=inventory-query-service`
 
 
 To test this setup, you will need [grpcurl](https://github.com/fullstorydev/grpcurl)

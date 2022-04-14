@@ -7,6 +7,14 @@ metadata:
 ---
 apiVersion: v1
 data:
+  projection_jdbc_url: jdbc:postgresql://192.168.5.150:5432/gcp_ref
+kind: ConfigMap
+metadata:
+  name: jdbc-info
+  namespace: inventory-domain
+---
+apiVersion: v1
+data:
   password: Z2NwX3JlZl9wYXNzd29yZA==
   user: Z2NwX3JlZg==
 kind: Secret
@@ -26,6 +34,20 @@ metadata:
   name: projection-db-credentials
   namespace: inventory-domain
 type: Opaque
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-domain-service
+  namespace: inventory-domain
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: inventory-domain
+  type: LoadBalancer
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -47,7 +69,12 @@ spec:
       containers:
       - env:
         - name: PERSISTENCE_JDBC_URL
-          value: jdbc:postgresql://192.168.5.150:5432/gcp_ref?reWriteBatchedInserts=true
+          value: jdbc:postgresql://192.168.5.150:5432/gcp_ref
+        - name: PROJECTION_JDBC_URL
+          valueFrom:
+            configMapKeyRef:
+              key: projection_jdbc_url
+              name: jdbc-info
         - name: NAMESPACE
           valueFrom:
             fieldRef:
@@ -74,7 +101,7 @@ spec:
             secretKeyRef:
               key: password
               name: projection-db-credentials
-        image: us-east4-docker.pkg.dev/nike-pov/nike-inventory/inventory-domain:1.12-SNAPSHOT
+        image: us-east4-docker.pkg.dev/reference-applications/inventory-demo/inventory-domain:1.13-SNAPSHOT
         imagePullPolicy: Never
         livenessProbe:
           failureThreshold: 5
@@ -98,17 +125,3 @@ spec:
             port: management
           initialDelaySeconds: 10
           periodSeconds: 10
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: projection_jdbc
-  namespace: inventory-domain
-spec:
-  replicas: null
-  template:
-    spec:
-      containers:
-        env:
-        - name: PROJECTION_JDBC_URL
-          value: jdbc:postgresql://192.168.5.150:5432/gcp_ref?reWriteBatchedInserts=true

@@ -1,3 +1,4 @@
 resources:
 - domain-namespace.json
 - domain.yaml
+- domain-service.yaml

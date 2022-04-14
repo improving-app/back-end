@@ -1,3 +1,4 @@
 resources:
 - query-namespace.json
 - query.yaml
+- query-service.yaml

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: inventory-query
-          image: us-east4-docker.pkg.dev/reference-applications/inventory-demo/inventory-domain:1.13-SNAPSHOT
+          image: us-east4-docker.pkg.dev/reference-applications/inventory-demo/inventory-query:1.13-SNAPSHOT
           imagePullPolicy: Always
           readinessProbe:
             httpGet:

@@ -4,7 +4,7 @@ metadata:
   name: inventory-query
   namespace: inventory-query
 spec:
-  replicas: 
+  replicas: 2
   template:
     spec:
       containers:
@@ -12,4 +12,7 @@ spec:
           imagePullPolicy: Never #assumption is that the image has been loaded into minikube with minikube image load imagename:tag - alternately see here https://stackoverflow.com/questions/42564058/how-to-use-local-docker-images-with-minikube#:~:text=Set%20the%20environment%20variables%20with,try%20to%20download%20the%20image.
           env:
             - name: PROJECTION_JDBC_URL
-              value: "jdbc:postgresql://192.168.5.150:5432/gcp_ref?reWriteBatchedInserts=true"
+              valueFrom:
+                configMapKeyRef:
+                  name: jdbc-info
+                  key: projection_jdbc_url
