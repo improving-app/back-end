@@ -2,7 +2,7 @@
 
 `sbt clean docker:publishLocal` to test locally or...
 
-`sbt clean docker:publish` to publish to gcp artifact registry, ensure authenticated with gcloud.
+`sbt clean docker:publish` to publish to gcp artifact registry, ensure authenticated with gcloud. (This will only work if you are on an Intel processor.  If on ARM64 (apple silicon) see build.sbt for instructions)
 
 ## To deploy to kubernetes:
 
@@ -12,12 +12,15 @@ to create the schemas found here: https://github.com/akka/akka-persistence-jdbc/
 In a cloud console session:
 If you haven't already, run `gcloud container clusters get-credentials cluster-1 --zone us-east4-c`
 
-Transfer all files in /kubernetes to your cloud console VM. Note: command will be deployed in a separate namespace
+Transfer  the domain-gcp-deployment.yaml, query-gcp-deployment.yaml, akka-cluster-role.yaml files in /kubernetes to your cloud console VM. Note: command will be deployed in a separate namespace
 than query, which makes things much more clear during rolling updates, etc.
 
-`kubectl apply -f domain-namespace.json`
+`kubectl apply -f akka-cluster-role.yaml`
 
-`kubectl apply -f query-namespace.json`
+`kubectl apply -f domain-gcp-deployment.yaml`
+
+`kubectl apply -f query-gcp-deployment.yaml`
+
 
 Choose which namespace you'll be working with:
 
@@ -27,36 +30,30 @@ Choose which namespace you'll be working with:
 
     `kubectl config set-context --current --namespace=inventory-query`
 
-`kubectl apply -f akka-cluster-role.yaml`
+    alternatively you'll need to add -n inventory-domain or -n inventory-query to each call (or add an alias like `kid='kubectl -n inventory-domain`)
 
-`kubectl apply -f domain.yaml`
-
-`kubectl expose deployment inventory-domain --type=LoadBalancer --port=80 --target-port=8080 --name=inventory-domain-service`
-
-`kubectl apply -f query.yaml`
-
-`kubectl expose deployment inventory-query --type=LoadBalancer --port=80 --target-port=8080 --name=inventory-query-service`
 
 ### To Redeploy to Kubernetes from scratch
 
-`kubectl delete deploy inventory-command`
+`kubectl delete deploy inventory-domain`
 
-`kubectl apply -f inventory-command`
+`kubectl apply -f inventory-gcp-domain`
 
 `kubectl delete deploy inventory-query`
 
-`kubectl apply -f inventory-query`
+`kubectl apply -f inventory-gcp-query`
 
-### To perform a rolling update (for command, same process for query)
+### To perform a rolling update (for domain, same process for query)
 
-Bump the app version in build.sbt, application.conf and command.yaml. Akka will see the version increase and recognize
+Bump the app version in build.sbt, application.conf. Rebuild the images with either sbt Docker/publish if on Intel or follow instructions in build.sbt to build Intel image manually while on mac.  Akka will see the version increase and recognize
 it and start routing to the pods containing that version and shut down the others.
 
-`kubectl apply -f inventory-domain`
+
+`kubectl apply -f domain-gcp-inventory`
 
 ## to test:
 
-Run `kubectl describe services inventory-service` and take note of LoadBalancer External IP.
+Run `kubectl describe services inventory-domain-service` and take note of LoadBalancer External IP.
 
 `grpcurl -plaintext -d '{"size": "1", "color":"2", "style":"3"}' <<EXTERNALIP>>:8080 com.inventory.api.v1.ProductAvailabilityService/GetAvailability`
 
@@ -80,6 +77,8 @@ The persistence db user/password are stored in
 The user/password values are stored in base64 encoding.
 use `echo -n user | base64` to encode the value, then copy it to the file. 
 
+once the yaml files are updated run the regen_test_yaml.sh script in the scripts directory.  This builds the domain-test-deployment.yaml and the query-test-deployment.yaml in the kubernetes  directory.
+
 
 
 
@@ -98,17 +97,6 @@ Update the yamls as per (#configuration-customization)
 
 Once the yaml's have been updated (as per above) we proceed to the building phase
 
-First we use kubectl kustomize to merge the files into a single yaml
-
-Change directory to `kubernetes/overlays/test/domain` and the run 
-
-`kubectl kustomize > ../../../domain-test-deploymen.yaml`
-
-Then switch to `kubernetes/overlays/test/query` and run
-
-`kubectl kustomize > ../../../query-test-deployment.yaml`
-
-
 Go to the project root directory and run `sbt clean docker:publishLocal`
 
 For the following applies to work minikube needs to be running.
@@ -117,9 +105,9 @@ For the following applies to work minikube needs to be running.
 
 Then we need to load the images into minikube (this may take some minute(s)):
 
-`minikube image load us-east4-docker.pkg.dev/nike-pov/nike-inventory/inventory-domain:1.12-SNAPSHOT`
+`minikube image load us-east4-docker.pkg.dev/reference-applications/inventory-demo/inventory-domain:1.13-SNAPSHOT`
 
-`minikube image load us-east4-docker.pkg.dev/nike-pov/nike-inventory/inventory-query:1.12-SNAPSHOT`
+`minikube image load us-east4-docker.pkg.dev/reference-applications/inventory-demo/inventory-query:1.13-SNAPSHOT`
 
 Now we are ready to start applying the yamls.
 
@@ -127,13 +115,16 @@ Go to the `kubernetes` directory and run
 
 `kubectl apply -f akka-cluster-role.yaml`
 
+then run one of either
+
 `kubectl apply -f domain-test-deployment.yaml`
+
+## or
 
 `kubectl apply -f query-test-deployment.yaml`
 
--- now part of the main yaml `kubectl expose -n inventory-domain deployment inventory-domain --type=LoadBalancer --port=80 --target-port=8080 --name=inventory-domain-service`
+Running both causes kubectl to stop responding ( on a mac M1 pro).  ymmv
 
--- now part of the main yaml `kubectl expose -n inventory-query deployment inventory-query --type=LoadBalancer --port=80 --target-port=8080 --name=inventory-query-service`
 
 
 To test this setup, you will need [grpcurl](https://github.com/fullstorydev/grpcurl)
@@ -141,7 +132,7 @@ To test this setup, you will need [grpcurl](https://github.com/fullstorydev/grpc
 
 In a separate terminal window run the following:
 
-`kubectl port-forward -n inventory-query service/inventory-query-service 8080:80`
+`kubectl port-forward -n inventory-domain service/inventory-domain-service 8080:80`
 
 This will not exit -and once it does you will no longer have access to the interface.
 
@@ -155,7 +146,9 @@ You should get back a non error response like
 }`
 
 
-This process creates services, secrets, deployments - to remove this setup completely, you'll need to delete them all.
+
+### Note 
+This process creates services, secrets, deployments - to remove this setup completely, you'll need to delete them all.  there is a flush_test.sh script in the scripts directory that will accomplish this.
 
 
 # Other Databases
