@@ -28,9 +28,9 @@ lazy val root = (project in file("."))
 // sbt docker:stage
 // then for query and domain
 // cd query/target/docker/stage
-// docker buildx build --platform=linux/amd64 -t reference-applications/inventory-demo/inventory-query . 
-// docker image tag reference-applications/inventory-demo/inventory/query:latest us-east4-docker.pkg.dev/reference-applications/inventory-demo/inventory-query:0.1.13-SNAPSHOT
-// docker image push us-east4-docker.pkg.dev/reference-applications/inventory-demo/inventory-query:0.1.13-SNAPSHOT
+// docker buildx build --platform=linux/amd64 -t us-east4-docker.pkg.dev/reference-applications/inventory-demo/inventory-query . 
+//  -note this is not needed if the above is spelled correctly....  docker image tag reference-applications/inventory-demo/inventory/query:latest us-east4-docker.pkg.dev/reference-applications/inventory-demo/inventory-query:1.13-SNAPSHOT
+// docker image push us-east4-docker.pkg.dev/reference-applications/inventory-demo/inventory-query:1.13-SNAPSHOT
 // then into the gcloud shell
 
 
