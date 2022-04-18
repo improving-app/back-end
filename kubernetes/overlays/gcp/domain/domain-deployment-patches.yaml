@@ -9,7 +9,7 @@ spec:
     spec:
       containers:
         - name : inventory-domain
-          imagePullPolicy: Always  #assumption is that the image has been loaded into minikube with minikube image load imagename:tag - alternately see here https://stackoverflow.com/questions/42564058/how-to-use-local-docker-images-with-minikube#:~:text=Set%20the%20environment%20variables%20with,try%20to%20download%20the%20image.
+          imagePullPolicy: Always
           env:
             - name: PERSISTENCE_JDBC_URL
               value: "jdbc:postgresql:///postgres?cloudSqlInstance=reference-applications:us-east4:db-1&socketFactory=com.google.cloud.sql.postgres.SocketFactory"
