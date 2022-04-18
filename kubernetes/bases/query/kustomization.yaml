@@ -2,3 +2,4 @@ resources:
 - query-namespace.json
 - query.yaml
 - query-service.yaml
+- akka-cluster-role-query.yaml

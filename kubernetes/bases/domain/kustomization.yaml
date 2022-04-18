@@ -2,3 +2,4 @@ resources:
 - domain-namespace.json
 - domain.yaml
 - domain-service.yaml
+- akka-cluster-role-domain.yaml
