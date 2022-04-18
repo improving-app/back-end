@@ -45,6 +45,7 @@ metadata:
   name: inventory-query
   namespace: inventory-query
 spec:
+  replicas: 2
   selector:
     matchLabels:
       app: inventory-query
