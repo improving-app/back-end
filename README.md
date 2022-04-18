@@ -15,8 +15,6 @@ If you haven't already, run `gcloud container clusters get-credentials cluster-1
 Transfer  the domain-gcp-deployment.yaml, query-gcp-deployment.yaml, akka-cluster-role.yaml files in /kubernetes to your cloud console VM. Note: command will be deployed in a separate namespace
 than query, which makes things much more clear during rolling updates, etc.
 
-`kubectl apply -f akka-cluster-role.yaml`
-
 `kubectl apply -f domain-gcp-deployment.yaml`
 
 `kubectl apply -f query-gcp-deployment.yaml`
@@ -53,9 +51,9 @@ it and start routing to the pods containing that version and shut down the other
 
 ## to test:
 
-Run `kubectl describe services inventory-domain-service` and take note of LoadBalancer External IP.
+Run `kubectl describe services inventory-domain-services` and take note of LoadBalancer External IP. (LoadBalancer Ingress)
 
-`grpcurl -plaintext -d '{"size": "1", "color":"2", "style":"3"}' <<EXTERNALIP>>:8080 com.inventory.api.v1.ProductAvailabilityService/GetAvailability`
+`grpcurl -plaintext -proto domain/src/main/protobuf/product-availability.proto -d '{"size": "1", "color":"2", "style":"3"}' <<EXTERNALIP>>:80 com.inventory.api.v1.ProductAvailabilityService/GetAvailability`
 
 
 # Configuration Customization
@@ -111,11 +109,7 @@ Then we need to load the images into minikube (this may take some minute(s)):
 
 Now we are ready to start applying the yamls.
 
-Go to the `kubernetes` directory and run
-
-`kubectl apply -f akka-cluster-role.yaml`
-
-then run one of either
+Go to the `kubernetes` directory and run one of either
 
 `kubectl apply -f domain-test-deployment.yaml`
 
