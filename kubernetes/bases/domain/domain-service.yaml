@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-domain-service
+  namespace: inventory-domain
+spec:
+  type: LoadBalancer
+  selector:
+    app: inventory-domain
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080

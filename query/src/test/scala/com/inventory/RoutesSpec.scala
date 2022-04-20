@@ -6,6 +6,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.io.Source
 
 class RoutesSpec extends AnyWordSpec with Matchers with JsonFormats with ScalatestRouteTest {
 

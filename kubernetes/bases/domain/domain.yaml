@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
         - name: inventory-domain
-          image: us-east4-docker.pkg.dev/nike-pov/nike-inventory/inventory-domain:1.12-SNAPSHOT
-          imagePullPolicy: Always
+          image: us-east4-docker.pkg.dev/reference-applications/inventory-demo/inventory-domain:1.13-SNAPSHOT
+          imagePullPolicy: seeOverlays
           readinessProbe:
             httpGet:
               path: "/ready"
@@ -47,3 +47,24 @@ spec:
                   fieldPath: metadata.namespace
             - name: REQUIRED_CONTACT_POINT_NR
               value: "2"
+            - name: PERSISTENCE_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: persistence-db-credentials
+                  key: user
+            - name: PERSISTENCE_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: persistence-db-credentials
+                  key: password
+            - name: PROJECTION_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: projection-db-credentials
+                  key: user
+            - name: PROJECTION_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: projection-db-credentials
+                  key: password
+         
