@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: inventory-domain
+  name: inventory-domain
+  namespace: inventory-domain
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: inventory-domain
+  template:
+    metadata:
+      labels:
+        app: inventory-domain
+    spec:
+      containers:
+        - name: inventory-domain
+          image: us-east4-docker.pkg.dev/reference-applications/inventory-demo/inventory-domain:1.13-SNAPSHOT
+          imagePullPolicy: seeOverlays
+          readinessProbe:
+            httpGet:
+              path: "/ready"
+              port: management
+            periodSeconds: 10
+            failureThreshold: 3
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet:
+              path: "/alive"
+              port: management
+            periodSeconds: 10
+            failureThreshold: 5
+            initialDelaySeconds: 20
+          ports:
+            - name: management
+              containerPort: 8558
+              protocol: TCP
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: REQUIRED_CONTACT_POINT_NR
+              value: "2"
+            - name: PERSISTENCE_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: persistence-db-credentials
+                  key: user
+            - name: PERSISTENCE_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: persistence-db-credentials
+                  key: password
+            - name: PROJECTION_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: projection-db-credentials
+                  key: user
+            - name: PROJECTION_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: projection-db-credentials
+                  key: password
+         

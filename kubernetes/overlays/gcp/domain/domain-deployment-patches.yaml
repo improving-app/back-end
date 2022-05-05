@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-domain
+  namespace: inventory-domain
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        - name : inventory-domain
+          imagePullPolicy: Always
+          env:
+            - name: PERSISTENCE_JDBC_URL
+              value: "jdbc:postgresql:///postgres?cloudSqlInstance=reference-applications:us-east4:db-1&socketFactory=com.google.cloud.sql.postgres.SocketFactory"
+            - name: PROJECTION_JDBC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: jdbc-info
+                  key: projection_jdbc_url
+

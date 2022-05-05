@@ -1,0 +1,36 @@
+gcloud container clusters create cluster1 \
+    --release-channel None \
+    --zone us-east4-c \
+    --node-locations us-east4-c
+    --num-nodes=2
+    --workload-pool=PROJECT_ID.svc.id.goog
+    --service-account=nike-gke@nike-pov.iam.gserviceaccount.com
+
+// TODO: work through workload identity after google team demo
+
+gcloud container node-pools update default-pool \
+--cluster=cluster1 \
+--workload-metadata=GKE_METADATA
+
+gcloud sql instances create nike1 \
+--database-version=POSTGRES_12 \
+--cpu=2 \
+--memory=8GiB \
+--zone=us-east4-c
+
+gcloud sql users set-password postgres \
+--instance=nike1 \
+--password=1-carSrera2@
+
+kubectl apply -f domain-namespace.json
+kubectl apply -f query-namespace.json
+
+kubectl config set-context --current --namespace=nike-inventory-domain
+kubectl apply -f akka-cluster-role.yaml
+kubectl apply -f domain.yaml
+kubectl expose deployment nike-inventory-domain --type=LoadBalancer --port=80 --target-port=8080 --name=nike-inventory-domain-service
+
+kubectl config set-context --current --namespace=nike-inventory-query
+kubectl apply -f akka-cluster-role.yaml
+kubectl apply -f query.yaml
+kubectl expose deployment nike-inventory-query --type=LoadBalancer --port=80 --target-port=8080 --name=nike-inventory-query-service

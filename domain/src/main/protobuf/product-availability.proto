@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+option java_multiple_files = true;
+option java_package = "com.inventory.api.v1";
+
+package com.inventory.api.v1;
+
+message AddItemRequest {
+    string style = 1;
+    string color = 2;
+    string size = 3;
+}
+
+message RemoveItemRequest {
+    string style = 1;
+    string color = 2;
+    string size = 3;
+}
+
+message GetAvailabilityRequest {
+    string style = 1;
+    string color = 2;
+    string size = 3;
+}
+
+message GetVersionRequest {}
+
+message ProductAvailabilityResponse {
+    string style = 1;
+    string color = 2;
+    string size = 3;
+    int64 quantity = 4;
+}
+
+message Version {
+    string version = 1;
+}
+
+service ProductAvailabilityService {
+    rpc GetAvailability(GetAvailabilityRequest) returns (ProductAvailabilityResponse) {}
+    rpc AddItem(AddItemRequest) returns (google.protobuf.Empty) {}
+    rpc RemoveItem(RemoveItemRequest) returns (google.protobuf.Empty) {}
+    rpc GetVersion(GetVersionRequest) returns (Version) {}
+}

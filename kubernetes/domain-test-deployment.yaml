@@ -1,0 +1,156 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    name: inventory-domain
+  name: inventory-domain
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: inventory-domain
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - watch
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: read-pods
+  namespace: inventory-domain
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pod-reader
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: inventory-domain
+---
+apiVersion: v1
+data:
+  projection_jdbc_url: jdbc:postgresql://192.168.5.150:5432/gcp_ref
+kind: ConfigMap
+metadata:
+  name: jdbc-info
+  namespace: inventory-domain
+---
+apiVersion: v1
+data:
+  password: Z2NwX3JlZl9wYXNzd29yZA==
+  user: Z2NwX3JlZg==
+kind: Secret
+metadata:
+  labels:
+    app: inventory-domain
+  name: persistence-db-credentials
+  namespace: inventory-domain
+type: Opaque
+---
+apiVersion: v1
+data:
+  password: Z2NwX3JlZl9wYXNzd29yZA==
+  user: Z2NwX3JlZg==
+kind: Secret
+metadata:
+  name: projection-db-credentials
+  namespace: inventory-domain
+type: Opaque
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-domain-service
+  namespace: inventory-domain
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: inventory-domain
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: inventory-domain
+  name: inventory-domain
+  namespace: inventory-domain
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: inventory-domain
+  template:
+    metadata:
+      labels:
+        app: inventory-domain
+    spec:
+      containers:
+      - env:
+        - name: PERSISTENCE_JDBC_URL
+          value: jdbc:postgresql://192.168.5.150:5432/gcp_ref
+        - name: PROJECTION_JDBC_URL
+          valueFrom:
+            configMapKeyRef:
+              key: projection_jdbc_url
+              name: jdbc-info
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: REQUIRED_CONTACT_POINT_NR
+          value: "2"
+        - name: PERSISTENCE_DB_USER
+          valueFrom:
+            secretKeyRef:
+              key: user
+              name: persistence-db-credentials
+        - name: PERSISTENCE_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: persistence-db-credentials
+        - name: PROJECTION_DB_USER
+          valueFrom:
+            secretKeyRef:
+              key: user
+              name: projection-db-credentials
+        - name: PROJECTION_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: projection-db-credentials
+        image: us-east4-docker.pkg.dev/reference-applications/inventory-demo/inventory-domain:1.13-SNAPSHOT
+        imagePullPolicy: Never
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /alive
+            port: management
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        name: inventory-domain
+        ports:
+        - containerPort: 8558
+          name: management
+          protocol: TCP
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /ready
+            port: management
+          initialDelaySeconds: 10
+          periodSeconds: 10
