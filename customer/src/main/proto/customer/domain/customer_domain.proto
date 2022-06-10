@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package customer.domain;
+
+message CustomerState {
+  string customer_id = 1;
+  string email = 2;
+  string name = 3;
+  Address address = 4;
+}
+
+message Address {
+  string street = 1;
+  string city = 2;
+}
+
+

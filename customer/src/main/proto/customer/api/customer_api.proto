@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package customer.api;
+
+import "google/protobuf/empty.proto";
+import "kalix/annotations.proto";
+
+service CustomerService {
+  option (kalix.codegen) = {
+    value_entity: {
+      name: "customer.domain.Customer"
+      entity_type: "customers"
+      state: "customer.domain.CustomerState"
+    }
+  };
+
+  rpc Create(Customer) returns (google.protobuf.Empty) {}
+
+  rpc GetCustomer(GetCustomerRequest) returns (Customer) {}
+
+}
+
+message Customer {
+  string customer_id = 1 [(kalix.field).entity_key = true];
+  string email = 2;
+  string name = 3;
+  Address address = 4;
+}
+
+message Address {
+  string street = 1;
+  string city = 2;
+}
+
+message GetCustomerRequest {
+  string customer_id = 1 [(kalix.field).entity_key = true];
+}
+
+
