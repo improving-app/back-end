@@ -1,6 +1,6 @@
 package com.improving.app.organization.api
 
-import akka.actor.ActorSystem
+//import akka.actor.ActorSystem
 import com.improving.app.organization.Main
 import kalix.scalasdk.testkit.KalixTestKit
 import org.scalatest.BeforeAndAfterAll

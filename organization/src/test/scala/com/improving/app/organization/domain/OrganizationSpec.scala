@@ -1,10 +1,12 @@
 package com.improving.app.organization.domain
 
-import com.improving.app.organization.api
-import kalix.scalasdk.eventsourcedentity.EventSourcedEntity
-import kalix.scalasdk.testkit.EventSourcedResult
+import com.improving.app.organization.api._
+// import kalix.scalasdk.eventsourcedentity.EventSourcedEntity
+// import kalix.scalasdk.testkit.EventSourcedResult
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+
+import java.util.UUID
 
 // This class was initially generated based on the .proto definition by Kalix tooling.
 //
@@ -13,25 +15,25 @@ import org.scalatest.wordspec.AnyWordSpec
 
 class OrganizationSpec extends AnyWordSpec with Matchers {
   "The Organization" should {
-    "have example test that can be removed" in {
+    "allow being established" in {
       val testKit = OrganizationTestKit(new Organization(_))
-      pending
-      // use the testkit to execute a command:
-      // val result: EventSourcedResult[R] = testKit.someOperation(SomeRequest("id"));
-      // verify the emitted events
-      // val actualEvent: ExpectedEvent = result.nextEventOfType[ExpectedEvent]
-      // actualEvent shouldBe expectedEvent
-      // verify the final state after applying the events
-      // testKit.state() shouldBe expectedState
-      // verify the reply
-      // result.reply shouldBe expectedReply
-      // verify the final state after the command
-    }
-
-    "correctly process commands of type establishOrganization" in {
-      val testKit = OrganizationTestKit(new Organization(_))
-      pending
-      // val result: EventSourcedResult[api.OrganizationEstablished] = testKit.establishOrganization(api.EstablishOrganization(...))
+      val command = EstablishOrganization(
+        orgId = Some(OrganizationId(UUID.randomUUID().toString)),
+        info = Some(OrganizationInfo("test", "T", None))
+      )
+      val result = testKit.establishOrganization(command)
+      result.events.isEmpty shouldBe false
+      result.didEmitEvents shouldBe true
+      result.isError shouldBe false
+      val actualEvent = result.nextEvent[OrganizationEstablished]
+      actualEvent.orgId shouldBe command.orgId
+      actualEvent.info shouldBe command.info
+      actualEvent.timestamp > 0 shouldBe true
+      testKit.currentState shouldBe
+        OrgState(actualEvent.orgId, actualEvent.info, actualEvent.timestamp)
+      result.reply.orgId shouldBe command.orgId
+      result.reply.info shouldBe command.info
+      result.reply.timestamp shouldBe actualEvent.timestamp
     }
   }
 }

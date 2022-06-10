@@ -1,10 +1,12 @@
 syntax = "proto3";
 package com.improving.app.organization.domain;
 
-// import "kalix/annotations.proto";
+import "kalix/annotations.proto";
 // import "google/api/annotations.proto";
 import "com/improving/app/organization/api/improving-app-organization.proto";
 
 message OrgState {
-  api.OrganizationInfo info = 1;
+  api.OrganizationId orgId = 1 [(kalix.field).entity_key = true];
+  api.OrganizationInfo info = 2;
+  sint64 timestamp = 3;
 }
