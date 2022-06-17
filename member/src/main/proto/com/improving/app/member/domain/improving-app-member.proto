@@ -1,0 +1,13 @@
+syntax =  "proto3";
+
+package com.improving.app.member.domain;
+
+import "kalix/annotations.proto";
+import "com/improving/app/member/api/improving-app-member.proto";
+
+
+message MemberState {
+  api.MemberId memberId = 1;
+  api.MemberInfo memberInfo = 2;
+  sint64 timestamp = 3;
+}

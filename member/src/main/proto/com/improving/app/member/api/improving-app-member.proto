@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package com.improving.app.member.api;
+
+import "kalix/annotations.proto";
+import "google/api/annotations.proto";
+import "com/improving/app/organization/api/improving-app-organization.proto";
+
+
+message MemberId {
+  string memberId = 1 [(kalix.field).entity_key = true];
+}
+
+enum MemberType {
+  Student = 0;
+  FacutlyStaff = 1;
+  Vendor = 2;
+  Sponsor =3;
+  General = 4;
+  Alumni = 5;
+  Parent = 6;
+}
+
+message MemberInfo {
+  string handle = 1;
+  string avatar_url = 2;
+  string firstName = 3;
+  string lastName = 4;
+  string mobileNumber = 5;
+  repeated com.improving.app.organization.api.OrganizationId organizations = 6;
+  string relatedMembers = 7;
+  MemberType memberType = 8;
+}
+
+message RegisterMember {
+  MemberInfo memberInfo = 1;
+  optional com.improving.app.organization.api.OrganizationId associatedOrg = 2;
+
+}
+
+message MemberRegistered {
+  MemberId memberId = 1;
+}
+
+service MemberService {
+  option (kalix.codegen) = {
+    event_sourced_entity: {
+      name: "com.improving.app.member.domain.Member"
+      entity_type: "member"
+      state: "com.improving.app.member.domain.MemberState"
+      events:[
+        "com.improving.app.member.api.MemberRegistered"
+      ]
+    }
+  };
+
+  rpc registerMember (RegisterMember) returns (MemberRegistered) {
+    option(google.api.http) = {
+      post: "member/{handle}/"
+      body:"*"
+    };
+   }
+
+}
