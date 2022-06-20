@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  test:
 
     runs-on: ubuntu-latest
 
@@ -34,7 +34,15 @@ jobs:
           find $HOME/.ivy2/cache                       -name "ivydata-*.properties" -delete || true
           find $HOME/.cache/coursier/v1                -name "ivydata-*.properties" -delete || true
           find $HOME/.sbt                              -name "*.lock"               -delete || true
-
+#  deploy:
+#    - name: Kalix Deploy
+#        uses: lightbend/kalix-action@v4
+#        with:
+#          cmd: "services deploy person ${{ secrets.DOCKERHUB_USERNAME }}/person:${{ env.PERSON_VERSION }}"
+#        env:
+#          token: ${{ secrets.TOKEN }}
+#          project: ${{ secrets.PROJECT_ID }}
+#
 #  slack-workflow-status:
 #    if: always()
 #    name: Post Workflow Status To Slack
