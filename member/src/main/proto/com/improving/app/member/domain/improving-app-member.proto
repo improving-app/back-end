@@ -7,7 +7,7 @@ import "com/improving/app/member/api/improving-app-member.proto";
 
 
 message MemberState {
-  api.MemberId memberId = 1;
+  api.MemberId memberId = 1 [(kalix.field).entity_key = true];
   api.MemberInfo memberInfo = 2;
-  sint64 timestamp = 3;
+  api.MemberMetaInfo memberMetaInfo = 3;
 }

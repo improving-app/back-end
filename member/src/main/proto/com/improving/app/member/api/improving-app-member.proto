@@ -19,6 +19,19 @@ enum MemberType {
   General = 4;
   Alumni = 5;
   Parent = 6;
+  Fan = 7;
+}
+
+enum NotificationPreference {
+  Email = 0;
+  SMS = 1;
+}
+
+enum MemberState {
+  Active = 0;
+  Inactive = 1;
+  Suspended = 2;
+  Terminated = 3;
 }
 
 message MemberInfo {
@@ -27,19 +40,37 @@ message MemberInfo {
   string firstName = 3;
   string lastName = 4;
   string mobileNumber = 5;
-  repeated com.improving.app.organization.api.OrganizationId organizations = 6;
-  string relatedMembers = 7;
-  MemberType memberType = 8;
+  string email = 6;
+  NotificationPreference notificationPreference = 7;
+  bool optIn = 8;
+  repeated com.improving.app.organization.api.OrganizationId organizations = 9;
+  string relatedMembers = 10;
+  MemberType memberType = 11;
+}
+
+message MemberToAdd {
+  MemberId memberId = 1;
+  MemberInfo memberInfo = 2;
+}
+
+message MemberMetaInfo {
+  sint64 createdOn = 1;
+  MemberId createdBy = 2;
+  sint64 lastModifiedOn = 3;
+  MemberId lastModifiedBy = 4;
+  MemberState memberState = 5;
 }
 
 message RegisterMember {
-  MemberInfo memberInfo = 1;
-  optional com.improving.app.organization.api.OrganizationId associatedOrg = 2;
+ MemberToAdd memberToAdd = 1;
+ MemberId registeringMember = 2;
 
 }
 
 message MemberRegistered {
   MemberId memberId = 1;
+  MemberInfo memberInfo =2;
+  MemberMetaInfo memberMetaInfo = 3;
 }
 
 service MemberService {
