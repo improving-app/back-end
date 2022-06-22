@@ -73,6 +73,67 @@ message MemberRegistered {
   MemberMetaInfo memberMetaInfo = 3;
 }
 
+message ActivateMember {
+    MemberId memberId = 1;
+    MemberId actingMember = 2;
+}
+
+message MemberActivated {
+  MemberId memberId = 1;
+  MemberMetaInfo memberMeta =2;
+}
+
+message InactivateMember {
+  MemberId memberId = 1;
+  MemberId actingMember = 2;
+}
+
+message MemberInactivated {
+  MemberId memberId = 1;
+  MemberMetaInfo memberMeta =2;
+}
+
+message SuspendMember {
+  MemberId memberId = 1;
+  MemberId actingMember = 2;
+}
+
+message MemberSuspended {
+  MemberId memberId = 1;
+  MemberMetaInfo memberMeta = 2;
+}
+
+message TerminateMember {
+  MemberId memberId = 1;
+  MemberId actingMember =2;
+}
+
+message MemberTerminated {
+  MemberId memberId = 1;
+  MemberMetaInfo memberMeta = 2;
+}
+
+message RetrieveMember {
+  MemberId memberId = 1;
+}
+
+message MemberRetrieved {
+  MemberId memberId = 1;
+  MemberInfo memberInfo = 2;
+  MemberMetaInfo memberMeta = 3;
+}
+
+// message UpdateMemberInfo {
+//   MemberId memberId = 1;
+//   MemberInfo memberInfo = 2;
+// }
+
+// message MemberInfoUpdated {
+//   MemberId memberId = 1;
+//   MemberInfo memberInfo = 2;
+//   MemberMetaInfo memberMetaInfo = 3;
+// }
+
 service MemberService {
   option (kalix.codegen) = {
     event_sourced_entity: {
@@ -80,16 +141,53 @@ service MemberService {
       entity_type: "member"
       state: "com.improving.app.member.domain.MemberState"
       events:[
-        "com.improving.app.member.api.MemberRegistered"
+        "com.improving.app.member.api.MemberRegistered","com.improving.app.member.api.MemberActivated","com.improving.app.member.api.MemberInactivated","com.improving.app.member.api.MemberSuspended", "com.improving.app.member.api.MemberTerminated"
       ]
     }
   };
 
   rpc registerMember (RegisterMember) returns (MemberRegistered) {
     option(google.api.http) = {
-      post: "member/{handle}/"
+      post: "member/{memberId}/"
       body:"*"
     };
    }
+
+  rpc activateMember(ActivateMember) returns (MemberActivated) {
+    option(google.api.http) = {
+      post: "member/{memberId}/activate/"
+      body:"*"
+    };
+  }
+
+  rpc inactivateMember(InactivateMember) returns (MemberInactivated) {
+    option(google.api.http) = {
+      post: "member/{memberId}/inactivate/"
+      body:"*"
+    };
+  }
+
+  rpc suspendMember(SuspendMember) returns (MemberSuspended) {
+    option(google.api.http) = {
+      post: "member/{memberId}/suspend/"
+      body:"*"
+    };
+  }
+
+  rpc terminateMember(TerminateMember) returns (MemberTerminated) {
+    option(google.api.http) = {
+      post: "member/{memberId}/terminate"
+      body:"*"
+    };
+  }
+
+  rpc retrieveMember(RetrieveMember) returns (MemberRetrieved) {
+    option(google.api.http) = {
+      post:"member/{memberId}/"
+      body:"*"
+    };
+  }
+
+  
 
 }

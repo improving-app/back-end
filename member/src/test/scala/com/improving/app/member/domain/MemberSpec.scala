@@ -13,6 +13,7 @@ import java.time.Instant
 // import cats.data.Validated._
 import cats.implicits._
 
+
 // This class was initially generated based on the .proto definition by Kalix tooling.
 //
 // As long as this file exists it will not be overwritten: you can maintain it yourself,
@@ -68,6 +69,11 @@ class MemberSpec extends AnyWordSpec with Matchers {
       actualEvent.memberMetaInfo.get.createdBy.get.memberId shouldBe memberId
       actualEvent.memberInfo.get shouldBe memberInfo
       assert(actualEvent.memberMetaInfo.get.createdOn >= now)
+      val currentState = testKit.currentState 
+      assert(currentState.memberId.get.memberId == memberId)
+      assert(currentState.memberMetaInfo.get.memberState == api.MemberState.Active)
+      assert(currentState.memberInfo.get == createMemberInfo())
+      
     }
 
     "fail registering a member with all data missing" in {
@@ -90,6 +96,64 @@ class MemberSpec extends AnyWordSpec with Matchers {
       val result = testKit.registerMember(command)
       result.isError shouldBe true
       result.errorDescription shouldBe "Must have at least on of Email, Mobile Phone Number"
+    }
+
+    "allow inactivation and reactivation" in {
+      val testKit = MemberTestKit(new Member(_))
+      val memberId = Some(api.MemberId(UUID.randomUUID().toString()))
+      val firstNow =  Instant.now().toEpochMilli
+      val memberInfo = Some(createMemberInfo())
+      val command = api.RegisterMember(
+        Some(api.MemberToAdd(memberId, memberInfo)),
+        memberId
+        )
+
+        val result = testKit.registerMember(command)
+        result.events.isEmpty shouldBe false
+        result.isError shouldBe false
+        val retEvt = result.nextEvent[api.MemberRegistered]
+        assert(retEvt.memberMetaInfo.get.createdOn >= firstNow)
+        assert(retEvt.memberMetaInfo.get.memberState == api.MemberState.Active)
+      val nextNow = Instant.now().toEpochMilli()
+      val inactivateCommand = api.InactivateMember(memberId, memberId)
+      val inactivateResult = testKit.inactivateMember(inactivateCommand)
+      inactivateResult.events.isEmpty shouldBe false
+      inactivateResult.isError shouldBe false
+      val inactivateEvt = inactivateResult.nextEvent[api.MemberInactivated]
+     // assert(inactivateEvt.memberMeta.get.createdOn >= nextNow)
+      assert(inactivateEvt.memberMeta.get.memberState == api.MemberState.Inactive)
+      val activateCommand = api.ActivateMember(memberId, memberId)
+      val activateResult = testKit.activateMember(activateCommand)
+      activateResult.events.isEmpty shouldBe false
+      activateResult.isError shouldBe false
+      val activateEvt = activateResult.nextEvent[api.MemberActivated]
+      assert(activateEvt.memberMeta.get.memberState == api.MemberState.Active)
+      
+    }
+
+    "should return the registered member" in {
+       val testKit = MemberTestKit(new Member(_))
+      val memberId = Some(api.MemberId(UUID.randomUUID().toString()))
+      val firstNow =  Instant.now().toEpochMilli
+      val memberInfo = Some(createMemberInfo())
+      val command = api.RegisterMember(
+        Some(api.MemberToAdd(memberId, memberInfo)),
+        memberId
+        )
+
+        val result = testKit.registerMember(command)
+        result.events.isEmpty shouldBe false
+        result.isError shouldBe false
+        val retEvt = result.nextEvent[api.MemberRegistered]
+        assert(retEvt.memberMetaInfo.get.createdOn >= firstNow)
+        assert(retEvt.memberMetaInfo.get.memberState == api.MemberState.Active)
+
+      val retCommand = api.RetrieveMember(memberId)
+      val retResult = testKit.retrieveMember(retCommand)
+      assert(retResult.reply.memberId == memberId)
+      assert(retResult.reply.memberInfo == retEvt.memberInfo)
+
+
     }
 
   }
@@ -134,6 +198,6 @@ class MemberSpec extends AnyWordSpec with Matchers {
       Member.validateMemberInfo(Some(createMemberInfo())) shouldBe Some(createMemberInfo()).validNel
     }
 
-    
+
   }
 }

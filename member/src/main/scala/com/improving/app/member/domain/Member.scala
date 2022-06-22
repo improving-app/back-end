@@ -19,7 +19,6 @@ import com.improving.app.organization.api.OrganizationId
 
 class Member(context: EventSourcedEntityContext) extends AbstractMember {
 
-  
   override def emptyState: MemberState = MemberState.defaultInstance
 
   override def registerMember(
@@ -27,7 +26,8 @@ class Member(context: EventSourcedEntityContext) extends AbstractMember {
       registerMember: api.RegisterMember
   ): EventSourcedEntity.Effect[api.MemberRegistered] =
     if (currentState == emptyState) {
-      val event = Member.validateMemberData(registerMember)
+      val event = Member
+        .validateMemberData(registerMember)
         .map(rm => {
 
           val meta = api.MemberMetaInfo(
@@ -51,8 +51,6 @@ class Member(context: EventSourcedEntityContext) extends AbstractMember {
       )
     }
 
-  // effects.error("The command handler for `registerMember` is not implemented, yet")
-
   override def memberRegistered(
       currentState: MemberState,
       memberRegistered: api.MemberRegistered
@@ -62,22 +60,136 @@ class Member(context: EventSourcedEntityContext) extends AbstractMember {
       memberInfo = memberRegistered.memberInfo,
       memberMetaInfo = memberRegistered.memberMetaInfo
     )
-  }
-  object Member {
 
-    type Error = String
+  def updateMemberState[T <: AnyRef](
+      currentState: MemberState,
+      affectedMember: Option[api.MemberId],
+      actingMember: Option[api.MemberId],
+      newState: api.MemberState,
+      baseError: String,
+      f: (Option[api.MemberId], Option[api.MemberMetaInfo]) => T
+  ): EventSourcedEntity.Effect[T] =
+    if (currentState == emptyState)
+      effects.error(baseError)
+    else {
+      Member
+        .validateActingMember(actingMember)
+        .andThen(am => {
+          val now = Instant.now().toEpochMilli
+          val meta = currentState.memberMetaInfo.get.copy(
+            lastModifiedOn = now,
+            lastModifiedBy = am,
+            memberState = newState
+          ) // Is it possible to not have a memberMetaInfo? ie is get safe?
+          f(affectedMember, Some(meta)).validNel
+
+        })
+        .toEither match {
+        case Left(err)  => effects.error(err.toList.mkString(", "))
+        case Right(evt) => effects.emitEvent(evt).thenReply(_ => evt)
+      }
+    }
+
+  override def activateMember(
+      currentState: MemberState,
+      activateMember: api.ActivateMember
+  ): EventSourcedEntity.Effect[api.MemberActivated] = // TODO need rules for who can activate a member and when.  Ie don't want a suspended user to reactivate themselves
+    updateMemberState(
+      currentState,
+      activateMember.memberId,
+      activateMember.actingMember,
+      api.MemberState.Active,
+      s"Member Id:${activateMember.memberId} does not exist - cannot activate!",
+      (x, y) => api.MemberActivated(x, y)
+    )
+
+  override def memberActivated(
+      currentState: MemberState,
+      memberActivated: api.MemberActivated
+  ): MemberState = currentState.copy(memberMetaInfo = memberActivated.memberMeta)
+
+  override def inactivateMember(
+      currentState: MemberState,
+      inactivateMember: api.InactivateMember
+  ): EventSourcedEntity.Effect[api.MemberInactivated] =
+    updateMemberState(
+      currentState,
+      inactivateMember.memberId,
+      inactivateMember.actingMember,
+      api.MemberState.Inactive,
+      s"Member Id:${inactivateMember.memberId} does not exist - cannot activate!",
+      (x, y) => api.MemberInactivated(x, y)
+    )
+
+  override def memberInactivated(
+      currentState: MemberState,
+      memberInactivated: api.MemberInactivated
+  ): MemberState = currentState.copy(memberMetaInfo = memberInactivated.memberMeta)
+
+  override def suspendMember(
+      currentState: MemberState,
+      suspendMember: api.SuspendMember
+  ): EventSourcedEntity.Effect[
+    api.MemberSuspended
+  ] = // TODO need rules on who can suspend a member and when
+    updateMemberState(
+      currentState,
+      suspendMember.memberId,
+      suspendMember.actingMember,
+      api.MemberState.Suspended,
+      s"Member Id:${suspendMember.memberId} does not exist - cannot activate!",
+      (x, y) => api.MemberSuspended(x, y)
+    )
+
+  override def memberSuspended(
+      currentState: MemberState,
+      memberSuspended: api.MemberSuspended
+  ): MemberState = currentState.copy(memberMetaInfo = memberSuspended.memberMeta)
+
+   override def terminateMember(
+      currentState: MemberState,
+      terminateMember: api.TerminateMember
+  ): EventSourcedEntity.Effect[
+    api.MemberTerminated
+  ] = // TODO need rules on who can terminate a member and when.  Also Member termination may be long running as there may be much deletion that needs to happen - so may not get a response in time - may need to be asynchronous
+    updateMemberState(
+      currentState,
+      terminateMember.memberId,
+      terminateMember.actingMember,
+      api.MemberState.Terminated,
+      s"Member Id:${terminateMember.memberId} does not exist - cannot activate!",
+      (x, y) => api.MemberTerminated(x, y)
+    )
+
+  override def memberTerminated(
+      currentState: MemberState,
+      memberTerminated: api.MemberTerminated
+  ): MemberState = currentState.copy(memberMetaInfo = memberTerminated.memberMeta)
+
+  override def retrieveMember(
+    currentState:MemberState,
+    retrieveMember:api.RetrieveMember):EventSourcedEntity.Effect[api.MemberRetrieved] = {
+      effects.reply(api.MemberRetrieved(currentState.memberId, currentState.memberInfo, currentState.memberMetaInfo))
+    }
+
+
+
+}
+object Member {
+
+  type Error = String
 
   type ErrorOr[A] = ValidatedNel[Error, A]
-  def validateRegisteringMember(memberId: Option[api.MemberId]): ErrorOr[Option[api.MemberId]] = {
+  def validateActingMember(memberId: Option[api.MemberId]): ErrorOr[Option[api.MemberId]] = {
     Either
       .cond(memberId.isDefined, memberId, "Invalid Registering Member")
-      .toValidatedNel // TODO what are valid cases for registering member - can only be active? or cannot be terminated/suspenden - but must exist either way?
+      .toValidatedNel // TODO what are valid cases for registering member - can only be active? or cannot be terminated/suspended - but must exist either way? do we need to do a lookup for it?
   }
 
   def validateMemberData(registerMember: api.RegisterMember): ErrorOr[api.RegisterMember] = {
     (
       validateMemberToAdd(registerMember.memberToAdd),
-      validateRegisteringMember(registerMember.registeringMember)
+      validateActingMember(registerMember.registeringMember)
     ).mapN(api.RegisterMember(_, _))
   }
 
@@ -117,14 +229,6 @@ class Member(context: EventSourcedEntityContext) extends AbstractMember {
   def validateEmail(e: Option[String]): ErrorOr[Option[String]] = Either
     .cond(e.isEmpty || (e.isDefined && e.get.contains("@")), e, "Invalid Email Address")
     .toValidatedNel // TODO add an actual email validation
-
-  def validateNotificationPref(
-      np: api.NotificationPreference
-  ): ErrorOr[api.NotificationPreference] = Either
-    .cond(true, np, "Unexpected NotificationPreference")
-    .toValidatedNel // to be removed if I can figure out how - don't really need non validations
-
-  // def validateOptIn(o:Boolean):ErrorOr[Boolean] = Either.cond(o || !o, o, "this should never occur - boolean only has two options").toValidatedNel // to be removed if I can figure out how.
 
   def validateOrganizations(orgs: Seq[OrganizationId]): ErrorOr[Seq[OrganizationId]] =
     orgs.map(validateOrganization(_)).sequence
