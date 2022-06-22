@@ -36,11 +36,11 @@ enum MemberState {
 
 message MemberInfo {
   string handle = 1;
-  string avatar_url = 2;
+  string avatarUrl = 2;
   string firstName = 3;
   string lastName = 4;
-  string mobileNumber = 5;
-  string email = 6;
+  optional string mobileNumber = 5;
+  optional string email = 6;
   NotificationPreference notificationPreference = 7;
   bool optIn = 8;
   repeated com.improving.app.organization.api.OrganizationId organizations = 9;
