@@ -19,9 +19,7 @@ import com.improving.app.organization.api.OrganizationId
 
 class Member(context: EventSourcedEntityContext) extends AbstractMember {
 
-  type Error = String
-
-  type ErrorOr[A] = ValidatedNel[Error, A]
+  
   override def emptyState: MemberState = MemberState.defaultInstance
 
   override def registerMember(
@@ -29,7 +27,7 @@ class Member(context: EventSourcedEntityContext) extends AbstractMember {
       registerMember: api.RegisterMember
   ): EventSourcedEntity.Effect[api.MemberRegistered] =
     if (currentState == emptyState) {
-      val event = validateMemberData(registerMember)
+      val event = Member.validateMemberData(registerMember)
         .map(rm => {
 
           val meta = api.MemberMetaInfo(
@@ -64,7 +62,12 @@ class Member(context: EventSourcedEntityContext) extends AbstractMember {
       memberInfo = memberRegistered.memberInfo,
       memberMetaInfo = memberRegistered.memberMetaInfo
     )
+  }
+  object Member {
 
+    type Error = String
+
+  type ErrorOr[A] = ValidatedNel[Error, A]
   def validateRegisteringMember(memberId: Option[api.MemberId]): ErrorOr[Option[api.MemberId]] = {
     Either
       .cond(memberId.isDefined, memberId, "Invalid Registering Member")
