@@ -114,13 +114,13 @@ class MemberSpec extends AnyWordSpec with Matchers {
         val retEvt = result.nextEvent[api.MemberRegistered]
         assert(retEvt.memberMetaInfo.get.createdOn >= firstNow)
         assert(retEvt.memberMetaInfo.get.memberState == api.MemberState.Active)
-      val nextNow = Instant.now().toEpochMilli()
+      
       val inactivateCommand = api.InactivateMember(memberId, memberId)
       val inactivateResult = testKit.inactivateMember(inactivateCommand)
       inactivateResult.events.isEmpty shouldBe false
       inactivateResult.isError shouldBe false
       val inactivateEvt = inactivateResult.nextEvent[api.MemberInactivated]
-     // assert(inactivateEvt.memberMeta.get.createdOn >= nextNow)
+     
       assert(inactivateEvt.memberMeta.get.memberState == api.MemberState.Inactive)
       val activateCommand = api.ActivateMember(memberId, memberId)
       val activateResult = testKit.activateMember(activateCommand)
