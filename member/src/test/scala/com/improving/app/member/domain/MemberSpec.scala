@@ -32,7 +32,7 @@ class MemberSpec extends AnyWordSpec with Matchers {
       optIn: Boolean = true,
       organizations: Seq[OrganizationId] = Seq(OrganizationId("anOrganization")),
       relatedMembers: String = "",
-      memberType: api.MemberType = api.MemberType.General
+      memberTypes: Seq[api.MemberType] = Seq(api.MemberType.General)
   ): api.MemberInfo = {
     api.MemberInfo(
       handle,
@@ -45,7 +45,7 @@ class MemberSpec extends AnyWordSpec with Matchers {
       optIn,
       organizations,
       relatedMembers,
-      memberType
+      memberTypes
     )
   }
 
@@ -57,7 +57,7 @@ class MemberSpec extends AnyWordSpec with Matchers {
       val now        = Instant.now().toEpochMilli
       val memberInfo = createMemberInfo()
       val command = api.RegisterMember(
-        Some(api.MemberToAdd(Some(api.MemberId(memberId)), Some(memberInfo))),
+        Some(api.MemberMap(Some(api.MemberId(memberId)), Some(memberInfo))),
         Some(api.MemberId(memberId))
       )
       val result = testKit.registerMember(command)
@@ -90,7 +90,7 @@ class MemberSpec extends AnyWordSpec with Matchers {
       val memberId   = UUID.randomUUID().toString()
       val memberInfo = createMemberInfo(mobileNumber = None, email = None)
       val command = api.RegisterMember(
-        Some(api.MemberToAdd(Some(api.MemberId(memberId)), Some(memberInfo))),
+        Some(api.MemberMap(Some(api.MemberId(memberId)), Some(memberInfo))),
         Some(api.MemberId(memberId))
       )
       val result = testKit.registerMember(command)
@@ -104,7 +104,7 @@ class MemberSpec extends AnyWordSpec with Matchers {
       val firstNow =  Instant.now().toEpochMilli
       val memberInfo = Some(createMemberInfo())
       val command = api.RegisterMember(
-        Some(api.MemberToAdd(memberId, memberInfo)),
+        Some(api.MemberMap(memberId, memberInfo)),
         memberId
         )
 
@@ -137,7 +137,7 @@ class MemberSpec extends AnyWordSpec with Matchers {
       val firstNow =  Instant.now().toEpochMilli
       val memberInfo = Some(createMemberInfo())
       val command = api.RegisterMember(
-        Some(api.MemberToAdd(memberId, memberInfo)),
+        Some(api.MemberMap(memberId, memberInfo)),
         memberId
         )
 
@@ -148,10 +148,69 @@ class MemberSpec extends AnyWordSpec with Matchers {
         assert(retEvt.memberMetaInfo.get.createdOn >= firstNow)
         assert(retEvt.memberMetaInfo.get.memberState == api.MemberState.Active)
 
-      val retCommand = api.RetrieveMember(memberId)
-      val retResult = testKit.retrieveMember(retCommand)
+      val retCommand = api.GetMemberInfo(memberId)
+      val retResult = testKit.getMemberInfo(retCommand)
       assert(retResult.reply.memberId == memberId)
       assert(retResult.reply.memberInfo == retEvt.memberInfo)
+
+
+    }
+
+    "should update Member Data " in {
+      val testKit = MemberTestKit(new Member(_))
+      val memberId = Some(api.MemberId(UUID.randomUUID().toString()))
+      val memberInfo = Some(createMemberInfo())
+      val command = api.RegisterMember(
+        Some(api.MemberMap(memberId, memberInfo)),
+        memberId
+      )
+
+      val result = testKit.registerMember(command)
+      result.events.isEmpty shouldBe false
+      result.isError shouldBe false
+      val retEvt = result.nextEvent[api.MemberRegistered]
+      assert(retEvt.memberInfo == memberInfo)
+
+      val newFirstName = "new First Name"
+      val newLastName = "new Last Name"
+
+      val updatedMemberInfo = memberInfo.map(_.copy(firstName = newFirstName, lastName = newLastName))
+
+      val updCommand = api.UpdateMemberInfo(Some(api.MemberMap(memberId, updatedMemberInfo)), memberId)
+      val updResult = testKit.updateMemberInfo(updCommand)
+      updResult.events.isEmpty shouldBe false
+      updResult.isError shouldBe false
+
+      val updMemberInfo = updResult.nextEvent[api.MemberInfoUpdated]
+      assert(updMemberInfo.memberInfo.get.firstName == newFirstName)
+      assert(updMemberInfo.memberInfo.get.lastName == newLastName)
+      assert(updMemberInfo.memberInfo.get.handle == memberInfo.get.handle)
+    }
+
+    "should fail to update a Member with bad data" in {
+      val testKit = MemberTestKit(new Member(_))
+      val memberId = Some(api.MemberId(UUID.randomUUID().toString()))
+      val memberInfo = Some(createMemberInfo())
+      val command = api.RegisterMember(
+        Some(api.MemberMap(memberId, memberInfo)),
+        memberId
+      )
+
+      val result = testKit.registerMember(command)
+      result.events.isEmpty shouldBe false
+      result.isError shouldBe false
+      val retEvt = result.nextEvent[api.MemberRegistered]
+      assert(retEvt.memberInfo == memberInfo)
+
+      
+      val updatedMemberInfo = memberInfo.map(_.copy(firstName = ""))
+      val updCommand = api.UpdateMemberInfo(Some(api.MemberMap(memberId, updatedMemberInfo)), memberId)
+      val updResult = testKit.updateMemberInfo(updCommand)
+      updResult.events.isEmpty shouldBe true
+      updResult.isError shouldBe true
+      updResult.errorDescription shouldBe "firstName is empty"
+
+
 
 
     }

@@ -42,13 +42,13 @@ message MemberInfo {
   optional string mobileNumber = 5;
   optional string email = 6;
   NotificationPreference notificationPreference = 7;
-  bool optIn = 8;
+  bool notificationOptIn = 8;
   repeated com.improving.app.organization.api.OrganizationId organizations = 9;
   string relatedMembers = 10;
-  MemberType memberType = 11;
+  repeated MemberType memberTypes = 11;
 }
 
-message MemberToAdd {
+message MemberMap {
   MemberId memberId = 1;
   MemberInfo memberInfo = 2;
 }
@@ -62,7 +62,7 @@ message MemberMetaInfo {
 }
 
 message RegisterMember {
- MemberToAdd memberToAdd = 1;
+ MemberMap memberMap = 1;
  MemberId registeringMember = 2;
 
 }
@@ -113,26 +113,26 @@ message MemberTerminated {
   MemberMetaInfo memberMeta = 2;
 }
 
-message RetrieveMember {
+message GetMemberInfo {
   MemberId memberId = 1;
 }
 
-message MemberRetrieved {
+message MemberData {
   MemberId memberId = 1;
   MemberInfo memberInfo = 2;
   MemberMetaInfo memberMeta = 3;
 }
 
-// message UpdateMemberInfo {
-//   MemberId memberId = 1;
-//   MemberInfo memberInfo = 2;
-// }
+message UpdateMemberInfo {
+  MemberMap memberMap = 1;
+  MemberId actingMember = 2;
+}
 
-// message MemberInfoUpdated {
-//   MemberId memberId = 1;
-//   MemberInfo memberInfo = 2;
-//   MemberMetaInfo memberMetaInfo = 3;
-// }
+message MemberInfoUpdated {
+  MemberId memberId = 1;
+  MemberInfo memberInfo = 2;
+  MemberMetaInfo memberMetaInfo = 3;
+}
 
 service MemberService {
   option (kalix.codegen) = {
@@ -141,7 +141,12 @@ service MemberService {
       entity_type: "member"
       state: "com.improving.app.member.domain.MemberState"
       events:[
-        "com.improving.app.member.api.MemberRegistered","com.improving.app.member.api.MemberActivated","com.improving.app.member.api.MemberInactivated","com.improving.app.member.api.MemberSuspended", "com.improving.app.member.api.MemberTerminated"
+        "com.improving.app.member.api.MemberRegistered",
+        "com.improving.app.member.api.MemberActivated",
+        "com.improving.app.member.api.MemberInactivated",
+        "com.improving.app.member.api.MemberSuspended", 
+        "com.improving.app.member.api.MemberTerminated",
+        "com.improving.app.member.api.MemberInfoUpdated"
       ]
     }
   };
@@ -176,17 +181,26 @@ service MemberService {
 
   rpc terminateMember(TerminateMember) returns (MemberTerminated) {
     option(google.api.http) = {
-      post: "member/{memberId}/terminate"
+      post: "member/{memberId}/terminate/"
       body:"*"
     };
   }
 
-  rpc retrieveMember(RetrieveMember) returns (MemberRetrieved) {
+  rpc updateMemberInfo(UpdateMemberInfo) returns (MemberInfoUpdated){
+    option(google.api.http) = {
+      post: "member/{memberId}/update/"
+      body:"*"
+    };
+  }
+
+  rpc getMemberInfo(GetMemberInfo) returns (MemberData) {  // this will be moved once the correct location has been determined
     option(google.api.http) = {
       post:"member/{memberId}/"
       body:"*"
     };
   }
+
+  
 
   
 
