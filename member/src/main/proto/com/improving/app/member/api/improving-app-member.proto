@@ -195,7 +195,7 @@ service MemberService {
 
   rpc getMemberInfo(GetMemberInfo) returns (MemberData) {  // this will be moved once the correct location has been determined
     option(google.api.http) = {
-      post:"member/{memberId}/"
+      get:"member/{memberId}/"
       body:"*"
     };
   }
