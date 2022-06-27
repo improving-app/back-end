@@ -29,10 +29,12 @@ class Member(context: EventSourcedEntityContext) extends AbstractMember {
       val event = Member
         .validateMemberData(registerMember.memberMap, registerMember.registeringMember)
         .map(rm => {
-
+          val now = Instant.now().toEpochMilli
           val meta = api.MemberMetaInfo(
-            createdOn = Instant.now().toEpochMilli,
+            createdOn = now,
             createdBy = rm._2,
+            lastModifiedBy =  rm._2,
+            lastModifiedOn = now,
             memberState = api.MemberState.Active
           )
           for {
