@@ -96,6 +96,9 @@ class Member(context: EventSourcedEntityContext) extends AbstractMember {
       currentState: MemberState,
       activateMember: api.ActivateMember
   ): EventSourcedEntity.Effect[api.MemberActivated] = // TODO need rules for who can activate a member and when.  Ie don't want a suspended user to reactivate themselves
+  if (currentState.memberMetaInfo.get.memberState == api.MemberState.Terminated)
+    effects.error("Cannot unterminate a terminated member.  Member must register anew.")
+  else
     updateMemberState(
       currentState,
       activateMember.memberId,

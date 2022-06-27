@@ -210,8 +210,27 @@ class MemberSpec extends AnyWordSpec with Matchers {
       updResult.isError shouldBe true
       updResult.errorDescription shouldBe "firstName is empty"
 
+    }
 
+    "should fail to transition out of Terminated" in {
+      val testKit = MemberTestKit(new Member(_))
+      val memberId = Some(api.MemberId(UUID.randomUUID().toString()))
+      val memberInfo = Some(createMemberInfo())
+      val command = api.RegisterMember(
+        Some(api.MemberMap(memberId, memberInfo)), memberId
+      )
+      testKit.registerMember(command)
 
+      val terminateCommand = api.TerminateMember(memberId, memberId)
+      val retEvt = testKit.terminateMember(terminateCommand)
+      retEvt.events.isEmpty shouldBe false
+      retEvt.isError shouldBe false
+      val termRes = retEvt.reply
+      termRes.memberMeta.get.memberState shouldBe api.MemberState.Terminated
+
+      val actCommand = api.ActivateMember(memberId, memberId)
+      val actEvt = testKit.activateMember(actCommand)
+      actEvt.isError shouldBe true
 
     }
 
