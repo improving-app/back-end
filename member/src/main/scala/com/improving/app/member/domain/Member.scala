@@ -26,30 +26,40 @@ class Member(context: EventSourcedEntityContext) extends AbstractMember {
       registerMember: api.RegisterMember
   ): EventSourcedEntity.Effect[api.MemberRegistered] =
     if (currentState == emptyState) {
-      val event = Member
-        .validateMemberData(registerMember.memberMap, registerMember.registeringMember)
-        .map(rm => {
+     
+      val event = (
+        registerMember.registeringMember // check to see if registering Member is present/valid - if not use member id from MemberMap
+          .map(registeringMember => Member.validateActingMember(registeringMember))
+          .getOrElse(
+            registerMember.memberMap 
+              .map(x => x.memberId.map(y => validNel(Some(y))))
+              .flatten
+              .getOrElse(invalidNel("Missing Member Id"))
+          ),
+        Member.validateMemberMap(registerMember.memberMap)
+      ).mapN { (registeringMember: Option[api.MemberId], memberMap: Option[api.MemberMap]) =>
+        {
           val now = Instant.now().toEpochMilli
           val meta = api.MemberMetaInfo(
             createdOn = now,
-            createdBy = rm._2,
-            lastModifiedBy =  rm._2,
+            createdBy = registeringMember,
+            lastModifiedBy = registeringMember,
             lastModifiedOn = now,
             memberState = api.MemberState.Active
           )
           for {
-            memToAdd <- rm._1
+            memToAdd <- memberMap
           } yield api.MemberRegistered(memToAdd.memberId, memToAdd.memberInfo, Some(meta))
 
-        })
-        .toEither
+        }
+      }.toEither
       event match {
         case Left(errs) => effects.error(errs.toList.mkString(", "))
         case Right(evt) => effects.emitEvent(evt.get).thenReply(_ => evt.get)
       }
     } else {
       effects.error(
-        s"Member ${registerMember.memberMap.map(x => x.memberId).getOrElse("missing member Id")} has already been registered"
+        s"Member ${registerMember.memberMap.map(x => x.memberId).getOrElse("Missing member Id")} has already been registered"
       )
     }
 
@@ -96,17 +106,17 @@ class Member(context: EventSourcedEntityContext) extends AbstractMember {
       currentState: MemberState,
       activateMember: api.ActivateMember
   ): EventSourcedEntity.Effect[api.MemberActivated] = // TODO need rules for who can activate a member and when.  Ie don't want a suspended user to reactivate themselves
-  if (currentState.memberMetaInfo.get.memberState == api.MemberState.Terminated)
-    effects.error("Cannot unterminate a terminated member.  Member must register anew.")
-  else
-    updateMemberState(
-      currentState,
-      activateMember.memberId,
-      activateMember.actingMember,
-      api.MemberState.Active,
-      s"Member Id:${activateMember.memberId} does not exist - cannot activate!",
-      (x, y) => api.MemberActivated(x, y)
-    )
+    if (currentState.memberMetaInfo.get.memberState == api.MemberState.Terminated)
+      effects.error("Cannot unterminate a terminated member.  Member must register anew.")
+    else
+      updateMemberState(
+        currentState,
+        activateMember.memberId,
+        activateMember.actingMember,
+        api.MemberState.Active,
+        s"Member Id:${activateMember.memberId} does not exist - cannot activate!",
+        (x, y) => api.MemberActivated(x, y)
+      )
 
   override def memberActivated(
       currentState: MemberState,
@@ -151,7 +161,7 @@ class Member(context: EventSourcedEntityContext) extends AbstractMember {
       memberSuspended: api.MemberSuspended
   ): MemberState = currentState.copy(memberMetaInfo = memberSuspended.memberMeta)
 
-   override def terminateMember(
+  override def terminateMember(
       currentState: MemberState,
       terminateMember: api.TerminateMember
   ): EventSourcedEntity.Effect[
@@ -172,53 +182,67 @@ class Member(context: EventSourcedEntityContext) extends AbstractMember {
   ): MemberState = currentState.copy(memberMetaInfo = memberTerminated.memberMeta)
 
   override def updateMemberInfo(
-    currentState: MemberState, 
-    updateMember: api.UpdateMemberInfo):EventSourcedEntity.Effect[api.MemberInfoUpdated] = if (currentState == emptyState){
-      effects.error(s"No Member to update - Member does not exist")
-    }else {
-      Member.validateMemberData(updateMember.memberMap, updateMember.actingMember).andThen{ mM => {
-        val newMemberInfo = mM._1.get.memberInfo.get
-        api.MemberInfoUpdated(
-          mM._1.get.memberId,
-          Some(currentState.memberInfo.get.copy(
-            handle = newMemberInfo.handle,
-            avatarUrl = newMemberInfo.avatarUrl,
-            firstName = newMemberInfo.firstName,
-            lastName = newMemberInfo.lastName,
-            mobileNumber = newMemberInfo.mobileNumber,
-            email = newMemberInfo.email,
-            notificationPreference = newMemberInfo.notificationPreference,
-            notificationOptIn = newMemberInfo.notificationOptIn,
-            organizations = newMemberInfo.organizations,
-            relatedMembers = newMemberInfo.relatedMembers,
-            memberTypes = newMemberInfo.memberTypes
-          )),
-          Some(currentState.memberMetaInfo.get.copy(lastModifiedBy = updateMember.actingMember, lastModifiedOn = Instant.now().toEpochMilli))
-        ).validNel
-      }}.toEither match {
-          case Left(err) => effects.error(err.toList.mkString(", "))
-          case Right(evt) => effects.emitEvent(evt).thenReply(_ => evt)
-        }
-        
-      
-    }
-  
-
-    override def memberInfoUpdated(
       currentState: MemberState,
-      memberUpdated:api.MemberInfoUpdated
-    ):MemberState = currentState.copy(
-      memberInfo = memberUpdated.memberInfo,
-      memberMetaInfo = memberUpdated.memberMetaInfo
-    )
+      updateMember: api.UpdateMemberInfo
+  ): EventSourcedEntity.Effect[api.MemberInfoUpdated] = if (currentState == emptyState) {
+    effects.error(s"No Member to update - Member does not exist")
+  } else {
+    Member
+      .validateMemberData(updateMember.memberMap, updateMember.actingMember)
+      .andThen { mM =>
+        {
+          val newMemberInfo = mM._1.get.memberInfo.get
+          api
+            .MemberInfoUpdated(
+              mM._1.get.memberId,
+              Some(
+                currentState.memberInfo.get.copy(
+                  handle = newMemberInfo.handle,
+                  avatarUrl = newMemberInfo.avatarUrl,
+                  firstName = newMemberInfo.firstName,
+                  lastName = newMemberInfo.lastName,
+                  mobileNumber = newMemberInfo.mobileNumber,
+                  email = newMemberInfo.email,
+                  notificationPreference = newMemberInfo.notificationPreference,
+                  notificationOptIn = newMemberInfo.notificationOptIn,
+                  organizations = newMemberInfo.organizations,
+                  relatedMembers = newMemberInfo.relatedMembers,
+                  memberTypes = newMemberInfo.memberTypes
+                )
+              ),
+              Some(
+                currentState.memberMetaInfo.get.copy(
+                  lastModifiedBy = updateMember.actingMember,
+                  lastModifiedOn = Instant.now().toEpochMilli
+                )
+              )
+            )
+            .validNel
+        }
+      }
+      .toEither match {
+      case Left(err)  => effects.error(err.toList.mkString(", "))
+      case Right(evt) => effects.emitEvent(evt).thenReply(_ => evt)
+    }
+
+  }
+
+  override def memberInfoUpdated(
+      currentState: MemberState,
+      memberUpdated: api.MemberInfoUpdated
+  ): MemberState = currentState.copy(
+    memberInfo = memberUpdated.memberInfo,
+    memberMetaInfo = memberUpdated.memberMetaInfo
+  )
 
   override def getMemberInfo(
-    currentState:MemberState,
-    retrieveMember:api.GetMemberInfo):EventSourcedEntity.Effect[api.MemberData] = {
-      effects.reply(api.MemberData(currentState.memberId, currentState.memberInfo, currentState.memberMetaInfo))
-    }
-
-
+      currentState: MemberState,
+      retrieveMember: api.GetMemberInfo
+  ): EventSourcedEntity.Effect[api.MemberData] = {
+    effects.reply(
+      api.MemberData(currentState.memberId, currentState.memberInfo, currentState.memberMetaInfo)
+    )
+  }
 
 }
 object Member {
@@ -232,11 +256,18 @@ object Member {
       .toValidatedNel // TODO what are valid cases for registering member - can only be active? or cannot be terminated/suspended - but must exist either way? do we need to do a lookup for it?
   }
 
-  def validateMemberData(memberMap:Option[api.MemberMap], actingMember:Option[api.MemberId]): ErrorOr[(Option[api.MemberMap],Option[api.MemberId])] = {
+  def validateActingMember(memberId: api.MemberId): ErrorOr[Option[api.MemberId]] = {
+    validNel(Some(memberId)) // TODO what are validations for acting member? -
+  }
+
+  def validateMemberData(
+      memberMap: Option[api.MemberMap],
+      actingMember: Option[api.MemberId]
+  ): ErrorOr[(Option[api.MemberMap], Option[api.MemberId])] = {
     (
       validateMemberMap(memberMap),
       validateActingMember(actingMember)
-    ).mapN((_:Option[api.MemberMap],_:Option[api.MemberId]))
+    ).mapN((_: Option[api.MemberMap], _: Option[api.MemberId]))
   }
 
   def validateMemberMap(
@@ -316,23 +347,39 @@ object Member {
           valid(x.notificationOptIn),
           validateOrganizations(x.organizations),
           validateGenericString(x.relatedMembers),
-          valid(x.memberTypes.toSet.toSeq),// remove any duplicates - this may not be the right place for this code.
+          valid(
+            x.memberTypes
+          ), // remove any duplicates - this may not be the right place for this code.
           valid(x.unknownFields)
         ).mapN(
-          api.MemberInfo(
-            _: String,
-            _: String,
-            _: String,
-            _: String,
-            _: Option[String],
-            _: Option[String],
-            _: api.NotificationPreference,
-            _: Boolean,
-            _: Seq[OrganizationId],
-            _: String,
-            _: Seq[api.MemberType],
-            _: scalapb.UnknownFieldSet
-          )
+          (
+              handle: String,
+              avatar: String,
+              fname: String,
+              lname: String,
+              mobile: Option[String],
+              eml: Option[String],
+              notePref: api.NotificationPreference,
+              opt: Boolean,
+              orgs: Seq[OrganizationId],
+              relMem: String,
+              memType: Seq[api.MemberType],
+              unk: scalapb.UnknownFieldSet
+          ) =>
+            api.MemberInfo(
+              handle,
+              avatar,
+              fname,
+              lname,
+              mobile,
+              eml,
+              notePref,
+              opt,
+              orgs,
+              relMem,
+              memType.toSet.toSeq,
+              unk
+            )
         ).map(Option(_))
       }
 

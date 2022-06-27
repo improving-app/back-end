@@ -82,7 +82,7 @@ class MemberSpec extends AnyWordSpec with Matchers {
       val command = api.RegisterMember(None, None)
       val result  = testKit.registerMember(command)
       result.isError shouldBe true
-      result.errorDescription shouldBe "Member To Add is Empty, Invalid Registering Member"
+      result.errorDescription shouldBe "Missing Member Id, Member To Add is Empty"
     }
 
     "fail due to missing both phone and email" in {
