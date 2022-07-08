@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package com.improving.app.member.api;
+
+import "kalix/annotations.proto"; 
+
+option (kalix.file).acl = {
+  allow: { service: "*" } 
+};
