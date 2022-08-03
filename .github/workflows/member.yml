@@ -3,16 +3,22 @@ name: Scala CI
 on:
   push:
     branches: [ main ]
+    paths:
+      - member/src/main/**
   pull_request:
     branches: [ main ]
+    paths:
+      - member/src/main/**
+  workflow_dispatch:
 
 jobs:
-  test:
-
+  check-build-test-publish-deploy:
+    name: Check, Build, Test, Publish to gcr.io, Deploy to Kalix
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
+
       - name: Set Up JDK 17
         uses: actions/setup-java@v2
         with:
@@ -22,9 +28,25 @@ jobs:
       - name: Coursier Caching
         uses: coursier/cache-action@v6
 
-      - name: Build & Run Tests
+      #      - name: Run scalafmt via sbt
+      #        run: sbt scalafmtSbtCheck scalafmtCheck test:scalafmtCheck
+
+      - name: Authorize to GCP
+        uses: 'google-github-actions/auth@v0'
+        with:
+          credentials_json: '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}'
+
+      # Setup gcloud CLI
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+
+      - name: Authorize Docker In Locations
         run: |
-          sbt -v clean packageBin +test
+          gcloud auth configure-docker us-east1-docker.pkg.dev
+
+      - name: Build, Test, Publish with sbt
+        run: |
+          sbt -v clean test packageBin Docker/publish
 
       - name: Cleanup Before Caching
         shell: bash
@@ -34,15 +56,15 @@ jobs:
           find $HOME/.ivy2/cache                       -name "ivydata-*.properties" -delete || true
           find $HOME/.cache/coursier/v1                -name "ivydata-*.properties" -delete || true
           find $HOME/.sbt                              -name "*.lock"               -delete || true
-#  deploy:
-#    - name: Kalix Deploy
-#        uses: lightbend/kalix-action@v4
-#        with:
-#          cmd: "services deploy person ${{ secrets.DOCKERHUB_USERNAME }}/person:${{ env.PERSON_VERSION }}"
-#        env:
-#          token: ${{ secrets.TOKEN }}
-#          project: ${{ secrets.PROJECT_ID }}
-#
+
+      - name: Kalix Deploy
+        uses: lightbend/kalix-action@v5
+        with:
+          cmd: "services deploy member ${{ secrets.REPO_HOST }}/improving-member:latest"
+        env:
+          token: ${{ secrets.KALIX_TOKEN }}
+          project: ${{ secrets.KALIX_PROJECT_ID }}
+
 #  slack-workflow-status:
 #    if: always()
 #    name: Post Workflow Status To Slack
