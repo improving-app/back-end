@@ -16,9 +16,9 @@ lazy val backEnd = project.in(file("."))
 //    )
 //  )
 
-// This is for types defined at 'domain' scope and having cross-service applicability only.
+// This is for protobuf types defined at 'domain' scope and having cross-service applicability only.
 lazy val commonTypes = project.in(file("common-types"))
-  .configure(C.akkaPersistentEntity("improving-app-common-types"))
+  .configure(C.protobufsLib("improving-app-common-types"))
 
 lazy val tenant = project.in(file("tenant"))
   .configure(C.akkaPersistentEntity("improving-app-tenant"))

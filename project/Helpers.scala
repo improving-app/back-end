@@ -94,7 +94,6 @@ object C {
         run / fork := false,
         Global / cancelable := false, // ctrl-c
         libraryDependencies ++= Seq(
-          "com.typesafe.akka" %% "akka-actor" % V.akka,
           "com.typesafe.akka" %% "akka-actor-typed" % V.akka,
           "com.typesafe.akka" %% "akka-actor-testkit-typed" % V.akka % Test,
           "com.typesafe.akka" %% "akka-cluster-tools" % V.akka,
