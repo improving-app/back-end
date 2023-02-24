@@ -16,9 +16,9 @@ lazy val backEnd = project.in(file("."))
 //    )
 //  )
 
-//might need to put common types (like memberId...
-lazy val commonTypes = project.in(file("commonTypes"))
+// This is for types defined at 'domain' scope and having cross-service applicability only.
+lazy val commonTypes = project.in(file("common-types"))
   .configure(C.akkaPersistentEntity("improving-app-common-types"))
 
 lazy val tenant = project.in(file("tenant"))
-  .configure(C.protobufsLib("improving-app-tenant"))
+  .configure(C.akkaPersistentEntity("improving-app-tenant"))
