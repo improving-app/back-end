@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package com.contact;
+
+// Either a USA or Canadian postal code
+message PostalCode {
+  oneof postalCode {
+    // A USA postal code
+    string caPostalCode = 1;
+    // A Canadian postal code
+    string usPostalCode = 2;
+  }
+}
+
+// A generalized north american postal address
+message Address {
+  string line1 = 1;
+  string line2 = 2;
+  string city = 3;
+  string stateProvince = 4;
+  string country = 5;
+  PostalCode postalCode = 6;
+}
