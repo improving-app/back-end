@@ -1,0 +1,11 @@
+syntax = "proto3";
+package com.improving.app.organization.domain;
+
+
+import "com/improving/app/organization/api/improving-app-organization-api.proto";
+
+message OrgState {
+  api.OrganizationId orgId = 1;
+  api.OrganizationInfo info = 2;
+  sint64 timestamp = 3;
+}

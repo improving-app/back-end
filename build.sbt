@@ -26,3 +26,10 @@ lazy val tenant = project.in(file("tenant"))
 
 (Compile / runMain) := (tenant / Compile / runMain).evaluated
 onLoad in Global := (onLoad in Global).value andThen (Command.process("project tenant", _))
+
+lazy val organization = project.in(file("organization"))
+  .configure(C.akkaPersistentEntity("improving-app-organization"))
+
+lazy val member = project.in(file("member"))
+  .configure(C.akkaPersistentEntity("improving-app-member"))
+  .dependsOn(organization)

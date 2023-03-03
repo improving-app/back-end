@@ -1,0 +1,17 @@
+syntax =  "proto3";
+
+package com.improving.app.member.domain;
+
+import "com/improving/app/member/api/improving-app-member-api.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  no_default_values_in_constructor: true
+  preserve_unknown_fields: false
+};
+
+message MemberState {
+  api.MemberId member_id = 1;
+  api.MemberInfo member_info = 2;
+  api.MemberMetaInfo member_meta_info = 3;
+}

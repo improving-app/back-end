@@ -4,12 +4,10 @@ syntax = "proto3";
 
 package com.improving.app.organization.api;
 
-import "kalix/annotations.proto";
-import "google/api/annotations.proto";
-// import "google/protobuf/empty.proto";
+//import "google/api/annotations.proto";
 
 message OrganizationId {
-  string orgId = 1 [(kalix.field).entity_key = true];
+  string orgId = 1;
 }
 
 message Address {
@@ -37,7 +35,7 @@ message OrganizationEstablished {
 }
 
 service OrganizationService {
-  option (kalix.codegen) = {
+/*  option (kalix.codegen) = {
     event_sourced_entity: {
       name: "com.improving.app.organization.domain.Organization"
       entity_type: "organization"
@@ -46,13 +44,8 @@ service OrganizationService {
         "com.improving.app.organization.api.OrganizationEstablished"
       ]
     }
-  };
+  };*/
 
-  rpc establishOrganization (EstablishOrganization) returns (OrganizationEstablished) {
-    option (google.api.http) = {
-      post: "/org/{org_name}/"
-      body: "*"
-    };
-  }
+  rpc establishOrganization (EstablishOrganization) returns (OrganizationEstablished) {}
 
 }

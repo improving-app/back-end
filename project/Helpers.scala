@@ -20,6 +20,7 @@ object V {
   lazy val akkaPersistenceCassandra = "1.1.0"
   lazy val cors = "1.1.3"
   lazy val logback = "1.4.5"
+  lazy val scalalogging = "3.9.5"
   lazy val scalatest = "3.2.15"
   lazy val protobufJava = "3.22.0"
 }
@@ -117,6 +118,7 @@ object C {
           "com.typesafe.akka" %% "akka-stream-testkit" % V.akka % Test,
           "com.typesafe.akka" %% "akka-testkit" % V.akka % Test,
           "ch.qos.logback" % "logback-classic" % V.logback,
+          "com.typesafe.scala-logging" %% "scala-logging" % V.scalalogging,
           "org.scalatest" %% "scalatest" % V.scalatest % "it, test",
           "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
           "com.dimafeng" %% "testcontainers-scala-scalatest" % "0.40.12" % "it",
