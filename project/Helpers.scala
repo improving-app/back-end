@@ -2,9 +2,9 @@ import akka.grpc.sbt.AkkaGrpcPlugin
 import com.typesafe.sbt.packager.Keys._
 import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
 import com.typesafe.sbt.packager.docker.DockerPlugin
-import sbt.{Project, Test, Tests, _}
-import sbt.Keys._
 import kalix.sbt.KalixPlugin
+import sbt.Keys._
+import sbt.{Project, Test, Tests, _}
 import sbtprotoc.ProtocPlugin.autoImport.PB
 import scalapb.GeneratorOption.{FlatPackage, RetainSourceCodeInfo, SingleLineToProtoString}
 
@@ -120,9 +120,11 @@ object C {
           "ch.qos.logback" % "logback-classic" % V.logback,
           "com.typesafe.scala-logging" %% "scala-logging" % V.scalalogging,
           "org.scalatest" %% "scalatest" % V.scalatest % "it, test",
-          "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
           "com.dimafeng" %% "testcontainers-scala-scalatest" % "0.40.12" % "it",
-          "com.typesafe.akka" %% "akka-serialization-jackson" % "2.7.0" % "it, test"
+          "com.typesafe.akka" %% "akka-serialization-jackson" % "2.7.0" % "it, test",
+          "com.google.protobuf" % "protobuf-java" % "3.21.9" % "protobuf",
+          "com.google.api.grpc" % "grpc-google-common-protos" % "1.17.0" % "protobuf",
+          "org.scalatest" %% "scalatest" % V.scalatest % Test
     ),
         dockerBaseImage := "docker.io/library/eclipse-temurin:17.0.6_10-jre",
         dockerUsername := sys.props.get("docker.username"),
@@ -135,7 +137,19 @@ object C {
             // this may require that you have first run 'docker buildx create' to set docker buildx up
             dockerExecCommand.value ++ Seq("buildx", "build", "--platform=linux/amd64", "--load") ++ dockerBuildOptions.value :+ "."
           } else dockerBuildCommand.value
-        }
+        },
+/*        Compile / PB.targets := Seq(
+          scalapb.gen(
+            FlatPackage,
+            SingleLineToProtoString,
+            RetainSourceCodeInfo
+          ) -> (Compile / sourceManaged).value / "scalapb",
+          scalapb.validate.gen(
+            FlatPackage,
+            SingleLineToProtoString,
+            RetainSourceCodeInfo
+          ) -> (Compile / sourceManaged).value / "scalapb"
+        )*/
       )
   }
 
