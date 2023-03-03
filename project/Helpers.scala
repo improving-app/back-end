@@ -15,7 +15,6 @@ object V {
   lazy val scala = "2.13.10"
   lazy val akka = "2.7.0"
   lazy val akkaHttp = "10.5.0"
-  lazy val akkaGrpc = "2.2.1"
   lazy val akkaManagement = "1.2.0"
   lazy val akkaProjection = "1.3.1"
   lazy val akkaPersistenceCassandra = "1.1.0"
@@ -91,7 +90,7 @@ object C {
         Test / parallelExecution := false,
         Test / testOptions += Tests.Argument("-oDF"),
         Test / logBuffered := false,
-        run / fork := false,
+        run / fork := true,
         Global / cancelable := false, // ctrl-c
         libraryDependencies ++= Seq(
           "com.typesafe.akka" %% "akka-actor-typed" % V.akka,
@@ -105,20 +104,25 @@ object C {
           "com.lightbend.akka.management" %% "akka-management-cluster-bootstrap" % V.akkaManagement,
           "com.typesafe.akka" %% "akka-persistence" % V.akka,
           "com.typesafe.akka" %% "akka-persistence-cassandra" % V.akkaPersistenceCassandra,
+          "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0" % "protobuf",
+          "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0",
           "com.typesafe.akka" %% "akka-persistence-query" % V.akka,
           "com.typesafe.akka" %% "akka-persistence-typed" % V.akka,
+          "com.typesafe.akka" %% "akka-http-spray-json" % "10.5.0",
           "com.lightbend.akka" %% "akka-projection-core" % "1.3.1",
           "com.lightbend.akka" %% "akka-projection-eventsourced" % V.akkaProjection,
           "com.typesafe.akka" %% "akka-serialization-jackson" % V.akka,
           "com.typesafe.akka" %% "akka-slf4j" % V.akka,
           "com.typesafe.akka" %% "akka-stream" % V.akka,
           "com.typesafe.akka" %% "akka-stream-testkit" % V.akka % Test,
+          "com.typesafe.akka" %% "akka-testkit" % V.akka % Test,
           "ch.qos.logback" % "logback-classic" % V.logback,
           "org.scalatest" %% "scalatest" % V.scalatest % Test),
-        dockerBaseImage := "docker.io/library/adoptopenjdk:17-jre-hotspot",
+        dockerBaseImage := "docker.io/library/eclipse-temurin:17.0.6_10-jre",
         dockerUsername := sys.props.get("docker.username"),
         dockerRepository := sys.props.get("docker.registry"),
         dockerUpdateLatest := true,
+        dockerExposedPorts ++= Seq(8080),
         dockerBuildCommand := {
           if (sys.props("os.arch") != "amd64") {
             // use buildx with platform to build supported amd64 images on other CPU architectures
@@ -152,6 +156,8 @@ object C {
       libraryDependencies ++= Seq(
         "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
         "com.google.protobuf" % "protobuf-java" % V.protobufJava % "protobuf",
+        "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0" % "protobuf",
+        "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0"
       ),
       Compile / PB.targets := Seq(
         scalapb.gen(
