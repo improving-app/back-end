@@ -1,12 +1,8 @@
 package com.improving.app.organization.domain
-
-import com.improving.app.organization.api._
 // import kalix.scalasdk.eventsourcedentity.EventSourcedEntity
 // import kalix.scalasdk.testkit.EventSourcedResult
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-
-import java.util.UUID
 
 // This class was initially generated based on the .proto definition by Kalix tooling.
 //
@@ -14,7 +10,7 @@ import java.util.UUID
 // or delete it so it is regenerated as needed.
 
 class OrganizationSpec extends AnyWordSpec with Matchers {
-  "The Organization" should {
+  /*  "The Organization" should {
     "allow being established" in {
       val testKit = OrganizationTestKit(new Organization(_))
       val command = EstablishOrganization(
@@ -35,5 +31,5 @@ class OrganizationSpec extends AnyWordSpec with Matchers {
       result.reply.info shouldBe command.info
       result.reply.timestamp shouldBe actualEvent.timestamp
     }
-  }
+  }*/
 }

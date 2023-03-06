@@ -1,7 +1,11 @@
 package com.improving.app.member
 
+import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.Behaviors
+import com.improving.app.member.api.MemberServiceImpl
 import com.typesafe.scalalogging.StrictLogging
-import org.slf4j.LoggerFactory
+
+import scala.language.postfixOps
 
 // This class was initially generated based on the .proto definition by Kalix tooling.
 //
@@ -10,7 +14,10 @@ import org.slf4j.LoggerFactory
 
 object Main extends App with StrictLogging {
 
+  implicit val system: ActorSystem[_] = ActorSystem(Behaviors.empty, "MemberSystem")
 
-    logger.info("starting the Member service")
+  new MemberServiceImpl()
+
+  logger.info("starting the Member service")
 
 }

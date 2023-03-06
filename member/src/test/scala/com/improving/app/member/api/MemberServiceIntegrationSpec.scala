@@ -1,14 +1,8 @@
 package com.improving.app.member.api
 
-import akka.actor.ActorSystem
-import com.improving.app.member.Main
-import kalix.scalasdk.testkit.KalixTestKit
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.Millis
-import org.scalatest.time.Seconds
-import org.scalatest.time.Span
 import org.scalatest.wordspec.AnyWordSpec
 
 // This class was initially generated based on the .proto definition by Kalix tooling.

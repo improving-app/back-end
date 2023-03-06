@@ -2,229 +2,47 @@ syntax = "proto3";
 
 package com.improving.app.member.api;
 
-//import "google/api/annotations.proto";
-import "com/improving/app/organization/api/improving-app-organization-api.proto";
+import "com/improving/app/member/domain/improving-app-member-domain.proto";
 import "scalapb/scalapb.proto";
+
+//import "google/api/annotations.proto";
 
 option (scalapb.options) = {
   no_default_values_in_constructor: true
   preserve_unknown_fields: false
 };
 
-message MemberId {
-  string id = 1;
-}
-
-enum MemberType {
-  MEMBER_TYPE_STUDENT = 0;
-  MEMBER_TYPE_FACULTY_STAFF = 1;
-  MEMBER_TYPE_VENDOR = 2;
-  MEMBER_TYPE_SPONSOR =3;
-  MEMBER_TYPE_GENERAL = 4;
-  MEMBER_TYPE_ALUMNI = 5;
-  MEMBER_TYPE_PARENT = 6;
-  MEMBER_TYPE_FAN = 7;
-}
-
-enum NotificationPreference {
-  NOTIFICATION_PREFERENCE_EMAIL = 0;
-  NOTIFICATION_PREFERENCE_SMS = 1;
-}
-
-enum MemberStatus {
-  MEMBER_STATUS_INITIAL = 0;
-  MEMBER_STATUS_ACTIVE = 1;
-  MEMBER_STATUS_INACTIVE = 2;
-  MEMBER_STATUS_SUSPENDED = 3;
-  MEMBER_STATUS_Terminated = 4;
-}
-
-message MemberInfo {
-  string handle = 1;
-  string avatar_url = 2;
-  string firstName = 3;
-  string last_name = 4;
-  optional string mobile_number = 5;
-  optional string email = 6;
-  NotificationPreference notification_preference = 7;
-  bool notification_opt_in = 8;
-  repeated com.improving.app.organization.api.OrganizationId organizations = 9;
-  string related_members = 10;
-  repeated MemberType member_types = 11;
-}
-
-message MemberMap {
-  MemberId memberId = 1;
-  MemberInfo member_info = 2;
-}
-
-message MemberMetaInfo {
-  sint64 created_on = 1;
-  MemberId created_by = 2;
-  sint64 last_modified_on = 3;
-  MemberId last_modified_by = 4;
-  MemberStatus member_state = 5;
-}
-
-//Commands
-
-message RegisterMember {
- MemberMap member_map = 1;
- MemberId registering_member = 2;
-
-}
-
-message ActivateMember {
-  MemberId member_id = 1;
-  MemberId acting_member = 2;
-}
-
-message InactivateMember {
-  MemberId member_id = 1;
-  MemberId acting_member = 2;
-}
-
-message SuspendMember {
-  MemberId member_id = 1;
-  MemberId acting_member = 2;
-}
-
-message TerminateMember {
-  MemberId member_id = 1;
-  MemberId acting_member =2;
-}
-
-message UpdateMemberInfo {
-  MemberMap member_id = 1;
-  MemberId acting_member = 2;
-}
-
-message GetMemberInfo {
-  MemberId member_id = 1;
-}
-
-message MemberCommand {
-  //option (scalapb.message).sealed_oneof_extends = "com.bmo.epbspov.payments.zelle.batch.ZelleBatchEventExt";
-
-  oneof sealed_value {
-    RegisterMember register_member_value = 1;
-    ActivateMember activate_member_value = 2;
-    InactivateMember inactivate_member_value = 3;
-    SuspendMember suspend_member_value = 4;
-    TerminateMember terminate_member_value = 5;
-    UpdateMemberInfo update_member_info_value = 6;
-    GetMemberInfo get_member_info_value = 7;
-  }
-}
-
-//Events
-
-message MemberRegistered {
-  MemberId member_id = 1;
-  MemberInfo member_info =2;
-  MemberMetaInfo member_meta_info = 3;
-}
-
-message MemberActivated {
-  MemberId member_id = 1;
-  MemberMetaInfo member_meta =2;
-}
-
-message MemberInactivated {
-  MemberId member_id = 1;
-  MemberMetaInfo member_meta =2;
-}
-
-message MemberSuspended {
-  MemberId member_id = 1;
-  MemberMetaInfo member_meta = 2;
-}
-
-message MemberTerminated {
-  MemberId member_id = 1;
-  MemberMetaInfo member_meta = 2;
-}
-
-message MemberInfoUpdated {
-  MemberId member_id = 1;
-  MemberInfo member_info = 2;
-  MemberMetaInfo member_meta_info = 3;
-}
-
-message MemberEvent {
-  //option (scalapb.message).sealed_oneof_extends = "com.bmo.epbspov.payments.zelle.batch.ZelleBatchEventExt";
-
-  oneof sealed_value {
-    MemberRegistered member_registered_value = 1;
-    MemberActivated member_activated_value = 2;
-    MemberInactivated member_inactivated_value = 3;
-    MemberSuspended member_suspended_value = 4;
-    MemberTerminated member_terminated = 5;
-    MemberInfoUpdated xim_posting_batch_completed_value = 6;
-  }
-}
-
-//Responses - which are not events
-
-message MemberData {
-  MemberId member_id = 1;
-  MemberInfo member_info = 2;
-  MemberMetaInfo member_meta = 3;
-}
-
 service MemberService {
 
-  rpc registerMember (RegisterMember) returns (MemberRegistered) {
-    /*option(google.api.http) = {
-      post: "member/{memberId}/"
-      body:"*"
-    };*/
+  rpc RegisterMember (domain.RegisterMember) returns (domain.MemberRegistered) {
+      //post: "member/{memberId}/"
+
    }
 
-  rpc activateMember(ActivateMember) returns (MemberActivated) {
-    /*option(google.api.http) = {
-      post: "member/{memberId}/activate/"
-      body:"*"
-    };*/
+  rpc ActivateMember(domain.ActivateMember) returns (domain.MemberActivated) {
+      //post: "member/{memberId}/activate/"
+
   }
 
-  rpc inactivateMember(InactivateMember) returns (MemberInactivated) {
-    /*option(google.api.http) = {
-      post: "member/{memberId}/inactivate/"
-      body:"*"
-    };*/
+  rpc InactivateMember(domain.InactivateMember) returns (domain.MemberInactivated) {
+      //post: "member/{memberId}/inactivate/"
+
   }
 
-  rpc suspendMember(SuspendMember) returns (MemberSuspended) {
-    /*option(google.api.http) = {
-      post: "member/{memberId}/suspend/"
-      body:"*"
-    };*/
+  rpc SuspendMember(domain.SuspendMember) returns (domain.MemberSuspended) {
+      //post: "member/{memberId}/suspend/"
   }
 
-  rpc terminateMember(TerminateMember) returns (MemberTerminated) {
-    /*option(google.api.http) = {
-      post: "member/{memberId}/terminate/"
-      body:"*"
-    };*/
+  rpc TerminateMember(domain.TerminateMember) returns (domain.MemberTerminated) {
+      //post: "member/{memberId}/terminate/"
   }
 
-  rpc updateMemberInfo(UpdateMemberInfo) returns (MemberInfoUpdated){
-    /*option(google.api.http) = {
-      post: "member/{memberId}/update/"
-      body:"*"
-    };*/
+  rpc UpdateMemberInfo(domain.UpdateMemberInfo) returns (domain.MemberInfoUpdated){
+      //post: "member/{memberId}/update/"
   }
 
-  rpc getMemberInfo(GetMemberInfo) returns (MemberData) {  // this will be moved once the correct location has been determined
-    /*option(google.api.http) = {
-      get:"member/{memberId}/"
-      body:"*"
-    };*/
+  rpc GetMemberInfo(domain.GetMemberInfo) returns (domain.MemberData) {
+      //get:"member/{memberId}/"
   }
-
-  
-
-  
 
 }
