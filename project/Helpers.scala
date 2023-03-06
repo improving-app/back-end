@@ -39,7 +39,9 @@ object C {
   )
 
   val javaOptions = Seq(
-    "-Xlint:unchecked", "-Xlint:deprecation", "-parameters" // for Jackson
+    "-Xlint:unchecked",
+    "-Xlint:deprecation",
+    "-parameters" // for Jackson
   )
   def kalix(artifactName: String)(project: Project): Project = {
     project
@@ -72,7 +74,12 @@ object C {
           if (sys.props("os.arch") != "amd64") {
             // use buildx with platform to build supported amd64 images on other CPU architectures
             // this may require that you have first run 'docker buildx create' to set docker buildx up
-            dockerExecCommand.value ++ Seq("buildx", "build", "--platform=linux/amd64", "--load") ++ dockerBuildOptions.value :+ "."
+            dockerExecCommand.value ++ Seq(
+              "buildx",
+              "build",
+              "--platform=linux/amd64",
+              "--load"
+            ) ++ dockerBuildOptions.value :+ "."
           } else dockerBuildCommand.value
         }
       )
@@ -115,6 +122,7 @@ object C {
           "com.lightbend.akka" %% "akka-projection-eventsourced" % V.akkaProjection,
           "com.typesafe.akka" %% "akka-serialization-jackson" % V.akka,
           "com.typesafe.akka" %% "akka-slf4j" % V.akka,
+          "com.typesafe.akka" %% "akka-http-spray-json" % V.akkaHttp,
           "com.typesafe.akka" %% "akka-stream-testkit" % V.akka % Test,
           "com.typesafe.akka" %% "akka-testkit" % V.akka % Test,
           "ch.qos.logback" % "logback-classic" % V.logback,
@@ -135,10 +143,15 @@ object C {
           if (sys.props("os.arch") != "amd64") {
             // use buildx with platform to build supported amd64 images on other CPU architectures
             // this may require that you have first run 'docker buildx create' to set docker buildx up
-            dockerExecCommand.value ++ Seq("buildx", "build", "--platform=linux/amd64", "--load") ++ dockerBuildOptions.value :+ "."
+            dockerExecCommand.value ++ Seq(
+              "buildx",
+              "build",
+              "--platform=linux/amd64",
+              "--load"
+            ) ++ dockerBuildOptions.value :+ "."
           } else dockerBuildCommand.value
         },
-/*        Compile / PB.targets := Seq(
+        /*        Compile / PB.targets := Seq(
           scalapb.gen(
             FlatPackage,
             SingleLineToProtoString,
@@ -154,7 +167,8 @@ object C {
   }
 
   def protobufsLib(artifactName: String)(project: Project): Project = {
-    project.enablePlugins(JavaAppPackaging)
+    project
+      .enablePlugins(JavaAppPackaging)
       .settings(
         name := artifactName,
         organization := "com.improving",
