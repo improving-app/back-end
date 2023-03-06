@@ -77,7 +77,9 @@ object C {
   }
 
   def akkaPersistentEntity(artifactName: String)(project: Project): Project = {
-    project.enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
+    project
+      .configs(IntegrationTest)
+      .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
       .settings(
         name := artifactName,
         organization := "com.improving",
@@ -90,8 +92,10 @@ object C {
         Test / parallelExecution := false,
         Test / testOptions += Tests.Argument("-oDF"),
         Test / logBuffered := false,
+        IntegrationTest / fork := true,
         run / fork := true,
         Global / cancelable := false, // ctrl-c
+        Defaults.itSettings,
         libraryDependencies ++= Seq(
           "com.typesafe.akka" %% "akka-actor-typed" % V.akka,
           "com.typesafe.akka" %% "akka-actor-testkit-typed" % V.akka % Test,
@@ -112,7 +116,8 @@ object C {
           "com.typesafe.akka" %% "akka-stream-testkit" % V.akka % Test,
           "com.typesafe.akka" %% "akka-testkit" % V.akka % Test,
           "ch.qos.logback" % "logback-classic" % V.logback,
-          "org.scalatest" %% "scalatest" % V.scalatest % Test),
+          "org.scalatest" %% "scalatest" % V.scalatest % "it, test",
+          "com.dimafeng" %% "testcontainers-scala-scalatest" % "0.40.12" % "it"),
         dockerBaseImage := "docker.io/library/eclipse-temurin:17.0.6_10-jre",
         dockerUsername := sys.props.get("docker.username"),
         dockerRepository := sys.props.get("docker.registry"),
