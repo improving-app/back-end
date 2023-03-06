@@ -22,3 +22,7 @@ lazy val commonTypes = project.in(file("common-types"))
 
 lazy val tenant = project.in(file("tenant"))
   .configure(C.akkaPersistentEntity("improving-app-tenant"))
+  .dependsOn(commonTypes % "compile->compile;test->test")
+
+(Compile / runMain) := ((Compile / runMain) in tenant).evaluated
+onLoad in Global := (onLoad in Global).value andThen (Command.process("project tenant", _))

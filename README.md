@@ -3,9 +3,25 @@ The backend for a demonstration  of Yoppworks technology
 
 # To build, publish dockerize and deploy to GKE
 
-`sbt clean docker:publishLocal` to test locally or...
+`sbt docker:stage` to generate the Dockerfile
+
+`sbt clean docker:publishLocal` to publish docker image locally or...
 
 `sbt clean docker:publish` to publish to gcp artifact registry, ensure authenticated with gcloud. (This will only work if you are on an Intel processor.  If on ARM64 (apple silicon) see build.sbt for instructions)
+
+## Locally running the server:
+
+`sbt clean compile run` to locally run the server without going through docker
+
+`docker run -p 8080:8080 improving-app-tenant:latest` to run server locally in docker
+
+## Testing on locally running server:
+
+Ensure that you are at the root of the project.
+
+`grpcurl -plaintext localhost:8080 list` to check available services. This checks if you can actually access the gRPC server to begin with.
+
+`grpcurl -plaintext -d '{"myInput":"testName"}' -import-path ./tenant/src/main/protobuf/com/tenant -proto tenantService.proto localhost:8080 com.tenant.TenantService/TestFunction` to test a single gRPC endpoint. The response should be `{"myOutput": "hello testName"}`
 
 ## To deploy to kubernetes:
 

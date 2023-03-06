@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package com.tenant;
+
+message TestCommand {
+  string myInput = 1;
+}
+
+message TestEvent {
+  string myOutput = 1;
+}
