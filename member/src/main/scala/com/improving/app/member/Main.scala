@@ -30,7 +30,8 @@ object Main extends App with StrictLogging {
 
   private def run(): Future[Http.ServerBinding] = {
 
-    val service: HttpRequest => Future[HttpResponse] = MemberServiceHandler(new MemberServiceImpl())
+    val service: HttpRequest => Future[HttpResponse] =
+      MemberServiceHandler.withServerReflection(new MemberServiceImpl())
 
     val bound: Future[Http.ServerBinding] = Http(system)
       .newServerAt(interface = "127.0.0.1", port = 8080)
@@ -38,14 +39,13 @@ object Main extends App with StrictLogging {
       .bind(service)
       .map(_.addToCoordinatedShutdown(hardTerminationDeadline = 10.seconds))
 
-    println(s"Server online at http://localhost:8080/\nPress RETURN to stop...")
-    StdIn.readLine() // let it run until user presses return
+    logger.info(s"Server online at http://localhost:8080/\n")
     bound.onComplete {
       case Success(binding) =>
         val address = binding.localAddress
-        println("gRPC server bound to {}:{}", address.getHostString, address.getPort)
+        logger.info("gRPC server bound to {}:{}", address.getHostString, address.getPort)
       case Failure(ex) =>
-        println("Failed to bind gRPC endpoint, terminating system", ex)
+        logger.error("Failed to bind gRPC endpoint, terminating system", ex)
         system.terminate()
     }
 

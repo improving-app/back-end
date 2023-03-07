@@ -43,7 +43,7 @@ object Member {
     }
 
   //Check if the command is valid for the current state
-  def isCommandValidForState(state: MemberState, command: MemberRequest): Boolean = {
+  private def isCommandValidForState(state: MemberState, command: MemberRequest): Boolean = {
     command match {
       case RegisterMember(_, _)   => state.memberMetaInfo.exists(_.memberState == MemberStatus.MEMBER_STATUS_INITIAL)
       case ActivateMember(_, _)   => state.memberMetaInfo.exists(_.memberState == MemberStatus.MEMBER_STATUS_INITIAL)
