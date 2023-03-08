@@ -2,9 +2,12 @@ package com.improving.app.member.api
 import akka.actor.typed.ActorSystem
 import akka.cluster.sharding.typed.scaladsl.ClusterSharding
 import akka.pattern.StatusReply
+import akka.serialization.jackson.JacksonObjectMapperProvider
 import akka.util.Timeout
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.improving.app.member.domain.Member.{MemberCommand, MemberEntityKey}
 import com.improving.app.member.domain._
+import com.improving.app.member.utils.serialize.AvroJacksonObjectMapperFactory.applyObjectMapperMixins
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
@@ -18,6 +21,9 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
   //Create a new member
   val sharding: ClusterSharding = ClusterSharding(system)
   Member.initSharding(sharding)
+
+  implicit val objectMapper: ObjectMapper = JacksonObjectMapperProvider(system).getOrCreate("jackson-cbor", None)
+  applyObjectMapperMixins(objectMapper)
 
   //Do not use for RegisterMember
   private def extractEntityId(request: MemberRequest): String = {

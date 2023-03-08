@@ -10,12 +10,15 @@ option (scalapb.options) = {
   preserve_unknown_fields: false
 };
 
+
 //Data Model
 message MemberId {
+  option (scalapb.message).extends = "com.improving.app.member.utils.serialize.CborSerializable";
   string id = 1;
 }
 
 enum MemberType {
+  option (scalapb.enum_options).extends = "com.improving.app.member.utils.serialize.CborSerializable";
   MEMBER_TYPE_STUDENT = 0;
   MEMBER_TYPE_FACULTY_STAFF = 1;
   MEMBER_TYPE_VENDOR = 2;
@@ -27,11 +30,13 @@ enum MemberType {
 }
 
 enum NotificationPreference {
+  option (scalapb.enum_options).extends = "com.improving.app.member.utils.serialize.CborSerializable";
   NOTIFICATION_PREFERENCE_EMAIL = 0;
   NOTIFICATION_PREFERENCE_SMS = 1;
 }
 
 enum MemberStatus {
+  option (scalapb.enum_options).extends = "com.improving.app.member.utils.serialize.CborSerializable";
   MEMBER_STATUS_INITIAL = 0;
   MEMBER_STATUS_ACTIVE = 1;
   MEMBER_STATUS_INACTIVE = 2;
@@ -40,6 +45,7 @@ enum MemberStatus {
 }
 
 message MemberInfo {
+  option (scalapb.message).extends = "com.improving.app.member.utils.serialize.CborSerializable";
   string handle = 1;
   string avatar_url = 2;
   string first_name = 3;
@@ -54,11 +60,13 @@ message MemberInfo {
 }
 
 message MemberMap {
+  option (scalapb.message).extends = "com.improving.app.member.utils.serialize.CborSerializable";
   MemberId member_id = 1;
   MemberInfo member_info = 2;
 }
 
 message MemberMetaInfo {
+  option (scalapb.message).extends = "com.improving.app.member.utils.serialize.CborSerializable";
   sint64 created_on = 1;
   MemberId created_by = 2;
   sint64 last_modified_on = 3;
@@ -93,8 +101,9 @@ message TerminateMember {
 }
 
 message UpdateMemberInfo {
-  MemberMap member_id = 1;
-  MemberId acting_member = 2;
+  MemberId member_id = 1;
+  MemberInfo member_info = 2;
+  MemberId acting_member = 3;
 }
 
 message GetMemberInfo {
@@ -102,7 +111,7 @@ message GetMemberInfo {
 }
 
 message MemberRequest{
-  //option (scalapb.message).sealed_oneof_extends = "com.bmo.epbspov.payments.zelle.batch.ZelleBatchEventExt";
+  option (scalapb.message).sealed_oneof_extends = "com.improving.app.member.utils.serialize.CborSerializable";
 
   oneof sealed_value {
     RegisterMember register_member_value = 1;
@@ -150,6 +159,8 @@ message MemberInfoUpdated {
 
 
 message MemberEvent{
+
+  option (scalapb.message).sealed_oneof_extends = "com.improving.app.member.utils.serialize.CborSerializable";
 
   oneof sealed_value {
     MemberRegistered member_registered_value = 1;
