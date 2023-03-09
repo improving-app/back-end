@@ -1,6 +1,7 @@
 package com.improving.app.member.api
 import akka.actor.typed.ActorSystem
-import akka.cluster.sharding.typed.scaladsl.ClusterSharding
+import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
+import akka.cluster.typed.{Cluster, Join}
 import akka.pattern.StatusReply
 import akka.serialization.jackson.JacksonObjectMapperProvider
 import akka.util.Timeout
@@ -20,7 +21,11 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
 
   //Create a new member
   val sharding: ClusterSharding = ClusterSharding(system)
-  Member.initSharding(sharding)
+  ClusterSharding(system).init(
+    Entity(MemberEntityKey)(entityContext => Member(entityContext.entityTypeKey.name, entityContext.entityId))
+  )
+
+  Cluster(system).manager ! Join(Cluster(system).selfMember.address)
 
   implicit val objectMapper: ObjectMapper = JacksonObjectMapperProvider(system).getOrCreate("jackson-cbor", None)
   applyObjectMapperMixins(objectMapper)
@@ -28,12 +33,14 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
   //Do not use for RegisterMember
   private def extractEntityId(request: MemberRequest): String = {
     request match {
-      case RegisterMember(_, _)          => None
-      case ActivateMember(memberId, _)   => memberId.map(_.id)
-      case InactivateMember(memberId, _) => memberId.map(_.id)
-      case SuspendMember(memberId, _)    => memberId.map(_.id)
-      case TerminateMember(memberId, _)  => memberId.map(_.id)
-      case GetMemberInfo(memberId)       => memberId.map(_.id)
+      case RegisterMember(_, _)             => None
+      case ActivateMember(memberId, _)      => memberId.map(_.id)
+      case InactivateMember(memberId, _)    => memberId.map(_.id)
+      case SuspendMember(memberId, _)       => memberId.map(_.id)
+      case TerminateMember(memberId, _)     => memberId.map(_.id)
+      case UpdateMemberInfo(memberId, _, _) => memberId.map(_.id)
+      case GetMemberInfo(memberId)          => memberId.map(_.id)
+      case other                            => throw new RuntimeException(s"Unexpected request to extract id $other")
     }
   }.getOrElse(throw new RuntimeException(s"Missing member id in request $request"))
 
@@ -61,7 +68,7 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
 
   override def registerMember(in: RegisterMember): Future[MemberRegistered] = {
     //create a member with a generated Id
-    //TODO check collision - for now assumed to be unique
+    //TODO check collision - for now assumed to be unique - entity will reject if it already exists
     val memberId = java.util.UUID.randomUUID.toString
 
     handleRequest(

@@ -1,1 +1,23 @@
+//Setup ScyllaDB
+ docker run --name test-scylla --publish 9042:9042 --hostname test-scylla -d scylladb/scylla --smp 1
+
+//RegisterMember
 grpcurl -plaintext -d '{"memberInfo":{ "handle":"test","avatarUrl": "N/A","firstName":"Shail","lastName": "Verma", "mobileNumber": "111-222-1234","email": "test@example.com","notificationPreference": "NOTIFICATION_PREFERENCE_EMAIL", "notificationOptIn": true,"organizations": [{"orgId":"ORGANIZATION_IMPROVING"}],"relatedMembers": "TDB", "memberTypes": ["MEMBER_TYPE_FAN"]}, "registeringMember":{"id":"ADMIN"} }' localhost:8080 com.improving.app.member.api.MemberService.RegisterMember
+
+//ActivateMember
+grpcurl -plaintext -d '{"memberId":{"id": "0de9246d-c399-454b-acbf-7dc3ef1bdf83"}, "actingMember":{"id":"ADMIN"} }' localhost:8080 com.improving.app.member.api.MemberService.ActivateMember
+
+//InactivateMember
+grpcurl -plaintext -d '{"memberId":{"id": "0de9246d-c399-454b-acbf-7dc3ef1bdf83"}, "actingMember":{"id":"ADMIN"} }' localhost:8080 com.improving.app.member.api.MemberService.InactivateMember
+
+//SuspendMember
+grpcurl -plaintext -d '{"memberId":{"id": "0de9246d-c399-454b-acbf-7dc3ef1bdf83"}, "actingMember":{"id":"ADMIN"} }' localhost:8080 com.improving.app.member.api.MemberService.SuspendMember
+
+//TerminateMember
+grpcurl -plaintext -d '{"memberId":{"id": "0de9246d-c399-454b-acbf-7dc3ef1bdf83"}, "actingMember":{"id":"ADMIN"} }' localhost:8080 com.improving.app.member.api.MemberService.TerminateMember
+
+//GetMemberInfo
+grpcurl -plaintext -d '{"memberId":{"id": "0de9246d-c399-454b-acbf-7dc3ef1bdf83"} }' localhost:8080 com.improving.app.member.api.MemberService.GetMemberInfo
+
+//UpdateMemberInfo
+grpcurl -plaintext -d '{"memberId":{"id": "0de9246d-c399-454b-acbf-7dc3ef1bdf83"},"memberInfo":{ "handle":"test","avatarUrl": "N/A","firstName":"Shail","lastName": "Verma", "mobileNumber": "111-222-1234","email": "test@example.com","notificationPreference": "NOTIFICATION_PREFERENCE_SMS", "notificationOptIn": false,"organizations": [{"orgId":"ORGANIZATION_IMPROVING"}],"relatedMembers": "TDB", "memberTypes": ["MEMBER_TYPE_GENERAL"]}, "actingMember":{"id":"ADMIN"} }' localhost:8080 com.improving.app.member.api.MemberService.UpdateMemberInfo

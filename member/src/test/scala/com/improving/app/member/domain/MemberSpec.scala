@@ -16,7 +16,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 class MemberSpec
     extends ScalaTestWithActorTestKit(MemberSpec.config)
@@ -52,11 +52,11 @@ class MemberSpec
     )
   }
 
-  val member1Id = "MEMBER-1"
+  val member1Id: String = "MEMBER-1"
 
-  val waitDuration = 5.seconds
+  val waitDuration: FiniteDuration = 5.seconds
 
-  val sharding = ClusterSharding(system)
+  val sharding: ClusterSharding = ClusterSharding(system)
   //Member.initSharding(sharding)
 
   implicit val objectMapper: ObjectMapper = JacksonObjectMapperProvider(system).getOrCreate("jackson-cbor", None)
@@ -84,6 +84,25 @@ class MemberSpec
               MemberEventResponse(MemberRegistered(Some(MemberId(memId)), Some(memberInfo), Some(memberMetaInfo)))
             ) =>
           logger.info(s"Member Registered $memId: $memberInfo: $memberMetaInfo")
+          FishingOutcome.Complete
+        case other =>
+          logger.info(s"Skipping $other")
+          FishingOutcome.ContinueAndIgnore
+      }
+      result.length shouldBe 1
+    }
+
+    "do not allow Member to be re-registed with same memberId" in {
+
+      val registerMember = RegisterMember(Some(memberInfo), Some(MemberId("ADMIN")))
+
+      val p = TestProbe[StatusReply[MemberResponse]]()
+      val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
+
+      val done: Future[MemberResponse] = ref.ask(_ => MemberCommand(registerMember, p.ref))
+      val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
+        case StatusReply.Error(someError: Throwable) =>
+          logger.error(s"Member Registered failed with error ${someError.getMessage}", someError)
           FishingOutcome.Complete
         case other =>
           logger.info(s"Skipping $other")
