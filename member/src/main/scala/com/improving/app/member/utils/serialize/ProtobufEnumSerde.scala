@@ -2,14 +2,8 @@ package com.improving.app.member.utils.serialize
 
 import com.fasterxml.jackson.core.{JsonGenerator, JsonParser}
 import com.fasterxml.jackson.databind.module.SimpleModule
-import com.fasterxml.jackson.databind.{
-  DeserializationContext,
-  JsonDeserializer,
-  JsonNode,
-  JsonSerializer,
-  SerializerProvider
-}
-import com.improving.app.member.domain.{MemberState, MemberStatus, MemberType, NotificationPreference}
+import com.fasterxml.jackson.databind._
+import com.improving.app.member.domain.{MemberStatus, MemberType, NotificationPreference}
 
 object ProtobufEnumSerde {
 
