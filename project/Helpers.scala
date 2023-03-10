@@ -24,6 +24,7 @@ object V {
   lazy val scalatest = "3.2.15"
   lazy val protobufJava = "3.22.0"
   lazy val testcontainersScalaVersion = "0.40.12"
+  lazy val airframeUlidVersion = "23.3.0"
 }
 
 // C for Configuration functions
@@ -135,7 +136,8 @@ object C {
           "com.google.api.grpc" % "grpc-google-common-protos" % "1.17.0" % "protobuf",
           "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test",
           "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion % "it, test",
-          "org.scalatest" %% "scalatest" % V.scalatest % Test
+          "org.scalatest" %% "scalatest" % V.scalatest % Test,
+          "org.wvlet.airframe" %% "airframe-ulid" % V.airframeUlidVersion,
     ),
         dockerBaseImage := "docker.io/library/eclipse-temurin:17.0.6_10-jre",
         dockerUsername := sys.props.get("docker.username"),

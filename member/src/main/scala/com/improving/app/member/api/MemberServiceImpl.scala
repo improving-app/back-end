@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.improving.app.member.domain.Member.{MemberCommand, MemberEntityKey}
 import com.improving.app.member.domain._
 import com.improving.app.member.utils.serialize.AvroJacksonObjectMapperFactory.applyObjectMapperMixins
+import wvlet.airframe.ulid.ULID
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
@@ -69,7 +70,7 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
   override def registerMember(in: RegisterMember): Future[MemberRegistered] = {
     //create a member with a generated Id
     //TODO check collision - for now assumed to be unique - entity will reject if it already exists
-    val memberId = java.util.UUID.randomUUID.toString
+    val memberId = ULID.newULIDString
 
     handleRequest(
       in,

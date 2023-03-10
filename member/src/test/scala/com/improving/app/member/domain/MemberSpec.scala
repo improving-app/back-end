@@ -15,7 +15,6 @@ import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.concurrent.Future
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 class MemberSpec
@@ -50,7 +49,7 @@ class MemberSpec
       val p = TestProbe[StatusReply[MemberResponse]]()
       val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
 
-      val done: Future[MemberResponse] = ref.ask(_ => MemberCommand(registerMember, p.ref))
+      ref.ask[MemberResponse](_ => MemberCommand(registerMember, p.ref))
       val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
         case StatusReply.Success(
               MemberEventResponse(MemberRegistered(Some(MemberId(memId)), Some(memberInfo), Some(memberMetaInfo)))
@@ -71,7 +70,7 @@ class MemberSpec
       val p = TestProbe[StatusReply[MemberResponse]]()
       val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
 
-      val done: Future[MemberResponse] = ref.ask(_ => MemberCommand(registerMember, p.ref))
+      ref.ask[MemberResponse](_ => MemberCommand(registerMember, p.ref))
       val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
         case StatusReply.Error(someError: Throwable) =>
           logger.error(s"Member Registered failed with error ${someError.getMessage}", someError)
@@ -90,7 +89,7 @@ class MemberSpec
       val p = TestProbe[StatusReply[MemberResponse]]()
       val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
 
-      val done: Future[MemberResponse] = ref.ask(_ => MemberCommand(activateMember, p.ref))
+      ref.ask[MemberResponse](_ => MemberCommand(activateMember, p.ref))
       val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
         case StatusReply.Success(
               MemberEventResponse(MemberActivated(Some(MemberId(memId)), Some(memberMetaInfo)))
@@ -111,7 +110,7 @@ class MemberSpec
       val p = TestProbe[StatusReply[MemberResponse]]()
       val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
 
-      val done: Future[MemberResponse] = ref.ask(_ => MemberCommand(inactivateMember, p.ref))
+      ref.ask[MemberResponse](_ => MemberCommand(inactivateMember, p.ref))
       val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
         case StatusReply.Success(
               MemberEventResponse(MemberInactivated(Some(MemberId(memId)), Some(memberMetaInfo)))
@@ -132,7 +131,7 @@ class MemberSpec
       val p = TestProbe[StatusReply[MemberResponse]]()
       val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
 
-      val done: Future[MemberResponse] = ref.ask(_ => MemberCommand(suspendMember, p.ref))
+      ref.ask[MemberResponse](_ => MemberCommand(suspendMember, p.ref))
       val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
         case StatusReply.Success(
               MemberEventResponse(MemberSuspended(Some(MemberId(memId)), Some(memberMetaInfo)))
@@ -157,7 +156,7 @@ class MemberSpec
       val p = TestProbe[StatusReply[MemberResponse]]()
       val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
 
-      val done: Future[MemberResponse] = ref.ask(_ => MemberCommand(suspendMember, p.ref))
+      ref.ask[MemberResponse](_ => MemberCommand(suspendMember, p.ref))
       val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
         case StatusReply.Success(
               MemberEventResponse(
@@ -180,7 +179,7 @@ class MemberSpec
       val p = TestProbe[StatusReply[MemberResponse]]()
       val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
 
-      val done: Future[MemberResponse] = ref.ask(_ => MemberCommand(getMemberInfo, p.ref))
+      ref.ask[MemberResponse](_ => MemberCommand(getMemberInfo, p.ref))
       val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
         case StatusReply.Success(
               MemberData(Some(MemberId(memId)), Some(memberInfo: MemberInfo), Some(memberMetaInfo))
@@ -201,7 +200,7 @@ class MemberSpec
       val p = TestProbe[StatusReply[MemberResponse]]()
       val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
 
-      val done: Future[MemberResponse] = ref.ask(_ => MemberCommand(terminateMember, p.ref))
+      ref.ask[MemberResponse](_ => MemberCommand(terminateMember, p.ref))
       val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
         case StatusReply.Success(
               MemberEventResponse(MemberTerminated(Some(MemberId(memId)), Some(memberMetaInfo)))
