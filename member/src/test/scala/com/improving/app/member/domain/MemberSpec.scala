@@ -24,34 +24,6 @@ class MemberSpec
     with Matchers
     with StrictLogging {
 
-  def createMemberInfo(
-      handle: String = "fred",
-      avatarUrl: String = "",
-      firstName: String = "First Name",
-      lastName: String = "Last Name",
-      mobileNumber: Option[String] = None,
-      email: Option[String] = Some("someone@somewhere.com"),
-      notificationPreference: NotificationPreference = NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL,
-      optIn: Boolean = true,
-      organizations: Seq[OrganizationId] = Seq(OrganizationId("SomeOrganization")),
-      relatedMembers: String = "",
-      memberTypes: Seq[MemberType] = Seq(MemberType.MEMBER_TYPE_GENERAL)
-  ): MemberInfo = {
-    MemberInfo(
-      handle,
-      avatarUrl,
-      firstName,
-      lastName,
-      mobileNumber,
-      email,
-      notificationPreference,
-      optIn,
-      organizations,
-      relatedMembers,
-      memberTypes
-    )
-  }
-
   val member1Id: String = "MEMBER-1"
 
   val waitDuration: FiniteDuration = 5.seconds
@@ -70,7 +42,7 @@ class MemberSpec
 
     Cluster(system).manager ! Join(Cluster(system).selfMember.address)
 
-    val memberInfo = createMemberInfo()
+    val memberInfo = MemberSpec.createMemberInfo()
     "allow Member to be registered" in {
 
       val registerMember = RegisterMember(Some(memberInfo), Some(MemberId("ADMIN")))
@@ -455,4 +427,32 @@ object MemberSpec {
         "com.improving.app.member.utils.serialize.CborSerializable" = jackson-cbor
           }
       """)
+
+  def createMemberInfo(
+      handle: String = "SomeHandle",
+      avatarUrl: String = "",
+      firstName: String = "First Name",
+      lastName: String = "Last Name",
+      mobileNumber: Option[String] = None,
+      email: Option[String] = Some("someone@somewhere.com"),
+      notificationPreference: NotificationPreference = NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL,
+      optIn: Boolean = true,
+      organizations: Seq[OrganizationId] = Seq(OrganizationId("SomeOrganization")),
+      relatedMembers: String = "",
+      memberTypes: Seq[MemberType] = Seq(MemberType.MEMBER_TYPE_GENERAL)
+  ): MemberInfo = {
+    MemberInfo(
+      handle,
+      avatarUrl,
+      firstName,
+      lastName,
+      mobileNumber,
+      email,
+      notificationPreference,
+      optIn,
+      organizations,
+      relatedMembers,
+      memberTypes
+    )
+  }
 }

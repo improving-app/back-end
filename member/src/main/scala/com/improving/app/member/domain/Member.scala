@@ -20,14 +20,8 @@ object Member extends StrictLogging {
 
   val MemberEntityKey: EntityTypeKey[MemberCommand] = EntityTypeKey[MemberCommand]("Member")
 
-  //register entity
-  def initSharding(sharding: ClusterSharding): Unit =
-    sharding.init(Entity(MemberEntityKey) { entityContext =>
-      Member(entityContext.entityTypeKey.name, entityContext.entityId)
-    })
-
-  //Command wraps the type
-  case class MemberCommand(request: MemberRequest, replyTo: ActorRef[StatusReply[MemberResponse]])
+  //Command wraps the request type
+  final case class MemberCommand(request: MemberRequest, replyTo: ActorRef[StatusReply[MemberResponse]])
 
   private def emptyState(entityId: String): MemberState =
     MemberState(Some(MemberId(entityId)), None, None)

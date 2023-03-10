@@ -23,6 +23,7 @@ object V {
   lazy val scalalogging = "3.9.5"
   lazy val scalatest = "3.2.15"
   lazy val protobufJava = "3.22.0"
+  lazy val testcontainersScalaVersion = "0.40.12"
 }
 
 // C for Configuration functions
@@ -132,6 +133,8 @@ object C {
           "com.typesafe.akka" %% "akka-serialization-jackson" % "2.7.0" % "it, test",
           "com.google.protobuf" % "protobuf-java" % "3.21.9" % "protobuf",
           "com.google.api.grpc" % "grpc-google-common-protos" % "1.17.0" % "protobuf",
+          "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test",
+          "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion % "it, test",
           "org.scalatest" %% "scalatest" % V.scalatest % Test
     ),
         dockerBaseImage := "docker.io/library/eclipse-temurin:17.0.6_10-jre",
