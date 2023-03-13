@@ -21,7 +21,7 @@ Ensure that you are at the root of the project.
 
 `grpcurl -plaintext localhost:8080 list` to check available services. This checks if you can actually access the gRPC server to begin with.
 
-`grpcurl -plaintext -d '{"myInput":"testName"}' -import-path ./tenant/src/main/protobuf/com/tenant -proto tenantService.proto localhost:8080 com.tenant.TenantService/TestFunction` to test a single gRPC endpoint. The response should be `{"myOutput": "hello testName"}`
+`grpcurl -plaintext -d '{"myInput":"testName"}' -import-path ./tenant/src/main/protobuf/com/improving/app/tenant -proto tenantService.proto localhost:8080 com.improving.app.tenant.TenantService/TestFunction` to test a single gRPC endpoint. The response should be `{"myOutput": "hello testName"}`
 
 ## To deploy to kubernetes:
 

@@ -28,12 +28,13 @@ object V {
 object C {
 
   val scala3Options = Seq(
-    "-target:11",
+    "-release:17",
     "-deprecation",
     "-feature",
     "-unchecked",
     "-Xlog-reflective-calls",
-    "-Xlint"
+    "-Xlint",
+    "-Werror"
   )
 
   val javaOptions = Seq(
@@ -117,7 +118,10 @@ object C {
           "com.typesafe.akka" %% "akka-testkit" % V.akka % Test,
           "ch.qos.logback" % "logback-classic" % V.logback,
           "org.scalatest" %% "scalatest" % V.scalatest % "it, test",
-          "com.dimafeng" %% "testcontainers-scala-scalatest" % "0.40.12" % "it"),
+          "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
+          "com.dimafeng" %% "testcontainers-scala-scalatest" % "0.40.12" % "it",
+          "com.typesafe.akka" %% "akka-serialization-jackson" % "2.7.0" % Test
+    ),
         dockerBaseImage := "docker.io/library/eclipse-temurin:17.0.6_10-jre",
         dockerUsername := sys.props.get("docker.username"),
         dockerRepository := sys.props.get("docker.registry"),
@@ -157,7 +161,8 @@ object C {
         "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
         "com.google.protobuf" % "protobuf-java" % V.protobufJava % "protobuf",
         "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0" % "protobuf",
-        "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0"
+        "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0",
+        "com.typesafe.akka" %% "akka-serialization-jackson" % "2.7.0"
       ),
       Compile / PB.targets := Seq(
         scalapb.gen(

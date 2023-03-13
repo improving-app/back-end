@@ -1,4 +1,4 @@
-package com.tenant
+package com.improving.app.tenant
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.ActorRef
