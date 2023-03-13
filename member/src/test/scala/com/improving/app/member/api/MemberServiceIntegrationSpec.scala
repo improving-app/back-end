@@ -3,17 +3,12 @@ package com.improving.app.member.api
 import akka.actor.ActorSystem
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
 import akka.event.{Logging, LoggingAdapter}
-import com.improving.app.member.domain.MemberStatus.{
-  MEMBER_STATUS_ACTIVE,
-  MEMBER_STATUS_INACTIVE,
-  MEMBER_STATUS_INITIAL,
-  MEMBER_STATUS_SUSPENDED,
-  MEMBER_STATUS_TERMINATED
-}
+import com.improving.app.member.domain.MemberStatus._
 import com.improving.app.member.domain.NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL
 import com.improving.app.member.domain._
 import com.improving.app.member.utils.{CassandraTestContainer, LoanedActorSystem}
-import com.improving.app.organization.api.OrganizationId
+import com.improving.app.organization.domain.OrganizationId
+import com.improving.app.tenant.domain.TenantId
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Inside.inside
 import org.scalatest.concurrent.ScalaFutures
@@ -43,7 +38,7 @@ class MemberServiceIntegrationSpec
     var memberId: MemberId = null
     val memberInfo = MemberSpec.createMemberInfo()
     val memberService = new MemberServiceImpl()(system.toTyped)
-    val memberInfoWithMobNumber = memberInfo.withMobileNumber("123-456-7890")
+    val memberInfoWithMobNumber = memberInfo.withContact(memberInfo.contact.get.withPhone("123-456-7890"))
 
     def validateMember(
         memberId: Option[MemberId],
@@ -79,26 +74,26 @@ class MemberServiceIntegrationSpec
                 avatarUrl,
                 firstName,
                 lastName,
-                mobNum,
-                email,
                 notPref,
                 notOptIn,
+                contact,
                 orgs,
-                relMems,
-                memTypes
+                tenant
               )
             ) =>
           handle should equal("SomeHandle")
           avatarUrl should equal("")
-          firstName should equal("First Name")
-          lastName should equal("Last Name")
-          mobNum should matchPattern { case None => }
-          email should matchPattern { case Some("someone@somewhere.com") => }
+          firstName should equal("FirstName")
+          lastName should equal("LastName")
+          inside(contact) { case Some(Contact(email, phone, userName)) =>
+            email should equal(Some("someone@somewhere.com"))
+            phone should equal(None)
+            userName should equal("SomeUserName")
+          }
           notPref should equal(NOTIFICATION_PREFERENCE_EMAIL)
           notOptIn should equal(true)
-          orgs should matchPattern { case OrganizationId("SomeOrganization", _) :: Nil => }
-          relMems should equal("")
-          memTypes should matchPattern { case MemberType.MEMBER_TYPE_GENERAL :: Nil => }
+          orgs should matchPattern { case OrganizationId("SomeOrganization") :: Nil => }
+          tenant should matchPattern { case Some(TenantId("SomeTenant")) => }
       }
       response.memberId should matchPattern { case Some(MemberId(_)) => }
       memberId = response.memberId.get

@@ -1,19 +1,30 @@
 syntax = "proto3";
 
+<<<<<<<< HEAD:tenant/src/main/protobuf/com/improving/app/tenant/tenantService.proto
 package com.improving.app.tenant;
+========
+package com.improving.app.tenant.api;
+
+import "scalapb/scalapb.proto";
+>>>>>>>> a067488 (IA-129 - Code review comments):tenant/src/main/protobuf/com/improving/app/tenant/api/improving-app-tenant-api.proto
 
 option java_multiple_files = true;
 option java_package = "com.improving.app.tenant";
 option java_outer_classname = "TenantServiceProto";
+
+option (scalapb.options) = {
+  no_default_values_in_constructor: true
+  preserve_unknown_fields: false
+};
 
 service TenantService {
   rpc TestFunction (TestInput) returns (TestOutput) {}
 }
 
 message TestInput {
-  string myInput = 1;
+  string my_input = 1;
 }
 
 message TestOutput {
-  string myOutput = 1;
+  string my_output = 1;
 }

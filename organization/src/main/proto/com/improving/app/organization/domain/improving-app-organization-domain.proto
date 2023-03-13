@@ -1,11 +1,43 @@
 syntax = "proto3";
 package com.improving.app.organization.domain;
 
+import "scalapb/scalapb.proto";
 
-import "com/improving/app/organization/api/improving-app-organization-api.proto";
+option (scalapb.options) = {
+  no_default_values_in_constructor: true
+  preserve_unknown_fields: false
+};
+
+message OrganizationId {
+  string id = 1;
+}
+
+message Address {
+  // maybe put this in a "improving.app.api" package?
+}
+
+message OrganizationInfo {
+  string name = 1; //i.e. Provo High School. Must be unique within the organizational structure.
+  string short_name = 2; //i.e. PHS
+  Address address = 3; //required for BaseOrg. Optional for all other organizations.
+  bool is_private = 4; //defaults to true
+  string url = 5;
+  OrganizationId parent_org =6; //BaseOrganizations do not have a parent. All other organizations must have a parent. The BaseOrganization (only one per organizational structure) is the financially responsible party.
+}
 
 message OrgState {
-  api.OrganizationId orgId = 1;
-  api.OrganizationInfo info = 2;
+  OrganizationId org_id = 1;
+  OrganizationInfo info = 2;
+  sint64 timestamp = 3;
+}
+
+message EstablishOrganization {
+  domain.OrganizationId org_id = 1;
+  domain.OrganizationInfo info = 2;
+}
+
+message OrganizationEstablished {
+  domain.OrganizationId org_id = 1;
+  domain.OrganizationInfo info = 2;
   sint64 timestamp = 3;
 }

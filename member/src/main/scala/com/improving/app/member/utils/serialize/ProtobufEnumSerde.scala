@@ -1,9 +1,9 @@
 package com.improving.app.member.utils.serialize
 
 import com.fasterxml.jackson.core.{JsonGenerator, JsonParser}
-import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind._
-import com.improving.app.member.domain.{MemberStatus, MemberType, NotificationPreference}
+import com.fasterxml.jackson.databind.module.SimpleModule
+import com.improving.app.member.domain.{MemberStatus, NotificationPreference}
 
 object ProtobufEnumSerde {
 
@@ -13,8 +13,6 @@ object ProtobufEnumSerde {
       .addDeserializer(classOf[NotificationPreference], new NotificationPreferenceDeserializer)
       .addSerializer(classOf[MemberStatus], new MemberStatusSerializer)
       .addDeserializer(classOf[MemberStatus], new MemberStatusDeserializer)
-      .addSerializer(classOf[MemberType], new MemberTypeSerializer)
-      .addDeserializer(classOf[MemberType], new MemberTypeDeserializer)
 
   class NotificationPreferenceSerializer extends JsonSerializer[NotificationPreference] {
     override def serialize(value: NotificationPreference, gen: JsonGenerator, serializers: SerializerProvider): Unit = {
@@ -44,22 +42,6 @@ object ProtobufEnumSerde {
       val node: JsonNode = p.getCodec.readTree(p)
       val id = node.get("id").numberValue.asInstanceOf[Integer]
       MemberStatus.fromValue(id)
-    }
-  }
-
-  class MemberTypeSerializer extends JsonSerializer[MemberType] {
-    override def serialize(value: MemberType, gen: JsonGenerator, serializers: SerializerProvider): Unit = {
-      gen.writeStartObject()
-      gen.writeNumberField("id", value.value)
-      gen.writeEndObject()
-    }
-  }
-
-  class MemberTypeDeserializer extends JsonDeserializer[MemberType] {
-    override def deserialize(p: JsonParser, ctxt: DeserializationContext): MemberType = {
-      val node: JsonNode = p.getCodec.readTree(p)
-      val id = node.get("id").numberValue.asInstanceOf[Integer]
-      MemberType.fromValue(id)
     }
   }
 }

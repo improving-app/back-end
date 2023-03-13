@@ -19,6 +19,7 @@ object V {
   lazy val akkaProjection = "1.3.1"
   lazy val akkaPersistenceCassandra = "1.1.0"
   lazy val cors = "1.1.3"
+  lazy val catsCore = "2.9.0"
   lazy val logback = "1.4.5"
   lazy val scalalogging = "3.9.5"
   lazy val scalatest = "3.2.15"
@@ -45,47 +46,6 @@ object C {
     "-Xlint:deprecation",
     "-parameters" // for Jackson
   )
-  def kalix(artifactName: String)(project: Project): Project = {
-    project
-      .enablePlugins(KalixPlugin, JavaAppPackaging, DockerPlugin)
-      .settings(
-        name := artifactName,
-        organization := "com.improving",
-        organizationHomepage := Some(url("https://improving.app")),
-        licenses := Seq(("Apache 2", url("https://www.apache.org/licenses/LICENSE-2.0"))),
-        scalaVersion := V.scala,
-        scalacOptions := scala3Options,
-        Compile / scalacOptions ++= scala3Options,
-        Compile / javacOptions ++= javaOptions,
-        Test / parallelExecution := false,
-        Test / testOptions += Tests.Argument("-oDF"),
-        Test / logBuffered := false,
-        Compile / run := {
-          // needed for the proxy to access the user function on all platforms
-          sys.props += "kalix.user-function-interface" -> "0.0.0.0"
-          (Compile / run).evaluated
-        },
-        run / fork := false,
-        Global / cancelable := false, // ctrl-c
-        libraryDependencies ++= Seq("org.scalatest" %% "scalatest" % "3.2.12" % Test),
-        dockerBaseImage := "docker.io/library/adoptopenjdk:11-jre-hotspot",
-        dockerUsername := sys.props.get("docker.username"),
-        dockerRepository := sys.props.get("docker.registry"),
-        dockerUpdateLatest := true,
-        dockerBuildCommand := {
-          if (sys.props("os.arch") != "amd64") {
-            // use buildx with platform to build supported amd64 images on other CPU architectures
-            // this may require that you have first run 'docker buildx create' to set docker buildx up
-            dockerExecCommand.value ++ Seq(
-              "buildx",
-              "build",
-              "--platform=linux/amd64",
-              "--load"
-            ) ++ dockerBuildOptions.value :+ "."
-          } else dockerBuildCommand.value
-        }
-      )
-  }
 
   def akkaPersistentEntity(artifactName: String)(project: Project): Project = {
     project
@@ -129,6 +89,7 @@ object C {
           "com.typesafe.akka" %% "akka-testkit" % V.akka % Test,
           "ch.qos.logback" % "logback-classic" % V.logback,
           "com.typesafe.scala-logging" %% "scala-logging" % V.scalalogging,
+          "org.typelevel" %% "cats-core" % V.catsCore,
           "org.scalatest" %% "scalatest" % V.scalatest % "it, test",
           "com.dimafeng" %% "testcontainers-scala-scalatest" % "0.40.12" % "it",
           "com.typesafe.akka" %% "akka-serialization-jackson" % "2.7.0" % "it, test",

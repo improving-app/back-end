@@ -69,13 +69,13 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
 
   override def registerMember(in: RegisterMember): Future[MemberRegistered] = {
     //create a member with a generated Id
-    //TODO check collision - for now assumed to be unique - entity will reject if it already exists
+    //TODO check collision - for now ULID assumed to be unique - Entity will reject registerMember if already exists
     val memberId = ULID.newULIDString
 
     handleRequest(
       in,
       memberId,
-      { case StatusReply.Success(MemberEventResponse(response @ MemberRegistered(_, _, _))) =>
+      { case StatusReply.Success(MemberEventResponse(response @ MemberRegistered(_, _, _, _))) =>
         response
       }
     )
@@ -85,7 +85,7 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
     handleRequest(
       in,
       extractEntityId(in),
-      { case StatusReply.Success(MemberEventResponse(response @ MemberActivated(_, _))) => response }
+      { case StatusReply.Success(MemberEventResponse(response @ MemberActivated(_, _, _))) => response }
     )
 
   override def inactivateMember(
@@ -94,21 +94,21 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
     handleRequest(
       in,
       extractEntityId(in),
-      { case StatusReply.Success(MemberEventResponse(response @ MemberInactivated(_, _))) => response }
+      { case StatusReply.Success(MemberEventResponse(response @ MemberInactivated(_, _, _))) => response }
     )
 
   override def suspendMember(in: SuspendMember): Future[MemberSuspended] =
     handleRequest(
       in,
       extractEntityId(in),
-      { case StatusReply.Success(MemberEventResponse(response @ MemberSuspended(_, _))) => response }
+      { case StatusReply.Success(MemberEventResponse(response @ MemberSuspended(_, _, _))) => response }
     )
 
   override def terminateMember(in: TerminateMember): Future[MemberTerminated] =
     handleRequest(
       in,
       extractEntityId(in),
-      { case StatusReply.Success(MemberEventResponse(response @ MemberTerminated(_, _))) => response }
+      { case StatusReply.Success(MemberEventResponse(response @ MemberTerminated(_, _, _))) => response }
     )
 
   override def updateMemberInfo(
@@ -117,7 +117,7 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
     handleRequest(
       in,
       extractEntityId(in),
-      { case StatusReply.Success(MemberEventResponse(response @ MemberInfoUpdated(_, _, _))) => response }
+      { case StatusReply.Success(MemberEventResponse(response @ MemberInfoUpdated(_, _, _, _))) => response }
     )
   override def getMemberInfo(in: GetMemberInfo): Future[MemberData] =
     handleRequest(
