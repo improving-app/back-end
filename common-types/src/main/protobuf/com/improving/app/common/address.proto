@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package com.improving.app.common;
+import "scalapb/scalapb.proto";
+
+// Either a USA or Canadian postal code
+message PostalCode {
+  option (scalapb.message).type = "com.improving.app.common.PostalCodeMessageImpl";
+  oneof postal_code_value {
+    // A USA postal code
+    string ca_postal_code_message = 1;
+    // A Canadian postal code
+    string us_postal_code_message = 2;
+  }
+}
+
+// A generalized north american postal address
+message Address {
+  option (scalapb.message).extends = "com.improving.app.common.CborSerializable";
+  string line1 = 1;
+  string line2 = 2;
+  string city = 3;
+  string state_province = 4;
+  string country = 5;
+  PostalCode postal_code = 6;
+}
+
+// Contact information for an individual
+message Contact {
+  string first_name = 1;
+  string last_name = 2;
+  string email_address = 3;
+  string phone = 4;
+  string user_name = 5;
+}
