@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package com.improving.app.tenant.domain;
+import "scalapb/scalapb.proto";
+import "google/protobuf/timestamp.proto";
+import "com/improving/app/common/address.proto";
+import "com/improving/app/common/tenantId.proto";
+import "com/improving/app/common/memberId.proto";
+
+message Info {
+  option (scalapb.message).extends = "com.improving.app.common.CborSerializable";
+  string name = 1;
+  com.improving.app.common.Contact contact = 2;
+  com.improving.app.common.Address address = 3;
+  string organization = 4;
+}
+
+message MetaInfo {
+  option (scalapb.message).extends = "com.improving.app.common.CborSerializable";
+  google.protobuf.Timestamp createdOn = 1;
+  com.improving.app.common.MemberId createdBy = 2;
+  google.protobuf.Timestamp lastUpdated = 3;
+  com.improving.app.common.MemberId lastUpdatedBy = 4;
+}

@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package com.improving.app.tenant.domain;
+import "scalapb/scalapb.proto";
+import "com/improving/app/common/address.proto";
+import "com/improving/app/common/tenantId.proto";
+import "com/improving/app/common/memberId.proto";
+import "com/improving/app/tenant/domain/tenantTypeDefinitions.proto";
+
+message UpdateTenantName {
+  com.improving.app.common.TenantId tenant_id = 1;
+  string new_name = 2;
+  com.improving.app.common.MemberId updating_user = 3;
+}
+
+message TenantNameUpdated {
+  option (scalapb.message).extends = "com.improving.app.common.CborSerializable";
+  com.improving.app.common.TenantId tenant_id = 1;
+  string old_name = 2;
+  string new_name = 3;
+  MetaInfo meta_info = 4;
+}
+
+message UpdatePrimaryContact {
+  com.improving.app.common.TenantId tenant_id = 1;
+  com.improving.app.common.Contact new_contact = 2;
+  com.improving.app.common.MemberId updating_user = 3;
+}
+
+message PrimaryContactUpdated {
+  option (scalapb.message).extends = "com.improving.app.common.CborSerializable";
+  com.improving.app.common.TenantId tenant_id = 1;
+  com.improving.app.common.Contact old_contact = 2;
+  com.improving.app.common.Contact new_contact = 3;
+  MetaInfo meta_info = 4;
+}
+
+message UpdateAddress {
+  com.improving.app.common.TenantId tenant_id = 1;
+  com.improving.app.common.Address new_address = 2;
+  com.improving.app.common.MemberId updating_user = 3;
+}
+
+message AddressUpdated {
+  option (scalapb.message).extends = "com.improving.app.common.CborSerializable";
+  com.improving.app.common.TenantId tenant_id = 1;
+  com.improving.app.common.Address old_address = 2;
+  com.improving.app.common.Address new_address = 3;
+  MetaInfo meta_info = 4;
+}
+
+// The 4 messages below are not yet implemented as it depends on Organization
+message AddOrganizations {
+  string placeholder = 1; //TODO: implement later
+}
+
+message OrganizationsAdded {
+  string placeholder = 1; //TODO: implement later
+}
+
+message RemoveOrganizations {
+  string placeholder = 1; //TODO: implement later
+}
+
+message OrganizationsRemoved {
+  string placeholder = 1; //TODO: implement later
+}
+
+message ActivateTenant {
+  com.improving.app.common.TenantId tenant_id = 1;
+  com.improving.app.common.MemberId updating_user = 2;
+}
+
+message TenantActivated {
+  option (scalapb.message).extends = "com.improving.app.common.CborSerializable";
+  com.improving.app.common.TenantId tenant_id = 1;
+  MetaInfo meta_info = 2;
+}
+
+message SuspendTenant {
+  com.improving.app.common.TenantId tenant_id = 1;
+  string suspension_reason = 2;
+  com.improving.app.common.MemberId updating_user = 3;
+}
+
+message TenantSuspended {
+  option (scalapb.message).extends = "com.improving.app.common.CborSerializable";
+  com.improving.app.common.TenantId tenant_id = 1;
+  MetaInfo meta_info = 2;
+  string suspension_reason = 3;
+}
+
+message TenantRequest {
+  option (scalapb.message).extends = "com.improving.app.common.CborSerializable";
+  oneof sealed_value {
+    UpdateTenantName update_tenant_name_value = 1;
+    UpdatePrimaryContact update_primary_contact_value = 2;
+    UpdateAddress update_address_value = 3;
+    ActivateTenant activate_tenant_value = 4;
+    SuspendTenant suspend_tenant_value = 5;
+  }
+}
+
+message TenantEvent {
+  option (scalapb.message).extends = "com.improving.app.common.CborSerializable";
+  oneof sealed_value {
+    TenantNameUpdated tenant_name_updated_value = 1;
+    PrimaryContactUpdated primary_contact_updated_value = 2;
+    AddressUpdated address_updated_value = 3;
+    TenantActivated tenant_activated_value = 4;
+    TenantSuspended tenant_suspended_value = 5;
+  }
+}
