@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package com.improving.app.common;
+import "scalapb/scalapb.proto";
+
+message MemberId {
+  option (scalapb.message).extends = "com.improving.app.common.CborSerializable";
+  string id = 1;
+}
