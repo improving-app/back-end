@@ -1,11 +1,11 @@
 syntax = "proto3";
 
-package com.improving.app.common;
+package com.improving.app.common.domain;
 import "scalapb/scalapb.proto";
 
 // Either a USA or Canadian postal code
 message PostalCode {
-  option (scalapb.message).type = "com.improving.app.common.PostalCodeMessageImpl";
+  option (scalapb.message).type = "com.improving.app.common.domain.PostalCodeMessageImpl";
   oneof postal_code_value {
     // A USA postal code
     string ca_postal_code_message = 1;
@@ -16,7 +16,7 @@ message PostalCode {
 
 // A generalized north american postal address
 message Address {
-  option (scalapb.message).extends = "com.improving.app.common.CborSerializable";
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   string line1 = 1;
   string line2 = 2;
   string city = 3;

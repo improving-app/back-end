@@ -9,7 +9,7 @@ import com.google.protobuf.timestamp.Timestamp
 
 import java.time.Instant
 import akka.persistence.typed.scaladsl.EventSourcedBehavior
-import com.improving.app.common.{CaPostalCodeImpl, MemberId, TenantId, UsPostalCodeImpl}
+import com.improving.app.common.domain.{CaPostalCodeImpl, MemberId, TenantId, UsPostalCodeImpl}
 
 object Tenant {
 

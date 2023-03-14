@@ -2,7 +2,7 @@ package com.improving.app.tenant
 
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
-import com.improving.app.common.{Address, CaPostalCodeImpl, Contact, MemberId, PostalCodeMessageImpl, TenantId}
+import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, MemberId, PostalCodeMessageImpl, TenantId}
 import com.improving.app.tenant.domain.Tenant.TenantCommand
 import com.improving.app.tenant.domain.{ActivateTenant, SuspendTenant, UpdateAddress, UpdatePrimaryContact}
 
@@ -20,7 +20,7 @@ object TenantSpec {
     akka.persistence.journal.inmem.test-serialization = on
 
     akka.actor.serialization-bindings{
-      "com.improving.app.common.CborSerializable" = jackson-cbor
+      "com.improving.app.common.serialize.PBMsgSerializable" = proto
     }
   """)
 }

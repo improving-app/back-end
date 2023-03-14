@@ -1,7 +1,7 @@
-package com.improving.app.common
+package com.improving.app.common.domain
 
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
-import com.improving.app.common.PostalCode.PostalCodeValue
+import com.improving.app.common.domain.PostalCode.PostalCodeValue
 import scalapb.TypeMapper
 
 /**
@@ -20,7 +20,7 @@ case class UsPostalCodeImpl(code: String) extends PostalCodeImpl
 case class CaPostalCodeImpl(code: String) extends PostalCodeImpl
 
 
-case class PostalCodeMessageImpl(postalCodeValue: PostalCodeImpl) extends CborSerializable
+case class PostalCodeMessageImpl(postalCodeValue: PostalCodeImpl)
 
 object PostalCodeMessageImpl {
   implicit val tm = TypeMapper[PostalCode, PostalCodeMessageImpl] {
