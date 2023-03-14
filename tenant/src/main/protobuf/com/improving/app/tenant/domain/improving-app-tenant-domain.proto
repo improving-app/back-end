@@ -7,6 +7,11 @@ import "com/improving/app/common/tenantId.proto";
 import "com/improving/app/common/memberId.proto";
 import "com/improving/app/tenant/domain/tenantTypeDefinitions.proto";
 
+option (scalapb.options) = {
+  no_default_values_in_constructor: true
+  preserve_unknown_fields: false
+};
+
 message UpdateTenantName {
   com.improving.app.common.TenantId tenant_id = 1;
   string new_name = 2;

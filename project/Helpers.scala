@@ -120,7 +120,7 @@ object C {
           "org.scalatest" %% "scalatest" % V.scalatest % "it, test",
           "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
           "com.dimafeng" %% "testcontainers-scala-scalatest" % "0.40.12" % "it",
-          "com.typesafe.akka" %% "akka-serialization-jackson" % "2.7.0" % Test
+          "com.typesafe.akka" %% "akka-serialization-jackson" % "2.7.0" % "it, test"
     ),
         dockerBaseImage := "docker.io/library/eclipse-temurin:17.0.6_10-jre",
         dockerUsername := sys.props.get("docker.username"),
