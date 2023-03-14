@@ -7,6 +7,10 @@ import "com/improving/app/common/domain/address.proto";
 import "com/improving/app/common/domain/tenantId.proto";
 import "com/improving/app/common/domain/memberId.proto";
 
+option (scalapb.options) = {
+  preserve_unknown_fields: false
+};
+
 message Info {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   string name = 1;
