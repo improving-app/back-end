@@ -1,9 +1,8 @@
 package com.improving.app.member.domain
 
 import cats.data.ValidatedNec
-import cats.implicits.{catsSyntaxTuple3Semigroupal, catsSyntaxTuple9Semigroupal, catsSyntaxValidatedIdBinCompat0}
-import com.improving.app.organization.domain.OrganizationId
-import com.improving.app.tenant.domain.TenantId
+import cats.implicits.{catsSyntaxTuple5Semigroupal, catsSyntaxTuple9Semigroupal, catsSyntaxValidatedIdBinCompat0}
+import com.improving.app.common.domain.{Contact, OrganizationId, TenantId}
 
 object MemberValidation {
   type ValidationResult[A] = ValidatedNec[MemberValidationError, A]
@@ -69,6 +68,8 @@ object MemberValidation {
     if (memberInfo.contact.isEmpty) NoContactAssociated.invalidNec
     else {
       (
+        validateFirstName(memberInfo.contact.get.firstName),
+        validateLastName(memberInfo.contact.get.lastName),
         if (memberInfo.notificationPreference == NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL)
           validateEmailAddress(memberInfo.contact.get.emailAddress)
         else memberInfo.contact.get.emailAddress.validNec,

@@ -5,9 +5,8 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityRef}
 import akka.cluster.typed.{Cluster, Join}
 import akka.pattern.StatusReply
+import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
 import com.improving.app.member.domain.Member.{MemberCommand, MemberEntityKey}
-import com.improving.app.organization.domain.OrganizationId
-import com.improving.app.tenant.domain.TenantId
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.matchers.should.Matchers
@@ -417,6 +416,8 @@ object MemberSpec {
       notificationOptIn = optIn,
       contact = Some(
         Contact(
+          firstName = firstName,
+          lastName = lastName,
           emailAddress = email,
           phone = phNo,
           userName = userName,

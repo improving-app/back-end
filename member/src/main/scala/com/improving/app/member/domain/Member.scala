@@ -6,10 +6,10 @@ import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.pattern.StatusReply
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect, RetentionCriteria}
 import akka.persistence.typed.{PersistenceId, RecoveryCompleted}
-import cats.data.NonEmptyChain
 import cats.data.Validated.{Invalid, Valid}
 import cats.implicits.toFoldableOps
 import com.google.protobuf.timestamp.Timestamp
+import com.improving.app.common.domain.MemberId
 import com.improving.app.member.domain.MemberStatus._
 import com.typesafe.scalalogging.StrictLogging
 
@@ -130,7 +130,7 @@ object Member extends StrictLogging {
           logger.info(s"registerMember: $res")
           res
         }
-      case Invalid(errors: NonEmptyChain[MemberValidation.MemberValidationError]) =>
+      case Invalid(errors) =>
         Effect.reply(replyTo) {
           StatusReply.Error(
             s"Invalid Member Info: $memberInfo with errors: ${errors.map { _.errorMessage }.toList.mkString(",")}"
@@ -195,15 +195,10 @@ object Member extends StrictLogging {
         val event =
           MemberInfoUpdated(Some(memberId), Some(memberInfo), Some(actingMember), Some(Timestamp(Instant.now(clock))))
         Effect.persist(event).thenReply(replyTo) { _ => StatusReply.Success(MemberEventResponse(event)) }
-      case Invalid(errors: NonEmptyChain[MemberValidation.MemberValidationError]) =>
+      case Invalid(errors) =>
         Effect.reply(replyTo) {
           StatusReply.Error(
-            s"Invalid Member Info: $memberInfo with errors: ${errors
-              .map {
-                _.errorMessage
-              }
-              .toList
-              .mkString(",")}"
+            s"Invalid Member Info: $memberInfo with errors: ${errors.map { _.errorMessage }.toList.mkString(",")}"
           )
         }
     }

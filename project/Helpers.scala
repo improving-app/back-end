@@ -90,13 +90,8 @@ object C {
           "com.typesafe.scala-logging" %% "scala-logging" % V.scalalogging,
           "org.typelevel" %% "cats-core" % V.catsCore,
           "org.scalatest" %% "scalatest" % V.scalatest % "it, test",
-          "com.dimafeng" %% "testcontainers-scala-scalatest" % "0.40.12" % "it",
-          "com.typesafe.akka" %% "akka-serialization-jackson" % "2.7.0" % "it, test",
-          "com.google.protobuf" % "protobuf-java" % "3.21.9" % "protobuf",
-          "com.google.api.grpc" % "grpc-google-common-protos" % "1.17.0" % "protobuf",
           "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test",
           "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion % "it, test",
-          "org.scalatest" %% "scalatest" % V.scalatest % Test,
           "org.wvlet.airframe" %% "airframe-ulid" % V.airframeUlidVersion,
     ),
         dockerBaseImage := "docker.io/library/eclipse-temurin:17.0.6_10-jre",
@@ -116,18 +111,6 @@ object C {
             ) ++ dockerBuildOptions.value :+ "."
           } else dockerBuildCommand.value
         },
-        /*        Compile / PB.targets := Seq(
-          scalapb.gen(
-            FlatPackage,
-            SingleLineToProtoString,
-            RetainSourceCodeInfo
-          ) -> (Compile / sourceManaged).value / "scalapb",
-          scalapb.validate.gen(
-            FlatPackage,
-            SingleLineToProtoString,
-            RetainSourceCodeInfo
-          ) -> (Compile / sourceManaged).value / "scalapb"
-        )*/
       )
   }
 
@@ -156,8 +139,7 @@ object C {
         "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
         "com.google.protobuf" % "protobuf-java" % V.protobufJava % "protobuf",
         "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0" % "protobuf",
-        "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0",
-        "com.typesafe.akka" %% "akka-serialization-jackson" % "2.7.0"
+        "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0"
       ),
       Compile / PB.targets := Seq(
         scalapb.gen(

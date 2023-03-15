@@ -25,9 +25,10 @@ lazy val commonTypes = project
 lazy val tenant = project
   .in(file("tenant"))
   .configure(C.akkaPersistentEntity("improving-app-tenant"))
+  .dependsOn(commonTypes)
 
 (Compile / runMain) := (tenant / Compile / runMain).evaluated
-onLoad in Global := (onLoad in Global).value andThen (Command.process("project tenant", _))
+onLoad in Global := (onLoad in Global).value.andThen(Command.process("project tenant", _))
 
 lazy val organization = project
   .in(file("organization"))
@@ -36,4 +37,4 @@ lazy val organization = project
 lazy val member = project
   .in(file("member"))
   .configure(C.akkaPersistentEntity("improving-app-member"))
-  .dependsOn(organization, tenant, commonTypes)
+  .dependsOn(commonTypes)

@@ -2,13 +2,11 @@ package com.improving.app.member.api
 
 import akka.actor.ActorSystem
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
-import akka.event.{Logging, LoggingAdapter}
+import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
 import com.improving.app.member.domain.MemberStatus._
 import com.improving.app.member.domain.NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL
 import com.improving.app.member.domain._
 import com.improving.app.member.utils.{CassandraTestContainer, LoanedActorSystem}
-import com.improving.app.organization.domain.OrganizationId
-import com.improving.app.tenant.domain.TenantId
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.Inside.inside
 import org.scalatest.concurrent.ScalaFutures
@@ -28,7 +26,6 @@ class MemberServiceIntegrationSpec
     PatienceConfig(timeout = scaled(Span(5, Seconds)), interval = scaled(Span(100, Milliseconds)))
 
   implicit private val system: ActorSystem = ActorSystem(this.getClass.getSimpleName)
-  private val log: LoggingAdapter = Logging(system, this.getClass)
 
   override val cassandraInitScriptPath: String = "member/src/test/resources/cassandra-init.cql"
 
@@ -85,7 +82,9 @@ class MemberServiceIntegrationSpec
           avatarUrl should equal("")
           firstName should equal("FirstName")
           lastName should equal("LastName")
-          inside(contact) { case Some(Contact(email, phone, userName)) =>
+          inside(contact) { case Some(Contact(fName, lName, email, phone, userName)) =>
+            fName should equal("FirstName")
+            lName should equal("LastName")
             email should equal(Some("someone@somewhere.com"))
             phone should equal(None)
             userName should equal("SomeUserName")

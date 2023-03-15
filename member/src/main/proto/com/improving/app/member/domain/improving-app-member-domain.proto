@@ -2,8 +2,10 @@ syntax =  "proto3";
 
 package com.improving.app.member.domain;
 
-import "com/improving/app/organization/domain/improving-app-organization-domain.proto";
-import "com/improving/app/tenant/domain/improving-app-tenant-domain.proto";
+import "com/improving/app/common/domain/address.proto";
+import "com/improving/app/common/domain/organizationId.proto";
+import "com/improving/app/common/domain/tenantId.proto";
+import "com/improving/app/common/domain/memberId.proto";
 import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
 
@@ -14,10 +16,6 @@ option (scalapb.options) = {
 
 
 //Data Model
-message MemberId {
-  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  string id = 1;
-}
 
 enum NotificationPreference {
   option (scalapb.enum_options).extends = "com.improving.app.common.serialize.PBEnumSerializable";
@@ -35,13 +33,6 @@ enum MemberStatus {
   MEMBER_STATUS_TERMINATED = 4;
 }
 
-message Contact {
-  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  optional string email_address = 3;
-  optional string phone = 4;
-  string user_name = 5;
-}
-
 message MemberInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   string handle = 1;
@@ -50,66 +41,66 @@ message MemberInfo {
   string last_name = 4;
   NotificationPreference notification_preference = 5;
   bool notification_opt_in = 6;
-  Contact contact = 7;
-  repeated organization.domain.OrganizationId organizations = 8;
-  tenant.domain.TenantId tenant = 9;
+  common.domain.Contact contact = 7;
+  repeated common.domain.OrganizationId organizations = 8;
+  common.domain.TenantId tenant = 9;
 }
 
 message MemberMap {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  MemberId member_id = 1;
+  common.domain.MemberId member_id = 1;
   MemberInfo member_info = 2;
 }
 
 message MemberMetaInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   google.protobuf.Timestamp created_on = 1;
-  MemberId created_by = 2;
+  common.domain.MemberId created_by = 2;
   google.protobuf.Timestamp  last_modified_on = 3;
-  MemberId last_modified_by = 4;
+  common.domain.MemberId last_modified_by = 4;
   MemberStatus member_state = 5;
 }
 
 //Requests
 message RegisterMember {
   MemberInfo member_info = 1;
-  MemberId acting_member = 2;
+  common.domain.MemberId acting_member = 2;
 }
 
 message ActivateMember {
   option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
-  MemberId member_id = 1;
-  MemberId acting_member = 2;
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
 }
 
 message InactivateMember {
   option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
-  MemberId member_id = 1;
-  MemberId acting_member = 2;
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
 }
 
 message SuspendMember {
   option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
-  MemberId member_id = 1;
-  MemberId acting_member = 2;
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
 }
 
 message TerminateMember {
   option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
-  MemberId member_id = 1;
-  MemberId acting_member =2;
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member =2;
 }
 
 message UpdateMemberInfo {
   option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
-  MemberId member_id = 1;
+  common.domain.MemberId member_id = 1;
   MemberInfo member_info = 2;
-  MemberId acting_member = 3;
+  common.domain.MemberId acting_member = 3;
 }
 
 message GetMemberInfo {
   option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
-  MemberId member_id = 1;
+  common.domain.MemberId member_id = 1;
 }
 
 message MemberRequest{
@@ -128,40 +119,40 @@ message MemberRequest{
 
 //Member Events
 message MemberRegistered {
-  MemberId member_id = 1;
+  common.domain.MemberId member_id = 1;
   MemberInfo member_info =2;
-  MemberId acting_member = 3;
+  common.domain.MemberId acting_member = 3;
   google.protobuf.Timestamp  event_time = 4;
 }
 
 message MemberActivated {
-  MemberId member_id = 1;
-  MemberId acting_member = 2;
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
   google.protobuf.Timestamp  event_time = 3;
 }
 
 message MemberInactivated {
-  MemberId member_id = 1;
-  MemberId acting_member = 2;
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
   google.protobuf.Timestamp  event_time = 3;
 }
 
 message MemberSuspended {
-  MemberId member_id = 1;
-  MemberId acting_member = 2;
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
   google.protobuf.Timestamp  event_time = 3;
 }
 
 message MemberTerminated {
-  MemberId member_id = 1;
-  MemberId acting_member = 2;
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
   google.protobuf.Timestamp  event_time = 3;
 }
 
 message MemberInfoUpdated {
-  MemberId member_id = 1;
+  common.domain.MemberId member_id = 1;
   MemberInfo member_info = 2;
-  MemberId acting_member = 3;
+  common.domain.MemberId acting_member = 3;
   google.protobuf.Timestamp  event_time = 4;
 }
 
@@ -182,7 +173,7 @@ message MemberEvent{
 
 //MemberResponse
 message MemberData {
-  MemberId member_id = 1;
+  common.domain.MemberId member_id = 1;
   MemberInfo member_info = 2;
   MemberMetaInfo member_meta_info = 3;
 }
@@ -201,7 +192,7 @@ message MemberResponse {
 //MemberState
 message MemberState {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  MemberId member_id = 1;
+  common.domain.MemberId member_id = 1;
   MemberInfo member_info = 2;
   MemberMetaInfo member_meta_info = 3;
 }

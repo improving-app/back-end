@@ -10,7 +10,6 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 object Main extends App with StrictLogging {
