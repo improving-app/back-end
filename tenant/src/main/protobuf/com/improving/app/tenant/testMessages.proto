@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package com.tenant;
+package com.improving.app.tenant;
 
 message TestCommand {
   string myInput = 1;

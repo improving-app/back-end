@@ -1,4 +1,4 @@
-package com.tenant
+package com.improving.app.tenant
 
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import org.scalatest.BeforeAndAfterAll

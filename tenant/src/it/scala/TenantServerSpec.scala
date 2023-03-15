@@ -2,7 +2,7 @@ import akka.actor.ActorSystem
 import akka.grpc.GrpcClientSettings
 import com.dimafeng.testcontainers.GenericContainer
 import com.dimafeng.testcontainers.scalatest.TestContainerForAll
-import com.tenant.{TenantService, TenantServiceClient, TestInput}
+import com.improving.app.tenant.{TenantService, TenantServiceClient, TestInput}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec._
 import org.scalatest.matchers.should.Matchers
