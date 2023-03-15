@@ -4,7 +4,7 @@ import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.pattern.StatusReply
 import akka.util.Timeout
-import com.improving.app.member.domain.Member.{MemberCommand, MemberEntityKey}
+import com.improving.app.member.domain.Member.{HasMemberId, MemberCommand, MemberEntityKey}
 import com.improving.app.member.domain._
 import wvlet.airframe.ulid.ULID
 
@@ -25,20 +25,7 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
 
   Cluster(system).manager ! Join(Cluster(system).selfMember.address)
 
-
   //Do not use for RegisterMember
-  private def extractEntityId(request: MemberRequest): String = {
-    request match {
-      case RegisterMember(_, _)             => None
-      case ActivateMember(memberId, _)      => memberId.map(_.id)
-      case InactivateMember(memberId, _)    => memberId.map(_.id)
-      case SuspendMember(memberId, _)       => memberId.map(_.id)
-      case TerminateMember(memberId, _)     => memberId.map(_.id)
-      case UpdateMemberInfo(memberId, _, _) => memberId.map(_.id)
-      case GetMemberInfo(memberId)          => memberId.map(_.id)
-      case other                            => throw new RuntimeException(s"Unexpected request to extract id $other")
-    }
-  }.getOrElse(throw new RuntimeException(s"Missing member id in request $request"))
 
   private def handleResponse[T](
       eventHandler: PartialFunction[StatusReply[MemberResponse], T]
@@ -51,10 +38,13 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
 
   private def handleRequest[T](
       in: MemberRequest,
-      memberId: String,
-      eventHandler: PartialFunction[StatusReply[MemberResponse], T]
+      eventHandler: PartialFunction[StatusReply[MemberResponse], T],
+      extractMemberId: MemberRequest => String = {
+        case req: HasMemberId => req.extractMemberId
+        case other            => throw new RuntimeException(s"Member request does not implement HasMemberId $other")
+      }
   ) = {
-    val memberEntity = sharding.entityRefFor(MemberEntityKey, memberId)
+    val memberEntity = sharding.entityRefFor(MemberEntityKey, extractMemberId(in))
 
     //Register the member
     memberEntity
@@ -65,21 +55,18 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
   override def registerMember(in: RegisterMember): Future[MemberRegistered] = {
     //create a member with a generated Id
     //TODO check collision - for now ULID assumed to be unique - Entity will reject registerMember if already exists
-    val memberId = ULID.newULIDString
-
     handleRequest(
       in,
-      memberId,
       { case StatusReply.Success(MemberEventResponse(response @ MemberRegistered(_, _, _, _))) =>
         response
-      }
+      },
+      _ => ULID.newULIDString
     )
   }
 
   override def activateMember(in: ActivateMember): Future[MemberActivated] =
     handleRequest(
       in,
-      extractEntityId(in),
       { case StatusReply.Success(MemberEventResponse(response @ MemberActivated(_, _, _))) => response }
     )
 
@@ -88,21 +75,18 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
   ): Future[MemberInactivated] =
     handleRequest(
       in,
-      extractEntityId(in),
       { case StatusReply.Success(MemberEventResponse(response @ MemberInactivated(_, _, _))) => response }
     )
 
   override def suspendMember(in: SuspendMember): Future[MemberSuspended] =
     handleRequest(
       in,
-      extractEntityId(in),
       { case StatusReply.Success(MemberEventResponse(response @ MemberSuspended(_, _, _))) => response }
     )
 
   override def terminateMember(in: TerminateMember): Future[MemberTerminated] =
     handleRequest(
       in,
-      extractEntityId(in),
       { case StatusReply.Success(MemberEventResponse(response @ MemberTerminated(_, _, _))) => response }
     )
 
@@ -111,13 +95,12 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
   ): Future[MemberInfoUpdated] =
     handleRequest(
       in,
-      extractEntityId(in),
       { case StatusReply.Success(MemberEventResponse(response @ MemberInfoUpdated(_, _, _, _))) => response }
     )
+
   override def getMemberInfo(in: GetMemberInfo): Future[MemberData] =
     handleRequest(
       in,
-      extractEntityId(in),
       { case StatusReply.Success(response @ MemberData(_, _, _)) => response }
     )
 }

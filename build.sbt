@@ -36,4 +36,4 @@ lazy val organization = project
 lazy val member = project
   .in(file("member"))
   .configure(C.akkaPersistentEntity("improving-app-member"))
-  .dependsOn(organization, tenant)
+  .dependsOn(organization, tenant, commonTypes)

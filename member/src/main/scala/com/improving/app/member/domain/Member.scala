@@ -27,10 +27,15 @@ object Member extends StrictLogging {
   private def emptyState(entityId: String): MemberState =
     MemberState(Some(MemberId(entityId)), None, None)
 
-  /* def validateMemberInfo(memberInfo: MemberInfo): Validated[] = {
+  trait HasMemberId {
+    def memberId: Option[MemberId]
 
-    memberInfo.firstName.nonEmpty && memberInfo.lastName.nonEmpty && memberInfo.email.nonEmpty
-  }*/
+    def extractMemberId: String =
+      memberId match {
+        case Some(MemberId(id)) => id
+        case other              => throw new RuntimeException(s"Unexpected request to extract id $other")
+      }
+  }
 
   def apply(entityTypeHint: String, memberId: String): Behavior[MemberCommand] =
     Behaviors.setup { context =>

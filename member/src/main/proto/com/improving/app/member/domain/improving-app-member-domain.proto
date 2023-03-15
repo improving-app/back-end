@@ -77,32 +77,38 @@ message RegisterMember {
 }
 
 message ActivateMember {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
   MemberId member_id = 1;
   MemberId acting_member = 2;
 }
 
 message InactivateMember {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
   MemberId member_id = 1;
   MemberId acting_member = 2;
 }
 
 message SuspendMember {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
   MemberId member_id = 1;
   MemberId acting_member = 2;
 }
 
 message TerminateMember {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
   MemberId member_id = 1;
   MemberId acting_member =2;
 }
 
 message UpdateMemberInfo {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
   MemberId member_id = 1;
   MemberInfo member_info = 2;
   MemberId acting_member = 3;
 }
 
 message GetMemberInfo {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
   MemberId member_id = 1;
 }
 
