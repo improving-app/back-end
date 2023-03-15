@@ -15,19 +15,19 @@ option (scalapb.options) = {
 
 //Data Model
 message MemberId {
-  option (scalapb.message).extends = "com.improving.app.member.utils.serialize.CborSerializable";
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   string id = 1;
 }
 
 enum NotificationPreference {
-  option (scalapb.enum_options).extends = "com.improving.app.member.utils.serialize.CborSerializable";
+  option (scalapb.enum_options).extends = "com.improving.app.common.serialize.PBEnumSerializable";
   NOTIFICATION_PREFERENCE_EMAIL = 0;
   NOTIFICATION_PREFERENCE_SMS = 1;
   NOTIFICATION_PREFERENCE_APPLICATION = 2;
 }
 
 enum MemberStatus {
-  option (scalapb.enum_options).extends = "com.improving.app.member.utils.serialize.CborSerializable";
+  option (scalapb.enum_options).extends = "com.improving.app.common.serialize.PBEnumSerializable";
   MEMBER_STATUS_INITIAL = 0;
   MEMBER_STATUS_ACTIVE = 1;
   MEMBER_STATUS_INACTIVE = 2;
@@ -36,14 +36,14 @@ enum MemberStatus {
 }
 
 message Contact {
-  option (scalapb.message).extends = "com.improving.app.member.utils.serialize.CborSerializable";
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   optional string email_address = 3;
   optional string phone = 4;
   string user_name = 5;
 }
 
 message MemberInfo {
-  option (scalapb.message).extends = "com.improving.app.member.utils.serialize.CborSerializable";
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   string handle = 1;
   string avatar_url = 2;
   string first_name = 3;
@@ -56,13 +56,13 @@ message MemberInfo {
 }
 
 message MemberMap {
-  option (scalapb.message).extends = "com.improving.app.member.utils.serialize.CborSerializable";
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   MemberId member_id = 1;
   MemberInfo member_info = 2;
 }
 
 message MemberMetaInfo {
-  option (scalapb.message).extends = "com.improving.app.member.utils.serialize.CborSerializable";
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   google.protobuf.Timestamp created_on = 1;
   MemberId created_by = 2;
   google.protobuf.Timestamp  last_modified_on = 3;
@@ -107,7 +107,7 @@ message GetMemberInfo {
 }
 
 message MemberRequest{
-  option (scalapb.message).sealed_oneof_extends = "com.improving.app.member.utils.serialize.CborSerializable";
+  option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
 
   oneof sealed_value {
     RegisterMember register_member_value = 1;
@@ -162,7 +162,7 @@ message MemberInfoUpdated {
 
 message MemberEvent{
 
-  option (scalapb.message).sealed_oneof_extends = "com.improving.app.member.utils.serialize.CborSerializable";
+  option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
 
   oneof sealed_value {
     MemberRegistered member_registered_value = 1;
@@ -194,6 +194,7 @@ message MemberResponse {
 
 //MemberState
 message MemberState {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   MemberId member_id = 1;
   MemberInfo member_info = 2;
   MemberMetaInfo member_meta_info = 3;

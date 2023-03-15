@@ -4,7 +4,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior, PostStop}
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.pattern.StatusReply
-import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
+import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect, RetentionCriteria}
 import akka.persistence.typed.{PersistenceId, RecoveryCompleted}
 import cats.data.NonEmptyChain
 import cats.data.Validated.{Invalid, Valid}
@@ -42,6 +42,7 @@ object Member extends StrictLogging {
           commandHandler = commandHandler,
           eventHandler = eventHandler
         )
+        .withRetention(RetentionCriteria.snapshotEvery(numberOfEvents = 100, keepNSnapshots = 2))
         .receiveSignal {
           case (state, RecoveryCompleted) =>
             context.log.debug("onRecoveryCompleted: [{}]", state)

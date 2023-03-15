@@ -3,12 +3,9 @@ import akka.actor.typed.ActorSystem
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.pattern.StatusReply
-import akka.serialization.jackson.JacksonObjectMapperProvider
 import akka.util.Timeout
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.improving.app.member.domain.Member.{MemberCommand, MemberEntityKey}
 import com.improving.app.member.domain._
-import com.improving.app.member.utils.serialize.AvroJacksonObjectMapperFactory.applyObjectMapperMixins
 import wvlet.airframe.ulid.ULID
 
 import scala.concurrent.duration.DurationInt
@@ -28,8 +25,6 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
 
   Cluster(system).manager ! Join(Cluster(system).selfMember.address)
 
-  implicit val objectMapper: ObjectMapper = JacksonObjectMapperProvider(system).getOrCreate("jackson-cbor", None)
-  applyObjectMapperMixins(objectMapper)
 
   //Do not use for RegisterMember
   private def extractEntityId(request: MemberRequest): String = {

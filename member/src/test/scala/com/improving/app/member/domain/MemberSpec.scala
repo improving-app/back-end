@@ -5,10 +5,7 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityRef}
 import akka.cluster.typed.{Cluster, Join}
 import akka.pattern.StatusReply
-import akka.serialization.jackson.JacksonObjectMapperProvider
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.improving.app.member.domain.Member.{MemberCommand, MemberEntityKey}
-import com.improving.app.member.utils.serialize.AvroJacksonObjectMapperFactory.applyObjectMapperMixins
 import com.improving.app.organization.domain.OrganizationId
 import com.improving.app.tenant.domain.TenantId
 import com.typesafe.config.{Config, ConfigFactory}
@@ -30,9 +27,6 @@ class MemberSpec
 
   val sharding: ClusterSharding = ClusterSharding(system)
   //Member.initSharding(sharding)
-
-  implicit val objectMapper: ObjectMapper = JacksonObjectMapperProvider(system).getOrCreate("jackson-cbor", None)
-  applyObjectMapperMixins(objectMapper)
 
   "The Member" should {
 
@@ -395,7 +389,9 @@ object MemberSpec {
         akka.persistence.journal.inmem.test-serialization = on
 
         akka.actor.serialization-bindings{
-        "com.improving.app.member.utils.serialize.CborSerializable" = jackson-cbor
+        "com.improving.app.common.serialize.PBMsgSerializable" = proto
+        "com.improving.app.common.serialize.PBMsgOneOfSerializable" = proto
+        "com.improving.app.common.serialize.PBEnumSerializable" = proto
           }
       """)
 

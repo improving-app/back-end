@@ -2,7 +2,6 @@ package com.improving.app.member.domain
 
 import cats.data.ValidatedNec
 import cats.implicits.{catsSyntaxTuple3Semigroupal, catsSyntaxTuple9Semigroupal, catsSyntaxValidatedIdBinCompat0}
-import com.improving.app.member.domain.MemberValidation.ValidationResult
 import com.improving.app.organization.domain.OrganizationId
 import com.improving.app.tenant.domain.TenantId
 
@@ -58,11 +57,11 @@ object MemberValidation {
     else NoOrInvalidTenantAssociated(memberInfo.tenant).invalidNec
 
   //TODO validate phone number against regex
-  def validatePhoneNo(phone: Option[String]): ValidationResult[Option[String]] =
+  private def validatePhoneNo(phone: Option[String]): ValidationResult[Option[String]] =
     if (phone.nonEmpty) phone.validNec
     else MissingOrInvalidPhoneNumber(phone).invalidNec
 
-  def validateEmailAddress(emailAddress: Option[String]): ValidationResult[Option[String]] =
+  private def validateEmailAddress(emailAddress: Option[String]): ValidationResult[Option[String]] =
     if (emailAddress.nonEmpty) emailAddress.validNec
     else MissingOrInvalidEmailAddress(emailAddress).invalidNec
 
@@ -88,7 +87,7 @@ object MemberValidation {
       memberInfo.handle.validNec,
       memberInfo.avatarUrl.validNec,
       validateFirstName(memberInfo.firstName),
-      validateFirstName(memberInfo.lastName),
+      validateLastName(memberInfo.lastName),
       memberInfo.notificationPreference.validNec,
       memberInfo.notificationOptIn.validNec,
       validateContact(memberInfo),

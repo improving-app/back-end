@@ -28,7 +28,7 @@ object Main extends App with StrictLogging {
       MemberServiceHandler.withServerReflection(new MemberServiceImpl())
 
     val bound: Future[Http.ServerBinding] = Http(system)
-      .newServerAt(interface = "127.0.0.1", port = 8080) //TODO - make this configurable
+      .newServerAt(interface = "0.0.0.0", port = 8080) //TODO - make this configurable
       //.enableHttps(serverHttpContext)
       .bind(service)
       .map(_.addToCoordinatedShutdown(hardTerminationDeadline = 10.seconds))

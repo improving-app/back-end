@@ -2,7 +2,6 @@ import akka.grpc.sbt.AkkaGrpcPlugin
 import com.typesafe.sbt.packager.Keys._
 import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
 import com.typesafe.sbt.packager.docker.DockerPlugin
-import kalix.sbt.KalixPlugin
 import sbt.Keys._
 import sbt.{Project, Test, Tests, _}
 import sbtprotoc.ProtocPlugin.autoImport.PB
