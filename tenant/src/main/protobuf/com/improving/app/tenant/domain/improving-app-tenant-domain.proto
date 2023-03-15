@@ -10,7 +10,6 @@ import "com/improving/app/tenant/domain/tenantTypeDefinitions.proto";
 
 option (scalapb.options) = {
   no_default_values_in_constructor: true
-  preserve_unknown_fields: false
 };
 
 message UpdateTenantName {
