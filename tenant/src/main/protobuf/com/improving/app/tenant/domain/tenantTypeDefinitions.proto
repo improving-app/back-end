@@ -6,6 +6,7 @@ import "google/protobuf/timestamp.proto";
 import "com/improving/app/common/domain/address.proto";
 import "com/improving/app/common/domain/tenantId.proto";
 import "com/improving/app/common/domain/memberId.proto";
+import "com/improving/app/common/domain/organizationId.proto";
 
 option (scalapb.options) = {
   preserve_unknown_fields: false
@@ -16,7 +17,7 @@ message Info {
   string name = 1;
   com.improving.app.common.domain.Contact contact = 2;
   com.improving.app.common.domain.Address address = 3;
-  string organization = 4;
+  repeated com.improving.app.common.domain.OrganizationId orgs = 4;
 }
 
 message MetaInfo {

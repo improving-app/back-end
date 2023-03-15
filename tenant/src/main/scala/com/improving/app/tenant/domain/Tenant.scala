@@ -9,7 +9,7 @@ import com.google.protobuf.timestamp.Timestamp
 
 import java.time.Instant
 import akka.persistence.typed.scaladsl.EventSourcedBehavior
-import com.improving.app.common.domain.{CaPostalCodeImpl, MemberId, TenantId, UsPostalCodeImpl}
+import com.improving.app.common.domain.{CaPostalCodeImpl, MemberId, OrganizationId, TenantId, UsPostalCodeImpl}
 
 object Tenant {
 
@@ -65,8 +65,29 @@ object Tenant {
       case TenantRequestMessage.SealedValue.UpdateTenantNameValue(value) => updateTenantName(state, value, command.replyTo)
       case TenantRequestMessage.SealedValue.UpdatePrimaryContactValue(value) => updatePrimaryContact(state, value, command.replyTo)
       case TenantRequestMessage.SealedValue.UpdateAddressValue(value) => updateAddress(state, value, command.replyTo)
+      case TenantRequestMessage.SealedValue.AddOrganizationsValue(value) => addOrganizations(state, value, command.replyTo)
+      case TenantRequestMessage.SealedValue.RemoveOrganizationsValue(value) => removeOrganizations(state, value, command.replyTo)
       case TenantRequestMessage.SealedValue.ActivateTenantValue(value) => activateTenant(state, value, command.replyTo)
       case TenantRequestMessage.SealedValue.SuspendTenantValue(value) => suspendTenant(state, value, command.replyTo)
+    }
+  }
+
+  /**
+   * The new state of a tenant when OrganizationsAdded or OrganizationsRemoved event has happened.
+   * @param state
+   * @param orgList
+   * @param metaInfo
+   * @return
+   */
+  private def updateInfoForOrganizationEvent(
+    state: TenantState,
+    orgList: Seq[OrganizationId],
+    metaInfo: MetaInfo
+  ): TenantState = {
+    state match {
+      case x: DraftTenant => x.copy(info = x.info.copy(orgs = orgList), metaInfo = metaInfo)
+      case x: ActiveTenant => x.copy(info = x.info.copy(orgs = orgList), metaInfo = metaInfo)
+      case x: SuspendedTenant => x.copy(info = x.info.copy(orgs = orgList), metaInfo = metaInfo)
     }
   }
 
@@ -94,6 +115,10 @@ object Tenant {
           case x: ActiveTenant => x.copy(info = x.info.copy(address = value.newAddress), metaInfo = value.metaInfo.get)
           case x: SuspendedTenant => x.copy(info = x.info.copy(address = value.newAddress), metaInfo = value.metaInfo.get)
         }
+      case TenantEventMessage.SealedValue.OrganizationsAddedValue(value) =>
+        updateInfoForOrganizationEvent(state, value.newOrgsList, value.metaInfo.get)
+      case TenantEventMessage.SealedValue.OrganizationsRemovedValue(value) =>
+        updateInfoForOrganizationEvent(state, value.newOrgsList, value.metaInfo.get)
       case TenantEventMessage.SealedValue.TenantActivatedValue(value) =>
         state match {
           case x: DraftTenant => ActiveTenant(x.info, value.metaInfo.get)
@@ -393,6 +418,173 @@ object Tenant {
           updateAddressLogic(info, metaInfo, updateAddress, replyTo)
         case SuspendedTenant(info, metaInfo, _) =>
           updateAddressLogic(info, metaInfo, updateAddress, replyTo)
+      }
+    ) {
+      message =>
+        Effect.reply(replyTo)(
+          StatusReply.Error(message)
+        )
+    }
+  }
+
+  /**
+   * Validation of the preconditions of the AddOrganizations command
+   * @param addOrganizations
+   * @return
+   */
+  private def validateAddOrganizationsPreconditions(addOrganizations: AddOrganizations): Option[String] = {
+    val commonFieldsInvalidMessageOpt = validateCommonFieldsPrecondition(
+      tenantIdOpt = addOrganizations.tenantId,
+      updatingUserOpt = addOrganizations.updatingUser
+    )
+
+    commonFieldsInvalidMessageOpt.orElse(
+      if (addOrganizations.orgId.isEmpty) {
+        Option("No organizations to add")
+      } else if (addOrganizations.orgId.exists(_.id.isEmpty)) {
+        Option("Empty organization ids are not allowed")
+      } else {
+        None
+      }
+    )
+  }
+
+  /**
+   * Validation for the AddOrganizations command and interaction with the state
+   * @param info
+   * @param metaInfo
+   * @param addOrganizations
+   * @param replyTo
+   * @return
+   */
+  private def addOrganizationsLogic(
+    info: Info,
+    metaInfo: MetaInfo,
+    addOrganizations: AddOrganizations,
+    replyTo: ActorRef[StatusReply[TenantEvent]]
+  ): ReplyEffect[TenantEvent, TenantState] = {
+    if (addOrganizations.orgId.exists(info.orgs.contains(_))) {
+      Effect.reply(replyTo)(
+        StatusReply.Error("Organization ids already present for the tenant is not allowed")
+      )
+    } else {
+      val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = addOrganizations.updatingUser)
+      val newOrgIds = info.orgs ++ addOrganizations.orgId
+      val event = OrganizationsAdded(
+        tenantId = addOrganizations.tenantId,
+        newOrgsList = newOrgIds,
+        metaInfo = Some(newMetaInfo)
+      )
+
+      Effect.persist(event).thenReply(replyTo) { _ => StatusReply.Success(event) }
+    }
+  }
+
+  /**
+   * State business logic for adding organizations
+   * @param state
+   * @param addOrganizations
+   * @param replyTo
+   * @return
+   */
+  private def addOrganizations(
+    state: TenantState,
+    addOrganizations: AddOrganizations,
+    replyTo: ActorRef[StatusReply[TenantEvent]]
+  ): ReplyEffect[TenantEvent, TenantState] = {
+    val preconditionMessageOpt = validateAddOrganizationsPreconditions(addOrganizations)
+    preconditionMessageOpt.fold(
+      state match {
+        case DraftTenant(info, metaInfo) =>
+          addOrganizationsLogic(info, metaInfo, addOrganizations, replyTo)
+        case ActiveTenant(info, metaInfo) =>
+          addOrganizationsLogic(info, metaInfo, addOrganizations, replyTo)
+        case SuspendedTenant(info, metaInfo, _) =>
+          addOrganizationsLogic(info, metaInfo, addOrganizations, replyTo)
+      }
+    ) {
+      message =>
+        Effect.reply(replyTo)(
+          StatusReply.Error(message)
+        )
+    }
+  }
+
+  /**
+   * Validation of the preconditions of the RemoveOrganizations command
+   *
+   * @param removeOrganizations
+   * @return
+   */
+  private def validateRemoveOrganizationsPreconditions(removeOrganizations: RemoveOrganizations): Option[String] = {
+    val commonFieldsInvalidMessageOpt = validateCommonFieldsPrecondition(
+      tenantIdOpt = removeOrganizations.tenantId,
+      updatingUserOpt = removeOrganizations.updatingUser
+    )
+
+    commonFieldsInvalidMessageOpt.orElse(
+      if (removeOrganizations.orgId.isEmpty) {
+        Option("No organizations to remove")
+      } else if (removeOrganizations.orgId.exists(_.id.isEmpty)) {
+        Option("Empty organization ids are not allowed")
+      } else {
+        None
+      }
+    )
+  }
+
+  /**
+   * Validation for the RemoveOrganizations command and interaction with the state
+   * @param info
+   * @param metaInfo
+   * @param removeOrganizations
+   * @param replyTo
+   * @return
+   */
+  private def removeOrganizationsLogic(
+    info: Info,
+    metaInfo: MetaInfo,
+    removeOrganizations: RemoveOrganizations,
+    replyTo: ActorRef[StatusReply[TenantEvent]]
+  ): ReplyEffect[TenantEvent, TenantState] = {
+    if (removeOrganizations.orgId.exists(!info.orgs.contains(_))) { // check if there are removeOrgIds that are not in info.orgs
+      Effect.reply(replyTo)(
+        StatusReply.Error("Organization ids not already present for the tenant is not allowed")
+      )
+    } else {
+      val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = removeOrganizations.updatingUser)
+      val newOrgIds = info.orgs.filterNot(removeOrganizations.orgId.contains)
+      val event = OrganizationsRemoved(
+        tenantId = removeOrganizations.tenantId,
+        newOrgsList = newOrgIds,
+        metaInfo = Some(newMetaInfo)
+      )
+
+      Effect.persist(event).thenReply(replyTo) { _ => StatusReply.Success(event) }
+    }
+  }
+
+  /**
+   * State business logic for removing organizations
+   * @param state
+   * @param removeOrganizations
+   * @param replyTo
+   * @return
+   */
+  private def removeOrganizations(
+    state: TenantState,
+    removeOrganizations: RemoveOrganizations,
+    replyTo: ActorRef[StatusReply[TenantEvent]]
+  ): ReplyEffect[TenantEvent, TenantState] = {
+    val preconditionMessageOpt = validateRemoveOrganizationsPreconditions(removeOrganizations)
+    preconditionMessageOpt.fold(
+      state match {
+        case DraftTenant(info, metaInfo) =>
+          removeOrganizationsLogic(info, metaInfo, removeOrganizations, replyTo)
+        case ActiveTenant(info, metaInfo) =>
+          removeOrganizationsLogic(info, metaInfo, removeOrganizations, replyTo)
+        case SuspendedTenant(info, metaInfo, _) =>
+          removeOrganizationsLogic(info, metaInfo, removeOrganizations, replyTo)
       }
     ) {
       message =>

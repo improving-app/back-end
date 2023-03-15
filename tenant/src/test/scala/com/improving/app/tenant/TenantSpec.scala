@@ -2,13 +2,12 @@ package com.improving.app.tenant
 
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
-import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, MemberId, PostalCodeMessageImpl, TenantId}
+import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, MemberId, OrganizationId, PostalCodeMessageImpl, TenantId}
 import com.improving.app.tenant.domain.Tenant.TenantCommand
-import com.improving.app.tenant.domain.{ActivateTenant, SuspendTenant, UpdateAddress, UpdatePrimaryContact}
+import com.improving.app.tenant.domain.{ActivateTenant, AddOrganizations, RemoveOrganizations, SuspendTenant, Tenant, TenantEvent, UpdateAddress, UpdatePrimaryContact, UpdateTenantName}
 
 import scala.util.Random
 import akka.pattern.StatusReply
-import com.improving.app.tenant.domain.{Tenant, TenantEvent, UpdateTenantName}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterAll
@@ -84,6 +83,18 @@ class TenantSpec
 
     val updatePrimaryContactResponse = probe.receiveMessage()
     assert(updatePrimaryContactResponse.isSuccess)
+
+    // Populate organizations
+    p ! Tenant.TenantCommand(
+      AddOrganizations(
+        tenantId = Some(TenantId("testTenantId")),
+        orgId = Seq(OrganizationId("org1")),
+        updatingUser = Some(MemberId("updatingUser"))
+      ), probe.ref
+    )
+
+    val addOrganizationsResponse = probe.receiveMessage()
+    assert(addOrganizationsResponse.isSuccess)
 
     // Change state to active
     p ! Tenant.TenantCommand(
@@ -685,6 +696,225 @@ class TenantSpec
         }
       }
 
+      "executing AddOrganizations command" should {
+        "error for bad message input" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          p !Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq.empty,
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "No organizations to add"
+        }
+
+        "error for an unauthorized updating user" ignore {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("unauthorizedUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Tenant"
+        }
+
+        "succeed for the golden path and return the proper response" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val successVal = response.getValue
+          assert(successVal.asMessage.sealedValue.organizationsAddedValue.isDefined)
+
+          val organizationAdded = successVal.asMessage.sealedValue.organizationsAddedValue.get
+          organizationAdded.tenantId shouldEqual Some(TenantId("testTenantId"))
+          organizationAdded.newOrgsList shouldEqual Seq(OrganizationId("org1"))
+
+          assert(organizationAdded.metaInfo.isDefined)
+
+          val organizationAddedMeta = organizationAdded.metaInfo.get
+
+          organizationAddedMeta.createdBy shouldEqual Some(MemberId(creatingUser))
+          organizationAddedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
+        }
+
+        "error for organization ids already in the list" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response1 = probe.receiveMessage()
+          assert(response1.isError)
+
+          val responseError = response1.getError
+          responseError.getMessage shouldEqual "Organization ids already present for the tenant is not allowed"
+        }
+      }
+
+      "executing RemoveOrganizations command" should {
+        "error for bad message input" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          p ! Tenant.TenantCommand(
+            RemoveOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq.empty,
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "No organizations to remove"
+        }
+
+        "error for an unauthorized updating user" ignore {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val addOrganizationsResponse = probe.receiveMessage()
+          assert(addOrganizationsResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            RemoveOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("unauthorizedUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Tenant"
+        }
+
+        "succeed for the golden path and return the proper response" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val addOrganizationsResponse = probe.receiveMessage()
+          assert(addOrganizationsResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            RemoveOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val successVal = response.getValue
+          assert(successVal.asMessage.sealedValue.organizationsRemovedValue.isDefined)
+
+          val organizationRemoved = successVal.asMessage.sealedValue.organizationsRemovedValue.get
+          organizationRemoved.tenantId shouldEqual Some(TenantId("testTenantId"))
+          organizationRemoved.newOrgsList shouldEqual Seq.empty
+
+          assert(organizationRemoved.metaInfo.isDefined)
+
+          val organizationRemovedMeta = organizationRemoved.metaInfo.get
+
+          organizationRemovedMeta.createdBy shouldEqual Some(MemberId(creatingUser))
+          organizationRemovedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
+        }
+
+        "error for organization ids not already in the list" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          p ! Tenant.TenantCommand(
+            RemoveOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "Organization ids not already present for the tenant is not allowed"
+        }
+      }
+
       "executing ActivateTenant command" should {
         "error for incomplete info to transition the tenant" in {
           val creatingUser = Random.nextString(31)
@@ -761,6 +991,17 @@ class TenantSpec
 
           val updatePrimaryContactResponse = probe.receiveMessage()
           assert(updatePrimaryContactResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val addOrganizationsResponse = probe.receiveMessage()
+          assert(addOrganizationsResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             ActivateTenant(
@@ -1216,6 +1457,216 @@ class TenantSpec
 
           addressUpdatedMeta.createdBy shouldEqual Some(MemberId(creatingUser))
           addressUpdatedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
+        }
+      }
+
+      "executing AddOrganizations command" should {
+        "error for bad message input" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          val tenantActivatedResponse = transitionToActive(p, probe)
+          assert(tenantActivatedResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq.empty,
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "No organizations to add"
+        }
+
+        "error for an unauthorized updating user" ignore {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          val tenantActivatedResponse = transitionToActive(p, probe)
+          assert(tenantActivatedResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("unauthorizedUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Tenant"
+        }
+
+        "succeed for the golden path and return the proper response" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          val tenantActivatedResponse = transitionToActive(p, probe)
+          assert(tenantActivatedResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org2")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val successVal = response.getValue
+          assert(successVal.asMessage.sealedValue.organizationsAddedValue.isDefined)
+
+          val organizationAdded = successVal.asMessage.sealedValue.organizationsAddedValue.get
+          organizationAdded.tenantId shouldEqual Some(TenantId("testTenantId"))
+          organizationAdded.newOrgsList shouldEqual Seq(OrganizationId("org1"), OrganizationId("org2"))
+
+          assert(organizationAdded.metaInfo.isDefined)
+
+          val organizationAddedMeta = organizationAdded.metaInfo.get
+
+          organizationAddedMeta.createdBy shouldEqual Some(MemberId(creatingUser))
+          organizationAddedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
+        }
+
+        "error for organization ids already in the list" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          val tenantActivatedResponse = transitionToActive(p, probe)
+          assert(tenantActivatedResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "Organization ids already present for the tenant is not allowed"
+        }
+      }
+
+      "executing RemoveOrganizations command" should {
+        "error for bad message input" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          val tenantActivatedResponse = transitionToActive(p, probe)
+          assert(tenantActivatedResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            RemoveOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq.empty,
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "No organizations to remove"
+        }
+
+        "error for an unauthorized updating user" ignore {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          val tenantActivatedResponse = transitionToActive(p, probe)
+          assert(tenantActivatedResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            RemoveOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("unauthorizedUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Tenant"
+        }
+
+        "succeed for the golden path and return the proper response" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          val tenantActivatedResponse = transitionToActive(p, probe)
+          assert(tenantActivatedResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            RemoveOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val successVal = response.getValue
+          assert(successVal.asMessage.sealedValue.organizationsRemovedValue.isDefined)
+
+          val organizationRemoved = successVal.asMessage.sealedValue.organizationsRemovedValue.get
+          organizationRemoved.tenantId shouldEqual Some(TenantId("testTenantId"))
+          organizationRemoved.newOrgsList shouldEqual Seq.empty
+
+          assert(organizationRemoved.metaInfo.isDefined)
+
+          val organizationRemovedMeta = organizationRemoved.metaInfo.get
+
+          organizationRemovedMeta.createdBy shouldEqual Some(MemberId(creatingUser))
+          organizationRemovedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
+        }
+
+        "error for organization ids not already in the list" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          val tenantActivatedResponse = transitionToActive(p, probe)
+          assert(tenantActivatedResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            RemoveOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org2")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "Organization ids not already present for the tenant is not allowed"
         }
       }
 
@@ -1715,6 +2166,313 @@ class TenantSpec
 
           addressUpdatedMeta.createdBy shouldEqual Some(MemberId(creatingUser))
           addressUpdatedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
+        }
+      }
+
+      "executing AddOrganizations command" should {
+        "error for bad message input" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId("testTenantId")),
+              updatingUser = Some(MemberId("updatingUser")),
+              suspensionReason = "reason"
+            ), probe.ref
+          )
+
+          val suspendTenantResponse = probe.receiveMessage()
+          assert(suspendTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq.empty,
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "No organizations to add"
+        }
+
+        "error for an unauthorized updating user" ignore {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId("testTenantId")),
+              updatingUser = Some(MemberId("updatingUser")),
+              suspensionReason = "reason"
+            ), probe.ref
+          )
+
+          val suspendTenantResponse = probe.receiveMessage()
+          assert(suspendTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("unauthorizedUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Tenant"
+        }
+
+        "succeed for the golden path and return the proper response" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId("testTenantId")),
+              updatingUser = Some(MemberId("updatingUser")),
+              suspensionReason = "reason"
+            ), probe.ref
+          )
+
+          val suspendTenantResponse = probe.receiveMessage()
+          assert(suspendTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val successVal = response.getValue
+          assert(successVal.asMessage.sealedValue.organizationsAddedValue.isDefined)
+
+          val organizationAdded = successVal.asMessage.sealedValue.organizationsAddedValue.get
+          organizationAdded.tenantId shouldEqual Some(TenantId("testTenantId"))
+          organizationAdded.newOrgsList shouldEqual Seq(OrganizationId("org1"))
+
+          assert(organizationAdded.metaInfo.isDefined)
+
+          val organizationAddedMeta = organizationAdded.metaInfo.get
+
+          organizationAddedMeta.createdBy shouldEqual Some(MemberId(creatingUser))
+          organizationAddedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
+        }
+
+        "error for organization ids already in the list" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId("testTenantId")),
+              updatingUser = Some(MemberId("updatingUser")),
+              suspensionReason = "reason"
+            ), probe.ref
+          )
+
+          val suspendTenantResponse = probe.receiveMessage()
+          assert(suspendTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val firstOrganizationResponse = probe.receiveMessage()
+          assert(firstOrganizationResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "Organization ids already present for the tenant is not allowed"
+        }
+      }
+
+      "executing RemoveOrganizations command" should {
+        "error for bad message input" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId("testTenantId")),
+              updatingUser = Some(MemberId("updatingUser")),
+              suspensionReason = "reason"
+            ), probe.ref
+          )
+
+          val suspendTenantResponse = probe.receiveMessage()
+          assert(suspendTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            RemoveOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq.empty,
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "No organizations to remove"
+        }
+
+        "error for an unauthorized updating user" ignore {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId("testTenantId")),
+              updatingUser = Some(MemberId("updatingUser")),
+              suspensionReason = "reason"
+            ), probe.ref
+          )
+
+          val suspendTenantResponse = probe.receiveMessage()
+          assert(suspendTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val addOrganizationsResponse = probe.receiveMessage()
+          assert(addOrganizationsResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            RemoveOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("unauthorizedUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Tenant"
+        }
+
+        "succeed for the golden path and return the proper response" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId("testTenantId")),
+              updatingUser = Some(MemberId("updatingUser")),
+              suspensionReason = "reason"
+            ), probe.ref
+          )
+
+          val suspendTenantResponse = probe.receiveMessage()
+          assert(suspendTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            AddOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val addOrganizationsResponse = probe.receiveMessage()
+          assert(addOrganizationsResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            RemoveOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val successVal = response.getValue
+          assert(successVal.asMessage.sealedValue.organizationsRemovedValue.isDefined)
+
+          val organizationRemoved = successVal.asMessage.sealedValue.organizationsRemovedValue.get
+          organizationRemoved.tenantId shouldEqual Some(TenantId("testTenantId"))
+          organizationRemoved.newOrgsList shouldEqual Seq.empty
+
+          assert(organizationRemoved.metaInfo.isDefined)
+
+          val organizationRemovedMeta = organizationRemoved.metaInfo.get
+
+          organizationRemovedMeta.createdBy shouldEqual Some(MemberId(creatingUser))
+          organizationRemovedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
+        }
+
+        "error for organization ids not already in the list" in {
+          val creatingUser = Random.nextString(31)
+          val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
+          val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+
+          p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId("testTenantId")),
+              updatingUser = Some(MemberId("updatingUser")),
+              suspensionReason = "reason"
+            ), probe.ref
+          )
+
+          val suspendTenantResponse = probe.receiveMessage()
+          assert(suspendTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            RemoveOrganizations(
+              tenantId = Some(TenantId("testTenantId")),
+              orgId = Seq(OrganizationId("org1")),
+              updatingUser = Some(MemberId("updatingUser"))
+            ), probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "Organization ids not already present for the tenant is not allowed"
         }
       }
 
