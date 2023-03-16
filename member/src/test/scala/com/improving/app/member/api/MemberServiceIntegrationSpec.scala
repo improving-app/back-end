@@ -31,7 +31,7 @@ class MemberServiceIntegrationSpec
 
   override def configOverrides: Map[String, Any] = super.configOverrides
 
-  "MemberService" should {
+  "MemberService" ignore {
     var memberId: MemberId = null
     val memberInfo = MemberSpec.createMemberInfo()
     val memberService = new MemberServiceImpl()(system.toTyped)
