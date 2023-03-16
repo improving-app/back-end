@@ -48,7 +48,7 @@ class MemberServiceIntegrationSpec
       response.memberId should equal(memberId)
       response.memberInfo should equal(memberInfo)
       response.memberMetaInfo should matchPattern {
-        case Some(MemberMetaInfo(_, createdByMem, _, lastUpMem, memberSt))
+        case Some(MemberMetaInfo(_, createdByMem, _, lastUpMem, memberSt, _))
             if createdByMem == createdBy && lastUpMem == lastUpdatedBy && memberSt == memberStatus =>
       }
     }
@@ -75,14 +75,15 @@ class MemberServiceIntegrationSpec
                 notOptIn,
                 contact,
                 orgs,
-                tenant
+                tenant,
+                _
               )
             ) =>
           handle should equal("SomeHandle")
           avatarUrl should equal("")
           firstName should equal("FirstName")
           lastName should equal("LastName")
-          inside(contact) { case Some(Contact(fName, lName, email, phone, userName)) =>
+          inside(contact) { case Some(Contact(fName, lName, email, phone, userName, _)) =>
             fName should equal("FirstName")
             lName should equal("LastName")
             email should equal(Some("someone@somewhere.com"))
@@ -91,10 +92,10 @@ class MemberServiceIntegrationSpec
           }
           notPref should equal(NOTIFICATION_PREFERENCE_EMAIL)
           notOptIn should equal(true)
-          orgs should matchPattern { case OrganizationId("SomeOrganization") :: Nil => }
-          tenant should matchPattern { case Some(TenantId("SomeTenant")) => }
+          orgs should matchPattern { case OrganizationId("SomeOrganization", _) :: Nil => }
+          tenant should matchPattern { case Some(TenantId("SomeTenant", _)) => }
       }
-      response.memberId should matchPattern { case Some(MemberId(_)) => }
+      response.memberId should matchPattern { case Some(MemberId(_, _)) => }
       memberId = response.memberId.get
       println("MemberId: " + memberId)
       validateMember(

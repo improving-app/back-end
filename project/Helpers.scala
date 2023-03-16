@@ -93,7 +93,7 @@ object C {
           "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test",
           "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion % "it, test",
           "org.wvlet.airframe" %% "airframe-ulid" % V.airframeUlidVersion,
-    ),
+        ),
         dockerBaseImage := "docker.io/library/eclipse-temurin:17.0.6_10-jre",
         dockerUsername := sys.props.get("docker.username"),
         dockerRepository := sys.props.get("docker.registry"),

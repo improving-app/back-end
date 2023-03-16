@@ -4,7 +4,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior, PostStop}
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.pattern.StatusReply
-import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect, RetentionCriteria}
+import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import akka.persistence.typed.{PersistenceId, RecoveryCompleted}
 import cats.data.Validated.{Invalid, Valid}
 import cats.implicits.toFoldableOps
@@ -32,8 +32,8 @@ object Member extends StrictLogging {
 
     def extractMemberId: String =
       memberId match {
-        case Some(MemberId(id)) => id
-        case other              => throw new RuntimeException(s"Unexpected request to extract id $other")
+        case Some(MemberId(id, _)) => id
+        case other                 => throw new RuntimeException(s"Unexpected request to extract id $other")
       }
   }
 
@@ -47,7 +47,7 @@ object Member extends StrictLogging {
           commandHandler = commandHandler,
           eventHandler = eventHandler
         )
-        .withRetention(RetentionCriteria.snapshotEvery(numberOfEvents = 100, keepNSnapshots = 2))
+        //.withRetention(RetentionCriteria.snapshotEvery(numberOfEvents = 100, keepNSnapshots = 2))
         .receiveSignal {
           case (state, RecoveryCompleted) =>
             context.log.debug("onRecoveryCompleted: [{}]", state)
@@ -65,20 +65,21 @@ object Member extends StrictLogging {
    */
   private def isCommandValidForState(state: MemberState, command: MemberRequest): Boolean = {
     command match {
-      case RegisterMember(_, _) => state.memberMetaInfo.isEmpty
-      case ActivateMember(_, _) =>
+      case RegisterMember(_, _, _) => state.memberMetaInfo.isEmpty
+      case ActivateMember(_, _, _) =>
         state.memberMetaInfo.exists(metaInf =>
           metaInf.memberState == MemberStatus.MEMBER_STATUS_INITIAL || metaInf.memberState == MemberStatus.MEMBER_STATUS_INACTIVE
         )
-      case InactivateMember(_, _) =>
+      case InactivateMember(_, _, _) =>
         state.memberMetaInfo.exists(metaInf =>
           metaInf.memberState == MemberStatus.MEMBER_STATUS_ACTIVE || metaInf.memberState == MemberStatus.MEMBER_STATUS_SUSPENDED
         )
-      case SuspendMember(_, _)   => state.memberMetaInfo.exists(_.memberState == MemberStatus.MEMBER_STATUS_INACTIVE)
-      case TerminateMember(_, _) => state.memberMetaInfo.exists(_.memberState == MemberStatus.MEMBER_STATUS_SUSPENDED)
-      case UpdateMemberInfo(_, _, _) =>
+      case SuspendMember(_, _, _) => state.memberMetaInfo.exists(_.memberState == MemberStatus.MEMBER_STATUS_INACTIVE)
+      case TerminateMember(_, _, _) =>
+        state.memberMetaInfo.exists(_.memberState == MemberStatus.MEMBER_STATUS_SUSPENDED)
+      case UpdateMemberInfo(_, _, _, _) =>
         state.memberMetaInfo.exists(_.memberState != MemberStatus.MEMBER_STATUS_TERMINATED)
-      case GetMemberInfo(_) => true
+      case GetMemberInfo(_, _) => true
       case other =>
         logger.error(s"Invalid Member Command $other")
         false
@@ -91,22 +92,24 @@ object Member extends StrictLogging {
       command.request match {
         case cmd if !isCommandValidForState(state, cmd) =>
           Effect.reply(command.replyTo) { StatusReply.Error(s"Invalid Command ${command.request} for State $state") }
-        case RegisterMember(Some(memberInfo: MemberInfo), Some(registeringMember)) =>
+        case RegisterMember(Some(memberInfo: MemberInfo), Some(registeringMember), _) =>
           registerMember(state.memberId.get, memberInfo, registeringMember, command.replyTo)
-        case ActivateMember(Some(memberId: MemberId), Some(activatingMemberId)) if state.memberId.contains(memberId) =>
+        case ActivateMember(Some(memberId: MemberId), Some(activatingMemberId), _)
+            if state.memberId.contains(memberId) =>
           activateMember(memberId, activatingMemberId, command.replyTo)
-        case InactivateMember(Some(memberId: MemberId), Some(inactivatingMemberId))
+        case InactivateMember(Some(memberId: MemberId), Some(inactivatingMemberId), _)
             if state.memberId.contains(memberId) =>
           inactivateMember(memberId, inactivatingMemberId, command.replyTo)
-        case SuspendMember(Some(memberId: MemberId), Some(suspendingMemberId)) if state.memberId.contains(memberId) =>
+        case SuspendMember(Some(memberId: MemberId), Some(suspendingMemberId), _)
+            if state.memberId.contains(memberId) =>
           suspendMember(memberId, suspendingMemberId, command.replyTo)
-        case TerminateMember(Some(memberId: MemberId), Some(terminatingMemberId))
+        case TerminateMember(Some(memberId: MemberId), Some(terminatingMemberId), _)
             if state.memberId.contains(memberId) =>
           terminateMember(memberId, terminatingMemberId, command.replyTo)
-        case UpdateMemberInfo(Some(memberId: MemberId), Some(memberInfo: MemberInfo), Some(updatingMember))
+        case UpdateMemberInfo(Some(memberId: MemberId), Some(memberInfo: MemberInfo), Some(updatingMember), _)
             if state.memberId.contains(memberId) =>
           updateMemberInfo(memberId, memberInfo, updatingMember, command.replyTo)
-        case GetMemberInfo(Some(memberId)) if state.memberId.contains(memberId) =>
+        case GetMemberInfo(Some(memberId), _) if state.memberId.contains(memberId) =>
           getMemberInfo(memberId, state, command.replyTo)
         case _ =>
           Effect.reply(command.replyTo) {
@@ -242,22 +245,22 @@ object Member extends StrictLogging {
   private val eventHandler: (MemberState, MemberEvent) => MemberState = { (state, event) =>
     event match {
 
-      case MemberRegistered(_, Some(memberInfo), Some(actingMember), Some(createdOn)) =>
+      case MemberRegistered(_, Some(memberInfo), Some(actingMember), Some(createdOn), _) =>
         state.withMemberInfo(memberInfo).withMemberMetaInfo(createMemberMetaInfo(actingMember, createdOn))
 
-      case MemberActivated(_, Some(actingMember), Some(updatedOn)) =>
+      case MemberActivated(_, Some(actingMember), Some(updatedOn), _) =>
         updateMemberMetaInfo(state, actingMember, updatedOn, MEMBER_STATUS_ACTIVE)
 
-      case MemberInactivated(_, Some(actingMember), Some(updatedOn)) =>
+      case MemberInactivated(_, Some(actingMember), Some(updatedOn), _) =>
         updateMemberMetaInfo(state, actingMember, updatedOn, MEMBER_STATUS_INACTIVE)
 
-      case MemberSuspended(_, Some(actingMember), Some(updatedOn)) =>
+      case MemberSuspended(_, Some(actingMember), Some(updatedOn), _) =>
         updateMemberMetaInfo(state, actingMember, updatedOn, MEMBER_STATUS_SUSPENDED)
 
-      case MemberTerminated(_, Some(actingMember), Some(updatedOn)) =>
+      case MemberTerminated(_, Some(actingMember), Some(updatedOn), _) =>
         updateMemberMetaInfo(state, actingMember, updatedOn, MEMBER_STATUS_TERMINATED)
 
-      case MemberInfoUpdated(_, Some(memberInfo), Some(actingMember), Some(updatedOn)) =>
+      case MemberInfoUpdated(_, Some(memberInfo), Some(actingMember), Some(updatedOn), _) =>
         updateMemberMetaInfo(
           state.withMemberInfo(memberInfo),
           actingMember,

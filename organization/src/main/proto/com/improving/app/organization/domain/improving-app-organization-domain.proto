@@ -1,16 +1,6 @@
 syntax = "proto3";
 package com.improving.app.organization.domain;
 
-import "scalapb/scalapb.proto";
-
-option (scalapb.options) = {
-  no_default_values_in_constructor: true
-  preserve_unknown_fields: false
-};
-
-message OrganizationId {
-  string id = 1;
-}
 
 message Address {
   // maybe put this in a "improving.app.api" package?

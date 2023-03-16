@@ -3,9 +3,6 @@ syntax = "proto3";
 package com.improving.app.common.domain;
 import "scalapb/scalapb.proto";
 
-option (scalapb.options) = {
-  preserve_unknown_fields: false
-};
 
 // Either a USA or Canadian postal code
 message PostalCode {

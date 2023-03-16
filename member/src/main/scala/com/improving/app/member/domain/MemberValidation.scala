@@ -1,7 +1,7 @@
 package com.improving.app.member.domain
 
 import cats.data.ValidatedNec
-import cats.implicits.{catsSyntaxTuple5Semigroupal, catsSyntaxTuple9Semigroupal, catsSyntaxValidatedIdBinCompat0}
+import cats.implicits.{catsSyntaxTuple10Semigroupal, catsSyntaxTuple6Semigroupal, catsSyntaxValidatedIdBinCompat0}
 import com.improving.app.common.domain.{Contact, OrganizationId, TenantId}
 
 object MemberValidation {
@@ -76,7 +76,8 @@ object MemberValidation {
         if (memberInfo.notificationPreference == NotificationPreference.NOTIFICATION_PREFERENCE_SMS)
           validatePhoneNo(memberInfo.contact.get.phone)
         else memberInfo.contact.get.phone.validNec,
-        memberInfo.contact.get.userName.validNec
+        memberInfo.contact.get.userName.validNec,
+        memberInfo.contact.get.unknownFields.validNec
       ).mapN(Contact.apply).map(Some(_))
 
     }
@@ -93,7 +94,8 @@ object MemberValidation {
       memberInfo.notificationOptIn.validNec,
       validateContact(memberInfo),
       validateOrganizations(memberInfo),
-      validateTenant(memberInfo)
+      validateTenant(memberInfo),
+      memberInfo.unknownFields.validNec
     ).mapN(MemberInfo.apply)
 
 }

@@ -47,7 +47,8 @@ class MemberSpec
       val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
         case StatusReply.Success(
               MemberEventResponse(
-                MemberRegistered(Some(MemberId(memId)), Some(memberInfo), Some(actingMember), Some(updatedOn))
+                MemberRegistered(Some(MemberId(memId, _)), Some(memberInfo), Some(actingMember), Some(updatedOn), _),
+                _
               )
             ) =>
           logger.info(s"Member Registered $memId: $memberInfo: $actingMember: $updatedOn")
@@ -88,7 +89,7 @@ class MemberSpec
       ref.ask[MemberResponse](_ => MemberCommand(activateMember, p.ref))
       val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
         case StatusReply.Success(
-              MemberEventResponse(MemberActivated(Some(MemberId(memId)), Some(actingMember), Some(updatedOn)))
+              MemberEventResponse(MemberActivated(Some(MemberId(memId, _)), Some(actingMember), Some(updatedOn), _), _)
             ) =>
           logger.info(s"Member Activated $memId: : $actingMember: $updatedOn")
           FishingOutcome.Complete
@@ -109,7 +110,10 @@ class MemberSpec
       ref.ask[MemberResponse](_ => MemberCommand(inactivateMember, p.ref))
       val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
         case StatusReply.Success(
-              MemberEventResponse(MemberInactivated(Some(MemberId(memId)), Some(actingMember), Some(updatedOn)))
+              MemberEventResponse(
+                MemberInactivated(Some(MemberId(memId, _)), Some(actingMember), Some(updatedOn), _),
+                _
+              )
             ) =>
           logger.info(s"Member Inactivated $memId: $actingMember: $updatedOn")
           FishingOutcome.Complete
@@ -130,7 +134,7 @@ class MemberSpec
       ref.ask[MemberResponse](_ => MemberCommand(suspendMember, p.ref))
       val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
         case StatusReply.Success(
-              MemberEventResponse(MemberSuspended(Some(MemberId(memId)), Some(actingMember), Some(updatedOn)))
+              MemberEventResponse(MemberSuspended(Some(MemberId(memId, _)), Some(actingMember), Some(updatedOn), _), _)
             ) =>
           logger.info(s"Member Suspended $memId: $actingMember: $updatedOn")
           FishingOutcome.Complete
@@ -184,11 +188,13 @@ class MemberSpec
         case StatusReply.Success(
               MemberEventResponse(
                 MemberInfoUpdated(
-                  Some(MemberId(memId)),
+                  Some(MemberId(memId, _)),
                   Some(memberInfo: MemberInfo),
                   Some(actingMember),
-                  Some(updatedOn)
-                )
+                  Some(updatedOn),
+                  _
+                ),
+                _
               )
             ) =>
           logger.info(s"Member Info Updated $memId: $memberInfo: $actingMember: $updatedOn")
@@ -210,7 +216,7 @@ class MemberSpec
       ref.ask[MemberResponse](_ => MemberCommand(getMemberInfo, p.ref))
       val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
         case StatusReply.Success(
-              MemberData(Some(MemberId(memId)), Some(memberInfo: MemberInfo), Some(memberMetaInfo))
+              MemberData(Some(MemberId(memId, _)), Some(memberInfo: MemberInfo), Some(memberMetaInfo), _)
             ) =>
           logger.info(s"Member Fetched $memId: $memberInfo: $memberMetaInfo")
           FishingOutcome.Complete
@@ -231,7 +237,7 @@ class MemberSpec
       ref.ask[MemberResponse](_ => MemberCommand(terminateMember, p.ref))
       val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
         case StatusReply.Success(
-              MemberEventResponse(MemberTerminated(Some(MemberId(memId)), Some(actingMember), Some(updatedOn)))
+              MemberEventResponse(MemberTerminated(Some(MemberId(memId, _)), Some(actingMember), Some(updatedOn), _), _)
             ) =>
           logger.info(s"Member Terminated $memId: $actingMember $updatedOn")
           FishingOutcome.Complete

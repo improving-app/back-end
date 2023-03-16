@@ -7,10 +7,6 @@ package com.improving.app.organization.api;
 import "com/improving/app/organization/domain/improving-app-organization-domain.proto";
 import "scalapb/scalapb.proto";
 
-option (scalapb.options) = {
-  no_default_values_in_constructor: true
-  preserve_unknown_fields: false
-};
 
 service OrganizationService {
 
