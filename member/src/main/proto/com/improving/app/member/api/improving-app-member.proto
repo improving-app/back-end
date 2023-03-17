@@ -4,7 +4,7 @@ package com.improving.app.member.api;
 
 import "kalix/annotations.proto";
 import "google/api/annotations.proto";
-import "com/improving/app/organization/api/improving-app-organization.proto";
+import "com/improving/app/organization/api/organization_api.proto";
 
 
 message MemberId {

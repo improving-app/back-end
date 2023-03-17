@@ -6,11 +6,14 @@ import sbt.{Project, Test, Tests, _}
 import sbt.Keys._
 import kalix.sbt.KalixPlugin
 import sbtprotoc.ProtocPlugin.autoImport.PB
-import scalapb.GeneratorOption.{FlatPackage, RetainSourceCodeInfo, SingleLineToProtoString}
+import scalapb.GeneratorOption.{
+  FlatPackage,
+  RetainSourceCodeInfo,
+  SingleLineToProtoString
+}
 
-/**
- * Contains the versions needed.
- */
+/** Contains the versions needed.
+  */
 object V {
   lazy val scala = "2.13.10"
   lazy val akka = "2.7.0"
@@ -18,10 +21,16 @@ object V {
   lazy val akkaManagement = "1.2.0"
   lazy val akkaProjection = "1.3.1"
   lazy val akkaPersistenceCassandra = "1.1.0"
+  lazy val akkaPersistenceJdbc = "5.2.0"
   lazy val cors = "1.1.3"
   lazy val logback = "1.4.5"
   lazy val scalatest = "3.2.15"
   lazy val protobufJava = "3.22.0"
+  lazy val scalikeJdbc = "3.5.0"
+  lazy val hikariCP = "5.0.1"
+  lazy val testcontainersScalaVersion = "0.40.12"
+  lazy val jacksonCore = "2.14.2"
+  lazy val catsCore = "2.9.0"
 }
 
 // C for Configuration functions
@@ -38,7 +47,9 @@ object C {
   )
 
   val javaOptions = Seq(
-    "-Xlint:unchecked", "-Xlint:deprecation", "-parameters" // for Jackson
+    "-Xlint:unchecked",
+    "-Xlint:deprecation",
+    "-parameters" // for Jackson
   )
   def kalix(artifactName: String)(project: Project): Project = {
     project
@@ -47,7 +58,9 @@ object C {
         name := artifactName,
         organization := "com.improving",
         organizationHomepage := Some(url("https://improving.app")),
-        licenses := Seq(("Apache 2", url("https://www.apache.org/licenses/LICENSE-2.0"))),
+        licenses := Seq(
+          ("Apache 2", url("https://www.apache.org/licenses/LICENSE-2.0"))
+        ),
         scalaVersion := V.scala,
         scalacOptions := scala3Options,
         Compile / scalacOptions ++= scala3Options,
@@ -62,7 +75,9 @@ object C {
         },
         run / fork := false,
         Global / cancelable := false, // ctrl-c
-        libraryDependencies ++= Seq("org.scalatest" %% "scalatest" % "3.2.12" % Test),
+        libraryDependencies ++= Seq(
+          "org.scalatest" %% "scalatest" % "3.2.12" % Test
+        ),
         dockerBaseImage := "docker.io/library/adoptopenjdk:11-jre-hotspot",
         dockerUsername := sys.props.get("docker.username"),
         dockerRepository := sys.props.get("docker.registry"),
@@ -71,7 +86,12 @@ object C {
           if (sys.props("os.arch") != "amd64") {
             // use buildx with platform to build supported amd64 images on other CPU architectures
             // this may require that you have first run 'docker buildx create' to set docker buildx up
-            dockerExecCommand.value ++ Seq("buildx", "build", "--platform=linux/amd64", "--load") ++ dockerBuildOptions.value :+ "."
+            dockerExecCommand.value ++ Seq(
+              "buildx",
+              "build",
+              "--platform=linux/amd64",
+              "--load"
+            ) ++ dockerBuildOptions.value :+ "."
           } else dockerBuildCommand.value
         }
       )
@@ -85,7 +105,9 @@ object C {
         name := artifactName,
         organization := "com.improving",
         organizationHomepage := Some(url("https://improving.app")),
-        licenses := Seq(("Apache 2", url("https://www.apache.org/licenses/LICENSE-2.0"))),
+        licenses := Seq(
+          ("Apache 2", url("https://www.apache.org/licenses/LICENSE-2.0"))
+        ),
         scalaVersion := V.scala,
         scalacOptions := scala3Options,
         Compile / scalacOptions ++= scala3Options,
@@ -112,16 +134,17 @@ object C {
           "com.typesafe.akka" %% "akka-persistence-typed" % V.akka,
           "com.lightbend.akka" %% "akka-projection-core" % "1.3.1",
           "com.lightbend.akka" %% "akka-projection-eventsourced" % V.akkaProjection,
-          "com.typesafe.akka" %% "akka-serialization-jackson" % V.akka,
           "com.typesafe.akka" %% "akka-slf4j" % V.akka,
           "com.typesafe.akka" %% "akka-stream-testkit" % V.akka % Test,
           "com.typesafe.akka" %% "akka-testkit" % V.akka % Test,
           "ch.qos.logback" % "logback-classic" % V.logback,
+          "org.typelevel" %% "cats-core" % V.catsCore,
+          "com.fasterxml.jackson.core" % "jackson-annotations" % V.jacksonCore,
           "org.scalatest" %% "scalatest" % V.scalatest % "it, test",
-          "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
-          "com.dimafeng" %% "testcontainers-scala-scalatest" % "0.40.12" % "it",
-          "com.typesafe.akka" %% "akka-serialization-jackson" % "2.7.0" % "it, test"
-    ),
+          "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test",
+          "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion % "it, test",
+          "com.typesafe.akka" %% "akka-serialization-jackson" % V.akka % "it, test"
+        ),
         dockerBaseImage := "docker.io/library/eclipse-temurin:17.0.6_10-jre",
         dockerUsername := sys.props.get("docker.username"),
         dockerRepository := sys.props.get("docker.registry"),
@@ -131,26 +154,36 @@ object C {
           if (sys.props("os.arch") != "amd64") {
             // use buildx with platform to build supported amd64 images on other CPU architectures
             // this may require that you have first run 'docker buildx create' to set docker buildx up
-            dockerExecCommand.value ++ Seq("buildx", "build", "--platform=linux/amd64", "--load") ++ dockerBuildOptions.value :+ "."
+            dockerExecCommand.value ++ Seq(
+              "buildx",
+              "build",
+              "--platform=linux/amd64",
+              "--load"
+            ) ++ dockerBuildOptions.value :+ "."
           } else dockerBuildCommand.value
         }
       )
   }
 
   def protobufsLib(artifactName: String)(project: Project): Project = {
-    project.enablePlugins(JavaAppPackaging)
+    project
+      .enablePlugins(JavaAppPackaging)
       .settings(
         name := artifactName,
         organization := "com.improving",
         organizationHomepage := Some(url("https://improving.app")),
-        licenses := Seq(("Apache 2", url("https://www.apache.org/licenses/LICENSE-2.0"))),
+        licenses := Seq(
+          ("Apache 2", url("https://www.apache.org/licenses/LICENSE-2.0"))
+        ),
         scalaVersion := V.scala,
         scalacOptions := scala3Options,
         Compile / scalacOptions ++= scala3Options,
         Test / logBuffered := false,
         run / fork := false,
         Global / cancelable := false, // ctrl-c
-        libraryDependencies ++= Seq("org.scalatest" %% "scalatest" % V.scalatest % Test),
+        libraryDependencies ++= Seq(
+          "org.scalatest" %% "scalatest" % V.scalatest % Test
+        )
       )
       .configure(scalapbCodeGen)
   }
@@ -175,7 +208,7 @@ object C {
           SingleLineToProtoString,
           RetainSourceCodeInfo
         ) -> (Compile / sourceManaged).value / "scalapb"
-      ),
+      )
     )
   }
 }

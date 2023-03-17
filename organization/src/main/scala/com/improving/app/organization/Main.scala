@@ -1,29 +1,46 @@
 package com.improving.app.organization
 
-import com.improving.app.organization.domain.Organization
-import kalix.scalasdk.Kalix
+import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.Behaviors
+import com.typesafe.config.ConfigFactory
 import org.slf4j.LoggerFactory
 
-// This class was initially generated based on the .proto definition by Kalix tooling.
-//
-// As long as this file exists it will not be overwritten: you can maintain it yourself,
-// or delete it so it is regenerated as needed.
+import scala.util.control.NonFatal
 
 object Main {
 
-  private val log = LoggerFactory.getLogger("com.improving.app.organization.Main")
-
-  def createKalix(): Kalix = {
-    // The KalixFactory automatically registers any generated Actions, Views or Entities,
-    // and is kept up-to-date with any changes in your protobuf definitions.
-    // If you prefer, you may remove this and manually register these components in a
-    // `Kalix()` instance.
-    KalixFactory.withComponents(
-      new Organization(_))
-  }
+  val logger = LoggerFactory.getLogger("organization.Main")
 
   def main(args: Array[String]): Unit = {
-    log.info("starting the Kalix service")
-    createKalix().start()
+    val conf = ConfigFactory
+      .parseString("akka.http.server.preview.enable-http2 = on")
+      .withFallback(ConfigFactory.defaultApplication())
+    val system =
+      ActorSystem[Nothing](
+        Behaviors.empty,
+        "OrganizationService",
+        conf.resolve()
+      )
+    try {
+      init(system)
+    } catch {
+      case NonFatal(e) =>
+        logger.error("Terminating due to initialization failure.", e)
+        system.terminate()
+    }
   }
+
+  def init(implicit system: ActorSystem[_]): Unit = {
+
+    val grpcInterface =
+      system.settings.config.getString(
+        "akka.grpc.client.organization-config.host"
+      )
+    val grpcPort =
+      system.settings.config.getInt("akka.grpc.client.organization-config.port")
+    val grpcService =
+      new OrganizationServiceImpl()
+    OrganizationServer.start(grpcInterface, grpcPort, system, grpcService)
+  }
+
 }

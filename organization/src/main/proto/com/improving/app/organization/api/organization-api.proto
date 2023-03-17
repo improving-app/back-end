@@ -1,0 +1,46 @@
+// This is the public API offered by the shopping cart entity.
+
+syntax = "proto3";
+
+package com.improving.app.organization;
+
+import "com/improving/app/organization/domain/organization-context.proto";
+
+option java_multiple_files = true;
+option java_package = "com.improving.app.organization";
+option java_outer_classname = "OrganizationService";
+
+
+service OrganizationService {
+    rpc EstablishOrganization(EstablishOrganizationRequest) returns (OrganizationEstablished) {}
+
+    rpc GetOrganization(GetOrganizationByIdRequest) returns (Organization) {}
+
+    rpc GetOrganizationInfo(GetOrganizationInfoRequest) returns (OrganizationInfo) {}
+
+    rpc AddMembersToOrganization(AddMembersToOrganizationRequest) returns (MembersAddedToOrganization) {}
+
+    rpc RemoveMembersFromOrganization(RemoveMembersFromOrganizationRequest) returns (MembersRemovedFromOrganization) {}
+
+    rpc AddOwnersToOrganization(AddOwnersToOrganizationRequest) returns (OwnersAddedToOrganization) {}
+
+    rpc RemoveOwnersFromOrganization(RemoveOwnersFromOrganizationRequest) returns (OwnersRemovedFromOrganization) {}
+
+    rpc EditOrganizationInfo(EditOrganizationInfoRequest) returns (OrganizationInfoUpdated) {}
+
+    rpc ReleaseOrganization(ReleaseOrganizationRequest) returns (OrganizationReleased) {}
+
+    rpc UpdateParent(UpdateParentRequest) returns (ParentUpdated) {}
+
+    rpc UpdateOrganizationStatus(UpdateOrganizationStatusRequest) returns (OrganizationStatusUpdated) {}
+
+    rpc UpdateOrganizationContacts(UpdateOrganizationContactsRequest) returns (OrganizationContactsUpdated) {}
+
+    rpc UpdateOrganizationAccounts(UpdateOrganizationAccountsRequest) returns (OrganizationAccountsUpdated) {}
+
+    rpc ActivateOrganization(ActivateOrganizationRequest) returns (OrganizationActivated) {}
+
+    rpc SuspendOrganization(SuspendOrganizationRequest) returns (OrganizationSuspended) {}
+
+    rpc TerminateOrganization(TerminateOrganizationRequest) returns (OrganizationTerminated) {}
+}

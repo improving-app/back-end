@@ -4,9 +4,11 @@ lazy val backEnd = project.in(file("."))
   .aggregate(commonTypes, tenant)
 
 // Unused projects. Completely remove once organization and member are correctly implemented.
-//lazy val organization = project.in(file("organization"))
-//  .configure(C.kalix("improving-app-organization"))
-//
+lazy val org = project
+  .in(file("organization"))
+  .configure(C.akkaPersistentEntity("improving-app-organization"))
+  .dependsOn(commonTypes % "compile->compile;test->test")
+
 //lazy val member = project.in(file("member"))
 //  .configure(C.kalix("improving-app-member"))
 //  .dependsOn(organization).
@@ -24,5 +26,6 @@ lazy val tenant = project.in(file("tenant"))
   .configure(C.akkaPersistentEntity("improving-app-tenant"))
   .dependsOn(commonTypes % "compile->compile;test->test")
 
-(Compile / runMain) := (tenant / Compile / runMain).evaluated
-onLoad in Global := (onLoad in Global).value andThen (Command.process("project tenant", _))
+(Compile / runMain) := (org / (Compile / runMain)).evaluated
+onLoad in Global := (onLoad in Global).value andThen (Command
+  .process("project org", _))
