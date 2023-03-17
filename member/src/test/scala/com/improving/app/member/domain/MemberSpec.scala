@@ -1,164 +1,260 @@
 package com.improving.app.member.domain
 
-import com.improving.app.member.api
-import kalix.scalasdk.eventsourcedentity.EventSourcedEntity
-import kalix.scalasdk.testkit.EventSourcedResult
+import akka.actor.testkit.typed.FishingOutcome
+import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityRef}
+import akka.cluster.typed.{Cluster, Join}
+import akka.pattern.StatusReply
+import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
+import com.improving.app.member.domain.Member.{MemberCommand, MemberEntityKey}
+import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-import java.util.UUID
-import com.improving.app.organization.api.OrganizationId
-import java.time.Instant
+import org.scalatest.wordspec.AnyWordSpecLike
 
-// import cats.data._
-// import cats.data.Validated._
-import cats.implicits._
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
+class MemberSpec
+    extends ScalaTestWithActorTestKit(MemberSpec.config)
+    with AnyWordSpecLike
+    with Matchers
+    with StrictLogging {
 
-// This class was initially generated based on the .proto definition by Kalix tooling.
-//
-// As long as this file exists it will not be overwritten: you can maintain it yourself,
-// or delete it so it is regenerated as needed.
+  val member1Id: String = "MEMBER-1"
 
-class MemberSpec extends AnyWordSpec with Matchers {
+  val waitDuration: FiniteDuration = 5.seconds
 
-  def createMemberInfo(
-      handle: String = "fred",
-      avatarUrl: String = "",
-      firstName: String = "First Name",
-      lastName: String = "Last Name",
-      mobileNumber: Option[String] = None,
-      email: Option[String] = Some("someone@somewhere.com"),
-      notificationPreference: api.NotificationPreference = api.NotificationPreference.Email,
-      optIn: Boolean = true,
-      organizations: Seq[OrganizationId] = Seq(OrganizationId("anOrganization")),
-      relatedMembers: String = "",
-      memberTypes: Seq[api.MemberType] = Seq(api.MemberType.General)
-  ): api.MemberInfo = {
-    api.MemberInfo(
-      handle,
-      avatarUrl,
-      firstName,
-      lastName,
-      mobileNumber,
-      email,
-      notificationPreference,
-      optIn,
-      organizations,
-      relatedMembers,
-      memberTypes
-    )
-  }
+  val sharding: ClusterSharding = ClusterSharding(system)
+  //Member.initSharding(sharding)
 
   "The Member" should {
 
-    "allow being registered" in {
-      val testKit    = MemberTestKit(new Member(_))
-      val memberId   = UUID.randomUUID().toString()
-      val now        = Instant.now().toEpochMilli
-      val memberInfo = createMemberInfo()
-      val command = api.RegisterMember(
-        Some(api.MemberMap(Some(api.MemberId(memberId)), Some(memberInfo))),
-        Some(api.MemberId(memberId))
-      )
-      val result = testKit.registerMember(command)
-      result.events.isEmpty shouldBe false
-      result.didEmitEvents shouldBe true
-      result.isError shouldBe false
-      val actualEvent = result.nextEvent[api.MemberRegistered]
-      actualEvent.memberId.get.memberId shouldBe memberId
-      actualEvent.memberMetaInfo.get.createdBy.get.memberId shouldBe memberId
-      actualEvent.memberInfo.get shouldBe memberInfo
-      assert(actualEvent.memberMetaInfo.get.createdOn >= now)
-      val currentState = testKit.currentState 
-      assert(currentState.memberId.get.memberId == memberId)
-      assert(currentState.memberMetaInfo.get.memberState == api.MemberState.Active)
-      assert(currentState.memberInfo.get == createMemberInfo())
-      
+    ClusterSharding(system).init(
+      Entity(MemberEntityKey)(entityContext => Member(entityContext.entityTypeKey.name, entityContext.entityId))
+    )
+
+    Cluster(system).manager ! Join(Cluster(system).selfMember.address)
+
+    val memberInfo = MemberSpec.createMemberInfo()
+    "allow Member to be registered" in {
+
+      val registerMember = RegisterMember(Some(memberInfo), Some(MemberId("ADMIN")))
+
+      val p = TestProbe[StatusReply[MemberResponse]]()
+      val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
+
+      ref.ask[MemberResponse](_ => MemberCommand(registerMember, p.ref))
+      val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
+        case StatusReply.Success(
+              MemberEventResponse(
+                MemberRegistered(Some(MemberId(memId, _)), Some(memberInfo), Some(actingMember), Some(updatedOn), _),
+                _
+              )
+            ) =>
+          logger.info(s"Member Registered $memId: $memberInfo: $actingMember: $updatedOn")
+          FishingOutcome.Complete
+        case other =>
+          logger.info(s"Skipping $other")
+          FishingOutcome.ContinueAndIgnore
+      }
+      result.length shouldBe 1
     }
 
-    "fail registering a member with all data missing" in {
-      val testKit = MemberTestKit(new Member(_))
-      // val memberId = UUID.randomUUID().toString()
-      val command = api.RegisterMember(None, None)
-      val result  = testKit.registerMember(command)
-      result.isError shouldBe true
-      result.errorDescription shouldBe "Missing Member Id, Member To Add is Empty"
+    "do not allow Member to be re-registed with same memberId" in {
+
+      val registerMember = RegisterMember(Some(memberInfo), Some(MemberId("ADMIN")))
+
+      val p = TestProbe[StatusReply[MemberResponse]]()
+      val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
+
+      ref.ask[MemberResponse](_ => MemberCommand(registerMember, p.ref))
+      val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
+        case StatusReply.Error(someError: Throwable) =>
+          logger.error(s"Member Registered failed with error ${someError.getMessage}", someError)
+          FishingOutcome.Complete
+        case other =>
+          logger.info(s"Skipping $other")
+          FishingOutcome.ContinueAndIgnore
+      }
+      result.length shouldBe 1
     }
 
-    "fail due to missing both phone and email" in {
-      val testKit    = MemberTestKit(new Member(_))
-      val memberId   = UUID.randomUUID().toString()
-      val memberInfo = createMemberInfo(mobileNumber = None, email = None)
-      val command = api.RegisterMember(
-        Some(api.MemberMap(Some(api.MemberId(memberId)), Some(memberInfo))),
-        Some(api.MemberId(memberId))
-      )
-      val result = testKit.registerMember(command)
-      result.isError shouldBe true
-      result.errorDescription shouldBe "Must have at least on of Email, Mobile Phone Number"
+    "allow Member to be activated" in {
+
+      val activateMember = ActivateMember(Some(MemberId(member1Id)), Some(MemberId("ADMIN")))
+
+      val p = TestProbe[StatusReply[MemberResponse]]()
+      val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
+
+      ref.ask[MemberResponse](_ => MemberCommand(activateMember, p.ref))
+      val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
+        case StatusReply.Success(
+              MemberEventResponse(MemberActivated(Some(MemberId(memId, _)), Some(actingMember), Some(updatedOn), _), _)
+            ) =>
+          logger.info(s"Member Activated $memId: : $actingMember: $updatedOn")
+          FishingOutcome.Complete
+        case other =>
+          logger.info(s"Skipping $other")
+          FishingOutcome.ContinueAndIgnore
+      }
+      result.length shouldBe 1
     }
+
+    "allow Member to be Inactivated" in {
+
+      val inactivateMember = InactivateMember(Some(MemberId(member1Id)), Some(MemberId("ADMIN")))
+
+      val p = TestProbe[StatusReply[MemberResponse]]()
+      val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
+
+      ref.ask[MemberResponse](_ => MemberCommand(inactivateMember, p.ref))
+      val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
+        case StatusReply.Success(
+              MemberEventResponse(
+                MemberInactivated(Some(MemberId(memId, _)), Some(actingMember), Some(updatedOn), _),
+                _
+              )
+            ) =>
+          logger.info(s"Member Inactivated $memId: $actingMember: $updatedOn")
+          FishingOutcome.Complete
+        case other =>
+          logger.info(s"Skipping $other")
+          FishingOutcome.ContinueAndIgnore
+      }
+      result.length shouldBe 1
+    }
+
+    "allow Member to be Suspended" in {
+
+      val suspendMember = SuspendMember(Some(MemberId(member1Id)), Some(MemberId("ADMIN")))
+
+      val p = TestProbe[StatusReply[MemberResponse]]()
+      val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
+
+      ref.ask[MemberResponse](_ => MemberCommand(suspendMember, p.ref))
+      val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
+        case StatusReply.Success(
+              MemberEventResponse(MemberSuspended(Some(MemberId(memId, _)), Some(actingMember), Some(updatedOn), _), _)
+            ) =>
+          logger.info(s"Member Suspended $memId: $actingMember: $updatedOn")
+          FishingOutcome.Complete
+        case other =>
+          logger.info(s"Skipping $other")
+          FishingOutcome.ContinueAndIgnore
+      }
+      result.length shouldBe 1
+    }
+
+    "allow Member Info to be Updated with Phone Not set" in {
+
+      val suspendMember = UpdateMemberInfo(
+        Some(MemberId(member1Id)),
+        Some(memberInfo.withNotificationPreference(NotificationPreference.NOTIFICATION_PREFERENCE_SMS)),
+        Some(MemberId("ADMIN"))
+      )
+
+      val p = TestProbe[StatusReply[MemberResponse]]()
+      val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
+
+      ref.ask[MemberResponse](_ => MemberCommand(suspendMember, p.ref))
+      val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
+        case StatusReply.Error(errorMsg) =>
+          logger.info(s"Member Info Update rejected with error : $errorMsg")
+          FishingOutcome.Complete
+        case other =>
+          logger.info(s"Skipping $other")
+          FishingOutcome.ContinueAndIgnore
+      }
+      result.length shouldBe 1
+    }
+
+    "allow Member Info to be Updated with Phone No set" in {
+
+      val suspendMember = UpdateMemberInfo(
+        Some(MemberId(member1Id)),
+        Some(
+          memberInfo
+            .withNotificationPreference(NotificationPreference.NOTIFICATION_PREFERENCE_SMS)
+            .withContact(memberInfo.contact.get.withPhone("1234567890"))
+        ),
+        Some(MemberId("ADMIN"))
+      )
+
+      val p = TestProbe[StatusReply[MemberResponse]]()
+      val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
+
+      ref.ask[MemberResponse](_ => MemberCommand(suspendMember, p.ref))
+      val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
+        case StatusReply.Success(
+              MemberEventResponse(
+                MemberInfoUpdated(
+                  Some(MemberId(memId, _)),
+                  Some(memberInfo: MemberInfo),
+                  Some(actingMember),
+                  Some(updatedOn),
+                  _
+                ),
+                _
+              )
+            ) =>
+          logger.info(s"Member Info Updated $memId: $memberInfo: $actingMember: $updatedOn")
+          FishingOutcome.Complete
+        case other =>
+          logger.info(s"Skipping $other")
+          FishingOutcome.ContinueAndIgnore
+      }
+      result.length shouldBe 1
+    }
+
+    "allow Fetching Member suspended Member info" in {
+
+      val getMemberInfo = GetMemberInfo(Some(MemberId(member1Id)))
+
+      val p = TestProbe[StatusReply[MemberResponse]]()
+      val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
+
+      ref.ask[MemberResponse](_ => MemberCommand(getMemberInfo, p.ref))
+      val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
+        case StatusReply.Success(
+              MemberData(Some(MemberId(memId, _)), Some(memberInfo: MemberInfo), Some(memberMetaInfo), _)
+            ) =>
+          logger.info(s"Member Fetched $memId: $memberInfo: $memberMetaInfo")
+          FishingOutcome.Complete
+        case other =>
+          logger.info(s"Skipping $other")
+          FishingOutcome.ContinueAndIgnore
+      }
+      result.length shouldBe 1
+    }
+
+    "allow Member to be Terminated" in {
+
+      val terminateMember = TerminateMember(Some(MemberId(member1Id)), Some(MemberId("ADMIN")))
+
+      val p = TestProbe[StatusReply[MemberResponse]]()
+      val ref: EntityRef[Member.MemberCommand] = sharding.entityRefFor(MemberEntityKey, member1Id)
+
+      ref.ask[MemberResponse](_ => MemberCommand(terminateMember, p.ref))
+      val result: Seq[StatusReply[MemberResponse]] = p.fishForMessagePF(waitDuration) {
+        case StatusReply.Success(
+              MemberEventResponse(MemberTerminated(Some(MemberId(memId, _)), Some(actingMember), Some(updatedOn), _), _)
+            ) =>
+          logger.info(s"Member Terminated $memId: $actingMember $updatedOn")
+          FishingOutcome.Complete
+        case other =>
+          logger.info(s"Skipping $other")
+          FishingOutcome.ContinueAndIgnore
+      }
+      result.length shouldBe 1
+    }
+  }
+  /*
+
 
     "allow inactivation and reactivation" in {
       val testKit = MemberTestKit(new Member(_))
       val memberId = Some(api.MemberId(UUID.randomUUID().toString()))
-      val firstNow =  Instant.now().toEpochMilli
-      val memberInfo = Some(createMemberInfo())
-      val command = api.RegisterMember(
-        Some(api.MemberMap(memberId, memberInfo)),
-        memberId
-        )
-
-        val result = testKit.registerMember(command)
-        result.events.isEmpty shouldBe false
-        result.isError shouldBe false
-        val retEvt = result.nextEvent[api.MemberRegistered]
-        assert(retEvt.memberMetaInfo.get.createdOn >= firstNow)
-        assert(retEvt.memberMetaInfo.get.memberState == api.MemberState.Active)
-      
-      val inactivateCommand = api.InactivateMember(memberId, memberId)
-      val inactivateResult = testKit.inactivateMember(inactivateCommand)
-      inactivateResult.events.isEmpty shouldBe false
-      inactivateResult.isError shouldBe false
-      val inactivateEvt = inactivateResult.nextEvent[api.MemberInactivated]
-     
-      assert(inactivateEvt.memberMeta.get.memberState == api.MemberState.Inactive)
-      val activateCommand = api.ActivateMember(memberId, memberId)
-      val activateResult = testKit.activateMember(activateCommand)
-      activateResult.events.isEmpty shouldBe false
-      activateResult.isError shouldBe false
-      val activateEvt = activateResult.nextEvent[api.MemberActivated]
-      assert(activateEvt.memberMeta.get.memberState == api.MemberState.Active)
-      
-    }
-
-    "should return the registered member" in {
-       val testKit = MemberTestKit(new Member(_))
-      val memberId = Some(api.MemberId(UUID.randomUUID().toString()))
-      val firstNow =  Instant.now().toEpochMilli
-      val memberInfo = Some(createMemberInfo())
-      val command = api.RegisterMember(
-        Some(api.MemberMap(memberId, memberInfo)),
-        memberId
-        )
-
-        val result = testKit.registerMember(command)
-        result.events.isEmpty shouldBe false
-        result.isError shouldBe false
-        val retEvt = result.nextEvent[api.MemberRegistered]
-        assert(retEvt.memberMetaInfo.get.createdOn >= firstNow)
-        assert(retEvt.memberMetaInfo.get.memberState == api.MemberState.Active)
-
-      val retCommand = api.GetMemberInfo(memberId)
-      val retResult = testKit.getMemberInfo(retCommand)
-      assert(retResult.reply.memberId == memberId)
-      assert(retResult.reply.memberInfo == retEvt.memberInfo)
-
-
-    }
-
-    "should update Member Data " in {
-      val testKit = MemberTestKit(new Member(_))
-      val memberId = Some(api.MemberId(UUID.randomUUID().toString()))
+      val firstNow = Instant.now().toEpochMilli
       val memberInfo = Some(createMemberInfo())
       val command = api.RegisterMember(
         Some(api.MemberMap(memberId, memberInfo)),
@@ -169,23 +265,27 @@ class MemberSpec extends AnyWordSpec with Matchers {
       result.events.isEmpty shouldBe false
       result.isError shouldBe false
       val retEvt = result.nextEvent[api.MemberRegistered]
-      assert(retEvt.memberInfo == memberInfo)
+      assert(retEvt.memberMetaInfo.get.createdOn >= firstNow)
+      assert(retEvt.memberMetaInfo.get.memberState == api.MemberState.Active)
 
-      val newFirstName = "new First Name"
-      val newLastName = "new Last Name"
+      val inactivateCommand = api.InactivateMember(memberId, memberId)
+      val inactivateResult = testKit.inactivateMember(inactivateCommand)
+      inactivateResult.events.isEmpty shouldBe false
+      inactivateResult.isError shouldBe false
+      val inactivateEvt = inactivateResult.nextEvent[api.MemberInactivated]
 
-      val updatedMemberInfo = memberInfo.map(_.copy(firstName = newFirstName, lastName = newLastName))
+      assert(inactivateEvt.memberMeta.get.memberState == api.MemberState.Inactive)
+      val activateCommand = api.ActivateMember(memberId, memberId)
+      val activateResult = testKit.activateMember(activateCommand)
+      activateResult.events.isEmpty shouldBe false
+      activateResult.isError shouldBe false
+      val activateEvt = activateResult.nextEvent[api.MemberActivated]
+      assert(activateEvt.memberMeta.get.memberState == api.MemberState.Active)
 
-      val updCommand = api.UpdateMemberInfo(Some(api.MemberMap(memberId, updatedMemberInfo)), memberId)
-      val updResult = testKit.updateMemberInfo(updCommand)
-      updResult.events.isEmpty shouldBe false
-      updResult.isError shouldBe false
-
-      val updMemberInfo = updResult.nextEvent[api.MemberInfoUpdated]
-      assert(updMemberInfo.memberInfo.get.firstName == newFirstName)
-      assert(updMemberInfo.memberInfo.get.lastName == newLastName)
-      assert(updMemberInfo.memberInfo.get.handle == memberInfo.get.handle)
     }
+
+
+
 
     "should fail to update a Member with bad data" in {
       val testKit = MemberTestKit(new Member(_))
@@ -202,7 +302,6 @@ class MemberSpec extends AnyWordSpec with Matchers {
       val retEvt = result.nextEvent[api.MemberRegistered]
       assert(retEvt.memberInfo == memberInfo)
 
-      
       val updatedMemberInfo = memberInfo.map(_.copy(firstName = ""))
       val updCommand = api.UpdateMemberInfo(Some(api.MemberMap(memberId, updatedMemberInfo)), memberId)
       val updResult = testKit.updateMemberInfo(updCommand)
@@ -217,7 +316,8 @@ class MemberSpec extends AnyWordSpec with Matchers {
       val memberId = Some(api.MemberId(UUID.randomUUID().toString()))
       val memberInfo = Some(createMemberInfo())
       val command = api.RegisterMember(
-        Some(api.MemberMap(memberId, memberInfo)), memberId
+        Some(api.MemberMap(memberId, memberInfo)),
+        memberId
       )
       testKit.registerMember(command)
 
@@ -260,7 +360,7 @@ class MemberSpec extends AnyWordSpec with Matchers {
       ) shouldBe "Notification Preference must match included data (ie SMS pref without phone number, or opposite)".invalidNel
     }
 
-     "fail when SMS notification is set and no mobile number is included" in {
+    "fail when SMS notification is set and no mobile number is included" in {
       Member.validateMemberInfo(
         Some(
           createMemberInfo(
@@ -276,6 +376,61 @@ class MemberSpec extends AnyWordSpec with Matchers {
       Member.validateMemberInfo(Some(createMemberInfo())) shouldBe Some(createMemberInfo()).validNel
     }
 
+  }*/
+}
 
+object MemberSpec {
+  val config: Config = ConfigFactory.parseString("""
+        akka.loglevel = INFO
+        #akka.persistence.typed.log-stashing = on
+        akka.actor.provider = cluster
+        akka.remote.artery.canonical.port = 0
+        akka.remote.artery.canonical.hostname = 127.0.0.1
+//        akka.cluster.seed-nodes = [
+//          "akka.tcp://yourClusterSystem@127.0.0.1:2551",
+//          "akka.tcp://yourClusterSystem@127.0.0.1:2552"
+//        ]
+        akka.persistence.journal.plugin = "akka.persistence.journal.inmem"
+        akka.persistence.journal.inmem.test-serialization = on
+
+        akka.actor.serialization-bindings{
+        "com.improving.app.common.serialize.PBMsgSerializable" = proto
+        "com.improving.app.common.serialize.PBMsgOneOfSerializable" = proto
+        "com.improving.app.common.serialize.PBEnumSerializable" = proto
+          }
+      """)
+
+  def createMemberInfo(
+      userName: String = "SomeUserName",
+      handle: String = "SomeHandle",
+      avatarUrl: String = "",
+      firstName: String = "FirstName",
+      lastName: String = "LastName",
+      phNo: Option[String] = None,
+      email: Option[String] = Some("someone@somewhere.com"),
+      notificationPreference: NotificationPreference = NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL,
+      optIn: Boolean = true,
+      organizations: Seq[OrganizationId] = Seq(OrganizationId("SomeOrganization")),
+      tentant: Option[TenantId] = Some(TenantId("SomeTenant"))
+  ): MemberInfo = {
+    MemberInfo(
+      handle = handle,
+      avatarUrl = avatarUrl,
+      firstName = firstName,
+      lastName = lastName,
+      notificationPreference = notificationPreference,
+      notificationOptIn = optIn,
+      contact = Some(
+        Contact(
+          firstName = firstName,
+          lastName = lastName,
+          emailAddress = email,
+          phone = phNo,
+          userName = userName,
+        )
+      ),
+      organizations = organizations,
+      tenant = tentant
+    )
   }
 }

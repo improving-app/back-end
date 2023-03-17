@@ -2,16 +2,16 @@ package com.improving.app.tenant
 
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
-import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, MemberId, OrganizationId, PostalCodeMessageImpl, TenantId}
-import com.improving.app.tenant.domain.Tenant.TenantCommand
-import com.improving.app.tenant.domain.{ActivateTenant, AddOrganizations, RemoveOrganizations, SuspendTenant, Tenant, TenantEvent, UpdateAddress, UpdatePrimaryContact, UpdateTenantName}
-
-import scala.util.Random
 import akka.pattern.StatusReply
+import com.improving.app.common.domain._
+import com.improving.app.tenant.domain.Tenant.TenantCommand
+import com.improving.app.tenant.domain._
 import com.typesafe.config.{Config, ConfigFactory}
-import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+
+import scala.util.Random
 
 object TenantSpec {
   val config: Config = ConfigFactory.parseString("""
@@ -24,13 +24,16 @@ object TenantSpec {
   """)
 }
 class TenantSpec
-  extends ScalaTestWithActorTestKit(TenantSpec.config)
+    extends ScalaTestWithActorTestKit(TenantSpec.config)
     with AnyWordSpecLike
     with BeforeAndAfterAll
     with Matchers {
   override def afterAll(): Unit = testKit.shutdownTestKit()
 
-  def transitionToActive(p: ActorRef[TenantCommand], probe: TestProbe[StatusReply[TenantEvent]]): StatusReply[TenantEvent] = {
+  def transitionToActive(
+      p: ActorRef[TenantCommand],
+      probe: TestProbe[StatusReply[TenantEvent]]
+  ): StatusReply[TenantEvent] = {
 
     // Populate tenant name
     p ! Tenant.TenantCommand(
@@ -38,7 +41,8 @@ class TenantSpec
         tenantId = Some(TenantId("testTenantId")),
         newName = "newName",
         updatingUser = Some(MemberId("updatingUser"))
-      ), probe.ref
+      ),
+      probe.ref
     )
 
     val updateTenantNameResponse = probe.receiveMessage()
@@ -52,13 +56,14 @@ class TenantSpec
           Contact(
             firstName = "firstName",
             lastName = "lastName",
-            emailAddress = "test@test.com",
-            phone = "111-111-1111",
+            emailAddress = Some("test@test.com"),
+            phone = Some("111-111-1111"),
             userName = "contactUsername"
           )
         ),
         updatingUser = Some(MemberId("updatingUser"))
-      ), probe.ref
+      ),
+      probe.ref
     )
 
     val updateAddressResponse = probe.receiveMessage()
@@ -77,8 +82,10 @@ class TenantSpec
             country = "country",
             postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
           )
-        ), updatingUser = Some(MemberId("updatingUser"))
-      ), probe.ref
+        ),
+        updatingUser = Some(MemberId("updatingUser"))
+      ),
+      probe.ref
     )
 
     val updatePrimaryContactResponse = probe.receiveMessage()
@@ -90,7 +97,8 @@ class TenantSpec
         tenantId = Some(TenantId("testTenantId")),
         orgId = Seq(OrganizationId("org1")),
         updatingUser = Some(MemberId("updatingUser"))
-      ), probe.ref
+      ),
+      probe.ref
     )
 
     val addOrganizationsResponse = probe.receiveMessage()
@@ -101,7 +109,8 @@ class TenantSpec
       ActivateTenant(
         tenantId = Some(TenantId("testTenantId")),
         updatingUser = Some(MemberId("updatingUser"))
-      ), probe.ref
+      ),
+      probe.ref
     )
 
     probe.receiveMessage()
@@ -121,7 +130,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               newName = "newName",
               updatingUser = Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -136,12 +146,13 @@ class TenantSpec
           val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
           val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
 
-          p! Tenant.TenantCommand(
+          p ! Tenant.TenantCommand(
             UpdateTenantName(
               tenantId = None,
-              newName  = "newName",
+              newName = "newName",
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response1 = probe.receiveMessage()
@@ -154,7 +165,8 @@ class TenantSpec
               tenantId = Some(TenantId("")),
               newName = "newName",
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response2 = probe.receiveMessage()
@@ -167,7 +179,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               newName = "",
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response3 = probe.receiveMessage()
@@ -180,7 +193,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               newName = "newName",
               updatingUser = None
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response4 = probe.receiveMessage()
@@ -193,7 +207,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               newName = "newName",
               updatingUser = Some(MemberId(""))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response5 = probe.receiveMessage()
@@ -212,7 +227,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               newName = "newName",
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -244,7 +260,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               newName = "name1",
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -255,7 +272,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               newName = "name1",
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response2 = probe.receiveMessage()
@@ -279,13 +297,14 @@ class TenantSpec
                 Contact(
                   firstName = "firstName",
                   lastName = "lastName",
-                  emailAddress = "test@test.com",
-                  phone = "111-111-1111",
+                  emailAddress = Some("test@test.com"),
+                  phone = Some("111-111-1111"),
                   userName = "contactUsername"
                 )
               ),
               updatingUser = Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -306,7 +325,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               newContact = None,
               Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response1 = probe.receiveMessage()
@@ -321,13 +341,14 @@ class TenantSpec
                 Contact(
                   firstName = "",
                   lastName = "lastName",
-                  emailAddress = "test@test.com",
-                  phone = "111-111-1111",
+                  emailAddress = Some("test@test.com"),
+                  phone = Some("111-111-1111"),
                   userName = "contactUsername"
                 )
               ),
               Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response2 = probe.receiveMessage()
@@ -342,13 +363,14 @@ class TenantSpec
                 Contact(
                   firstName = "firstName",
                   lastName = "",
-                  emailAddress = "test@test.com",
-                  phone = "111-111-1111",
+                  emailAddress = Some("test@test.com"),
+                  phone = Some("111-111-1111"),
                   userName = "contactUsername"
                 )
               ),
               Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response3 = probe.receiveMessage()
@@ -363,19 +385,18 @@ class TenantSpec
                 Contact(
                   firstName = "firstName",
                   lastName = "lastName",
-                  emailAddress = "",
-                  phone = "111-111-1111",
+                  emailAddress = Some(""),
+                  phone = Some("111-111-1111"),
                   userName = "contactUsername"
                 )
               ),
               Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response4 = probe.receiveMessage()
-          assert(response4.isError)
-          val responseError4 = response4.getError
-          responseError4.getMessage shouldEqual "Primary contact info is not complete"
+          assert(response4.isSuccess)
 
           p ! Tenant.TenantCommand(
             UpdatePrimaryContact(
@@ -384,19 +405,18 @@ class TenantSpec
                 Contact(
                   firstName = "firstName",
                   lastName = "lastName",
-                  emailAddress = "test@test.com",
-                  phone = "",
+                  emailAddress = Some("test@test.com"),
+                  phone = Some(""),
                   userName = "contactUsername"
                 )
               ),
               Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response5 = probe.receiveMessage()
-          assert(response5.isError)
-          val responseError5 = response5.getError
-          responseError5.getMessage shouldEqual "Primary contact info is not complete"
+          assert(response5.isSuccess)
 
           p ! Tenant.TenantCommand(
             UpdatePrimaryContact(
@@ -405,13 +425,14 @@ class TenantSpec
                 Contact(
                   firstName = "firstName",
                   lastName = "lastName",
-                  emailAddress = "test@test.com",
-                  phone = "111-111-1111",
+                  emailAddress = Some("test@test.com"),
+                  phone = Some("111-111-1111"),
                   userName = ""
                 )
               ),
               Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response6 = probe.receiveMessage()
@@ -432,13 +453,14 @@ class TenantSpec
                 Contact(
                   firstName = "firstName",
                   lastName = "lastName",
-                  emailAddress = "test@test.com",
-                  phone = "111-111-1111",
+                  emailAddress = Some("test@test.com"),
+                  phone = Some("111-111-1111"),
                   userName = "contactUsername"
                 )
               ),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           //make the assertions for this test
@@ -456,8 +478,8 @@ class TenantSpec
             Contact(
               firstName = "firstName",
               lastName = "lastName",
-              emailAddress = "test@test.com",
-              phone = "111-111-1111",
+              emailAddress = Some("test@test.com"),
+              phone = Some("111-111-1111"),
               userName = "contactUsername"
             )
           )
@@ -489,8 +511,10 @@ class TenantSpec
                   country = "country",
                   postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
                 )
-              ), updatingUser = Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+              ),
+              updatingUser = Some(MemberId("unauthorizedUser"))
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -508,8 +532,10 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             UpdateAddress(
               tenantId = Some(TenantId("testTenantId")),
-              newAddress = None, updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+              newAddress = None,
+              updatingUser = Some(MemberId("updatingUser"))
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -529,8 +555,10 @@ class TenantSpec
                   country = "country",
                   postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
                 )
-              ), updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+              ),
+              updatingUser = Some(MemberId("updatingUser"))
+            ),
+            probe.ref
           )
 
           val response1 = probe.receiveMessage()
@@ -552,8 +580,10 @@ class TenantSpec
                   country = "country",
                   postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
                 )
-              ), updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+              ),
+              updatingUser = Some(MemberId("updatingUser"))
+            ),
+            probe.ref
           )
 
           val response2 = probe.receiveMessage()
@@ -573,8 +603,10 @@ class TenantSpec
                   country = "country",
                   postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
                 )
-              ), updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+              ),
+              updatingUser = Some(MemberId("updatingUser"))
+            ),
+            probe.ref
           )
 
           val response3 = probe.receiveMessage()
@@ -594,8 +626,10 @@ class TenantSpec
                   country = "",
                   postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
                 )
-              ), updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+              ),
+              updatingUser = Some(MemberId("updatingUser"))
+            ),
+            probe.ref
           )
 
           val response4 = probe.receiveMessage()
@@ -615,8 +649,10 @@ class TenantSpec
                   country = "country",
                   postalCode = None
                 )
-              ), updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+              ),
+              updatingUser = Some(MemberId("updatingUser"))
+            ),
+            probe.ref
           )
 
           val response5 = probe.receiveMessage()
@@ -636,8 +672,10 @@ class TenantSpec
                   country = "country",
                   postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("")))
                 )
-              ), updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+              ),
+              updatingUser = Some(MemberId("updatingUser"))
+            ),
+            probe.ref
           )
 
           val response6 = probe.receiveMessage()
@@ -663,8 +701,10 @@ class TenantSpec
                   country = "country",
                   postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
                 )
-              ), updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+              ),
+              updatingUser = Some(MemberId("updatingUser"))
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -702,12 +742,13 @@ class TenantSpec
           val p = this.testKit.spawn(Tenant(MemberId(creatingUser)))
           val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
 
-          p !Tenant.TenantCommand(
+          p ! Tenant.TenantCommand(
             AddOrganizations(
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq.empty,
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -727,7 +768,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -747,7 +789,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -778,7 +821,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -789,7 +833,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response1 = probe.receiveMessage()
@@ -811,7 +856,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq.empty,
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -831,7 +877,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val addOrganizationsResponse = probe.receiveMessage()
@@ -842,7 +889,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -862,7 +910,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val addOrganizationsResponse = probe.receiveMessage()
@@ -873,7 +922,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -904,7 +954,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -925,7 +976,8 @@ class TenantSpec
             ActivateTenant(
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -946,7 +998,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               newName = "newName",
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val updateTenantNameResponse = probe.receiveMessage()
@@ -960,13 +1013,14 @@ class TenantSpec
                 Contact(
                   firstName = "firstName",
                   lastName = "lastName",
-                  emailAddress = "test@test.com",
-                  phone = "111-111-1111",
+                  emailAddress = Some("test@test.com"),
+                  phone = Some("111-111-1111"),
                   userName = "contactUsername"
                 )
               ),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val updateAddressResponse = probe.receiveMessage()
@@ -985,8 +1039,10 @@ class TenantSpec
                   country = "country",
                   postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
                 )
-              ), updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+              ),
+              updatingUser = Some(MemberId("updatingUser"))
+            ),
+            probe.ref
           )
 
           val updatePrimaryContactResponse = probe.receiveMessage()
@@ -997,7 +1053,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val addOrganizationsResponse = probe.receiveMessage()
@@ -1007,7 +1064,8 @@ class TenantSpec
             ActivateTenant(
               tenantId = Some(TenantId("testTenantId")),
               Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1052,7 +1110,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               suspensionReason = "reason",
               Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1072,7 +1131,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               suspensionReason = "reason",
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1115,13 +1175,14 @@ class TenantSpec
                 Contact(
                   firstName = "firstName",
                   lastName = "lastName",
-                  emailAddress = "test@test.com",
-                  phone = "111-111-1111",
+                  emailAddress = Some("test@test.com"),
+                  phone = Some("111-111-1111"),
                   userName = "contactUsername"
                 )
               ),
               Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
           val response2 = probe.receiveMessage()
 
@@ -1145,7 +1206,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               newName = "name1",
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1181,7 +1243,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               newName = "name1",
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val updateTenantNameResponse1 = probe.receiveMessage()
@@ -1192,7 +1255,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               newName = "name1",
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response2 = probe.receiveMessage()
@@ -1220,13 +1284,14 @@ class TenantSpec
                 Contact(
                   firstName = "firstName",
                   lastName = "lastName",
-                  emailAddress = "test@test.com",
-                  phone = "111-111-1111",
+                  emailAddress = Some("test@test.com"),
+                  phone = Some("111-111-1111"),
                   userName = "contactUsername"
                 )
               ),
               updatingUser = Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1254,12 +1319,13 @@ class TenantSpec
                 Contact(
                   firstName = "firstName",
                   lastName = "lastName",
-                  phone = "111-111-1111",
+                  phone = Some("111-111-1111"),
                   userName = "contactUsername"
                 )
               ),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1286,13 +1352,14 @@ class TenantSpec
                 Contact(
                   firstName = "firstName1",
                   lastName = "lastName1",
-                  emailAddress = "test1@test.com",
-                  phone = "111-111-1112",
+                  emailAddress = Some("test1@test.com"),
+                  phone = Some("111-111-1112"),
                   userName = "contactUsername1"
                 )
               ),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           //make the assertions for this test
@@ -1309,8 +1376,8 @@ class TenantSpec
             Contact(
               firstName = "firstName",
               lastName = "lastName",
-              emailAddress = "test@test.com",
-              phone = "111-111-1111",
+              emailAddress = Some("test@test.com"),
+              phone = Some("111-111-1111"),
               userName = "contactUsername"
             )
           )
@@ -1318,8 +1385,8 @@ class TenantSpec
             Contact(
               firstName = "firstName1",
               lastName = "lastName1",
-              emailAddress = "test1@test.com",
-              phone = "111-111-1112",
+              emailAddress = Some("test1@test.com"),
+              phone = Some("111-111-1112"),
               userName = "contactUsername1"
             )
           )
@@ -1354,8 +1421,10 @@ class TenantSpec
                   country = "country",
                   postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
                 )
-              ), updatingUser = Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+              ),
+              updatingUser = Some(MemberId("unauthorizedUser"))
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1386,8 +1455,10 @@ class TenantSpec
                   country = "country",
                   postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
                 )
-              ), updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+              ),
+              updatingUser = Some(MemberId("updatingUser"))
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1418,8 +1489,10 @@ class TenantSpec
                   country = "country1",
                   postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode1")))
                 )
-              ), updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+              ),
+              updatingUser = Some(MemberId("updatingUser"))
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1474,7 +1547,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq.empty,
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1497,7 +1571,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1520,7 +1595,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org2")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1554,7 +1630,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1579,7 +1656,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq.empty,
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1602,7 +1680,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1625,7 +1704,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1659,7 +1739,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org2")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1684,7 +1765,8 @@ class TenantSpec
             ActivateTenant(
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1710,7 +1792,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               suspensionReason = "reason",
               updatingUser = Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1734,7 +1817,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               suspensionReason = "reason1",
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1770,7 +1854,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -1784,13 +1869,14 @@ class TenantSpec
                 Contact(
                   firstName = "firstName",
                   lastName = "lastName",
-                  emailAddress = "test@test.com",
-                  phone = "111-111-1111",
+                  emailAddress = Some("test@test.com"),
+                  phone = Some("111-111-1111"),
                   userName = "contactUsername"
                 )
               ),
               Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
           val response2 = probe.receiveMessage()
 
@@ -1810,7 +1896,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -1821,7 +1908,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               newName = "newName",
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1853,7 +1941,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -1864,7 +1953,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               newName = "name1",
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val updateTenantNameResponse1 = probe.receiveMessage()
@@ -1875,7 +1965,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               newName = "name1",
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response2 = probe.receiveMessage()
@@ -1897,7 +1988,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -1910,13 +2002,14 @@ class TenantSpec
                 Contact(
                   firstName = "firstName",
                   lastName = "lastName",
-                  emailAddress = "test@test.com",
-                  phone = "111-111-1111",
+                  emailAddress = Some("test@test.com"),
+                  phone = Some("111-111-1111"),
                   userName = "contactUsername"
                 )
               ),
               Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1937,7 +2030,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -1951,12 +2045,13 @@ class TenantSpec
                 Contact(
                   firstName = "firstName",
                   lastName = "lastName",
-                  phone = "111-111-1111",
+                  phone = Some("111-111-1111"),
                   userName = "contactUsername"
                 )
               ),
               Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -1977,7 +2072,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -1990,13 +2086,14 @@ class TenantSpec
                 Contact(
                   firstName = "firstName",
                   lastName = "lastName",
-                  emailAddress = "test@test.com",
-                  phone = "111-111-1111",
+                  emailAddress = Some("test@test.com"),
+                  phone = Some("111-111-1111"),
                   userName = "contactUsername"
                 )
               ),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           //make the assertions for this test
@@ -2014,8 +2111,8 @@ class TenantSpec
             Contact(
               firstName = "firstName",
               lastName = "lastName",
-              emailAddress = "test@test.com",
-              phone = "111-111-1111",
+              emailAddress = Some("test@test.com"),
+              phone = Some("111-111-1111"),
               userName = "contactUsername"
             )
           )
@@ -2040,7 +2137,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -2058,8 +2156,10 @@ class TenantSpec
                   country = "country",
                   postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
                 )
-              ), Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+              ),
+              Some(MemberId("unauthorizedUser"))
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -2079,7 +2179,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -2097,8 +2198,10 @@ class TenantSpec
                   country = "country",
                   postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
                 )
-              ), updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+              ),
+              updatingUser = Some(MemberId("updatingUser"))
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -2118,7 +2221,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -2136,8 +2240,10 @@ class TenantSpec
                   country = "country",
                   postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
                 )
-              ), updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+              ),
+              updatingUser = Some(MemberId("updatingUser"))
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -2180,7 +2286,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -2191,7 +2298,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq.empty,
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -2211,7 +2319,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -2222,7 +2331,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -2242,7 +2352,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -2253,7 +2364,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -2284,7 +2396,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -2295,7 +2408,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val firstOrganizationResponse = probe.receiveMessage()
@@ -2306,7 +2420,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -2328,7 +2443,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -2339,7 +2455,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq.empty,
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -2359,7 +2476,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -2370,7 +2488,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val addOrganizationsResponse = probe.receiveMessage()
@@ -2381,7 +2500,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -2401,7 +2521,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -2412,7 +2533,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val addOrganizationsResponse = probe.receiveMessage()
@@ -2423,7 +2545,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -2454,7 +2577,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -2465,7 +2589,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               orgId = Seq(OrganizationId("org1")),
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -2487,7 +2612,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -2497,7 +2623,8 @@ class TenantSpec
             ActivateTenant(
               tenantId = Some(TenantId("testTenantId")),
               Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -2517,7 +2644,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -2528,7 +2656,6 @@ class TenantSpec
 
           val successVal = response.getValue
           assert(successVal.asMessage.sealedValue.tenantActivatedValue.isDefined)
-
 
           val tenantActivated = successVal.asMessage.sealedValue.tenantActivatedValue.get
 
@@ -2554,7 +2681,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               updatingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -2565,7 +2693,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               suspensionReason = "reason",
               Some(MemberId("unauthorizedUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -2585,7 +2714,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               suspensionReason = "reason",
               updatingUser = Some(MemberId("updatingUser"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val suspendTenantResponse = probe.receiveMessage()
@@ -2596,7 +2726,8 @@ class TenantSpec
               tenantId = Some(TenantId("testTenantId")),
               suspensionReason = "reason1",
               updatingUser = Some(MemberId("updatingUser1"))
-            ), probe.ref
+            ),
+            probe.ref
           )
 
           val response = probe.receiveMessage()
@@ -2621,4 +2752,3 @@ class TenantSpec
     }
   }
 }
-

@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package com.improving.app.member.api;
+
+import "com/improving/app/member/domain/improving-app-member-domain.proto";
+import "scalapb/scalapb.proto";
+
+//import "google/api/annotations.proto";
+
+
+service MemberService {
+
+  rpc RegisterMember (domain.RegisterMember) returns (domain.MemberRegistered) {
+      //post: "member/{memberId}/"
+
+   }
+
+  rpc ActivateMember(domain.ActivateMember) returns (domain.MemberActivated) {
+      //post: "member/{memberId}/activate/"
+
+  }
+
+  rpc InactivateMember(domain.InactivateMember) returns (domain.MemberInactivated) {
+      //post: "member/{memberId}/inactivate/"
+
+  }
+
+  rpc SuspendMember(domain.SuspendMember) returns (domain.MemberSuspended) {
+      //post: "member/{memberId}/suspend/"
+  }
+
+  rpc TerminateMember(domain.TerminateMember) returns (domain.MemberTerminated) {
+      //post: "member/{memberId}/terminate/"
+  }
+
+  rpc UpdateMemberInfo(domain.UpdateMemberInfo) returns (domain.MemberInfoUpdated){
+      //post: "member/{memberId}/update/"
+  }
+
+  rpc GetMemberInfo(domain.GetMemberInfo) returns (domain.MemberData) {
+      //get:"member/{memberId}/"
+  }
+
+}
