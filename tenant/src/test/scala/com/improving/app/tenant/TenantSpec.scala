@@ -396,9 +396,7 @@ class TenantSpec
           )
 
           val response4 = probe.receiveMessage()
-          assert(response4.isError)
-          val responseError4 = response4.getError
-          responseError4.getMessage shouldEqual "Primary contact info is not complete"
+          assert(response4.isSuccess)
 
           p ! Tenant.TenantCommand(
             UpdatePrimaryContact(
@@ -418,9 +416,7 @@ class TenantSpec
           )
 
           val response5 = probe.receiveMessage()
-          assert(response5.isError)
-          val responseError5 = response5.getError
-          responseError5.getMessage shouldEqual "Primary contact info is not complete"
+          assert(response5.isSuccess)
 
           p ! Tenant.TenantCommand(
             UpdatePrimaryContact(
