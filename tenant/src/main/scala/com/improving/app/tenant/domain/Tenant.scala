@@ -36,16 +36,13 @@ object Tenant {
    * @param createdBy
    * @return
    */
-  def apply(createdBy: MemberId): Behavior[TenantCommand] = {
+  def apply(persistenceId: PersistenceId): Behavior[TenantCommand] = {
     Behaviors.setup(context =>
       EventSourcedBehavior[TenantCommand, TenantEvent, TenantState](
-        persistenceId = PersistenceId.ofUniqueId(createdBy.id),
+        persistenceId = persistenceId,
         emptyState = DraftTenant(
           info = Info(),
-          metaInfo = MetaInfo(
-            createdBy = Some(createdBy),
-            createdOn = Some(Timestamp(Instant.now()))
-          )
+          metaInfo = MetaInfo()
         ),
         commandHandler = commandHandler,
         eventHandler = eventHandler
@@ -62,6 +59,7 @@ object Tenant {
         Effect.reply(command.replyTo)(
           StatusReply.Error("Command is not supported")
         )
+      case TenantRequestMessage.SealedValue.EstablishTenantValue(value) => establishTenant(state, value, command.replyTo)
       case TenantRequestMessage.SealedValue.UpdateTenantNameValue(value) => updateTenantName(state, value, command.replyTo)
       case TenantRequestMessage.SealedValue.UpdatePrimaryContactValue(value) => updatePrimaryContact(state, value, command.replyTo)
       case TenantRequestMessage.SealedValue.UpdateAddressValue(value) => updateAddress(state, value, command.replyTo)
@@ -97,6 +95,12 @@ object Tenant {
   private val eventHandler: (TenantState, TenantEvent) => TenantState = { (state, event) =>
     event.asMessage.sealedValue match {
       case TenantEventMessage.SealedValue.Empty => state
+      case TenantEventMessage.SealedValue.TenantEstablishedValue(value) =>
+        state match {
+          case x : DraftTenant => x.copy(metaInfo = value.metaInfo.get)
+          case _: ActiveTenant => state
+          case _: SuspendedTenant => state
+        }
       case TenantEventMessage.SealedValue.TenantNameUpdatedValue(value) =>
         state match {
           case x: DraftTenant => x.copy(info = x.info.copy(name = value.newName), metaInfo = value.metaInfo.get)
@@ -174,6 +178,66 @@ object Tenant {
   }
 
   /**
+   * Validation for the EstablishTenant command and interaction with the state
+   * @param info
+   * @param metaInfo
+   * @param establishTenant
+   * @param replyTo
+   * @return
+   */
+  private def establishTenantLogic(
+    info: Info,
+    metaInfo: MetaInfo,
+    establishTenant: EstablishTenant,
+    replyTo: ActorRef[StatusReply[TenantEvent]]
+  ): ReplyEffect[TenantEvent, TenantState] = {
+    if (metaInfo.createdBy.isDefined) {
+      Effect.reply(replyTo)(
+        StatusReply.Error("Tenant Id is being used for another tenant")
+      )
+    } else {
+      val currentTime = Timestamp(Instant.now())
+      val newMetaInfo = metaInfo.copy(createdBy = establishTenant.creatingUser, createdOn = Some(currentTime))
+      val event = TenantEstablished(
+        tenantId = establishTenant.tenantId,
+        metaInfo = Some(newMetaInfo)
+      )
+
+      Effect.persist(event).thenReply(replyTo) { _ => StatusReply.Success(event) }
+    }
+  }
+
+  /**
+   * State business logic for establishing the tenant
+   * @param state
+   * @param establishTenant
+   * @param replyTo
+   * @return
+   */
+  private def establishTenant(
+    state: TenantState,
+    establishTenant: EstablishTenant,
+    replyTo: ActorRef[StatusReply[TenantEvent]]
+  ): ReplyEffect[TenantEvent, TenantState] = {
+    val preconditionMessageOpt = validateCommonFieldsPrecondition(establishTenant.tenantId, establishTenant.creatingUser)
+    preconditionMessageOpt.fold(
+      state match {
+        case DraftTenant(info, metaInfo) =>
+          establishTenantLogic(info, metaInfo, establishTenant, replyTo)
+        case ActiveTenant(info, metaInfo) =>
+          establishTenantLogic(info, metaInfo, establishTenant, replyTo)
+        case SuspendedTenant(info, metaInfo, _) =>
+          establishTenantLogic(info, metaInfo, establishTenant, replyTo)
+      }
+    ) {
+      message =>
+        Effect.reply(replyTo)(
+          StatusReply.Error(message)
+        )
+    }
+  }
+
+  /**
    * Validation of the preconditions of the UpdateTenantName command
    * @param updateTenantNameCommand
    * @return
@@ -206,7 +270,11 @@ object Tenant {
     updateTenantNameCommand: UpdateTenantName,
     replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
-    if (info.name.equals(updateTenantNameCommand.newName)) {
+    if (metaInfo.createdBy.isEmpty) {
+      Effect.reply(replyTo)(
+        StatusReply.Error("Tenant has not yet been established")
+      )
+    } else if (info.name.equals(updateTenantNameCommand.newName)) {
       Effect.reply(replyTo)(
         StatusReply.Error("Tenant name is already in use")
       )
@@ -297,15 +365,21 @@ object Tenant {
     updatePrimaryContact: UpdatePrimaryContact,
     replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
-    val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = updatePrimaryContact.updatingUser)
-    val event = PrimaryContactUpdated(
-      tenantId = updatePrimaryContact.tenantId,
-      oldContact = info.contact,
-      newContact = updatePrimaryContact.newContact,
-      metaInfo = Some(newMetaInfo)
-    )
+    if (metaInfo.createdBy.isEmpty) {
+      Effect.reply(replyTo)(
+        StatusReply.Error("Tenant has not yet been established")
+      )
+    } else {
+      val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = updatePrimaryContact.updatingUser)
+      val event = PrimaryContactUpdated(
+        tenantId = updatePrimaryContact.tenantId,
+        oldContact = info.contact,
+        newContact = updatePrimaryContact.newContact,
+        metaInfo = Some(newMetaInfo)
+      )
 
-    Effect.persist(event).thenReply(replyTo) { _ => StatusReply.Success(event) }
+      Effect.persist(event).thenReply(replyTo) { _ => StatusReply.Success(event) }
+    }
   }
 
   /**
@@ -387,14 +461,20 @@ object Tenant {
     updateAddress: UpdateAddress,
     replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
-    val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = updateAddress.updatingUser)
-    val event = AddressUpdated(
-      tenantId = updateAddress.tenantId,
-      oldAddress = info.address,
-      newAddress = updateAddress.newAddress,
-      metaInfo = Some(newMetaInfo)
-    )
-    Effect.persist(event).thenReply(replyTo) { _ => StatusReply.Success(event) }
+    if (metaInfo.createdBy.isEmpty) {
+      Effect.reply(replyTo)(
+        StatusReply.Error("Tenant has not yet been established")
+      )
+    } else {
+      val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = updateAddress.updatingUser)
+      val event = AddressUpdated(
+        tenantId = updateAddress.tenantId,
+        oldAddress = info.address,
+        newAddress = updateAddress.newAddress,
+        metaInfo = Some(newMetaInfo)
+      )
+      Effect.persist(event).thenReply(replyTo) { _ => StatusReply.Success(event) }
+    }
   }
 
   /**
@@ -463,7 +543,11 @@ object Tenant {
     addOrganizations: AddOrganizations,
     replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
-    if (addOrganizations.orgId.exists(info.orgs.contains(_))) {
+    if (metaInfo.createdBy.isEmpty) {
+      Effect.reply(replyTo)(
+        StatusReply.Error("Tenant has not yet been established")
+      )
+    } else if (addOrganizations.orgId.exists(info.orgs.contains(_))) {
       Effect.reply(replyTo)(
         StatusReply.Error("Organization ids already present for the tenant is not allowed")
       )
@@ -547,7 +631,11 @@ object Tenant {
     removeOrganizations: RemoveOrganizations,
     replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
-    if (removeOrganizations.orgId.exists(!info.orgs.contains(_))) { // check if there are removeOrgIds that are not in info.orgs
+    if (metaInfo.createdBy.isEmpty) {
+      Effect.reply(replyTo)(
+        StatusReply.Error("Tenant has not yet been established")
+      )
+    } else if (removeOrganizations.orgId.exists(!info.orgs.contains(_))) {
       Effect.reply(replyTo)(
         StatusReply.Error("Organization ids not already present for the tenant is not allowed")
       )
@@ -608,7 +696,11 @@ object Tenant {
     activateTenant: ActivateTenant,
     replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
-    if (info.name.nonEmpty && info.address.isDefined && info.contact.isDefined) {
+    if (metaInfo.createdBy.isEmpty) {
+      Effect.reply(replyTo)(
+        StatusReply.Error("Tenant has not yet been established")
+      )
+    } else if (info.name.nonEmpty && info.address.isDefined && info.contact.isDefined) {
       val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = activateTenant.updatingUser)
       val event = TenantActivated(
         tenantId = activateTenant.tenantId,
@@ -666,13 +758,19 @@ object Tenant {
     suspendTenant: SuspendTenant,
     replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
-    val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = suspendTenant.updatingUser)
-    val event = TenantSuspended(
-      tenantId = suspendTenant.tenantId,
-      metaInfo = Some(newMetaInfo),
-      suspensionReason = suspendTenant.suspensionReason
-    )
-    Effect.persist(event).thenReply(replyTo) { _ => StatusReply.Success(event) }
+    if (metaInfo.createdBy.isEmpty) {
+      Effect.reply(replyTo)(
+        StatusReply.Error("Tenant has not yet been established")
+      )
+    } else {
+      val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = suspendTenant.updatingUser)
+      val event = TenantSuspended(
+        tenantId = suspendTenant.tenantId,
+        metaInfo = Some(newMetaInfo),
+        suspensionReason = suspendTenant.suspensionReason
+      )
+      Effect.persist(event).thenReply(replyTo) { _ => StatusReply.Success(event) }
+    }
   }
 
   /**

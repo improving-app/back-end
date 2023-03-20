@@ -12,6 +12,17 @@ option (scalapb.options) = {
   no_default_values_in_constructor: true
 };
 
+message EstablishTenant {
+  com.improving.app.common.domain.TenantId tenant_id = 1;
+  com.improving.app.common.domain.MemberId creating_user = 2;
+}
+
+message TenantEstablished {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  com.improving.app.common.domain.TenantId tenant_id = 1;
+  MetaInfo meta_info = 2;
+}
+
 message UpdateTenantName {
   com.improving.app.common.domain.TenantId tenant_id = 1;
   string new_name = 2;
@@ -107,25 +118,27 @@ message TenantSuspended {
 message TenantRequest {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   oneof sealed_value {
-    UpdateTenantName update_tenant_name_value = 1;
-    UpdatePrimaryContact update_primary_contact_value = 2;
-    UpdateAddress update_address_value = 3;
-    AddOrganizations add_organizations_value = 4;
-    RemoveOrganizations remove_organizations_value = 5;
-    ActivateTenant activate_tenant_value = 6;
-    SuspendTenant suspend_tenant_value = 7;
+    EstablishTenant establish_tenant_value = 1;
+    UpdateTenantName update_tenant_name_value = 2;
+    UpdatePrimaryContact update_primary_contact_value = 3;
+    UpdateAddress update_address_value = 4;
+    AddOrganizations add_organizations_value = 5;
+    RemoveOrganizations remove_organizations_value = 6;
+    ActivateTenant activate_tenant_value = 7;
+    SuspendTenant suspend_tenant_value = 8;
   }
 }
 
 message TenantEvent {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   oneof sealed_value {
-    TenantNameUpdated tenant_name_updated_value = 1;
-    PrimaryContactUpdated primary_contact_updated_value = 2;
-    AddressUpdated address_updated_value = 3;
-    OrganizationsAdded organizations_added_value = 4;
-    OrganizationsRemoved organizations_removed_value = 5;
-    TenantActivated tenant_activated_value = 6;
-    TenantSuspended tenant_suspended_value = 7;
+    TenantEstablished tenant_established_value = 1;
+    TenantNameUpdated tenant_name_updated_value = 2;
+    PrimaryContactUpdated primary_contact_updated_value = 3;
+    AddressUpdated address_updated_value = 4;
+    OrganizationsAdded organizations_added_value = 5;
+    OrganizationsRemoved organizations_removed_value = 6;
+    TenantActivated tenant_activated_value = 7;
+    TenantSuspended tenant_suspended_value = 8;
   }
 }
