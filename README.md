@@ -11,17 +11,19 @@ The backend for a demonstration  of Yoppworks technology
 
 ## Locally running the server:
 
+For running the services that are event sourced, it needs a database for persistence. In our case, we use ScyllaDB, so run the command `docker run --name test-scylla --publish 9042:9042 --hostname test-scylla -d scylladb/scylla --smp 1`
+
 `sbt clean compile run` to locally run the server without going through docker
 
-`docker run -p 8080:8080 improving-app-tenant:latest` to run server locally in docker
+`docker run -p 8080:8080 improving-app-tenant:latest` to run a single service locally in docker
+
+`docker compose up` to run all services. This is the usual case.
 
 ## Testing on locally running server:
 
-Ensure that you are at the root of the project.
+Present in each subproject is a `sample-requests.txt`. One example is on `./tenant/src/main/resources/sample-requests.txt`.
+This shows working examples of grpcurl requests on a running server. Simply run the request on a command line and it should respond appropriately.
 
-`grpcurl -plaintext localhost:8080 list` to check available services. This checks if you can actually access the gRPC server to begin with.
-
-`grpcurl -plaintext -d '{"myInput":"testName"}' -import-path ./tenant/src/main/protobuf/com/improving/app/tenant -proto tenantService.proto localhost:8080 com.improving.app.tenant.TenantService/TestFunction` to test a single gRPC endpoint. The response should be `{"myOutput": "hello testName"}`
 
 ## To deploy to kubernetes:
 
