@@ -13,40 +13,35 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 object Main extends App with StrictLogging {
+  val projectName = "improving-app-member"
+  val port = 8081
 
-  private val conf = ConfigFactory
-    .parseString("akka.http.server.preview.enable-http2 = on")
+  val conf = ConfigFactory
+    .load("application.conf")
     .withFallback(ConfigFactory.defaultApplication())
+  implicit val system = ActorSystem[Nothing](Behaviors.empty, projectName, conf)
 
-  implicit val system: ActorSystem[_] = ActorSystem[Nothing](Behaviors.empty, "MemberSystem", conf)
+  // ActorSystem threads will keep the app alive until `system.terminate()` is called
+
+  // Akka boot up code
   implicit val ec: ExecutionContext = system.executionContext
 
-  private def run(): Future[Http.ServerBinding] = {
+  // Create service handlers
+  val service: HttpRequest => Future[HttpResponse] =
+    MemberServiceHandler.withServerReflection(new MemberServiceImpl())
 
-    val service: HttpRequest => Future[HttpResponse] =
-      MemberServiceHandler.withServerReflection(new MemberServiceImpl())
+  val bound: Future[Http.ServerBinding] = Http(system)
+    .newServerAt(interface = "0.0.0.0", port = port)
+    //      .enableHttps(serverHttpContext)
+    .bind(service)
+    .map(_.addToCoordinatedShutdown(hardTerminationDeadline = 30.seconds))
 
-    val bound: Future[Http.ServerBinding] = Http(system)
-      .newServerAt(interface = "0.0.0.0", port = 8080) //TODO - make this configurable
-      //.enableHttps(serverHttpContext)
-      .bind(service)
-      .map(_.addToCoordinatedShutdown(hardTerminationDeadline = 10.seconds))
-
-    logger.info(s"Member Server online at http://localhost:8080/\n")
-    bound.onComplete {
-      case Success(binding) =>
-        val address = binding.localAddress
-        logger.info("Member gRPC server bound to {}:{}", address.getHostString, address.getPort)
-      case Failure(ex) =>
-        logger.error("Failed to bind Member gRPC endpoint, terminating system", ex)
-        system.terminate()
-    }
-
-    bound
+  bound.onComplete {
+    case Success(binding) =>
+      val address = binding.localAddress
+      println(s"$projectName gRPC server bound to ${address.getHostString}:${address.getPort}")
+    case Failure(ex) =>
+      println(s"Failed to bind gRPC endpoint for $projectName, terminating system: ${ex.getMessage}")
+      system.terminate()
   }
-
-  logger.info("starting the Member service")
-
-  run()
-
 }

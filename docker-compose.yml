@@ -11,3 +11,9 @@ services:
     ports:
       - "8080:8080"
     depends_on: ["scylla-db"]
+
+  member-service:
+    image: improving-app-member:latest
+    ports:
+      - "8081:8081"
+    depends_on: ["scylla-db"]

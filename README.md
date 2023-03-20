@@ -11,13 +11,9 @@ The backend for a demonstration  of Yoppworks technology
 
 ## Locally running the server:
 
-For running the services that are event sourced, it needs a database for persistence. In our case, we use ScyllaDB, so run the command `docker run --name test-scylla --publish 9042:9042 --hostname test-scylla -d scylladb/scylla --smp 1`
+For running the services that are event sourced, it needs a database for persistence. In our case, we use ScyllaDB, so run the command `docker run --name test-scylla --publish 9042:9042 --hostname test-scylla -d scylladb/scylla --smp 1` and this should allow you to have the image. You can terminate this running container because the Docker Compose file should run it for you.
 
-`sbt clean compile run` to locally run the server without going through docker
-
-`docker run -p 8080:8080 improving-app-tenant:latest` to run a single service locally in docker
-
-`docker compose up` to run all services. This is the usual case.
+`docker compose up` to run all services. This is assuming you have all the dockerfiles generated after `sbt docker:stage` and `sbt clean docker: publishLocal`
 
 ## Testing on locally running server:
 
