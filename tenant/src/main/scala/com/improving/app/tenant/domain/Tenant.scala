@@ -2,6 +2,7 @@ package com.improving.app.tenant.domain
 
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
+import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, ReplyEffect}
@@ -12,6 +13,7 @@ import akka.persistence.typed.scaladsl.EventSourcedBehavior
 import com.improving.app.common.domain.{CaPostalCodeImpl, MemberId, OrganizationId, TenantId, UsPostalCodeImpl}
 
 object Tenant {
+  val TypeKey = EntityTypeKey[TenantCommand]("Tenant")
 
   /**
    * Wrapper class for the TenantRequest protobuf message with the replyTo ActorRef
