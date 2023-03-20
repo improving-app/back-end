@@ -1,0 +1,192 @@
+syntax =  "proto3";
+
+package com.improving.app.member.domain;
+
+import "com/improving/app/common/domain/address.proto";
+import "com/improving/app/common/domain/organizationId.proto";
+import "com/improving/app/common/domain/tenantId.proto";
+import "com/improving/app/common/domain/memberId.proto";
+import "google/protobuf/timestamp.proto";
+import "scalapb/scalapb.proto";
+
+//Data Model
+
+enum NotificationPreference {
+  option (scalapb.enum_options).extends = "com.improving.app.common.serialize.PBEnumSerializable";
+  NOTIFICATION_PREFERENCE_EMAIL = 0;
+  NOTIFICATION_PREFERENCE_SMS = 1;
+  NOTIFICATION_PREFERENCE_APPLICATION = 2;
+}
+
+enum MemberStatus {
+  option (scalapb.enum_options).extends = "com.improving.app.common.serialize.PBEnumSerializable";
+  MEMBER_STATUS_INITIAL = 0;
+  MEMBER_STATUS_ACTIVE = 1;
+  MEMBER_STATUS_INACTIVE = 2;
+  MEMBER_STATUS_SUSPENDED = 3;
+  MEMBER_STATUS_TERMINATED = 4;
+}
+
+message MemberInfo {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  string handle = 1;
+  string avatar_url = 2;
+  string first_name = 3;
+  string last_name = 4;
+  NotificationPreference notification_preference = 5;
+  bool notification_opt_in = 6;
+  common.domain.Contact contact = 7;
+  repeated common.domain.OrganizationId organizations = 8;
+  common.domain.TenantId tenant = 9;
+}
+
+message MemberMap {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  common.domain.MemberId member_id = 1;
+  MemberInfo member_info = 2;
+}
+
+message MemberMetaInfo {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  google.protobuf.Timestamp created_on = 1;
+  common.domain.MemberId created_by = 2;
+  google.protobuf.Timestamp  last_modified_on = 3;
+  common.domain.MemberId last_modified_by = 4;
+  MemberStatus member_state = 5;
+}
+
+//Requests
+message RegisterMember {
+  MemberInfo member_info = 1;
+  common.domain.MemberId acting_member = 2;
+}
+
+message ActivateMember {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
+}
+
+message InactivateMember {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
+}
+
+message SuspendMember {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
+}
+
+message TerminateMember {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member =2;
+}
+
+message UpdateMemberInfo {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+  common.domain.MemberId member_id = 1;
+  MemberInfo member_info = 2;
+  common.domain.MemberId acting_member = 3;
+}
+
+message GetMemberInfo {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+  common.domain.MemberId member_id = 1;
+}
+
+message MemberRequest{
+  option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
+
+  oneof sealed_value {
+    RegisterMember register_member_value = 1;
+    ActivateMember activate_member_value = 2;
+    InactivateMember inactivate_member_value = 3;
+    SuspendMember suspend_member_value = 4;
+    TerminateMember terminate_member_value = 5;
+    UpdateMemberInfo update_member_info_value = 6;
+    GetMemberInfo get_member_info_value = 7;
+  }
+}
+
+//Member Events
+message MemberRegistered {
+  common.domain.MemberId member_id = 1;
+  MemberInfo member_info =2;
+  common.domain.MemberId acting_member = 3;
+  google.protobuf.Timestamp  event_time = 4;
+}
+
+message MemberActivated {
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
+  google.protobuf.Timestamp  event_time = 3;
+}
+
+message MemberInactivated {
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
+  google.protobuf.Timestamp  event_time = 3;
+}
+
+message MemberSuspended {
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
+  google.protobuf.Timestamp  event_time = 3;
+}
+
+message MemberTerminated {
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
+  google.protobuf.Timestamp  event_time = 3;
+}
+
+message MemberInfoUpdated {
+  common.domain.MemberId member_id = 1;
+  MemberInfo member_info = 2;
+  common.domain.MemberId acting_member = 3;
+  google.protobuf.Timestamp  event_time = 4;
+}
+
+
+message MemberEvent{
+
+  option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
+
+  oneof sealed_value {
+    MemberRegistered member_registered_value = 1;
+    MemberActivated member_activated_value = 2;
+    MemberInactivated member_inactivated_value = 3;
+    MemberSuspended member_suspended_value = 4;
+    MemberTerminated member_terminated = 5;
+    MemberInfoUpdated member_info_updated = 6;
+  }
+}
+
+//MemberResponse
+message MemberData {
+  common.domain.MemberId member_id = 1;
+  MemberInfo member_info = 2;
+  MemberMetaInfo member_meta_info = 3;
+}
+
+message MemberEventResponse {
+  MemberEvent member_event = 1;
+}
+
+message MemberResponse {
+  oneof sealed_value {
+    MemberData member_state_value = 1;
+    MemberEventResponse member_event_value = 2;
+  }
+}
+
+//MemberState
+message MemberState {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  common.domain.MemberId member_id = 1;
+  MemberInfo member_info = 2;
+  MemberMetaInfo member_meta_info = 3;
+}
