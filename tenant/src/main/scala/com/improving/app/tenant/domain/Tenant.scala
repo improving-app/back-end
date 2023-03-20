@@ -469,7 +469,7 @@ object Tenant {
       )
     } else {
       val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = addOrganizations.updatingUser)
-      val newOrgIds = info.orgs ++ addOrganizations.orgId
+      val newOrgIds = info.orgs ++ addOrganizations.orgId.distinct
       val event = OrganizationsAdded(
         tenantId = addOrganizations.tenantId,
         newOrgsList = newOrgIds,
