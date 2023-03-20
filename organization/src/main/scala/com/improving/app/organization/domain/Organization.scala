@@ -27,7 +27,7 @@ object Organization {
 
     def extractMemberId: String =
       orgId match {
-        case Some(OrganizationId(id)) => id
+        case Some(OrganizationId(id, _)) => id
         case other =>
           throw new RuntimeException(s"Unexpected request to extract id $other")
       }
@@ -69,9 +69,10 @@ object Organization {
         }
     }
 
-  /** @param actingMember
-    * @return new MetaInfo with draft status
-    */
+  /**
+   * @param actingMember
+   * @return new MetaInfo with draft status
+   */
   private def createMetaInfo(actingMember: Option[MemberId]): MetaInfo = {
     val timestamp = Timestamp.of(now.getEpochSecond, now.getNano)
     MetaInfo(
@@ -111,23 +112,20 @@ object Organization {
     )
   }
 
-  /** @param state
-    * @param command
-    * @return boolean - validate if state transition is valid for the command.
-    */
+  /**
+   * @param state
+   * @param command
+   * @return boolean - validate if state transition is valid for the command.
+   */
   private def isCommandValidForState(
       state: OrganizationState,
       command: OrganizationRequest
   ): Boolean = {
     command match {
-      case UpdateOrganizationContactsRequest(_, _, _, _) |
-          UpdateOrganizationAccountsRequest(_, _, _, _) |
-          UpdateParentRequest(_, _, _, _) |
-          SuspendOrganizationRequest(_, _, _) |
-          EditOrganizationInfoRequest(_, _, _, _) |
-          RemoveOwnersFromOrganizationRequest(_, _, _, _) |
-          AddOwnersToOrganizationRequest(_, _, _, _) |
-          RemoveMembersFromOrganizationRequest(_, _, _, _) |
+      case UpdateOrganizationContactsRequest(_, _, _, _) | UpdateOrganizationAccountsRequest(_, _, _, _) |
+          UpdateParentRequest(_, _, _, _) | SuspendOrganizationRequest(_, _, _) |
+          EditOrganizationInfoRequest(_, _, _, _) | RemoveOwnersFromOrganizationRequest(_, _, _, _) |
+          AddOwnersToOrganizationRequest(_, _, _, _) | RemoveMembersFromOrganizationRequest(_, _, _, _) |
           AddMembersToOrganizationRequest(_, _, _, _) =>
         state.meta.exists(meta =>
           meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_DRAFT || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_ACTIVE
@@ -145,9 +143,7 @@ object Organization {
           meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_DRAFT || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_SUSPENDED
         )
       case ReleaseOrganizationRequest(_, _, _) =>
-        state.meta.exists(meta =>
-          meta.currentStatus != OrganizationStatus.ORGANIZATION_STATUS_RELEASED
-        )
+        state.meta.exists(meta => meta.currentStatus != OrganizationStatus.ORGANIZATION_STATUS_RELEASED)
       case GetOrganizationInfoRequest(_, _) =>
         state.meta.exists(meta =>
           !(meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_TERMINATED || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_RELEASED)
@@ -490,326 +486,319 @@ object Organization {
   private val commandHandler: (
       OrganizationState,
       OrganizationCommand
-  ) => ReplyEffect[OrganizationEvent, OrganizationState] = {
-    (state, command: OrganizationCommand) =>
-      {
-        command.request match {
-          case cmd if !isCommandValidForState(state, cmd) => {
-            Effect.reply(command.replyTo) {
-              StatusReply.Error(
-                s"Invalid Command ${command.request} for State $state"
-              )
-            }
+  ) => ReplyEffect[OrganizationEvent, OrganizationState] = { (state, command: OrganizationCommand) =>
+    {
+      command.request match {
+        case cmd if !isCommandValidForState(state, cmd) => {
+          Effect.reply(command.replyTo) {
+            StatusReply.Error(
+              s"Invalid Command ${command.request} for State $state"
+            )
           }
-          case UpdateOrganizationContactsRequest(
-                orgId,
-                contacts,
-                actingMember,
-                _
-              ) =>
-            updateOrganizationContacts(
+        }
+        case UpdateOrganizationContactsRequest(
               orgId,
               contacts,
               actingMember,
-              command.replyTo
-            )
-          case UpdateOrganizationAccountsRequest(
-                orgId,
-                info,
-                actingMember,
-                _
-              ) =>
-            updateOrganizationAccounts(
+              _
+            ) =>
+          updateOrganizationContacts(
+            orgId,
+            contacts,
+            actingMember,
+            command.replyTo
+          )
+        case UpdateOrganizationAccountsRequest(
               orgId,
               info,
               actingMember,
-              command.replyTo
-            )
-          case UpdateOrganizationStatusRequest(
-                orgId,
-                newStatus,
-                actingMember,
-                _
-              ) =>
-            updateOrganizationStatus(
+              _
+            ) =>
+          updateOrganizationAccounts(
+            orgId,
+            info,
+            actingMember,
+            command.replyTo
+          )
+        case UpdateOrganizationStatusRequest(
               orgId,
               newStatus,
               actingMember,
-              command.replyTo
-            )
-          case UpdateParentRequest(orgId, newParent, actingMember, _) =>
-            updateParent(orgId, newParent, actingMember, command.replyTo)
-          case TerminateOrganizationRequest(orgId, actingMember, _) =>
-            terminateOrganization(orgId, actingMember, command.replyTo)
-          case SuspendOrganizationRequest(orgId, actingMember, _) =>
-            suspendOrganization(orgId, actingMember, command.replyTo)
-          case ActivateOrganizationRequest(orgId, actingMember, _) =>
-            activateOrganization(orgId, actingMember, command.replyTo)
-          case ReleaseOrganizationRequest(orgId, actingMember, _) =>
-            releaseOrganization(orgId, actingMember, command.replyTo)
-          case EditOrganizationInfoRequest(
-                orgId,
-                Some(info),
-                actingMember,
-                _
-              ) =>
-            editOrganizationInfo(
+              _
+            ) =>
+          updateOrganizationStatus(
+            orgId,
+            newStatus,
+            actingMember,
+            command.replyTo
+          )
+        case UpdateParentRequest(orgId, newParent, actingMember, _) =>
+          updateParent(orgId, newParent, actingMember, command.replyTo)
+        case TerminateOrganizationRequest(orgId, actingMember, _) =>
+          terminateOrganization(orgId, actingMember, command.replyTo)
+        case SuspendOrganizationRequest(orgId, actingMember, _) =>
+          suspendOrganization(orgId, actingMember, command.replyTo)
+        case ActivateOrganizationRequest(orgId, actingMember, _) =>
+          activateOrganization(orgId, actingMember, command.replyTo)
+        case ReleaseOrganizationRequest(orgId, actingMember, _) =>
+          releaseOrganization(orgId, actingMember, command.replyTo)
+        case EditOrganizationInfoRequest(
               orgId,
-              info,
+              Some(info),
               actingMember,
-              command.replyTo
-            )
-          case RemoveOwnersFromOrganizationRequest(
-                orgId,
-                removedOwners,
-                actingMember,
-                _
-              ) =>
-            removeOwnersFromOrganization(
+              _
+            ) =>
+          editOrganizationInfo(
+            orgId,
+            info,
+            actingMember,
+            command.replyTo
+          )
+        case RemoveOwnersFromOrganizationRequest(
               orgId,
               removedOwners,
               actingMember,
-              command.replyTo
-            )
-          case AddOwnersToOrganizationRequest(
-                orgId,
-                newOwners,
-                actingMember,
-                _
-              ) =>
-            addOwnersToOrganization(
+              _
+            ) =>
+          removeOwnersFromOrganization(
+            orgId,
+            removedOwners,
+            actingMember,
+            command.replyTo
+          )
+        case AddOwnersToOrganizationRequest(
               orgId,
               newOwners,
               actingMember,
-              command.replyTo
-            )
-          case RemoveMembersFromOrganizationRequest(
-                orgId,
-                removedMembers,
-                actingMember,
-                _
-              ) =>
-            removeMembersFromOrganization(
+              _
+            ) =>
+          addOwnersToOrganization(
+            orgId,
+            newOwners,
+            actingMember,
+            command.replyTo
+          )
+        case RemoveMembersFromOrganizationRequest(
               orgId,
               removedMembers,
               actingMember,
-              command.replyTo
-            )
-          case AddMembersToOrganizationRequest(
-                orgId,
-                newMembers,
-                actingMember,
-                _
-              ) =>
-            addMembersToOrganization(
+              _
+            ) =>
+          removeMembersFromOrganization(
+            orgId,
+            removedMembers,
+            actingMember,
+            command.replyTo
+          )
+        case AddMembersToOrganizationRequest(
               orgId,
               newMembers,
               actingMember,
-              command.replyTo
-            )
-          case GetOrganizationInfoRequest(orgId, _) =>
-            getOrganizationInfo(orgId, state, command.replyTo)
-          case EstablishOrganizationRequest(
-                Some(info),
-                parent,
-                members,
-                owners,
-                contacts,
-                actingMember,
-                _
-              ) =>
-            log.info(
-              s"EstablishOrganizationRequest: $info $parent $members $owners $contacts $actingMember"
-            )
-            establishOrganization(
-              state.orgId,
+              _
+            ) =>
+          addMembersToOrganization(
+            orgId,
+            newMembers,
+            actingMember,
+            command.replyTo
+          )
+        case GetOrganizationInfoRequest(orgId, _) =>
+          getOrganizationInfo(orgId, state, command.replyTo)
+        case EstablishOrganizationRequest(
+              Some(info),
+              parent,
+              members,
+              owners,
+              contacts,
+              actingMember,
+              _
+            ) =>
+          log.info(
+            s"EstablishOrganizationRequest: $info $parent $members $owners $contacts $actingMember"
+          )
+          establishOrganization(
+            state.orgId,
+            info,
+            parent,
+            members,
+            owners,
+            contacts,
+            actingMember,
+            command.replyTo
+          )
+        case GetOrganizationByIdRequest(orgId, _) =>
+          getOrganizationById(orgId, state, command.replyTo)
+        case other =>
+          throw new RuntimeException(s"Invalid/Unhandled request $other")
+      }
+    }
+  }
+
+  private val eventHandler: (OrganizationState, OrganizationEvent) => OrganizationState = { (state, event) =>
+    {
+      event match {
+        case OrganizationEstablished(
+              _,
               info,
               parent,
               members,
               owners,
               contacts,
               actingMember,
-              command.replyTo
+              _
+            ) =>
+          state.copy(
+            info = info,
+            parent = parent,
+            members = members,
+            owners = owners,
+            contacts = contacts,
+            meta = Some(createMetaInfo(actingMember)),
+            status = OrganizationStatus.ORGANIZATION_STATUS_DRAFT
+          )
+        case MembersAddedToOrganization(
+              _,
+              newMembers,
+              actingMember,
+              _
+            ) =>
+          state.copy(
+            members = state.members ++ newMembers,
+            meta = state.meta.map(updateMetaInfo(_, actingMember))
+          )
+        case MembersRemovedFromOrganization(
+              _,
+              removedMembers,
+              actingMember,
+              _
+            ) =>
+          state.copy(
+            members = state.members.filterNot(member => removedMembers.contains(member)),
+            meta = state.meta.map(updateMetaInfo(_, actingMember))
+          )
+        case OwnersAddedToOrganization(
+              _,
+              newOwners,
+              actingMember,
+              _
+            ) =>
+          state.copy(
+            owners = state.owners ++ newOwners,
+            meta = state.meta.map(updateMetaInfo(_, actingMember))
+          )
+        case OwnersRemovedFromOrganization(
+              _,
+              removedOwners,
+              actingMember,
+              _
+            ) =>
+          state.copy(
+            owners = state.owners.filterNot(member => removedOwners.contains(member)),
+            meta = state.meta.map(updateMetaInfo(_, actingMember))
+          )
+        case OrganizationInfoUpdated(_, Some(newInfo), actingMember, _) =>
+          state.copy(
+            info = state.info.map(updateInfo(_, newInfo)),
+            meta = state.meta.map(updateMetaInfo(_, actingMember))
+          )
+        case OrganizationReleased(_, actingMember, _) =>
+          state.copy(
+            status = OrganizationStatus.ORGANIZATION_STATUS_RELEASED,
+            meta = state.meta.map(
+              updateMetaInfo(
+                _,
+                actingMember,
+                Some(OrganizationStatus.ORGANIZATION_STATUS_RELEASED)
+              )
             )
-          case GetOrganizationByIdRequest(orgId, _) =>
-            getOrganizationById(orgId, state, command.replyTo)
-          case other =>
-            throw new RuntimeException(s"Invalid/Unhandled request $other")
-        }
+          )
+        case OrganizationActivated(_, actingMember, _) =>
+          state.copy(
+            status = OrganizationStatus.ORGANIZATION_STATUS_ACTIVE,
+            meta = state.meta.map(
+              updateMetaInfo(
+                _,
+                actingMember,
+                Some(OrganizationStatus.ORGANIZATION_STATUS_ACTIVE)
+              )
+            )
+          )
+        case OrganizationSuspended(_, actingMember, _) =>
+          state.copy(
+            status = OrganizationStatus.ORGANIZATION_STATUS_SUSPENDED,
+            meta = state.meta.map(
+              updateMetaInfo(
+                _,
+                actingMember,
+                Some(OrganizationStatus.ORGANIZATION_STATUS_SUSPENDED)
+              )
+            )
+          )
+        case OrganizationTerminated(_, actingMember, _) =>
+          state.copy(
+            status = OrganizationStatus.ORGANIZATION_STATUS_TERMINATED,
+            meta = state.meta.map(
+              updateMetaInfo(
+                _,
+                actingMember,
+                Some(OrganizationStatus.ORGANIZATION_STATUS_TERMINATED)
+              )
+            )
+          )
+        case ParentUpdated(_, newParent, actingMember, _) =>
+          state.copy(
+            parent = newParent,
+            meta = state.meta.map(
+              updateMetaInfo(
+                _,
+                actingMember
+              )
+            )
+          )
+        case OrganizationStatusUpdated(
+              _,
+              newStatus,
+              actingMember,
+              _
+            ) =>
+          state.copy(
+            status = newStatus,
+            meta = state.meta.map(
+              updateMetaInfo(
+                _,
+                actingMember,
+                Some(newStatus)
+              )
+            )
+          )
+        case OrganizationContactsUpdated(
+              _,
+              contacts,
+              actingMember,
+              _
+            ) =>
+          state.copy(
+            contacts = contacts,
+            meta = state.meta.map(
+              updateMetaInfo(
+                _,
+                actingMember
+              )
+            )
+          )
+        case OrganizationAccountsUpdated(
+              _,
+              Some(newInfo),
+              actingMember,
+              _
+            ) =>
+          state.copy(
+            info = state.info.map(updateInfo(_, newInfo)),
+            meta = state.meta.map(updateMetaInfo(_, actingMember))
+          )
+        case other =>
+          throw new RuntimeException(s"Invalid/Unhandled event $other")
       }
-  }
-
-  private val eventHandler
-      : (OrganizationState, OrganizationEvent) => OrganizationState = {
-    (state, event) =>
-      {
-        event match {
-          case OrganizationEstablished(
-                _,
-                info,
-                parent,
-                members,
-                owners,
-                contacts,
-                actingMember,
-                _
-              ) =>
-            state.copy(
-              info = info,
-              parent = parent,
-              members = members,
-              owners = owners,
-              contacts = contacts,
-              meta = Some(createMetaInfo(actingMember)),
-              status = OrganizationStatus.ORGANIZATION_STATUS_DRAFT
-            )
-          case MembersAddedToOrganization(
-                _,
-                newMembers,
-                actingMember,
-                _
-              ) =>
-            state.copy(
-              members = state.members ++ newMembers,
-              meta = state.meta.map(updateMetaInfo(_, actingMember))
-            )
-          case MembersRemovedFromOrganization(
-                _,
-                removedMembers,
-                actingMember,
-                _
-              ) =>
-            state.copy(
-              members = state.members.filterNot(member =>
-                removedMembers.contains(member)
-              ),
-              meta = state.meta.map(updateMetaInfo(_, actingMember))
-            )
-          case OwnersAddedToOrganization(
-                _,
-                newOwners,
-                actingMember,
-                _
-              ) =>
-            state.copy(
-              owners = state.owners ++ newOwners,
-              meta = state.meta.map(updateMetaInfo(_, actingMember))
-            )
-          case OwnersRemovedFromOrganization(
-                _,
-                removedOwners,
-                actingMember,
-                _
-              ) =>
-            state.copy(
-              owners = state.owners.filterNot(member =>
-                removedOwners.contains(member)
-              ),
-              meta = state.meta.map(updateMetaInfo(_, actingMember))
-            )
-          case OrganizationInfoUpdated(_, Some(newInfo), actingMember, _) =>
-            state.copy(
-              info = state.info.map(updateInfo(_, newInfo)),
-              meta = state.meta.map(updateMetaInfo(_, actingMember))
-            )
-          case OrganizationReleased(_, actingMember, _) =>
-            state.copy(
-              status = OrganizationStatus.ORGANIZATION_STATUS_RELEASED,
-              meta = state.meta.map(
-                updateMetaInfo(
-                  _,
-                  actingMember,
-                  Some(OrganizationStatus.ORGANIZATION_STATUS_RELEASED)
-                )
-              )
-            )
-          case OrganizationActivated(_, actingMember, _) =>
-            state.copy(
-              status = OrganizationStatus.ORGANIZATION_STATUS_ACTIVE,
-              meta = state.meta.map(
-                updateMetaInfo(
-                  _,
-                  actingMember,
-                  Some(OrganizationStatus.ORGANIZATION_STATUS_ACTIVE)
-                )
-              )
-            )
-          case OrganizationSuspended(_, actingMember, _) =>
-            state.copy(
-              status = OrganizationStatus.ORGANIZATION_STATUS_SUSPENDED,
-              meta = state.meta.map(
-                updateMetaInfo(
-                  _,
-                  actingMember,
-                  Some(OrganizationStatus.ORGANIZATION_STATUS_SUSPENDED)
-                )
-              )
-            )
-          case OrganizationTerminated(_, actingMember, _) =>
-            state.copy(
-              status = OrganizationStatus.ORGANIZATION_STATUS_TERMINATED,
-              meta = state.meta.map(
-                updateMetaInfo(
-                  _,
-                  actingMember,
-                  Some(OrganizationStatus.ORGANIZATION_STATUS_TERMINATED)
-                )
-              )
-            )
-          case ParentUpdated(_, newParent, actingMember, _) =>
-            state.copy(
-              parent = newParent,
-              meta = state.meta.map(
-                updateMetaInfo(
-                  _,
-                  actingMember
-                )
-              )
-            )
-          case OrganizationStatusUpdated(
-                _,
-                newStatus,
-                actingMember,
-                _
-              ) =>
-            state.copy(
-              status = newStatus,
-              meta = state.meta.map(
-                updateMetaInfo(
-                  _,
-                  actingMember,
-                  Some(newStatus)
-                )
-              )
-            )
-          case OrganizationContactsUpdated(
-                _,
-                contacts,
-                actingMember,
-                _
-              ) =>
-            state.copy(
-              contacts = contacts,
-              meta = state.meta.map(
-                updateMetaInfo(
-                  _,
-                  actingMember
-                )
-              )
-            )
-          case OrganizationAccountsUpdated(
-                _,
-                Some(newInfo),
-                actingMember,
-                _
-              ) =>
-            state.copy(
-              info = state.info.map(updateInfo(_, newInfo)),
-              meta = state.meta.map(updateMetaInfo(_, actingMember))
-            )
-          case other =>
-            throw new RuntimeException(s"Invalid/Unhandled event $other")
-        }
-      }
+    }
   }
 }

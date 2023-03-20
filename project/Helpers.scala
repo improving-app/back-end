@@ -5,14 +5,11 @@ import com.typesafe.sbt.packager.docker.DockerPlugin
 import sbt.Keys._
 import sbt.{Project, Test, Tests, _}
 import sbtprotoc.ProtocPlugin.autoImport.PB
-import scalapb.GeneratorOption.{
-  FlatPackage,
-  RetainSourceCodeInfo,
-  SingleLineToProtoString
-}
+import scalapb.GeneratorOption.{FlatPackage, RetainSourceCodeInfo, SingleLineToProtoString}
 
-/** Contains the versions needed.
-  */
+/**
+ * Contains the versions needed.
+ */
 object V {
   lazy val scala = "2.13.10"
   lazy val akka = "2.7.0"
@@ -93,7 +90,6 @@ object C {
           "com.typesafe.scala-logging" %% "scala-logging" % V.scalalogging,
           "org.typelevel" %% "cats-core" % V.catsCore,
           "org.typelevel" %% "cats-core" % V.catsCore,
-          "com.fasterxml.jackson.core" % "jackson-annotations" % V.jacksonCore,
           "org.scalatest" %% "scalatest" % V.scalatest % "it, test",
           "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test",
           "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion % "it, test",
@@ -120,7 +116,8 @@ object C {
   }
 
   def protobufsLib(artifactName: String)(project: Project): Project = {
-    project.enablePlugins(JavaAppPackaging)
+    project
+      .enablePlugins(JavaAppPackaging)
       .settings(
         name := artifactName,
         organization := "com.improving",
