@@ -1,13 +1,20 @@
 import akka.actor.ActorSystem
+import com.improving.app.common.domain.{CaPostalCodeImpl, Contact, OrganizationId, PostalCodeMessageImpl}
+import com.improving.app.tenant.domain.{ActivateTenant, AddOrganizations, EstablishTenant, RemoveOrganizations, SuspendTenant, UpdateAddress, UpdatePrimaryContact, UpdateTenantName}
 import akka.grpc.GrpcClientSettings
-import com.dimafeng.testcontainers.GenericContainer
+import com.dimafeng.testcontainers.{DockerComposeContainer, ExposedService}
 import com.dimafeng.testcontainers.scalatest.TestContainerForAll
-import com.improving.app.tenant.{TenantService, TenantServiceClient, TestInput}
+import com.improving.app.common.domain.{Address, MemberId, TenantId}
+import com.improving.app.tenant.api.{TenantService, TenantServiceClient}
+
+import java.io.File
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Minutes, Span}
 import org.testcontainers.containers.wait.strategy.Wait
+
+import scala.util.Random
 
 class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matchers with ScalaFutures {
   // Implicits for running and testing functions of the gRPC server
@@ -18,41 +25,336 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
   // Definition of the container to use. This assumes the sbt command
   // 'sbt docker:publishLocal' has been run such that
   // 'docker image ls' shows "improving-app-tenant:latest" as a record
+  // Since the tenant-service uses cassandra for persistence, a docker compose file is used to also run the scylla db
+  // container
   val exposedPort = 8080 // This exposed port should match the port on Helpers.scala
-  override val containerDef: GenericContainer.Def[GenericContainer] = GenericContainer.Def(
-    "improving-app-tenant:latest",
-    exposedPorts = Seq(exposedPort),
-    waitStrategy = Wait.forListeningPort()
-  )
+  override val containerDef =
+    DockerComposeContainer.Def(
+      new File("./docker-compose.yml"),
+      tailChildContainers = true,
+      exposedServices = Seq(
+        ExposedService("tenant-service", exposedPort, Wait.forLogMessage(".*gRPC server bound to 0.0.0.0:8080*.", 1))
+      )
+    )
 
   behavior of "TestServer in a test container"
 
-  it should "start improving-app-tenant and expose 8080 port" in {
+  it should "expose a port for tenant-service" in {
     withContainers { a =>
-      assert(a.container.getExposedPorts.size() > 0)
-      assert(a.container.getExposedPorts.get(0) == exposedPort)
+      assert(a.container.getServicePort("tenant-service", exposedPort) > 0)
     }
   }
 
-  it should "properly process the testFunction" in {
-    withContainers { a =>
-      // Ensure there is an exposed port on the container before moving forward
-      assert(a.container.getExposedPorts.size() > 0)
-      assert(a.container.getExposedPorts.get(0) == exposedPort)
-
-      //  The container is should be listening on host:firstMappedPort,
-      //  which gets port forwarded to the docker container's 8080 port
-      val host = a.container.getHost
-      val port = a.container.getFirstMappedPort
+  it should "properly process UpdateTenantName" in {
+    withContainers {containers =>
+      val host = containers.container.getServiceHost("tenant-service", exposedPort)
+      val port = containers.container.getServicePort("tenant-service", exposedPort)
 
       val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
-
       val client: TenantService = TenantServiceClient(clientSettings)
 
-      val testName = "testName"
+      val tenantId = Random.nextString(31)
 
-      val response = client.testFunction(TestInput(testName)).futureValue
-      assert(response.myOutput == s"hello $testName")
+      val establishedResponse = client.establishTenant(EstablishTenant(
+        tenantId = Some(TenantId(tenantId)),
+        creatingUser = Some(MemberId("creatingUser"))
+      )).futureValue
+
+      establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
+      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("creatingUser"))
+
+      val response = client.updateTenantName(UpdateTenantName(
+        tenantId = Some(TenantId(tenantId)),
+        newName = "newName",
+        updatingUser = Some(MemberId("updatingUser"))
+      )).futureValue
+
+      response.tenantId shouldBe Some(TenantId(tenantId))
+      response.oldName shouldBe ""
+      response.newName shouldBe "newName"
+      response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
+    }
+  }
+
+  it should "properly process UpdatePrimaryContact" in {
+    withContainers { containers =>
+      val host = containers.container.getServiceHost("tenant-service", exposedPort)
+      val port = containers.container.getServicePort("tenant-service", exposedPort)
+
+      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
+      val client: TenantService = TenantServiceClient(clientSettings)
+
+      val tenantId = Random.nextString(31)
+
+      val establishedResponse = client.establishTenant(EstablishTenant(
+        tenantId = Some(TenantId(tenantId)),
+        creatingUser = Some(MemberId("creatingUser"))
+      )).futureValue
+
+      establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
+      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("creatingUser"))
+
+      val response = client.updatePrimaryContact(UpdatePrimaryContact(
+        tenantId = Some(TenantId(tenantId)),
+        newContact = Some(
+          Contact(
+            firstName = "firstName1",
+            lastName = "lastName1",
+            emailAddress = Some("test1@test.com"),
+            phone = Some("111-111-1112"),
+            userName = "contactUsername1"
+          )
+        ),
+        updatingUser = Some(MemberId("updatingUser"))
+      )).futureValue
+
+      response.tenantId shouldBe Some(TenantId(tenantId))
+      response.oldContact shouldBe None
+      response.newContact shouldBe Some(
+        Contact(
+          firstName = "firstName1",
+          lastName = "lastName1",
+          emailAddress = Some("test1@test.com"),
+          phone = Some("111-111-1112"),
+          userName = "contactUsername1"
+        )
+      )
+      response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
+    }
+  }
+
+  it should "properly process UpdateAddress" in {
+    withContainers { containers =>
+      val host = containers.container.getServiceHost("tenant-service", exposedPort)
+      val port = containers.container.getServicePort("tenant-service", exposedPort)
+
+      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
+      val client: TenantService = TenantServiceClient(clientSettings)
+
+      val tenantId = Random.nextString(31)
+
+      val establishedResponse = client.establishTenant(EstablishTenant(
+        tenantId = Some(TenantId(tenantId)),
+        creatingUser = Some(MemberId("creatingUser"))
+      )).futureValue
+
+      establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
+      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("creatingUser"))
+
+      val response = client.updateAddress(UpdateAddress(
+        tenantId = Some(TenantId(tenantId)),
+        newAddress = Some(
+          Address(
+            line1 = "line3",
+            line2 = "line4",
+            city = "city1",
+            stateProvince = "stateProvince1",
+            country = "country1",
+            postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode1")))
+          )
+        ),
+        updatingUser = Some(MemberId("updatingUser"))
+      )).futureValue
+
+      response.tenantId shouldBe Some(TenantId(tenantId))
+      response.oldAddress shouldBe None
+      response.newAddress shouldBe Some(
+        Address(
+          line1 = "line3",
+          line2 = "line4",
+          city = "city1",
+          stateProvince = "stateProvince1",
+          country = "country1",
+          postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode1")))
+        )
+      )
+      response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
+    }
+  }
+
+  it should "properly process AddOrganizations" in {
+    withContainers { containers =>
+      val host = containers.container.getServiceHost("tenant-service", exposedPort)
+      val port = containers.container.getServicePort("tenant-service", exposedPort)
+
+      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
+      val client: TenantService = TenantServiceClient(clientSettings)
+
+      val tenantId = Random.nextString(31)
+
+      val establishedResponse = client.establishTenant(EstablishTenant(
+        tenantId = Some(TenantId(tenantId)),
+        creatingUser = Some(MemberId("creatingUser"))
+      )).futureValue
+
+      establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
+      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("creatingUser"))
+
+      val response = client.addOrganizations(AddOrganizations(
+        tenantId = Some(TenantId(tenantId)),
+        orgId = Seq(OrganizationId("org1")),
+        updatingUser = Some(MemberId("updatingUser"))
+      )).futureValue
+
+      response.tenantId shouldBe Some(TenantId(tenantId))
+      response.newOrgsList shouldBe Seq(OrganizationId("org1"))
+      response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
+    }
+  }
+
+  it should "properly process RemoveOrganizations" in {
+    withContainers { containers =>
+      val host = containers.container.getServiceHost("tenant-service", exposedPort)
+      val port = containers.container.getServicePort("tenant-service", exposedPort)
+
+      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
+      val client: TenantService = TenantServiceClient(clientSettings)
+
+      val tenantId = Random.nextString(31)
+
+      val establishedResponse = client.establishTenant(EstablishTenant(
+        tenantId = Some(TenantId(tenantId)),
+        creatingUser = Some(MemberId("creatingUser"))
+      )).futureValue
+
+      establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
+      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("creatingUser"))
+
+      val response = client.addOrganizations(AddOrganizations(
+        tenantId = Some(TenantId(tenantId)),
+        orgId = Seq(OrganizationId("org1")),
+        updatingUser = Some(MemberId("updatingUser"))
+      )).futureValue
+
+      response.newOrgsList shouldBe Seq(OrganizationId("org1"))
+
+      val removeResponse = client.removeOrganizations(RemoveOrganizations(
+        tenantId = Some(TenantId(tenantId)),
+        orgId = Seq(OrganizationId("org1")),
+        updatingUser = Some(MemberId("updatingUser"))
+      )).futureValue
+
+      removeResponse.tenantId shouldBe Some(TenantId(tenantId))
+      removeResponse.newOrgsList shouldBe Seq.empty
+      removeResponse.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
+    }
+  }
+
+  it should "properly process ActivateTenant" in {
+    withContainers { containers =>
+      val host = containers.container.getServiceHost("tenant-service", exposedPort)
+      val port = containers.container.getServicePort("tenant-service", exposedPort)
+
+      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
+      val client: TenantService = TenantServiceClient(clientSettings)
+
+      val tenantId = Random.nextString(31)
+
+      val establishedResponse = client.establishTenant(EstablishTenant(
+        tenantId = Some(TenantId(tenantId)),
+        creatingUser = Some(MemberId("creatingUser"))
+      )).futureValue
+
+      establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
+      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("creatingUser"))
+
+      val updateTenantNameResponse = client.updateTenantName(UpdateTenantName(
+        tenantId = Some(TenantId(tenantId)),
+        newName = "newName",
+        updatingUser = Some(MemberId("updatingUser"))
+      )).futureValue
+
+      updateTenantNameResponse.tenantId shouldBe Some(TenantId(tenantId))
+      updateTenantNameResponse.newName shouldBe "newName"
+
+      val updatePrimaryContactResponse = client.updatePrimaryContact(UpdatePrimaryContact(
+        tenantId = Some(TenantId(tenantId)),
+        newContact = Some(
+          Contact(
+            firstName = "firstName1",
+            lastName = "lastName1",
+            emailAddress = Some("test1@test.com"),
+            phone = Some("111-111-1112"),
+            userName = "contactUsername1"
+          )
+        ),
+        updatingUser = Some(MemberId("updatingUser"))
+      )).futureValue
+
+      updatePrimaryContactResponse.tenantId shouldBe Some(TenantId(tenantId))
+      updatePrimaryContactResponse.newContact shouldBe Some(
+        Contact(
+          firstName = "firstName1",
+          lastName = "lastName1",
+          emailAddress = Some("test1@test.com"),
+          phone = Some("111-111-1112"),
+          userName = "contactUsername1"
+        )
+      )
+
+      val updateAddressResponse = client.updateAddress(UpdateAddress(
+        tenantId = Some(TenantId(tenantId)),
+        newAddress = Some(
+          Address(
+            line1 = "line3",
+            line2 = "line4",
+            city = "city1",
+            stateProvince = "stateProvince1",
+            country = "country1",
+            postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode1")))
+          )
+        ),
+        updatingUser = Some(MemberId("updatingUser"))
+      )).futureValue
+
+      updateAddressResponse.tenantId shouldBe Some(TenantId(tenantId))
+      updateAddressResponse.newAddress shouldBe Some(
+        Address(
+          line1 = "line3",
+          line2 = "line4",
+          city = "city1",
+          stateProvince = "stateProvince1",
+          country = "country1",
+          postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode1")))
+        )
+      )
+
+      val response = client.activateTenant(ActivateTenant(
+        tenantId = Some(TenantId(tenantId)),
+        updatingUser = Some(MemberId("updatingUser"))
+      )).futureValue
+
+      response.tenantId shouldBe Some(TenantId(tenantId))
+      response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
+    }
+  }
+
+  it should "properly process SuspendTenant" in {
+    withContainers { containers =>
+      val host = containers.container.getServiceHost("tenant-service", exposedPort)
+      val port = containers.container.getServicePort("tenant-service", exposedPort)
+
+      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
+      val client: TenantService = TenantServiceClient(clientSettings)
+
+      val tenantId = Random.nextString(31)
+
+      val establishedResponse = client.establishTenant(EstablishTenant(
+        tenantId = Some(TenantId(tenantId)),
+        creatingUser = Some(MemberId("creatingUser"))
+      )).futureValue
+
+      establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
+      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("creatingUser"))
+
+      val response = client.suspendTenant(SuspendTenant(
+        tenantId = Some(TenantId(tenantId)),
+        suspensionReason = "reason",
+        updatingUser = Some(MemberId("updatingUser"))
+      )).futureValue
+
+      response.tenantId shouldBe Some(TenantId(tenantId))
+      response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
     }
   }
 }
