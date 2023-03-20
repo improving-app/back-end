@@ -271,8 +271,8 @@ object Tenant {
           if (
             newContact.firstName.isEmpty ||
               newContact.lastName.isEmpty ||
-              newContact.emailAddress.isEmpty ||
-              newContact.phone.isEmpty ||
+              newContact.emailAddress.forall(_.isEmpty) ||
+              newContact.phone.forall(_.isEmpty) ||
               newContact.userName.isEmpty
           ) {
             Some("Primary contact info is not complete")
