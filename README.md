@@ -1,4 +1,4 @@
-# improving-app/backe-end
+# improving-app/back-end
 
 The backend for a demonstration  of Yoppworks technology 
 
