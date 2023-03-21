@@ -28,30 +28,35 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
   // Since the tenant-service uses cassandra for persistence, a docker compose file is used to also run the scylla db
   // container
   val exposedPort = 8080 // This exposed port should match the port on Helpers.scala
+  val serviceName = "tenant-service"
   override val containerDef =
     DockerComposeContainer.Def(
       new File("./docker-compose.yml"),
       tailChildContainers = true,
       exposedServices = Seq(
-        ExposedService("tenant-service", exposedPort, Wait.forLogMessage(".*gRPC server bound to 0.0.0.0:8080*.", 1))
+        ExposedService(serviceName, exposedPort, Wait.forLogMessage(s".*gRPC server bound to 0.0.0.0:$exposedPort*.", 1))
       )
     )
+
+  private def getClient(containers: Containers): TenantService = {
+    val host = containers.container.getServiceHost(serviceName, exposedPort)
+    val port = containers.container.getServicePort(serviceName, exposedPort)
+
+    val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
+    TenantServiceClient(clientSettings)
+  }
 
   behavior of "TestServer in a test container"
 
   it should "expose a port for tenant-service" in {
     withContainers { a =>
-      assert(a.container.getServicePort("tenant-service", exposedPort) > 0)
+      assert(a.container.getServicePort(serviceName, exposedPort) > 0)
     }
   }
 
   it should "properly process UpdateTenantName" in {
     withContainers {containers =>
-      val host = containers.container.getServiceHost("tenant-service", exposedPort)
-      val port = containers.container.getServicePort("tenant-service", exposedPort)
-
-      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
-      val client: TenantService = TenantServiceClient(clientSettings)
+      val client = getClient(containers)
 
       val tenantId = Random.nextString(31)
 
@@ -78,11 +83,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
   it should "properly process UpdatePrimaryContact" in {
     withContainers { containers =>
-      val host = containers.container.getServiceHost("tenant-service", exposedPort)
-      val port = containers.container.getServicePort("tenant-service", exposedPort)
-
-      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
-      val client: TenantService = TenantServiceClient(clientSettings)
+      val client = getClient(containers)
 
       val tenantId = Random.nextString(31)
 
@@ -125,11 +126,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
   it should "properly process UpdateAddress" in {
     withContainers { containers =>
-      val host = containers.container.getServiceHost("tenant-service", exposedPort)
-      val port = containers.container.getServicePort("tenant-service", exposedPort)
-
-      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
-      val client: TenantService = TenantServiceClient(clientSettings)
+      val client = getClient(containers)
 
       val tenantId = Random.nextString(31)
 
@@ -174,11 +171,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
   it should "properly process AddOrganizations" in {
     withContainers { containers =>
-      val host = containers.container.getServiceHost("tenant-service", exposedPort)
-      val port = containers.container.getServicePort("tenant-service", exposedPort)
-
-      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
-      val client: TenantService = TenantServiceClient(clientSettings)
+      val client = getClient(containers)
 
       val tenantId = Random.nextString(31)
 
@@ -204,11 +197,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
   it should "properly process RemoveOrganizations" in {
     withContainers { containers =>
-      val host = containers.container.getServiceHost("tenant-service", exposedPort)
-      val port = containers.container.getServicePort("tenant-service", exposedPort)
-
-      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
-      val client: TenantService = TenantServiceClient(clientSettings)
+      val client = getClient(containers)
 
       val tenantId = Random.nextString(31)
 
@@ -242,11 +231,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
   it should "properly process ActivateTenant" in {
     withContainers { containers =>
-      val host = containers.container.getServiceHost("tenant-service", exposedPort)
-      val port = containers.container.getServicePort("tenant-service", exposedPort)
-
-      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
-      val client: TenantService = TenantServiceClient(clientSettings)
+      val client = getClient(containers)
 
       val tenantId = Random.nextString(31)
 
@@ -331,11 +316,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
   it should "properly process SuspendTenant" in {
     withContainers { containers =>
-      val host = containers.container.getServiceHost("tenant-service", exposedPort)
-      val port = containers.container.getServicePort("tenant-service", exposedPort)
-
-      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
-      val client: TenantService = TenantServiceClient(clientSettings)
+      val client = getClient(containers)
 
       val tenantId = Random.nextString(31)
 
