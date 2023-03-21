@@ -2,7 +2,7 @@
 grpcurl -plaintext localhost:8080 list
 
 -- Update Tenant Name
-grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "creating_user": {"id": "creatingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/EstablishTenant
+grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "establishing_user": {"id": "creatingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/EstablishTenant
 
 -- Update Tenant Name
 grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "new_name":"newName", "updating_user": {"id": "updatingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/UpdateTenantName
@@ -20,7 +20,7 @@ grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "org_id": [{"id": "org1
 grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "org_id": [{"id": "org1"}, {"id": "org2"}], "updating_user": {"id": "updatingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/RemoveOrganizations
 
 -- Activate Tenant
-grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "updating_user": {"id": "updatingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/ActivateTenant
+grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "activating_user": {"id": "updatingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/ActivateTenant
 
 -- Suspend Tenant
-grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "updating_user": {"id": "updatingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/SuspendTenant
+grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "suspending_user": {"id": "updatingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/SuspendTenant
