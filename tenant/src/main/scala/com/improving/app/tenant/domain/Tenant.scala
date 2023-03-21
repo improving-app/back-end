@@ -199,7 +199,7 @@ object Tenant {
       )
     } else {
       val currentTime = Timestamp(Instant.now())
-      val newMetaInfo = metaInfo.copy(createdBy = establishTenant.creatingUser, createdOn = Some(currentTime))
+      val newMetaInfo = metaInfo.copy(createdBy = establishTenant.establishingUser, createdOn = Some(currentTime))
       val event = TenantEstablished(
         tenantId = establishTenant.tenantId,
         metaInfo = Some(newMetaInfo)
@@ -221,7 +221,7 @@ object Tenant {
     establishTenant: EstablishTenant,
     replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
-    val preconditionMessageOpt = validateCommonFieldsPrecondition(establishTenant.tenantId, establishTenant.creatingUser)
+    val preconditionMessageOpt = validateCommonFieldsPrecondition(establishTenant.tenantId, establishTenant.establishingUser)
     preconditionMessageOpt.fold(
       state match {
         case DraftTenant(info, metaInfo) =>
@@ -703,7 +703,7 @@ object Tenant {
         StatusReply.Error("Tenant has not yet been established")
       )
     } else if (info.name.nonEmpty && info.address.isDefined && info.contact.isDefined) {
-      val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = activateTenant.updatingUser)
+      val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = activateTenant.activatingUser)
       val event = TenantActivated(
         tenantId = activateTenant.tenantId,
         metaInfo = Some(newMetaInfo)
@@ -728,7 +728,7 @@ object Tenant {
     activateTenant: ActivateTenant,
     replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
-    val preconditionMessageOpt = validateCommonFieldsPrecondition(activateTenant.tenantId, activateTenant.updatingUser)
+    val preconditionMessageOpt = validateCommonFieldsPrecondition(activateTenant.tenantId, activateTenant.activatingUser)
     preconditionMessageOpt.fold(
       state match {
         case DraftTenant(info, metaInfo) =>
@@ -765,7 +765,7 @@ object Tenant {
         StatusReply.Error("Tenant has not yet been established")
       )
     } else {
-      val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = suspendTenant.updatingUser)
+      val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = suspendTenant.suspendingUser)
       val event = TenantSuspended(
         tenantId = suspendTenant.tenantId,
         metaInfo = Some(newMetaInfo),
@@ -787,7 +787,7 @@ object Tenant {
     suspendTenant: SuspendTenant,
     replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
-    val preconditionMessageOpt = validateCommonFieldsPrecondition(suspendTenant.tenantId, suspendTenant.updatingUser)
+    val preconditionMessageOpt = validateCommonFieldsPrecondition(suspendTenant.tenantId, suspendTenant.suspendingUser)
     preconditionMessageOpt.fold(
       state match {
         case DraftTenant(_, metaInfo) =>

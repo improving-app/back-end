@@ -47,7 +47,7 @@ class TenantSpec
     p ! Tenant.TenantCommand(
       EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        creatingUser = Some(MemberId("creatingUser"))
+        establishingUser = Some(MemberId("creatingUser"))
       ),
       probe.ref
     )
@@ -123,7 +123,7 @@ class TenantSpec
     p ! Tenant.TenantCommand(
       ActivateTenant(
         tenantId = Some(TenantId(tenantId)),
-        updatingUser = Some(MemberId("updatingUser"))
+        activatingUser = Some(MemberId("updatingUser"))
       ),
       probe.ref
     )
@@ -141,7 +141,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EstablishTenant(
               tenantId = Some(TenantId(tenantId)),
-              creatingUser = Some(MemberId("unauthorizedUser"))
+              establishingUser = Some(MemberId("unauthorizedUser"))
             ),
             probe.ref
           )
@@ -159,7 +159,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EstablishTenant(
               tenantId = Some(TenantId(tenantId)),
-              creatingUser = Some(MemberId("creatingUser"))
+              establishingUser = Some(MemberId("creatingUser"))
             ),
             probe.ref
           )
@@ -178,7 +178,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EstablishTenant(
               tenantId = Some(TenantId(tenantId)),
-              creatingUser = Some(MemberId("creatingUser"))
+              establishingUser = Some(MemberId("creatingUser"))
             ),
             probe.ref
           )
@@ -189,7 +189,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EstablishTenant(
               tenantId = Some(TenantId(tenantId)),
-              creatingUser = Some(MemberId("creatingUser"))
+              establishingUser = Some(MemberId("creatingUser"))
             ),
             probe.ref
           )
@@ -937,7 +937,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             ActivateTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser"))
+              activatingUser = Some(MemberId("updatingUser"))
             ),
             probe.ref
           )
@@ -1076,7 +1076,7 @@ class TenantSpec
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason",
-              updatingUser = Some(MemberId("updatingUser"))
+              suspendingUser = Some(MemberId("updatingUser"))
             ),
             probe.ref
           )
@@ -1617,7 +1617,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             ActivateTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser"))
+              activatingUser = Some(MemberId("updatingUser"))
             ),
             probe.ref
           )
@@ -1642,7 +1642,7 @@ class TenantSpec
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason",
-              updatingUser = Some(MemberId("unauthorizedUser"))
+              suspendingUser = Some(MemberId("unauthorizedUser"))
             ),
             probe.ref
           )
@@ -1665,7 +1665,7 @@ class TenantSpec
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason1",
-              updatingUser = Some(MemberId("updatingUser"))
+              suspendingUser = Some(MemberId("updatingUser"))
             ),
             probe.ref
           )
@@ -1702,7 +1702,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -1737,7 +1737,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -1783,7 +1783,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -1831,7 +1831,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -1866,7 +1866,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -1902,7 +1902,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -1952,7 +1952,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -1986,7 +1986,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2021,7 +2021,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2069,7 +2069,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2103,7 +2103,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2137,7 +2137,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2182,7 +2182,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2230,7 +2230,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2264,7 +2264,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2310,7 +2310,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2367,7 +2367,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2403,7 +2403,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2436,7 +2436,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2474,7 +2474,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              updatingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("updatingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2509,7 +2509,7 @@ class TenantSpec
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason",
-              updatingUser = Some(MemberId("updatingUser"))
+              suspendingUser = Some(MemberId("updatingUser"))
             ),
             probe.ref
           )
@@ -2521,7 +2521,7 @@ class TenantSpec
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason1",
-              updatingUser = Some(MemberId("updatingUser1"))
+              suspendingUser = Some(MemberId("updatingUser1"))
             ),
             probe.ref
           )

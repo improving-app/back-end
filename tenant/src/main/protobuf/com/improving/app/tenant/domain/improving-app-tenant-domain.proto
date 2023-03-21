@@ -14,7 +14,7 @@ option (scalapb.options) = {
 
 message EstablishTenant {
   com.improving.app.common.domain.TenantId tenant_id = 1;
-  com.improving.app.common.domain.MemberId creating_user = 2;
+  com.improving.app.common.domain.MemberId establishing_user = 2;
 }
 
 message TenantEstablished {
@@ -93,7 +93,7 @@ message OrganizationsRemoved {
 
 message ActivateTenant {
   com.improving.app.common.domain.TenantId tenant_id = 1;
-  com.improving.app.common.domain.MemberId updating_user = 2;
+  com.improving.app.common.domain.MemberId activating_user = 2;
 }
 
 message TenantActivated {
@@ -105,7 +105,7 @@ message TenantActivated {
 message SuspendTenant {
   com.improving.app.common.domain.TenantId tenant_id = 1;
   string suspension_reason = 2;
-  com.improving.app.common.domain.MemberId updating_user = 3;
+  com.improving.app.common.domain.MemberId suspending_user = 3;
 }
 
 message TenantSuspended {

@@ -62,7 +62,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        creatingUser = Some(MemberId("creatingUser"))
+        establishingUser = Some(MemberId("creatingUser"))
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -89,7 +89,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        creatingUser = Some(MemberId("creatingUser"))
+        establishingUser = Some(MemberId("creatingUser"))
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -132,7 +132,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        creatingUser = Some(MemberId("creatingUser"))
+        establishingUser = Some(MemberId("creatingUser"))
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -177,7 +177,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        creatingUser = Some(MemberId("creatingUser"))
+        establishingUser = Some(MemberId("creatingUser"))
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -203,7 +203,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        creatingUser = Some(MemberId("creatingUser"))
+        establishingUser = Some(MemberId("creatingUser"))
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -237,7 +237,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        creatingUser = Some(MemberId("creatingUser"))
+        establishingUser = Some(MemberId("creatingUser"))
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -306,7 +306,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
       val response = client.activateTenant(ActivateTenant(
         tenantId = Some(TenantId(tenantId)),
-        updatingUser = Some(MemberId("updatingUser"))
+        activatingUser = Some(MemberId("updatingUser"))
       )).futureValue
 
       response.tenantId shouldBe Some(TenantId(tenantId))
@@ -322,7 +322,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        creatingUser = Some(MemberId("creatingUser"))
+        establishingUser = Some(MemberId("creatingUser"))
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -331,7 +331,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
       val response = client.suspendTenant(SuspendTenant(
         tenantId = Some(TenantId(tenantId)),
         suspensionReason = "reason",
-        updatingUser = Some(MemberId("updatingUser"))
+        suspendingUser = Some(MemberId("updatingUser"))
       )).futureValue
 
       response.tenantId shouldBe Some(TenantId(tenantId))
