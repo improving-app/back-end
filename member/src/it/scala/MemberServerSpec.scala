@@ -62,6 +62,14 @@ class MemberServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
       )
     )
 
+  private def getClient(containers: Containers): MemberService = {
+    val host = containers.container.getServiceHost(serviceName, exposedPort)
+    val port = containers.container.getServicePort(serviceName, exposedPort)
+
+    val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
+    MemberServiceClient(clientSettings)
+  }
+
   behavior of "MemberServer in a test container"
 
   it should s"expose a port for $serviceName" in {
@@ -72,13 +80,7 @@ class MemberServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
   it should "handle grpc calls for Get Member Info without Register" in {
     withContainers { containers =>
-      val host = containers.container.getServiceHost(serviceName, exposedPort)
-      val port = containers.container.getServicePort(serviceName, exposedPort)
-
-      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
-      val client: MemberService = MemberServiceClient(clientSettings)
-
-      val response = client.getMemberInfo(GetMemberInfo(
+      val response = getClient(containers).getMemberInfo(GetMemberInfo(
         Some(MemberId("invalid-member-id"))
       )).futureValue
 
@@ -90,13 +92,7 @@ class MemberServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
   it should "handle grpc calls for Register Member" in {
     withContainers { containers =>
-      val host = containers.container.getServiceHost(serviceName, exposedPort)
-      val port = containers.container.getServicePort(serviceName, exposedPort)
-
-      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
-      val client: MemberService = MemberServiceClient(clientSettings)
-
-
+      val client = getClient(containers)
       val response = client.registerMember(RegisterMember(
         Some(memberInfo),
         Some(MemberId("ADMIN_1"))
@@ -131,7 +127,6 @@ class MemberServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
           notPref should equal(NOTIFICATION_PREFERENCE_EMAIL)
           notOptIn should equal(true)
           orgs shouldEqual Seq(OrganizationId("SomeOrganization"))
-//          orgs should matchPattern { case Vector(OrganizationId("SomeOrganization", _)) :: Nil => }
           tenant should matchPattern { case Some(TenantId("SomeTenant", _)) => }
       }
       response.memberId should matchPattern { case Some(MemberId(_, _)) => }
@@ -150,12 +145,7 @@ class MemberServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
   it should "handle grpc calls for Activate Member" in {
     withContainers { containers =>
-      val host = containers.container.getServiceHost(serviceName, exposedPort)
-      val port = containers.container.getServicePort(serviceName, exposedPort)
-
-      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
-      val client: MemberService = MemberServiceClient(clientSettings)
-
+      val client = getClient(containers)
       val response = client.activateMember(ActivateMember(Some(memberId), Some(MemberId("ADMIN_2")))).futureValue
       response.memberId should equal(Some(memberId))
 
@@ -172,11 +162,7 @@ class MemberServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
   it should "handle grpc calls for Inactivate Member" in {
     withContainers {containers =>
-      val host = containers.container.getServiceHost(serviceName, exposedPort)
-      val port = containers.container.getServicePort(serviceName, exposedPort)
-
-      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
-      val client: MemberService = MemberServiceClient(clientSettings)
+      val client = getClient(containers)
 
       val response =
         client.inactivateMember(InactivateMember(Some(memberId), Some(MemberId("ADMIN_3")))).futureValue
@@ -194,11 +180,7 @@ class MemberServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
   it should "handle grpc calls for Suspend Member" in {
     withContainers {containers =>
-      val host = containers.container.getServiceHost(serviceName, exposedPort)
-      val port = containers.container.getServicePort(serviceName, exposedPort)
-
-      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
-      val client: MemberService = MemberServiceClient(clientSettings)
+      val client = getClient(containers)
 
       val response =
         client.suspendMember(SuspendMember(Some(memberId), Some(MemberId("ADMIN_4")))).futureValue
@@ -216,11 +198,7 @@ class MemberServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
   it should "handle grpc calls for Update Member Info" in {
     withContainers {containers =>
-      val host = containers.container.getServiceHost(serviceName, exposedPort)
-      val port = containers.container.getServicePort(serviceName, exposedPort)
-
-      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
-      val client: MemberService = MemberServiceClient(clientSettings)
+      val client = getClient(containers)
 
       val response =
         client
@@ -246,11 +224,7 @@ class MemberServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
   it should "handle grpc calls for Terminate Member" in {
     withContainers {containers =>
-      val host = containers.container.getServiceHost(serviceName, exposedPort)
-      val port = containers.container.getServicePort(serviceName, exposedPort)
-
-      val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
-      val client: MemberService = MemberServiceClient(clientSettings)
+      val client = getClient(containers)
 
       val response =
         client.terminateMember(TerminateMember(Some(memberId), Some(MemberId("ADMIN_6")))).futureValue
@@ -266,3 +240,4 @@ class MemberServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
     }
   }
 }
+//269
