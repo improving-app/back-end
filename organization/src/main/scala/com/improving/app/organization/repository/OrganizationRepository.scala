@@ -74,7 +74,6 @@ class OrganizationRepositoryImpl(session: CassandraSession, keyspace: String)(im
         ownerId,
         JsonFormat.toJsonString(organization)
       )
-      println(bound1.getPreparedStatement.getQuery + " bound")
       val batch = bb.addStatements(bound1, bound2, bound3).build()
       session.executeWriteBatch(batch)
     }
@@ -115,7 +114,6 @@ class OrganizationRepositoryImpl(session: CassandraSession, keyspace: String)(im
         memberId,
         JsonFormat.toJsonString(organization)
       )
-      println(bound1.getPreparedStatement.getQuery + " bound")
       val batch = bb.addStatements(bound1, bound2, bound3).build()
       session.executeWriteBatch(batch)
     }
@@ -195,7 +193,6 @@ class OrganizationRepositoryImpl(session: CassandraSession, keyspace: String)(im
         orgId,
         memberId
       )
-      println(bound1.getPreparedStatement.getQuery + " bound")
       val batch = bb.addStatements(bound1, bound2, bound3).build()
       session.executeWriteBatch(batch)
     }
