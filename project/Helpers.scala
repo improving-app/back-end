@@ -25,6 +25,7 @@ object V {
   lazy val protobufJava = "3.22.0"
   lazy val testcontainersScalaVersion = "0.40.12"
   lazy val airframeUlidVersion = "23.3.0"
+  lazy val scalaPbJson = "0.11.1"
 }
 
 // C for Configuration functions
@@ -94,6 +95,10 @@ object C {
           "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test",
           "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion % "it, test",
           "org.wvlet.airframe" %% "airframe-ulid" % V.airframeUlidVersion,
+          "com.thesamet.scalapb" %% "scalapb-json4s" % V.scalaPbJson,
+          "com.lightbend.akka" %% "akka-projection-cassandra" % V.akkaProjection,
+          "com.lightbend.akka" %% "akka-projection-testkit" % V.akkaProjection % "it, test",
+          "com.typesafe.akka" %% "akka-persistence-testkit" % V.akka % "it, test"
         ),
         dockerBaseImage := "docker.io/library/eclipse-temurin:17.0.6_10-jre",
         dockerUsername := sys.props.get("docker.username"),

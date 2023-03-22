@@ -13,7 +13,7 @@ import "scalapb/scalapb.proto";
 
 
 message Organization {
-    option (scalapb.message).extends = "com.improving.app.organization.utils.serialize.CborSerializable";
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.OrganizationId org_id = 1;
     Info info = 2;
     common.domain.OrganizationId parent = 3;
@@ -25,7 +25,7 @@ message Organization {
 }
 
 enum OrganizationStatus {
-    option (scalapb.enum_options).extends = "com.improving.app.organization.utils.serialize.CborSerializable";
+    option (scalapb.enum_options).extends = "com.improving.app.common.serialize.PBEnumSerializable";
     ORGANIZATION_STATUS_DRAFT = 0;
     ORGANIZATION_STATUS_ACTIVE = 1;
     ORGANIZATION_STATUS_SUSPENDED = 2;
@@ -34,19 +34,19 @@ enum OrganizationStatus {
 }
 
 message Contacts {
-    option (scalapb.message).extends = "com.improving.app.organization.utils.serialize.CborSerializable";
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     repeated common.domain.MemberId primary_contacts = 1;
     repeated common.domain.MemberId billing_contacts = 2;
     repeated common.domain.MemberId distribution_contacts = 3;
 }
 
 message ContactList {
-    option (scalapb.message).extends = "com.improving.app.organization.utils.serialize.CborSerializable";
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     repeated Contacts contacts = 1;
 }
 
 message Info {
-    option (scalapb.message).extends = "com.improving.app.organization.utils.serialize.CborSerializable";
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     string name = 1;
     optional string short_name = 2;
     common.domain.Address address = 3;
@@ -57,12 +57,12 @@ message Info {
 }
 
 message MemberList {
-    option (scalapb.message).extends = "com.improving.app.organization.utils.serialize.CborSerializable";
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     repeated common.domain.MemberId member_id = 1;
 }
 
 message MetaInfo {
-    option (scalapb.message).extends = "com.improving.app.organization.utils.serialize.CborSerializable";
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     google.protobuf.Timestamp created_on = 1;
     common.domain.MemberId created_by = 2;
     google.protobuf.Timestamp last_updated = 3;
@@ -72,7 +72,7 @@ message MetaInfo {
 }
 
 message UpdateInfo {
-    option (scalapb.message).extends = "com.improving.app.organization.utils.serialize.CborSerializable";
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     optional string name = 1;
     optional string short_name = 2;
     common.domain.Address address = 3;
@@ -95,7 +95,7 @@ message FindOrganizationsByOwner {
 }
 
 message OrganizationInfo {
-    option (scalapb.message).extends = "com.improving.app.organization.utils.serialize.CborSerializable";
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.OrganizationId org_id = 1;
     Info info = 2;
 }
@@ -209,7 +209,7 @@ message UpdateOrganizationContactsRequest {
 }
 
 message OrganizationRequest{
-    option (scalapb.message).sealed_oneof_extends = "com.improving.app.organization.utils.serialize.CborSerializable";
+    option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
 
     oneof sealed_value {
         UpdateOrganizationContactsRequest update_organization_contacts_request = 1;
@@ -326,7 +326,7 @@ message OrganizationEstablished {
 
 message OrganizationEvent {
 
-    option (scalapb.message).sealed_oneof_extends = "com.improving.app.organization.utils.serialize.CborSerializable";
+    option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
 
     oneof sealed_value {
         OrganizationEstablished organization_established = 1;

@@ -1,8 +1,8 @@
 package com.improving.app.organization.domain
 
-import akka.actor.typed.{ActorRef, Behavior, PostStop}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior, PostStop}
 import akka.actor.typed.scaladsl.Behaviors
-import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
+import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityContext, EntityTypeKey}
 import akka.pattern.StatusReply
 import akka.persistence.typed.{PersistenceId, RecoveryCompleted}
 import akka.persistence.typed.scaladsl._
@@ -11,6 +11,7 @@ import cats.implicits.toFoldableOps
 import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain._
 import com.improving.app.organization._
+import com.typesafe.config.ConfigFactory
 import org.slf4j.LoggerFactory
 
 object Organization {
@@ -20,12 +21,18 @@ object Organization {
       "com.improving.app.organization.domain.Organization"
     )
 
+  val config = ConfigFactory.load()
+
   def now = java.time.Instant.now()
+
+  val index = config.getInt("organization-service.tags")
+
+  val tags = Vector.tabulate(index)(i => s"organizations-$i")
 
   trait HasOrganizationId {
     def orgId: Option[OrganizationId]
 
-    def extractMemberId: String =
+    def extractOrganizationId: String =
       orgId match {
         case Some(OrganizationId(id, _)) => id
         case other =>
@@ -36,16 +43,22 @@ object Organization {
   val OrganizationEntityKey: EntityTypeKey[OrganizationCommand] =
     EntityTypeKey[OrganizationCommand]("Organization")
 
+  def init(system: ActorSystem[_]): Unit = {
+    val behaviorFactory: EntityContext[OrganizationCommand] => Behavior[OrganizationCommand] = { entityContext =>
+      Organization(entityContext.entityId)
+    }
+    ClusterSharding(system).init(Entity(OrganizationEntityKey)(behaviorFactory))
+  }
+
   final case class OrganizationCommand(
       request: OrganizationRequest,
       replyTo: ActorRef[StatusReply[OrganizationResponse]]
   )
 
-  private def emptyState(entityId: String): OrganizationState =
-    OrganizationState(Some(OrganizationId(entityId)))
+  private def emptyState(id: String): OrganizationState =
+    OrganizationState(Some(OrganizationId(id)))
 
   def apply(
-      entityTypeHint: String,
       orgId: String
   ): Behavior[OrganizationCommand] =
     Behaviors.setup { context =>
@@ -56,7 +69,7 @@ object Organization {
           OrganizationEvent,
           OrganizationState
         ](
-          persistenceId = PersistenceId(entityTypeHint, orgId),
+          persistenceId = PersistenceId("Organization", orgId),
           emptyState = emptyState(orgId),
           commandHandler = commandHandler,
           eventHandler = eventHandler
@@ -67,13 +80,14 @@ object Organization {
           case (_, PostStop) =>
             context.log.info("Organization {} stopped", orgId)
         }
+        .withTagger(_ => tags.toSet)
     }
 
   /**
    * @param actingMember
    * @return new MetaInfo with draft status
    */
-  private def createMetaInfo(actingMember: Option[MemberId]): MetaInfo = {
+  def createMetaInfo(actingMember: Option[MemberId]): MetaInfo = {
     val timestamp = Timestamp.of(now.getEpochSecond, now.getNano)
     MetaInfo(
       createdOn = Some(timestamp),
@@ -85,7 +99,7 @@ object Organization {
     )
   }
 
-  private def updateMetaInfo(
+  def updateMetaInfo(
       metaInfo: MetaInfo,
       actingMember: Option[MemberId],
       newStatus: Option[OrganizationStatus] = None,
@@ -100,7 +114,7 @@ object Organization {
     )
   }
 
-  private def updateInfo(info: Info, newInfo: Info): Info = {
+  def updateInfo(info: Info, newInfo: Info): Info = {
     info.copy(
       name = newInfo.name,
       shortName = newInfo.shortName.orElse(info.shortName),
@@ -122,288 +136,38 @@ object Organization {
       command: OrganizationRequest
   ): Boolean = {
     command match {
-      case UpdateOrganizationContactsRequest(_, _, _, _) | UpdateOrganizationAccountsRequest(_, _, _, _) |
-          UpdateParentRequest(_, _, _, _) | SuspendOrganizationRequest(_, _, _) |
-          EditOrganizationInfoRequest(_, _, _, _) | RemoveOwnersFromOrganizationRequest(_, _, _, _) |
-          AddOwnersToOrganizationRequest(_, _, _, _) | RemoveMembersFromOrganizationRequest(_, _, _, _) |
-          AddMembersToOrganizationRequest(_, _, _, _) =>
+      case _: UpdateOrganizationContactsRequest | _: UpdateOrganizationAccountsRequest | _: UpdateParentRequest |
+          _: SuspendOrganizationRequest | _: EditOrganizationInfoRequest | _: RemoveOwnersFromOrganizationRequest |
+          _: AddOwnersToOrganizationRequest | _: RemoveMembersFromOrganizationRequest |
+          _: AddMembersToOrganizationRequest =>
         state.meta.exists(meta =>
           meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_DRAFT || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_ACTIVE
         )
-      case UpdateOrganizationStatusRequest(_, _, _, _) =>
+      case _: UpdateOrganizationStatusRequest =>
         state.meta.exists(meta =>
           !(meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_TERMINATED || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_RELEASED)
         )
-      case TerminateOrganizationRequest(_, _, _) =>
+      case _: TerminateOrganizationRequest =>
         state.meta.exists(meta =>
           !(meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_TERMINATED || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_RELEASED)
         )
-      case ActivateOrganizationRequest(_, _, _) =>
+      case _: ActivateOrganizationRequest =>
         state.meta.exists(meta =>
           meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_DRAFT || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_SUSPENDED
         )
-      case ReleaseOrganizationRequest(_, _, _) =>
+      case _: ReleaseOrganizationRequest =>
         state.meta.exists(meta => meta.currentStatus != OrganizationStatus.ORGANIZATION_STATUS_RELEASED)
-      case GetOrganizationInfoRequest(_, _) =>
+      case _: GetOrganizationInfoRequest =>
         state.meta.exists(meta =>
           !(meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_TERMINATED || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_RELEASED)
         )
-      case EstablishOrganizationRequest(_, _, _, _, _, _, _) =>
+      case _: EstablishOrganizationRequest =>
         state.meta.isEmpty
-      case GetOrganizationByIdRequest(_, _) =>
+      case _: GetOrganizationByIdRequest =>
         true
       case other =>
         log.error(s"Invalid Organization Command $other")
         false
-    }
-  }
-
-  private def updateOrganizationContacts(
-      orgId: Option[OrganizationId],
-      contacts: Seq[Contacts],
-      actingMember: Option[MemberId],
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val event = OrganizationContactsUpdated(
-      orgId,
-      contacts,
-      actingMember
-    )
-    log.info(
-      s"updateOrganizationContacts: orgId $orgId contacts $contacts"
-    )
-    Effect.persist(event).thenReply(replyTo) { _ =>
-      StatusReply.Success(OrganizationEventResponse(event))
-    }
-  }
-
-  private def updateOrganizationAccounts(
-      orgId: Option[OrganizationId],
-      info: Option[Info],
-      actingMember: Option[MemberId],
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val event = OrganizationAccountsUpdated(
-      orgId,
-      info,
-      actingMember
-    )
-    log.info(
-      s"updateOrganizationAccounts: orgId $orgId info $info"
-    )
-    Effect.persist(event).thenReply(replyTo) { _ =>
-      StatusReply.Success(OrganizationEventResponse(event))
-    }
-  }
-
-  def updateOrganizationStatus(
-      orgId: Option[OrganizationId],
-      newStatus: OrganizationStatus,
-      actingMember: Option[MemberId],
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val event = OrganizationStatusUpdated(
-      orgId,
-      newStatus,
-      actingMember
-    )
-    log.info(
-      s"updateOrganizationStatus: orgId $orgId newStatus $newStatus"
-    )
-    Effect.persist(event).thenReply(replyTo) { _ =>
-      StatusReply.Success(OrganizationEventResponse(event))
-    }
-  }
-
-  private def updateParent(
-      orgId: Option[OrganizationId],
-      newParent: Option[OrganizationId],
-      actingMember: Option[MemberId],
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val event = ParentUpdated(
-      orgId,
-      newParent,
-      actingMember
-    )
-    log.info(
-      s"updateParent: orgId $orgId newParent $newParent"
-    )
-    Effect.persist(event).thenReply(replyTo) { _ =>
-      StatusReply.Success(OrganizationEventResponse(event))
-    }
-  }
-
-  private def terminateOrganization(
-      orgId: Option[OrganizationId],
-      actingMember: Option[MemberId],
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val event = OrganizationTerminated(
-      orgId,
-      actingMember
-    )
-    log.info(
-      s"terminateOrganization: orgId $orgId"
-    )
-    Effect.persist(event).thenReply(replyTo) { _ =>
-      StatusReply.Success(OrganizationEventResponse(event))
-    }
-  }
-
-  private def suspendOrganization(
-      orgId: Option[OrganizationId],
-      actingMember: Option[MemberId],
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val event = OrganizationSuspended(
-      orgId,
-      actingMember
-    )
-    log.info(
-      s"suspendOrganization: orgId $orgId"
-    )
-    Effect.persist(event).thenReply(replyTo) { _ =>
-      StatusReply.Success(OrganizationEventResponse(event))
-    }
-  }
-
-  private def activateOrganization(
-      orgId: Option[OrganizationId],
-      actingMember: Option[MemberId],
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val event = OrganizationActivated(
-      orgId,
-      actingMember
-    )
-    log.info(
-      s"activateOrganization: orgId $orgId"
-    )
-    Effect.persist(event).thenReply(replyTo) { _ =>
-      StatusReply.Success(OrganizationEventResponse(event))
-    }
-  }
-
-  private def releaseOrganization(
-      orgId: Option[OrganizationId],
-      actingMember: Option[MemberId],
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val event = OrganizationReleased(
-      orgId,
-      actingMember
-    )
-    log.info(
-      s"releaseOrganization: orgId $orgId"
-    )
-    Effect.persist(event).thenReply(replyTo) { _ =>
-      StatusReply.Success(OrganizationEventResponse(event))
-    }
-  }
-
-  private def editOrganizationInfo(
-      orgId: Option[OrganizationId],
-      info: Info,
-      actingMember: Option[MemberId],
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    OrganizationValidation.validateInfo(info) match {
-      case Validated.Valid(info) => {
-        val event = OrganizationInfoUpdated(
-          orgId,
-          Some(info),
-          actingMember
-        )
-        log.info(s"editOrganizationInfo: event $event")
-        Effect.persist(event).thenReply(replyTo) { _ =>
-          StatusReply.Success(OrganizationEventResponse(event))
-        }
-      }
-      case Validated.Invalid(errors) => {
-        Effect.reply(replyTo) {
-          StatusReply.Error(
-            s"Invalid Organization Info with errors: ${errors
-              .map {
-                _.errorMessage
-              }
-              .toList
-              .mkString(",")}"
-          )
-        }
-      }
-    }
-  }
-
-  private def removeOwnersFromOrganization(
-      orgId: Option[OrganizationId],
-      removedOwners: Seq[MemberId],
-      actingMember: Option[MemberId],
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val event = OwnersRemovedFromOrganization(
-      orgId,
-      removedOwners,
-      actingMember
-    )
-    log.info(
-      s"removeOwnersFromOrganization: orgId $orgId removedOwners $removedOwners"
-    )
-    Effect.persist(event).thenReply(replyTo) { _ =>
-      StatusReply.Success(OrganizationEventResponse(event))
-    }
-  }
-
-  private def addOwnersToOrganization(
-      orgId: Option[OrganizationId],
-      newOwners: Seq[MemberId],
-      actingMember: Option[MemberId],
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val event = OwnersAddedToOrganization(
-      orgId,
-      newOwners,
-      actingMember
-    )
-    log.info(s"addOwnersToOrganization: orgId $orgId newMembers $newOwners")
-    Effect.persist(event).thenReply(replyTo) { _ =>
-      StatusReply.Success(OrganizationEventResponse(event))
-    }
-  }
-
-  private def removeMembersFromOrganization(
-      orgId: Option[OrganizationId],
-      removedMembers: Seq[MemberId],
-      actingMember: Option[MemberId],
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val event = MembersRemovedFromOrganization(
-      orgId,
-      removedMembers,
-      actingMember
-    )
-    log.info(
-      s"removeMembersFromOrganization: orgId $orgId removedMembers $removedMembers"
-    )
-    Effect.persist(event).thenReply(replyTo) { _ =>
-      StatusReply.Success(OrganizationEventResponse(event))
-    }
-  }
-
-  private def addMembersToOrganization(
-      orgId: Option[OrganizationId],
-      newMembers: Seq[MemberId],
-      actingMember: Option[MemberId],
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val event = MembersAddedToOrganization(
-      orgId,
-      newMembers,
-      actingMember
-    )
-    log.info(s"addMembersToOrganization: orgId $orgId newMembers $newMembers")
-    Effect.persist(event).thenReply(replyTo) { _ =>
-      StatusReply.Success(OrganizationEventResponse(event))
     }
   }
 
@@ -417,47 +181,6 @@ object Organization {
       StatusReply.Success(
         OrganizationInfo(orgId, state.info)
       )
-    }
-  }
-
-  private def establishOrganization(
-      orgId: Option[OrganizationId],
-      info: Info,
-      parent: Option[OrganizationId],
-      members: Seq[MemberId],
-      owners: Seq[MemberId],
-      contacts: Seq[Contacts],
-      actingMember: Option[MemberId],
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    OrganizationValidation.validateInfo(info) match {
-      case Validated.Valid(info) => {
-        val event = OrganizationEstablished(
-          orgId,
-          Some(info),
-          parent,
-          members,
-          owners,
-          contacts,
-          actingMember
-        )
-        log.info(s"establishOrganization: event $event")
-        Effect.persist(event).thenReply(replyTo) { _ =>
-          StatusReply.Success(OrganizationEventResponse(event))
-        }
-      }
-      case Validated.Invalid(errors) => {
-        Effect.reply(replyTo) {
-          StatusReply.Error(
-            s"Invalid Organization Info with errors: ${errors
-              .map {
-                _.errorMessage
-              }
-              .toList
-              .mkString(",")}"
-          )
-        }
-      }
     }
   }
 
@@ -483,6 +206,287 @@ object Organization {
     }
   }
 
+  private def updateOrganizationContacts(
+      uocr: UpdateOrganizationContactsRequest,
+      replyTo: ActorRef[StatusReply[OrganizationResponse]]
+  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
+    val event = OrganizationContactsUpdated(
+      uocr.orgId,
+      uocr.contacts,
+      uocr.actingMember
+    )
+    log.info(
+      s"updateOrganizationContacts: UpdateOrganizationContactsRequest $uocr"
+    )
+    Effect.persist(event).thenReply(replyTo) { _ =>
+      StatusReply.Success(OrganizationEventResponse(event))
+    }
+  }
+  private def updateOrganizationAccounts(
+      uoar: UpdateOrganizationAccountsRequest,
+      replyTo: ActorRef[StatusReply[OrganizationResponse]]
+  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
+    val info = uoar.info.getOrElse(Info())
+    OrganizationValidation.validateInfo(info) match {
+      case Validated.Valid(_) => {
+        val event = OrganizationAccountsUpdated(
+          uoar.orgId,
+          uoar.info,
+          uoar.actingMember
+        )
+        log.info(
+          s"updateOrganizationAccounts: UpdateOrganizationAccountsRequest $uoar"
+        )
+        Effect.persist(event).thenReply(replyTo) { _ =>
+          StatusReply.Success(OrganizationEventResponse(event))
+        }
+      }
+      case Validated.Invalid(errors) => {
+        Effect.reply(replyTo) {
+          StatusReply.Error(
+            s"updateOrganizationAccounts: Invalid Organization Info with errors: ${errors
+              .map {
+                _.errorMessage
+              }
+              .toList
+              .mkString(",")}"
+          )
+        }
+      }
+    }
+  }
+
+  private def updateOrganizationStatus(
+      uosr: UpdateOrganizationStatusRequest,
+      replyTo: ActorRef[StatusReply[OrganizationResponse]]
+  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
+    val event = OrganizationStatusUpdated(
+      uosr.orgId,
+      uosr.newStatus,
+      uosr.actingMember
+    )
+    log.info(
+      s"updateOrganizationStatus: UpdateOrganizationStatusRequest $uosr"
+    )
+    Effect.persist(event).thenReply(replyTo) { _ =>
+      StatusReply.Success(OrganizationEventResponse(event))
+    }
+  }
+
+  private def updateParent(
+      upr: UpdateParentRequest,
+      replyTo: ActorRef[StatusReply[OrganizationResponse]]
+  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
+    val event = ParentUpdated(
+      upr.orgId,
+      upr.newParent,
+      upr.actingMember
+    )
+    log.info(
+      s"updateParent: UpdateParentRequest $upr"
+    )
+    Effect.persist(event).thenReply(replyTo) { _ =>
+      StatusReply.Success(OrganizationEventResponse(event))
+    }
+  }
+
+  private def terminateOrganization(
+      tor: TerminateOrganizationRequest,
+      replyTo: ActorRef[StatusReply[OrganizationResponse]]
+  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
+    val event = OrganizationTerminated(
+      tor.orgId,
+      tor.actingMember
+    )
+    log.info(
+      s"terminateOrganization: TerminateOrganizationRequest $tor"
+    )
+    Effect.persist(event).thenReply(replyTo) { _ =>
+      StatusReply.Success(OrganizationEventResponse(event))
+    }
+  }
+
+  private def suspendOrganization(
+      sor: SuspendOrganizationRequest,
+      replyTo: ActorRef[StatusReply[OrganizationResponse]]
+  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
+    val event = OrganizationSuspended(
+      sor.orgId,
+      sor.actingMember
+    )
+    log.info(
+      s"suspendOrganization: SuspendOrganizationRequest $sor"
+    )
+    Effect.persist(event).thenReply(replyTo) { _ =>
+      StatusReply.Success(OrganizationEventResponse(event))
+    }
+  }
+
+  private def activateOrganization(
+      aor: ActivateOrganizationRequest,
+      replyTo: ActorRef[StatusReply[OrganizationResponse]]
+  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
+    val event = OrganizationActivated(
+      aor.orgId,
+      aor.actingMember
+    )
+    log.info(
+      s"activateOrganization: ActivateOrganizationRequest $aor"
+    )
+    Effect.persist(event).thenReply(replyTo) { _ =>
+      StatusReply.Success(OrganizationEventResponse(event))
+    }
+  }
+
+  private def releaseOrganization(
+      ror: ReleaseOrganizationRequest,
+      replyTo: ActorRef[StatusReply[OrganizationResponse]]
+  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
+    val event = OrganizationReleased(
+      ror.orgId,
+      ror.actingMember
+    )
+    log.info(
+      s"releaseOrganization: ReleaseOrganizationRequest $ror"
+    )
+    Effect.persist(event).thenReply(replyTo) { _ =>
+      StatusReply.Success(OrganizationEventResponse(event))
+    }
+  }
+
+  private def editOrganizationInfo(
+      eoir: EditOrganizationInfoRequest,
+      replyTo: ActorRef[StatusReply[OrganizationResponse]]
+  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
+    val info = eoir.info.getOrElse(Info())
+    OrganizationValidation.validateInfo(info) match {
+      case Validated.Valid(_) => {
+        val event = OrganizationInfoUpdated(
+          eoir.orgId,
+          eoir.info,
+          eoir.actingMember
+        )
+        log.info(s"editOrganizationInfo: EditOrganizationInfoRequest $eoir")
+        Effect.persist(event).thenReply(replyTo) { _ =>
+          StatusReply.Success(OrganizationEventResponse(event))
+        }
+      }
+      case Validated.Invalid(errors) => {
+        Effect.reply(replyTo) {
+          StatusReply.Error(
+            s"editOrganizationInfo: Invalid Organization Info with errors: ${errors
+              .map {
+                _.errorMessage
+              }
+              .toList
+              .mkString(",")}"
+          )
+        }
+      }
+    }
+  }
+
+  private def removeOwnersFromOrganization(
+      rfor: RemoveOwnersFromOrganizationRequest,
+      replyTo: ActorRef[StatusReply[OrganizationResponse]]
+  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
+    val event = OwnersRemovedFromOrganization(
+      rfor.orgId,
+      rfor.removedOwners,
+      rfor.actingMember
+    )
+    log.info(
+      s"removeOwnersFromOrganization: RemoveOwnersFromOrganizationRequest $rfor"
+    )
+    Effect.persist(event).thenReply(replyTo) { _ =>
+      StatusReply.Success(OrganizationEventResponse(event))
+    }
+  }
+
+  private def addOwnersToOrganization(
+      aoor: AddOwnersToOrganizationRequest,
+      replyTo: ActorRef[StatusReply[OrganizationResponse]]
+  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
+    val event = OwnersAddedToOrganization(
+      aoor.orgId,
+      aoor.newOwners,
+      aoor.actingMember
+    )
+    log.info(s"addOwnersToOrganization: OwnersAddedToOrganization $aoor")
+    Effect.persist(event).thenReply(replyTo) { _ =>
+      StatusReply.Success(OrganizationEventResponse(event))
+    }
+  }
+
+  private def removeMembersFromOrganization(
+      rfor: RemoveMembersFromOrganizationRequest,
+      replyTo: ActorRef[StatusReply[OrganizationResponse]]
+  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
+    val event = MembersRemovedFromOrganization(
+      rfor.orgId,
+      rfor.removedMembers,
+      rfor.actingMember
+    )
+    log.info(
+      s"removeMembersFromOrganization: RemoveMembersFromOrganizationRequest $rfor"
+    )
+    Effect.persist(event).thenReply(replyTo) { _ =>
+      StatusReply.Success(OrganizationEventResponse(event))
+    }
+  }
+
+  private def addMembersToOrganization(
+      amor: AddMembersToOrganizationRequest,
+      replyTo: ActorRef[StatusReply[OrganizationResponse]]
+  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
+    val event = MembersAddedToOrganization(
+      amor.orgId,
+      amor.newMembers,
+      amor.actingMember
+    )
+    log.info(s"addMembersToOrganization: AddMembersToOrganizationRequest $amor")
+    Effect.persist(event).thenReply(replyTo) { _ =>
+      StatusReply.Success(OrganizationEventResponse(event))
+    }
+  }
+
+  private def establishOrganization(
+      eor: EstablishOrganizationRequest,
+      orgId: Option[OrganizationId],
+      replyTo: ActorRef[StatusReply[OrganizationResponse]]
+  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
+    val info = eor.info.getOrElse(Info())
+    OrganizationValidation.validateInfo(info) match {
+      case Validated.Valid(_) => {
+        val event = OrganizationEstablished(
+          orgId,
+          eor.info,
+          eor.parent,
+          eor.members,
+          eor.owners,
+          eor.contacts,
+          eor.actingMember
+        )
+        log.info(s"establishOrganization: event $event")
+        Effect.persist(event).thenReply(replyTo) { _ =>
+          StatusReply.Success(OrganizationEventResponse(event))
+        }
+      }
+      case Validated.Invalid(errors) => {
+        Effect.reply(replyTo) {
+          StatusReply.Error(
+            s"establishOrganization: Invalid Organization Info with errors: ${errors
+              .map {
+                _.errorMessage
+              }
+              .toList
+              .mkString(",")}"
+          )
+        }
+      }
+    }
+  }
+
   private val commandHandler: (
       OrganizationState,
       OrganizationCommand
@@ -496,138 +500,38 @@ object Organization {
             )
           }
         }
-        case UpdateOrganizationContactsRequest(
-              orgId,
-              contacts,
-              actingMember,
-              _
-            ) =>
-          updateOrganizationContacts(
-            orgId,
-            contacts,
-            actingMember,
-            command.replyTo
-          )
-        case UpdateOrganizationAccountsRequest(
-              orgId,
-              info,
-              actingMember,
-              _
-            ) =>
-          updateOrganizationAccounts(
-            orgId,
-            info,
-            actingMember,
-            command.replyTo
-          )
-        case UpdateOrganizationStatusRequest(
-              orgId,
-              newStatus,
-              actingMember,
-              _
-            ) =>
-          updateOrganizationStatus(
-            orgId,
-            newStatus,
-            actingMember,
-            command.replyTo
-          )
-        case UpdateParentRequest(orgId, newParent, actingMember, _) =>
-          updateParent(orgId, newParent, actingMember, command.replyTo)
-        case TerminateOrganizationRequest(orgId, actingMember, _) =>
-          terminateOrganization(orgId, actingMember, command.replyTo)
-        case SuspendOrganizationRequest(orgId, actingMember, _) =>
-          suspendOrganization(orgId, actingMember, command.replyTo)
-        case ActivateOrganizationRequest(orgId, actingMember, _) =>
-          activateOrganization(orgId, actingMember, command.replyTo)
-        case ReleaseOrganizationRequest(orgId, actingMember, _) =>
-          releaseOrganization(orgId, actingMember, command.replyTo)
-        case EditOrganizationInfoRequest(
-              orgId,
-              Some(info),
-              actingMember,
-              _
-            ) =>
-          editOrganizationInfo(
-            orgId,
-            info,
-            actingMember,
-            command.replyTo
-          )
-        case RemoveOwnersFromOrganizationRequest(
-              orgId,
-              removedOwners,
-              actingMember,
-              _
-            ) =>
-          removeOwnersFromOrganization(
-            orgId,
-            removedOwners,
-            actingMember,
-            command.replyTo
-          )
-        case AddOwnersToOrganizationRequest(
-              orgId,
-              newOwners,
-              actingMember,
-              _
-            ) =>
-          addOwnersToOrganization(
-            orgId,
-            newOwners,
-            actingMember,
-            command.replyTo
-          )
-        case RemoveMembersFromOrganizationRequest(
-              orgId,
-              removedMembers,
-              actingMember,
-              _
-            ) =>
-          removeMembersFromOrganization(
-            orgId,
-            removedMembers,
-            actingMember,
-            command.replyTo
-          )
-        case AddMembersToOrganizationRequest(
-              orgId,
-              newMembers,
-              actingMember,
-              _
-            ) =>
-          addMembersToOrganization(
-            orgId,
-            newMembers,
-            actingMember,
-            command.replyTo
-          )
-        case GetOrganizationInfoRequest(orgId, _) =>
-          getOrganizationInfo(orgId, state, command.replyTo)
-        case EstablishOrganizationRequest(
-              Some(info),
-              parent,
-              members,
-              owners,
-              contacts,
-              actingMember,
-              _
-            ) =>
-          log.info(
-            s"EstablishOrganizationRequest: $info $parent $members $owners $contacts $actingMember"
-          )
-          establishOrganization(
-            state.orgId,
-            info,
-            parent,
-            members,
-            owners,
-            contacts,
-            actingMember,
-            command.replyTo
-          )
+        case uocr: UpdateOrganizationContactsRequest =>
+          updateOrganizationContacts(uocr, command.replyTo)
+        case uoar: UpdateOrganizationAccountsRequest =>
+          updateOrganizationAccounts(uoar, command.replyTo)
+        case uosr: UpdateOrganizationStatusRequest =>
+          updateOrganizationStatus(uosr, command.replyTo)
+        case upr: UpdateParentRequest =>
+          updateParent(upr, command.replyTo)
+        case tor: TerminateOrganizationRequest =>
+          terminateOrganization(tor, command.replyTo)
+        case sor: SuspendOrganizationRequest =>
+          suspendOrganization(sor, command.replyTo)
+        case aor: ActivateOrganizationRequest =>
+          activateOrganization(aor, command.replyTo)
+        case ror: ReleaseOrganizationRequest =>
+          releaseOrganization(ror, command.replyTo)
+        case eoir: EditOrganizationInfoRequest =>
+          editOrganizationInfo(eoir, command.replyTo)
+        case rfor: RemoveOwnersFromOrganizationRequest =>
+          removeOwnersFromOrganization(rfor, command.replyTo)
+        case aoor: AddOwnersToOrganizationRequest =>
+          addOwnersToOrganization(aoor, command.replyTo)
+        case rfor: RemoveMembersFromOrganizationRequest =>
+          removeMembersFromOrganization(rfor, command.replyTo)
+        case amor: AddMembersToOrganizationRequest =>
+          addMembersToOrganization(amor, command.replyTo)
+        case eor: EstablishOrganizationRequest =>
+          establishOrganization(eor, state.orgId, command.replyTo)
         case GetOrganizationByIdRequest(orgId, _) =>
           getOrganizationById(orgId, state, command.replyTo)
+        case GetOrganizationInfoRequest(orgId, _) =>
+          getOrganizationInfo(orgId, state, command.replyTo)
         case other =>
           throw new RuntimeException(s"Invalid/Unhandled request $other")
       }

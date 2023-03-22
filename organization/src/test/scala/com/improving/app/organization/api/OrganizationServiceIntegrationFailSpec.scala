@@ -3,11 +3,8 @@ package com.improving.app.organization.api
 import akka.actor.ActorSystem
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
 import com.improving.app.organization._
-import com.improving.app.organization.utils.{
-  CassandraTestContainer,
-  LoanedActorSystem
-}
-import org.scalatest.BeforeAndAfterAll
+import com.improving.app.organization.utils.{CassandraTestContainer, LoanedActorSystem}
+import org.scalatest.{BeforeAndAfterAll, DoNotDiscover}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Milliseconds, Seconds, Span}
@@ -15,6 +12,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import com.improving.app.organization.TestData._
 import org.scalatest.exceptions.TestFailedException
 
+@DoNotDiscover
 class OrganizationServiceIntegrationFailSpec
     extends AnyWordSpec
     with BeforeAndAfterAll

@@ -8,6 +8,7 @@ import java.time.Instant
 object TestData {
 
   val testOrgId: OrganizationId = OrganizationId("test-organization-id")
+  val testOrgId1: OrganizationId = OrganizationId("test-organization-id1")
   val parentIdTest: OrganizationId = OrganizationId("parent-id-test")
   val newParentId: OrganizationId = OrganizationId("new-parent-id")
   val testTenantId = "test-tenant-id"
@@ -41,10 +42,20 @@ object TestData {
     MemberId("member2"),
     MemberId("member3")
   )
+  val testNewMembers = Seq[MemberId](
+    MemberId("test-member-id2"),
+    MemberId("member4"),
+    MemberId("member5")
+  )
   val testOwners = Seq[MemberId](
     MemberId("member10"),
     MemberId("member11"),
     MemberId("member12")
+  )
+  val testNewOwners = Seq[MemberId](
+    MemberId("member20"),
+    MemberId("member21"),
+    MemberId("member22")
   )
   val testContacts = Seq[Contacts](
     Contacts(primaryContacts = Seq(MemberId("member81")))

@@ -2,6 +2,8 @@ package com.improving.app.organization
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
+import akka.stream.alpakka.cassandra.scaladsl.CassandraSessionRegistry
+import com.improving.app.organization.repository.{OrganizationByMemberProjection, OrganizationRepositoryImpl}
 import com.typesafe.config.ConfigFactory
 import org.slf4j.LoggerFactory
 
@@ -31,6 +33,22 @@ object Main {
   }
 
   def init(implicit system: ActorSystem[_]): Unit = {
+
+    val session = CassandraSessionRegistry(system).sessionFor(
+      "akka.persistence.cassandra"
+    )
+    // use same keyspace for the item_popularity table as the offset store
+    val OrganizationServiceKeyspace =
+      system.settings.config
+        .getString("akka.projection.cassandra.offset-store.keyspace")
+    val organizationRepository =
+      new OrganizationRepositoryImpl(session, OrganizationServiceKeyspace)(
+        system.executionContext
+      )
+
+    domain.Organization.init(system)
+
+    OrganizationByMemberProjection.init(system, organizationRepository)
 
     val grpcInterface =
       system.settings.config.getString(

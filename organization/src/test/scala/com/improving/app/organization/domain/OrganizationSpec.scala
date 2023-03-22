@@ -5,27 +5,20 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityRef}
 import akka.cluster.typed.{Cluster, Join}
 import akka.pattern.StatusReply
-import akka.serialization.jackson.JacksonObjectMapperProvider
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.improving.app.common.domain._
 import com.improving.app.organization.{OrganizationResponse, _}
-import com.improving.app.organization.domain.Organization.{
-  OrganizationCommand,
-  OrganizationEntityKey
-}
-import com.improving.app.organization.utils.serialize.AvroJacksonObjectMapperFactory.applyObjectMapperMixins
+import com.improving.app.organization.domain.Organization.{OrganizationCommand, OrganizationEntityKey}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.slf4j.LoggerFactory
 import TestData._
+import cats.data.Validated
+import com.improving.app.organization.domain.OrganizationValidation.StringIsEmptyError
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-class OrganizationSpec
-    extends ScalaTestWithActorTestKit(OrganizationSpec.config)
-    with AnyWordSpecLike
-    with Matchers {
+class OrganizationSpec extends ScalaTestWithActorTestKit(OrganizationSpec.config) with AnyWordSpecLike with Matchers {
 
   private val log = LoggerFactory.getLogger(getClass)
 
@@ -37,16 +30,11 @@ class OrganizationSpec
 
   val sharding: ClusterSharding = ClusterSharding(system)
 
-  implicit val objectMapper: ObjectMapper =
-    JacksonObjectMapperProvider(system).getOrCreate("jackson-cbor", None)
-  applyObjectMapperMixins(objectMapper)
-
   "Organization Service" should {
 
     ClusterSharding(system).init(
       Entity(OrganizationEntityKey)(entityContext =>
         domain.Organization(
-          entityContext.entityTypeKey.name,
           entityContext.entityId
         )
       )
@@ -62,9 +50,7 @@ class OrganizationSpec
       val ref: EntityRef[OrganizationCommand] =
         sharding.entityRefFor(OrganizationEntityKey, organizationId)
 
-      ref.ask[OrganizationResponse](_ =>
-        OrganizationCommand(establishOrganizationRequest, probe.ref)
-      )
+      ref.ask[OrganizationResponse](_ => OrganizationCommand(establishOrganizationRequest, probe.ref))
 
       val result: Seq[StatusReply[OrganizationResponse]] =
         probe.fishForMessagePF(waitDuration) {
@@ -93,9 +79,7 @@ class OrganizationSpec
       val ref: EntityRef[OrganizationCommand] =
         sharding.entityRefFor(OrganizationEntityKey, organizationId)
 
-      ref.ask[OrganizationResponse](_ =>
-        OrganizationCommand(establishOrganizationRequest, probe.ref)
-      )
+      ref.ask[OrganizationResponse](_ => OrganizationCommand(establishOrganizationRequest, probe.ref))
 
       val result: Seq[StatusReply[OrganizationResponse]] =
         probe.fishForMessagePF(waitDuration) {
@@ -121,9 +105,7 @@ class OrganizationSpec
       val ref: EntityRef[OrganizationCommand] =
         sharding.entityRefFor(OrganizationEntityKey, organizationId)
 
-      ref.ask[OrganizationResponse](_ =>
-        OrganizationCommand(getOrganizationByIdRequest, probe.ref)
-      )
+      ref.ask[OrganizationResponse](_ => OrganizationCommand(getOrganizationByIdRequest, probe.ref))
 
       val result: Seq[StatusReply[OrganizationResponse]] =
         probe.fishForMessagePF(waitDuration) {
@@ -149,9 +131,7 @@ class OrganizationSpec
       val ref: EntityRef[OrganizationCommand] =
         sharding.entityRefFor(OrganizationEntityKey, organizationId)
 
-      ref.ask[OrganizationResponse](_ =>
-        OrganizationCommand(getOrganizationInfoRequest, probe.ref)
-      )
+      ref.ask[OrganizationResponse](_ => OrganizationCommand(getOrganizationInfoRequest, probe.ref))
 
       val result: Seq[StatusReply[OrganizationResponse]] =
         probe.fishForMessagePF(waitDuration) {
@@ -180,9 +160,7 @@ class OrganizationSpec
       val ref: EntityRef[OrganizationCommand] =
         sharding.entityRefFor(OrganizationEntityKey, organizationId)
 
-      ref.ask[OrganizationResponse](_ =>
-        OrganizationCommand(addMembersToOrganizationRequest, probe.ref)
-      )
+      ref.ask[OrganizationResponse](_ => OrganizationCommand(addMembersToOrganizationRequest, probe.ref))
 
       val result: Seq[StatusReply[OrganizationResponse]] =
         probe.fishForMessagePF(waitDuration) {
@@ -215,9 +193,7 @@ class OrganizationSpec
       val ref: EntityRef[OrganizationCommand] =
         sharding.entityRefFor(OrganizationEntityKey, organizationId)
 
-      ref.ask[OrganizationResponse](_ =>
-        OrganizationCommand(removeMembersFromOrganizationRequest, probe.ref)
-      )
+      ref.ask[OrganizationResponse](_ => OrganizationCommand(removeMembersFromOrganizationRequest, probe.ref))
 
       val result: Seq[StatusReply[OrganizationResponse]] =
         probe.fishForMessagePF(waitDuration) {
@@ -251,9 +227,7 @@ class OrganizationSpec
       val ref: EntityRef[OrganizationCommand] =
         sharding.entityRefFor(OrganizationEntityKey, organizationId)
 
-      ref.ask[OrganizationResponse](_ =>
-        OrganizationCommand(addOwnersToOrganizationRequest, probe.ref)
-      )
+      ref.ask[OrganizationResponse](_ => OrganizationCommand(addOwnersToOrganizationRequest, probe.ref))
 
       val result: Seq[StatusReply[OrganizationResponse]] =
         probe.fishForMessagePF(waitDuration) {
@@ -287,9 +261,7 @@ class OrganizationSpec
       val ref: EntityRef[OrganizationCommand] =
         sharding.entityRefFor(OrganizationEntityKey, organizationId)
 
-      ref.ask[OrganizationResponse](_ =>
-        OrganizationCommand(removeOwnersFromOrganizationRequest, probe.ref)
-      )
+      ref.ask[OrganizationResponse](_ => OrganizationCommand(removeOwnersFromOrganizationRequest, probe.ref))
 
       val result: Seq[StatusReply[OrganizationResponse]] =
         probe.fishForMessagePF(waitDuration) {
@@ -324,9 +296,7 @@ class OrganizationSpec
       val ref: EntityRef[OrganizationCommand] =
         sharding.entityRefFor(OrganizationEntityKey, organizationId)
 
-      ref.ask[OrganizationResponse](_ =>
-        OrganizationCommand(editOrganizationInfoRequest, probe.ref)
-      )
+      ref.ask[OrganizationResponse](_ => OrganizationCommand(editOrganizationInfoRequest, probe.ref))
 
       val result: Seq[StatusReply[OrganizationResponse]] =
         probe.fishForMessagePF(waitDuration) {
@@ -362,9 +332,7 @@ class OrganizationSpec
     val ref: EntityRef[OrganizationCommand] =
       sharding.entityRefFor(OrganizationEntityKey, organizationId)
 
-    ref.ask[OrganizationResponse](_ =>
-      OrganizationCommand(updateParentRequest, probe.ref)
-    )
+    ref.ask[OrganizationResponse](_ => OrganizationCommand(updateParentRequest, probe.ref))
 
     val result: Seq[StatusReply[OrganizationResponse]] =
       probe.fishForMessagePF(waitDuration) {
@@ -398,9 +366,7 @@ class OrganizationSpec
     val ref: EntityRef[OrganizationCommand] =
       sharding.entityRefFor(OrganizationEntityKey, organizationId)
 
-    ref.ask[OrganizationResponse](_ =>
-      OrganizationCommand(activateOrganizationRequest, probe.ref)
-    )
+    ref.ask[OrganizationResponse](_ => OrganizationCommand(activateOrganizationRequest, probe.ref))
 
     val result: Seq[StatusReply[OrganizationResponse]] =
       probe.fishForMessagePF(waitDuration) {
@@ -434,9 +400,7 @@ class OrganizationSpec
     val ref: EntityRef[OrganizationCommand] =
       sharding.entityRefFor(OrganizationEntityKey, organizationId)
 
-    ref.ask[OrganizationResponse](_ =>
-      OrganizationCommand(suspendOrganizationRequest, probe.ref)
-    )
+    ref.ask[OrganizationResponse](_ => OrganizationCommand(suspendOrganizationRequest, probe.ref))
 
     val result: Seq[StatusReply[OrganizationResponse]] =
       probe.fishForMessagePF(waitDuration) {
@@ -470,9 +434,7 @@ class OrganizationSpec
     val ref: EntityRef[OrganizationCommand] =
       sharding.entityRefFor(OrganizationEntityKey, organizationId)
 
-    ref.ask[OrganizationResponse](_ =>
-      OrganizationCommand(terminateOrganizationRequest, probe.ref)
-    )
+    ref.ask[OrganizationResponse](_ => OrganizationCommand(terminateOrganizationRequest, probe.ref))
 
     val result: Seq[StatusReply[OrganizationResponse]] =
       probe.fishForMessagePF(waitDuration) {
@@ -506,9 +468,7 @@ class OrganizationSpec
     val ref: EntityRef[OrganizationCommand] =
       sharding.entityRefFor(OrganizationEntityKey, organizationId)
 
-    ref.ask[OrganizationResponse](_ =>
-      OrganizationCommand(releaseOrganizationRequest, probe.ref)
-    )
+    ref.ask[OrganizationResponse](_ => OrganizationCommand(releaseOrganizationRequest, probe.ref))
 
     val result: Seq[StatusReply[OrganizationResponse]] =
       probe.fishForMessagePF(waitDuration) {
@@ -538,9 +498,7 @@ class OrganizationSpec
     val ref: EntityRef[OrganizationCommand] =
       sharding.entityRefFor(OrganizationEntityKey, organizationId2)
 
-    ref.ask[OrganizationResponse](_ =>
-      OrganizationCommand(establishOrganizationRequest, probe.ref)
-    )
+    ref.ask[OrganizationResponse](_ => OrganizationCommand(establishOrganizationRequest, probe.ref))
 
     val updateOrganizationStatusRequest =
       UpdateOrganizationStatusRequest(
@@ -549,9 +507,7 @@ class OrganizationSpec
         Some(testActingMember3)
       )
 
-    ref.ask[OrganizationResponse](_ =>
-      OrganizationCommand(updateOrganizationStatusRequest, probe.ref)
-    )
+    ref.ask[OrganizationResponse](_ => OrganizationCommand(updateOrganizationStatusRequest, probe.ref))
 
     val result: Seq[StatusReply[OrganizationResponse]] =
       probe.fishForMessagePF(waitDuration) {
@@ -586,9 +542,7 @@ class OrganizationSpec
     val ref: EntityRef[OrganizationCommand] =
       sharding.entityRefFor(OrganizationEntityKey, organizationId2)
 
-    ref.ask[OrganizationResponse](_ =>
-      OrganizationCommand(updateOrganizationContactsRequest, probe.ref)
-    )
+    ref.ask[OrganizationResponse](_ => OrganizationCommand(updateOrganizationContactsRequest, probe.ref))
 
     val result: Seq[StatusReply[OrganizationResponse]] =
       probe.fishForMessagePF(waitDuration) {
@@ -623,9 +577,7 @@ class OrganizationSpec
     val ref: EntityRef[OrganizationCommand] =
       sharding.entityRefFor(OrganizationEntityKey, organizationId2)
 
-    ref.ask[OrganizationResponse](_ =>
-      OrganizationCommand(updateOrganizationAccountsRequest, probe.ref)
-    )
+    ref.ask[OrganizationResponse](_ => OrganizationCommand(updateOrganizationAccountsRequest, probe.ref))
 
     val result: Seq[StatusReply[OrganizationResponse]] =
       probe.fishForMessagePF(waitDuration) {
@@ -646,6 +598,13 @@ class OrganizationSpec
       }
     result.length shouldBe 1
   }
+
+  "fail validation for organization" in {
+    OrganizationValidation.validateInfo(Info()) match {
+      case Validated.Valid(a)   => fail("Validation should fail with info with empty name")
+      case Validated.Invalid(e) => e.leftSideValue.toNonEmptyList.head shouldBe StringIsEmptyError("name")
+    }
+  }
 }
 
 object OrganizationSpec {
@@ -660,7 +619,9 @@ object OrganizationSpec {
         akka.persistence.journal.inmem.test-serialization = on
 
         akka.actor.serialization-bindings{
-        "com.improving.app.organization.utils.serialize.CborSerializable" = jackson-cbor
-          }
+          "com.improving.app.common.serialize.PBMsgSerializable" = proto
+          "com.improving.app.common.serialize.PBMsgOneOfSerializable" = proto
+          "com.improving.app.common.serialize.PBEnumSerializable" = proto
+        }
       """)
 }
