@@ -1,4 +1,5 @@
-# demo-be
+# improving-app/back-end
+
 The backend for a demonstration  of Yoppworks technology 
 
 # To build, publish dockerize and deploy to GKE
