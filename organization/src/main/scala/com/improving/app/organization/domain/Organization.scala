@@ -147,10 +147,10 @@ object Organization {
         state.meta.exists(meta =>
           !(meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_TERMINATED || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_RELEASED)
         )
-      case _: TerminateOrganizationRequest =>
-        state.meta.exists(meta =>
-          !(meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_TERMINATED || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_RELEASED)
-        )
+      case _: TerminateOrganizationRequest => true
+//        state.meta.exists(meta =>
+//          !(meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_TERMINATED || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_RELEASED)
+//        )
       case _: ActivateOrganizationRequest =>
         state.meta.exists(meta =>
           meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_DRAFT || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_SUSPENDED
