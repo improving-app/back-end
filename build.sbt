@@ -10,14 +10,10 @@ lazy val org = project
   .configure(C.akkaPersistentEntity("improving-app-organization"))
   .dependsOn(commonTypes)
 
-//lazy val member = project.in(file("member"))
-//  .configure(C.kalix("improving-app-member"))
-//  .dependsOn(organization).
-//  settings(
-//    libraryDependencies ++= Seq(
-//      "org.typelevel" %% "cats-core" % "2.8.0"
-//    )
-//  )
+lazy val member = project
+  .in(file("member"))
+  .configure(C.akkaPersistentEntity("improving-app-member"))
+  .dependsOn(commonTypes)
 
 // This is for protobuf types defined at 'domain' scope and having cross-service applicability only.
 lazy val commonTypes = project
