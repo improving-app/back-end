@@ -82,13 +82,13 @@ class TestOrganizationRepository extends OrganizationRepository {
     )
   }
 
-//  override def deleteOrganizationByMemberByOrgId(orgId: String): Future[Done] = {
-//    membersByOrgMap = membersByOrgMap.dropWhile { case (oid, (_, _)) => oid == orgId }
-//    Future.successful(Done)
-//  }
-//
-//  override def deleteOrganizationByOwnerByOrgId(orgId: String): Future[Done] = {
-//    ownersByOrgMap = ownersByOrgMap.dropWhile { case (oid, (_, _)) => oid == orgId }
-//    Future.successful(Done)
-//  }
+  override def deleteOrganizationByMemberByOrgId(orgId: String): Future[Done] = {
+    membersByOrgMap = membersByOrgMap.dropWhile { case (oid, (_, _)) => oid == orgId }
+    Future.successful(Done)
+  }
+
+  override def deleteOrganizationByOwnerByOrgId(orgId: String): Future[Done] = {
+    ownersByOrgMap = ownersByOrgMap.dropWhile { case (oid, (_, _)) => oid == orgId }
+    Future.successful(Done)
+  }
 }
