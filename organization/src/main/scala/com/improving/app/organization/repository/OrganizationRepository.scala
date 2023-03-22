@@ -163,13 +163,13 @@ class OrganizationRepositoryImpl(session: CassandraSession, keyspace: String)(im
     log.info(s"OrganizationRepositoryImpl deleteOrganizationByMember orgId - $orgId, memberId - $memberId")
     val bb = new BatchStatementBuilder(BatchType.UNLOGGED)
     val deleteOrgAndMember = session.prepare(s"""
-       DELETE FROM $keyspace.$organizationsAndMembersTable WHERE org_id = ? AND member_id = ? IF EXISTS;
+       DELETE FROM $keyspace.$organizationsAndMembersTable WHERE org_id = ? AND member_id = ?;
     """)
     val deleteOrgToMember = session.prepare(s"""
-      DELETE FROM $keyspace.$organizationToMembersTable WHERE org_id = ?  IF member_id = ?;
+      DELETE FROM $keyspace.$organizationToMembersTable WHERE org_id = ?;
     """)
     val deleteMemberToOrg = session.prepare(s"""
-      DELETE FROM $keyspace.$memberToOrganizationsTable WHERE member_id = ? IF org_id = ?;
+      DELETE FROM $keyspace.$memberToOrganizationsTable WHERE member_id = ?;
     """)
     for {
       oam <- deleteOrgAndMember
@@ -181,12 +181,10 @@ class OrganizationRepositoryImpl(session: CassandraSession, keyspace: String)(im
         memberId
       )
       val bound2 = otm.bind(
-        orgId,
-        memberId
+        orgId
       )
       val bound3 = mto.bind(
-        memberId,
-        orgId
+        memberId
       )
       val batch = bb.addStatements(bound1, bound2, bound3).build()
       session.executeWriteBatch(batch)
@@ -197,13 +195,13 @@ class OrganizationRepositoryImpl(session: CassandraSession, keyspace: String)(im
     log.info(s"OrganizationRepositoryImpl deleteOrganizationByOwner orgId - $orgId, ownerId - $ownerId")
     val bb = new BatchStatementBuilder(BatchType.UNLOGGED)
     val deleteOrgAndMember = session.prepare(s"""
-       DELETE FROM $keyspace.$organizationsAndOwnersTable WHERE org_id = ? AND owner_id = ? IF EXISTS;
+       DELETE FROM $keyspace.$organizationsAndOwnersTable WHERE org_id = ? AND owner_id = ?;
     """)
     val deleteOrgToMember = session.prepare(s"""
-      DELETE FROM $keyspace.$organizationToOwnersTable WHERE org_id = ? IF owner_id = ?;
+      DELETE FROM $keyspace.$organizationToOwnersTable WHERE org_id = ?;
     """)
     val deleteMemberToOrg = session.prepare(s"""
-      DELETE FROM $keyspace.$ownerToOrganizationsTable owner_id = ? IF org_id = ?;
+      DELETE FROM $keyspace.$ownerToOrganizationsTable owner_id = ?;
     """)
     for {
       oam <- deleteOrgAndMember
@@ -215,12 +213,10 @@ class OrganizationRepositoryImpl(session: CassandraSession, keyspace: String)(im
         ownerId
       )
       val bound2 = otm.bind(
-        orgId,
-        ownerId
+        orgId
       )
       val bound3 = mto.bind(
-        ownerId,
-        orgId
+        ownerId
       )
       val batch = bb.addStatements(bound1, bound2, bound3).build()
       session.executeWriteBatch(batch)
