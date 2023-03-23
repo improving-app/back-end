@@ -1,7 +1,7 @@
 -- Lists the services available on the port. This is also used to simply check if the service is running to begin with.
 grpcurl -plaintext localhost:8080 list
 
--- Update Tenant Name
+-- Establish Tenant
 grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "establishing_user": {"id": "establishingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/EstablishTenant
 
 -- Update Tenant Name
