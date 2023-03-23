@@ -47,7 +47,7 @@ class TenantSpec
     p ! Tenant.TenantCommand(
       EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("creatingUser"))
+        establishingUser = Some(MemberId("establishingUser"))
       ),
       probe.ref
     )
@@ -123,7 +123,7 @@ class TenantSpec
     p ! Tenant.TenantCommand(
       ActivateTenant(
         tenantId = Some(TenantId(tenantId)),
-        activatingUser = Some(MemberId("updatingUser"))
+        activatingUser = Some(MemberId("activatingUser"))
       ),
       probe.ref
     )
@@ -159,7 +159,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EstablishTenant(
               tenantId = Some(TenantId(tenantId)),
-              establishingUser = Some(MemberId("creatingUser"))
+              establishingUser = Some(MemberId("establishingUser"))
             ),
             probe.ref
           )
@@ -169,7 +169,7 @@ class TenantSpec
 
           val successVal = response.getValue
           successVal.asMessage.sealedValue.tenantEstablishedValue.get.tenantId shouldBe Some(TenantId(tenantId))
-          successVal.asMessage.sealedValue.tenantEstablishedValue.get.metaInfo.get.createdBy shouldBe Some(MemberId("creatingUser"))
+          successVal.asMessage.sealedValue.tenantEstablishedValue.get.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
         }
 
         "error for a tenant that is already established" in {
@@ -178,7 +178,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EstablishTenant(
               tenantId = Some(TenantId(tenantId)),
-              establishingUser = Some(MemberId("creatingUser"))
+              establishingUser = Some(MemberId("establishingUser"))
             ),
             probe.ref
           )
@@ -189,7 +189,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EstablishTenant(
               tenantId = Some(TenantId(tenantId)),
-              establishingUser = Some(MemberId("creatingUser"))
+              establishingUser = Some(MemberId("establishingUser"))
             ),
             probe.ref
           )
@@ -333,7 +333,7 @@ class TenantSpec
           assert(tenantNameUpdated.metaInfo.isDefined)
 
           val tenantNameUpdatedMeta = tenantNameUpdated.metaInfo.get
-          tenantNameUpdatedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
+          tenantNameUpdatedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           tenantNameUpdatedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
         }
 
@@ -519,7 +519,7 @@ class TenantSpec
 
           val primaryContactUpdatedMeta = primaryContactUpdated.metaInfo.get
 
-          primaryContactUpdatedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
+          primaryContactUpdatedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           primaryContactUpdatedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
         }
       }
@@ -684,7 +684,7 @@ class TenantSpec
 
           val addressUpdatedMeta = addressUpdated.metaInfo.get
 
-          addressUpdatedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
+          addressUpdatedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           addressUpdatedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
         }
       }
@@ -763,7 +763,7 @@ class TenantSpec
 
           val organizationAddedMeta = organizationAdded.metaInfo.get
 
-          organizationAddedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
+          organizationAddedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           organizationAddedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
         }
 
@@ -900,7 +900,7 @@ class TenantSpec
 
           val organizationRemovedMeta = organizationRemoved.metaInfo.get
 
-          organizationRemovedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
+          organizationRemovedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           organizationRemovedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
         }
 
@@ -937,7 +937,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             ActivateTenant(
               tenantId = Some(TenantId(tenantId)),
-              activatingUser = Some(MemberId("updatingUser"))
+              activatingUser = Some(MemberId("activatingUser"))
             ),
             probe.ref
           )
@@ -1038,8 +1038,8 @@ class TenantSpec
 
           val tenantActivatedMeta = tenantActivated.metaInfo.get
 
-          tenantActivatedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
-          tenantActivatedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
+          tenantActivatedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
+          tenantActivatedMeta.lastUpdatedBy shouldEqual Some(MemberId("activatingUser"))
         }
       }
 
@@ -1076,7 +1076,7 @@ class TenantSpec
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason",
-              suspendingUser = Some(MemberId("updatingUser"))
+              suspendingUser = Some(MemberId("suspendingUser"))
             ),
             probe.ref
           )
@@ -1096,8 +1096,8 @@ class TenantSpec
 
           val tenantSuspendedMeta = tenantSuspended.metaInfo.get
 
-          tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
-          tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
+          tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
+          tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("suspendingUser"))
         }
       }
     }
@@ -1159,7 +1159,7 @@ class TenantSpec
           assert(tenantNameUpdated.metaInfo.isDefined)
 
           val tenantNameUpdatedMeta = tenantNameUpdated.metaInfo.get
-          tenantNameUpdatedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
+          tenantNameUpdatedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           tenantNameUpdatedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
         }
 
@@ -1298,7 +1298,7 @@ class TenantSpec
 
           val primaryContactUpdatedMeta = primaryContactUpdated.metaInfo.get
 
-          primaryContactUpdatedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
+          primaryContactUpdatedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           primaryContactUpdatedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
         }
       }
@@ -1399,7 +1399,7 @@ class TenantSpec
 
           val addressUpdatedMeta = addressUpdated.metaInfo.get
 
-          addressUpdatedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
+          addressUpdatedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           addressUpdatedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
         }
       }
@@ -1478,7 +1478,7 @@ class TenantSpec
 
           val organizationAddedMeta = organizationAdded.metaInfo.get
 
-          organizationAddedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
+          organizationAddedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           organizationAddedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
         }
 
@@ -1579,7 +1579,7 @@ class TenantSpec
 
           val organizationRemovedMeta = organizationRemoved.metaInfo.get
 
-          organizationRemovedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
+          organizationRemovedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           organizationRemovedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
         }
 
@@ -1617,7 +1617,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             ActivateTenant(
               tenantId = Some(TenantId(tenantId)),
-              activatingUser = Some(MemberId("updatingUser"))
+              activatingUser = Some(MemberId("activatingUser"))
             ),
             probe.ref
           )
@@ -1665,7 +1665,7 @@ class TenantSpec
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason1",
-              suspendingUser = Some(MemberId("updatingUser"))
+              suspendingUser = Some(MemberId("suspendingUser"))
             ),
             probe.ref
           )
@@ -1685,8 +1685,8 @@ class TenantSpec
 
           val tenantSuspendedMeta = tenantSuspended.metaInfo.get
 
-          tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
-          tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
+          tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
+          tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("suspendingUser"))
         }
       }
     }
@@ -1702,7 +1702,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -1737,7 +1737,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -1770,7 +1770,7 @@ class TenantSpec
           assert(tenantNameUpdated.metaInfo.isDefined)
 
           val tenantNameUpdatedMeta = tenantNameUpdated.metaInfo.get
-          tenantNameUpdatedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
+          tenantNameUpdatedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           tenantNameUpdatedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
         }
 
@@ -1783,7 +1783,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -1831,7 +1831,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -1866,7 +1866,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -1902,7 +1902,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -1937,7 +1937,7 @@ class TenantSpec
 
           val primaryContactUpdatedMeta = primaryContactUpdated.metaInfo.get
 
-          primaryContactUpdatedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
+          primaryContactUpdatedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           primaryContactUpdatedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
         }
       }
@@ -1952,7 +1952,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -1986,7 +1986,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2021,7 +2021,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2054,7 +2054,7 @@ class TenantSpec
 
           val addressUpdatedMeta = addressUpdated.metaInfo.get
 
-          addressUpdatedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
+          addressUpdatedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           addressUpdatedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
         }
       }
@@ -2069,7 +2069,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2103,7 +2103,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2137,7 +2137,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2169,7 +2169,7 @@ class TenantSpec
 
           val organizationAddedMeta = organizationAdded.metaInfo.get
 
-          organizationAddedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
+          organizationAddedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           organizationAddedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
         }
 
@@ -2182,7 +2182,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2230,7 +2230,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2264,7 +2264,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2310,7 +2310,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2354,7 +2354,7 @@ class TenantSpec
 
           val organizationRemovedMeta = organizationRemoved.metaInfo.get
 
-          organizationRemovedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
+          organizationRemovedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           organizationRemovedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
         }
 
@@ -2367,7 +2367,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2403,7 +2403,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2436,7 +2436,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2459,8 +2459,8 @@ class TenantSpec
 
           val tenantSuspendedMeta = tenantActivated.metaInfo.get
 
-          tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
-          tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
+          tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
+          tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("activatingUser"))
         }
       }
 
@@ -2474,7 +2474,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("updatingUser")),
+              suspendingUser = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -2509,7 +2509,7 @@ class TenantSpec
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason",
-              suspendingUser = Some(MemberId("updatingUser"))
+              suspendingUser = Some(MemberId("suspendingUser"))
             ),
             probe.ref
           )
@@ -2541,7 +2541,7 @@ class TenantSpec
 
           val tenantSuspendedMeta = tenantSuspended.metaInfo.get
 
-          tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("creatingUser"))
+          tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser1"))
         }
       }

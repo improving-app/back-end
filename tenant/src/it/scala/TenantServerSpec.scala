@@ -62,11 +62,11 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("creatingUser"))
+        establishingUser = Some(MemberId("establishingUser"))
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
-      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("creatingUser"))
+      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
 
       val response = client.updateTenantName(UpdateTenantName(
         tenantId = Some(TenantId(tenantId)),
@@ -89,11 +89,11 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("creatingUser"))
+        establishingUser = Some(MemberId("establishingUser"))
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
-      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("creatingUser"))
+      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
 
       val response = client.updatePrimaryContact(UpdatePrimaryContact(
         tenantId = Some(TenantId(tenantId)),
@@ -132,11 +132,11 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("creatingUser"))
+        establishingUser = Some(MemberId("establishingUser"))
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
-      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("creatingUser"))
+      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
 
       val response = client.updateAddress(UpdateAddress(
         tenantId = Some(TenantId(tenantId)),
@@ -177,11 +177,11 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("creatingUser"))
+        establishingUser = Some(MemberId("establishingUser"))
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
-      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("creatingUser"))
+      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
 
       val response = client.addOrganizations(AddOrganizations(
         tenantId = Some(TenantId(tenantId)),
@@ -203,11 +203,11 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("creatingUser"))
+        establishingUser = Some(MemberId("establishingUser"))
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
-      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("creatingUser"))
+      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
 
       val response = client.addOrganizations(AddOrganizations(
         tenantId = Some(TenantId(tenantId)),
@@ -237,11 +237,11 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("creatingUser"))
+        establishingUser = Some(MemberId("establishingUser"))
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
-      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("creatingUser"))
+      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
 
       val updateTenantNameResponse = client.updateTenantName(UpdateTenantName(
         tenantId = Some(TenantId(tenantId)),
@@ -306,11 +306,11 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
       val response = client.activateTenant(ActivateTenant(
         tenantId = Some(TenantId(tenantId)),
-        activatingUser = Some(MemberId("updatingUser"))
+        activatingUser = Some(MemberId("activatingUser"))
       )).futureValue
 
       response.tenantId shouldBe Some(TenantId(tenantId))
-      response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
+      response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("activatingUser"))
     }
   }
 
@@ -322,20 +322,20 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("creatingUser"))
+        establishingUser = Some(MemberId("establishingUser"))
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
-      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("creatingUser"))
+      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
 
       val response = client.suspendTenant(SuspendTenant(
         tenantId = Some(TenantId(tenantId)),
         suspensionReason = "reason",
-        suspendingUser = Some(MemberId("updatingUser"))
+        suspendingUser = Some(MemberId("suspendingUser"))
       )).futureValue
 
       response.tenantId shouldBe Some(TenantId(tenantId))
-      response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
+      response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("suspendingUser"))
     }
   }
 }
