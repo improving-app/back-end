@@ -35,8 +35,8 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
           OrganizationStatus.ORGANIZATION_STATUS_DRAFT
         )
         Future
-          .sequence(members.map(memberId => {
-            repo.updateOrganizationByOwner(orgId.id, memberId.id, organization)
+          .sequence(owners.map(ownerId => {
+            repo.updateOrganizationByOwner(orgId.id, ownerId.id, organization)
           }))
           .map(_ => Done)
       }
@@ -140,9 +140,8 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
           })
           .map(_ => Done)
       }
-      case _: OrganizationReleased => {
-        // Cassandra does not allow delete without the full primary keys
-        Future.successful(Done)
+      case OrganizationReleased(Some(orgId), _, _) => {
+        repo.deleteOrganizationByOwnerByOrgId(orgId.id)
       }
       case OrganizationActivated(Some(orgId), actingMember, _) => {
         repo
@@ -196,9 +195,8 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
           })
           .map(_ => Done)
       }
-      case _: OrganizationTerminated => {
-        // Cassandra does not allow delete without the full primary keys
-        Future.successful(Done)
+      case OrganizationTerminated(Some(orgId), _, _) => {
+        repo.deleteOrganizationByOwnerByOrgId(orgId.id)
       }
       case ParentUpdated(Some(orgId), Some(newParent), actingMember, _) => {
         repo

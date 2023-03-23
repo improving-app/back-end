@@ -5,11 +5,12 @@ import akka.Done
 
 import scala.concurrent.ExecutionContext
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSession
-import com.datastax.oss.driver.api.core.cql.BatchType
-import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder
+//import com.datastax.oss.driver.api.core.cql.BatchType
+//import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder
 import com.improving.app.organization.Organization
 import org.slf4j.LoggerFactory
 import scalapb.json4s.JsonFormat
+import scala.jdk.CollectionConverters._
 
 trait OrganizationRepository {
   def updateOrganizationByMember(orgId: String, memberId: String, organization: Organization): Future[Done]
@@ -28,10 +29,6 @@ trait OrganizationRepository {
 object OrganizationRepositoryImpl {
   val organizationsAndOwnersTable = "organization_and_owner"
   val organizationsAndMembersTable = "organization_and_member"
-  val organizationToMembersTable = "organization_to_member"
-  val organizationToOwnersTable = "organization_to_owner"
-  val ownerToOrganizationsTable = "owner_to_organization"
-  val memberToOrganizationsTable = "member_to_organization"
 }
 
 class OrganizationRepositoryImpl(session: CassandraSession, keyspace: String)(implicit val ec: ExecutionContext)
@@ -44,216 +41,107 @@ class OrganizationRepositoryImpl(session: CassandraSession, keyspace: String)(im
 
   override def updateOrganizationByOwner(orgId: String, ownerId: String, organization: Organization): Future[Done] = {
     log.info(s"OrganizationRepositoryImpl updateOrganizationByOwner orgId - $orgId ownerId - $ownerId")
-    val bb = new BatchStatementBuilder(BatchType.UNLOGGED)
-    val insertOrgAndMember = session.prepare(s"""
-       INSERT INTO $keyspace.$organizationsAndOwnersTable (org_id, owner_id, organization) values (?, ?, ?);
-    """)
-    val insertOrgToMember = session.prepare(s"""
-      INSERT INTO $keyspace.$organizationToOwnersTable (org_id, owner_id, organization) values (?, ?, ?);
-    """)
-    val insertMemberToOrg = session.prepare(s"""
-      INSERT INTO $keyspace.$ownerToOrganizationsTable (org_id, owner_id, organization) values (?, ?, ?);
-    """)
-    for {
-      oam <- insertOrgAndMember
-      otm <- insertOrgToMember
-      mto <- insertMemberToOrg
-    } yield {
-      val bound1 = oam.bind(
-        orgId,
-        ownerId,
-        JsonFormat.toJsonString(organization)
-      )
-      val bound2 = otm.bind(
-        orgId,
-        ownerId,
-        JsonFormat.toJsonString(organization)
-      )
-      val bound3 = mto.bind(
-        orgId,
-        ownerId,
-        JsonFormat.toJsonString(organization)
-      )
-      val batch = bb.addStatements(bound1, bound2, bound3).build()
-      session.executeWriteBatch(batch)
-    }
-  }.flatten
+    session.executeWrite(
+      s"""
+          UPDATE $keyspace.$organizationsAndOwnersTable SET organization = ? WHERE org_id = ? AND owner_id = ?;
+        """,
+      JsonFormat.toJsonString(organization),
+      orgId,
+      ownerId,
+    )
+  }
 
   override def updateOrganizationByMember(orgId: String, memberId: String, organization: Organization): Future[Done] = {
     log.info(
       s"OrganizationRepositoryImpl updateOrganizationByMember orgId - $orgId memberId - $memberId organization - ${JsonFormat
         .toJsonString(organization)}"
     )
-    val bb = new BatchStatementBuilder(BatchType.UNLOGGED)
-    val insertOrgAndMember = session.prepare(s"""
-       INSERT INTO $keyspace.$organizationsAndMembersTable (org_id, member_id, organization) values (?, ?, ?);
-    """)
-    val insertOrgToMember = session.prepare(s"""
-      INSERT INTO $keyspace.$organizationToMembersTable (org_id, member_id, organization) values (?, ?, ?);
-    """)
-    val insertMemberToOrg = session.prepare(s"""
-      INSERT INTO $keyspace.$memberToOrganizationsTable (org_id, member_id, organization) values (?, ?, ?);
-    """)
-    for {
-      oam <- insertOrgAndMember
-      otm <- insertOrgToMember
-      mto <- insertMemberToOrg
-    } yield {
-      val bound1 = oam.bind(
-        orgId,
-        memberId,
-        JsonFormat.toJsonString(organization)
-      )
-      val bound2 = otm.bind(
-        orgId,
-        memberId,
-        JsonFormat.toJsonString(organization)
-      )
-      val bound3 = mto.bind(
-        orgId,
-        memberId,
-        JsonFormat.toJsonString(organization)
-      )
-      val batch = bb.addStatements(bound1, bound2, bound3).build()
-      session.executeWriteBatch(batch)
-    }
-  }.flatten
+    session.executeWrite(
+      s"""
+          UPDATE $keyspace.$organizationsAndMembersTable SET organization = ? WHERE org_id = ? AND member_id = ?;
+        """,
+      JsonFormat.toJsonString(organization),
+      orgId,
+      memberId
+    )
+  }
 
   override def getOrganizationsByMember(memberId: String): Future[Seq[Organization]] = {
     log.info(s"OrganizationRepositoryImpl: getOrganizationsByMember $memberId")
     session
       .selectAll(
-        s"SELECT organization FROM $keyspace.$memberToOrganizationsTable WHERE member_id = ? ",
-        memberId
+        s"SELECT member_id, organization FROM $keyspace.$organizationsAndMembersTable;"
       )
-      .map(rows => rows.map(row => JsonFormat.fromJsonString[Organization](row.getString("organization"))))
+      .map(rows =>
+        rows
+          .filter(row => row.getString("member_id") == memberId)
+          .map(row => JsonFormat.fromJsonString[Organization](row.getString("organization")))
+          .distinct
+      )
   }
 
   override def getOrganizationsByMemberByOrgId(orgId: String): Future[Seq[Organization]] = {
     log.info(s"OrganizationRepositoryImpl getOrganizationsByMemberByOrgId orgId - $orgId")
     session
       .selectAll(
-        s"SELECT * FROM $keyspace.$organizationToMembersTable WHERE org_id = ? ",
-        orgId
+        s"SELECT * FROM $keyspace.$organizationsAndMembersTable; "
       )
-      .map(rows => rows.map(row => JsonFormat.fromJsonString[Organization](row.getString("organization"))))
+      .map(rows => {
+        rows
+          .filter(row => row.getString("org_id") == orgId)
+          .map(row => JsonFormat.fromJsonString[Organization](row.getString("organization")))
+          .distinct
+      })
   }
 
   override def getOrganizationsByOwner(ownerId: String): Future[Seq[Organization]] = {
     log.info(s"OrganizationRepositoryImpl getOrganizationsByOwner ownerId - $ownerId")
     session
       .selectAll(
-        s"SELECT organization FROM $keyspace.$ownerToOrganizationsTable WHERE owner_id = ? ",
-        ownerId
+        s"SELECT owner_id, organization FROM $keyspace.$organizationsAndOwnersTable; "
       )
-      .map(rows => rows.map(row => JsonFormat.fromJsonString[Organization](row.getString("organization"))))
+      .map(rows =>
+        rows
+          .filter(row => row.getString("owner_id") == ownerId)
+          .map(row => JsonFormat.fromJsonString[Organization](row.getString("organization")))
+          .distinct
+      )
   }
 
   override def getOrganizationsByOwnerByOrgId(orgId: String): Future[Seq[Organization]] = {
     log.info(s"OrganizationRepositoryImpl getOrganizationsByOwnerByOrgId orgId - $orgId")
     session
       .selectAll(
-        s"SELECT organization FROM $keyspace.$organizationToOwnersTable WHERE org_id = ? ",
-        orgId
+        s"SELECT org_id, organization FROM $keyspace.$organizationsAndOwnersTable;"
       )
-      .map(rows => rows.map(row => JsonFormat.fromJsonString[Organization](row.getString("organization"))))
+      .map(rows => {
+        rows
+          .filter(row => row.getString("org_id") == orgId)
+          .map(row => JsonFormat.fromJsonString[Organization](row.getString("organization")))
+          .distinct
+      })
   }
 
   override def deleteOrganizationByMember(orgId: String, memberId: String): Future[Done] = {
     log.info(s"OrganizationRepositoryImpl deleteOrganizationByMember orgId - $orgId, memberId - $memberId")
-    val bb = new BatchStatementBuilder(BatchType.UNLOGGED)
-    val deleteOrgAndMember = session.prepare(s"""
-       DELETE FROM $keyspace.$organizationsAndMembersTable WHERE org_id = ? AND member_id = ?;
-    """)
-    val deleteOrgToMember = session.prepare(s"""
-      DELETE FROM $keyspace.$organizationToMembersTable WHERE org_id = ?;
-    """)
-    val deleteMemberToOrg = session.prepare(s"""
-      DELETE FROM $keyspace.$memberToOrganizationsTable WHERE member_id = ?;
-    """)
-    for {
-      oam <- deleteOrgAndMember
-      otm <- deleteOrgToMember
-      mto <- deleteMemberToOrg
-    } yield {
-      val bound1 = oam.bind(
-        orgId,
-        memberId
-      )
-      val bound2 = otm.bind(
-        orgId
-      )
-      val bound3 = mto.bind(
-        memberId
-      )
-      val batch = bb.addStatements(bound1, bound2, bound3).build()
-      session.executeWriteBatch(batch)
-    }
-  }.flatten
+    executeDeleteOrganizationByMemberByOrgId(orgId, Seq(memberId))
+  }
 
   override def deleteOrganizationByOwner(orgId: String, ownerId: String): Future[Done] = {
     log.info(s"OrganizationRepositoryImpl deleteOrganizationByOwner orgId - $orgId, ownerId - $ownerId")
-    val bb = new BatchStatementBuilder(BatchType.UNLOGGED)
-    val deleteOrgAndMember = session.prepare(s"""
-       DELETE FROM $keyspace.$organizationsAndOwnersTable WHERE org_id = ? AND owner_id = ?;
-    """)
-    val deleteOrgToMember = session.prepare(s"""
-      DELETE FROM $keyspace.$organizationToOwnersTable WHERE org_id = ?;
-    """)
-    val deleteMemberToOrg = session.prepare(s"""
-      DELETE FROM $keyspace.$ownerToOrganizationsTable owner_id = ?;
-    """)
-    for {
-      oam <- deleteOrgAndMember
-      otm <- deleteOrgToMember
-      mto <- deleteMemberToOrg
-    } yield {
-      val bound1 = oam.bind(
-        orgId,
-        ownerId
-      )
-      val bound2 = otm.bind(
-        orgId
-      )
-      val bound3 = mto.bind(
-        ownerId
-      )
-      val batch = bb.addStatements(bound1, bound2, bound3).build()
-      session.executeWriteBatch(batch)
-    }
-  }.flatten
-  import scala.jdk.CollectionConverters._
+    executeDeleteOrganizationByOwnerByOrgId(orgId, Seq(ownerId))
+  }
+
   private def executeDeleteOrganizationByMemberByOrgId(orgId: String, members: Seq[String]) = {
     log.info(s"OrganizationRepositoryImpl executeDeleteOrganizationByMemberByOrgId orgId - $orgId members $members")
-    val bb = new BatchStatementBuilder(BatchType.UNLOGGED)
-    val deleteOrgAndMember = session.prepare(s"""
-      DELETE FROM $keyspace.$organizationsAndMembersTable WHERE org_id = ? AND member_id IN ?;
-    """)
-    val deleteOrgToMember = session.prepare(s"""
-      DELETE FROM $keyspace.$organizationToMembersTable WHERE org_id = ?;
-    """)
-    val deleteMemberToOrg = session.prepare(s"""
-      DELETE FROM $keyspace.$memberToOrganizationsTable WHERE member_id IN ?;
-    """)
-    for {
-      oam <- deleteOrgAndMember
-      otm <- deleteOrgToMember
-      mto <- deleteMemberToOrg
-    } yield {
-      val bound1 = oam.bind(
-        orgId,
-        members.asJava
-      )
-      val bound2 = otm.bind(
-        orgId
-      )
-      val bound3 = mto.bind(
-        members.asJava
-      )
-      val batch = bb.addStatements(bound1, bound2, bound3).build()
-      session.executeWriteBatch(batch)
-    }
-  }.flatten
+    session.executeWrite(
+      s"""
+          DELETE FROM $keyspace.$organizationsAndMembersTable WHERE org_id = ? AND member_id IN ?;
+        """,
+      orgId,
+      members.asJava
+    )
+  }
 
   override def deleteOrganizationByMemberByOrgId(orgId: String): Future[Done] = {
     log.info(s"OrganizationRepositoryImpl deleteOrganizationByMemberbyOrgId orgId - $orgId")
@@ -265,40 +153,19 @@ class OrganizationRepositoryImpl(session: CassandraSession, keyspace: String)(im
 
   private def executeDeleteOrganizationByOwnerByOrgId(orgId: String, owners: Seq[String]) = {
     log.info(s"OrganizationRepositoryImpl executeDeleteOrganizationByOwnerByOrgId orgId - $orgId owners $owners")
-    val bb = new BatchStatementBuilder(BatchType.UNLOGGED)
-    val deleteOrgAndMember = session.prepare(s"""
-       DELETE FROM $keyspace.$organizationsAndOwnersTable WHERE org_id = ? AND owner_id IN ?;
-    """)
-    val deleteOrgToMember = session.prepare(s"""
-      DELETE FROM $keyspace.$organizationToOwnersTable WHERE org_id = ?;
-    """)
-    val deleteMemberToOrg = session.prepare(s"""
-      DELETE FROM $keyspace.$ownerToOrganizationsTable owner_id IN ?;
-    """)
-    for {
-      oam <- deleteOrgAndMember
-      otm <- deleteOrgToMember
-      mto <- deleteMemberToOrg
-    } yield {
-      val bound1 = oam.bind(
-        orgId,
-        owners.asJava
-      )
-      val bound2 = otm.bind(
-        orgId
-      )
-      val bound3 = mto.bind(
-        owners.asJava
-      )
-      val batch = bb.addStatements(bound1, bound2, bound3).build()
-      session.executeWriteBatch(batch)
-    }
-  }.flatten
+    session.executeWrite(
+      s"""
+          DELETE FROM $keyspace.$organizationsAndOwnersTable WHERE org_id = ? AND owner_id IN ?;
+        """,
+      orgId,
+      owners.asJava
+    )
+  }
 
   override def deleteOrganizationByOwnerByOrgId(orgId: String): Future[Done] = {
     log.info(s"OrganizationRepositoryImpl deleteOrganizationByOwnerByOrgId orgId - $orgId")
     for {
-      owners <- getOrganizationsByOwnerByOrgId(orgId).map(seq => seq.flatMap(_.members.map(_.id)))
+      owners <- getOrganizationsByOwnerByOrgId(orgId).map(seq => seq.flatMap(_.owners.map(_.id)))
       done <- executeDeleteOrganizationByOwnerByOrgId(orgId, owners)
     } yield {
       done

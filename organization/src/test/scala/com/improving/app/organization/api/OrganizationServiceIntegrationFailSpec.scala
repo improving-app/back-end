@@ -10,6 +10,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Milliseconds, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpec
 import com.improving.app.organization.TestData._
+import com.improving.app.organization.repository.{OrganizationRepository, TestOrganizationRepository}
 import org.scalatest.exceptions.TestFailedException
 
 @DoNotDiscover
@@ -31,12 +32,14 @@ class OrganizationServiceIntegrationFailSpec
     "OrganizationServiceIntegrationFailSpec"
   )
 
+  val repository: OrganizationRepository = new TestOrganizationRepository
+
   override val cassandraInitScriptPath: String =
     "organization/src/test/resources/cassandra-init.cql"
 
   "OrganizationService" should {
 
-    val organizationService = new OrganizationServiceImpl()(system.toTyped)
+    val organizationService = new OrganizationServiceImpl()(system.toTyped, repository)
 
     "fail when operate on terminated Organization" in {
 

@@ -43,4 +43,8 @@ service OrganizationService {
     rpc SuspendOrganization(SuspendOrganizationRequest) returns (OrganizationSuspended) {}
 
     rpc TerminateOrganization(TerminateOrganizationRequest) returns (OrganizationTerminated) {}
+
+    rpc FindOrganizationByOwner(GetOrganizationsByOwnerRequest) returns (Organizations) {}
+
+    rpc FindOrganizationByMember(GetOrganizationsByMemberRequest) returns (Organizations) {}
 }

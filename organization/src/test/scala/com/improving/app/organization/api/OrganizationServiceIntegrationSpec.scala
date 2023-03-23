@@ -2,32 +2,15 @@ package com.improving.app.organization.api
 
 import akka.actor.ActorSystem
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
-import com.improving.app.organization.{
-  ActivateOrganizationRequest,
-  AddMembersToOrganizationRequest,
-  AddOwnersToOrganizationRequest,
-  EditOrganizationInfoRequest,
-  GetOrganizationByIdRequest,
-  GetOrganizationInfoRequest,
-  OrganizationServiceImpl,
-  OrganizationStatus,
-  ReleaseOrganizationRequest,
-  RemoveMembersFromOrganizationRequest,
-  RemoveOwnersFromOrganizationRequest,
-  SuspendOrganizationRequest,
-  TerminateOrganizationRequest,
-  UpdateOrganizationAccountsRequest,
-  UpdateOrganizationContactsRequest,
-  UpdateOrganizationStatusRequest,
-  UpdateParentRequest
-}
+import com.improving.app.organization._
 import com.improving.app.organization.utils.{CassandraTestContainer, LoanedActorSystem}
-import org.scalatest.{BeforeAndAfterAll, DoNotDiscover}
+import org.scalatest._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Milliseconds, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpec
 import com.improving.app.organization.TestData._
+import com.improving.app.organization.repository.{OrganizationRepository, TestOrganizationRepository}
 
 @DoNotDiscover
 class OrganizationServiceIntegrationSpec
@@ -48,12 +31,14 @@ class OrganizationServiceIntegrationSpec
     "OrganizationServiceIntegrationSpec"
   )
 
+  val repository: OrganizationRepository = new TestOrganizationRepository
+
   override val cassandraInitScriptPath: String =
     "organization/src/test/resources/cassandra-init.cql"
 
   "OrganizationService" should {
 
-    val organizationService = new OrganizationServiceImpl()(system.toTyped)
+    val organizationService = new OrganizationServiceImpl()(system.toTyped, repository)
 
     "handle grpc calls for establish Organization" in {
 
@@ -635,6 +620,94 @@ class OrganizationServiceIntegrationSpec
       organization.meta.isDefined shouldBe true
       organization.info shouldBe Some(testNewTestInfo)
       organization.getMeta.lastUpdatedBy shouldBe Some(testActingMember2)
+    }
+
+    "should return correct Organization in findOrganizationByMember" in {
+      val response =
+        organizationService
+          .establishOrganization(establishOrganizationRequest)
+          .futureValue
+
+      val orgId = response.orgId
+
+      orgId.isDefined shouldBe true
+
+      val memberId = testMembers.head
+      repository.updateOrganizationByMember(
+        orgId.map(_.id).getOrElse("orgId is NOT FOUND."),
+        memberId.id,
+        Organization(
+          orgId = orgId,
+          info = establishOrganizationRequest.info,
+          parent = establishOrganizationRequest.parent,
+          members = establishOrganizationRequest.members,
+          owners = establishOrganizationRequest.owners,
+          contacts = establishOrganizationRequest.contacts,
+          meta = Some(MetaInfo()),
+          status = OrganizationStatus.ORGANIZATION_STATUS_DRAFT
+        )
+      )
+
+      val getOrganizationsByMemberRequest = GetOrganizationsByMemberRequest(Some(memberId))
+
+      val result =
+        organizationService
+          .findOrganizationByMember(getOrganizationsByMemberRequest)
+          .futureValue
+
+      result.organizations.isEmpty shouldBe false
+
+      val organization = result.organizations.head
+
+      organization.orgId shouldBe orgId
+      organization.info shouldBe establishOrganizationRequest.info
+      organization.members shouldBe establishOrganizationRequest.members
+      organization.owners shouldBe establishOrganizationRequest.owners
+      organization.contacts shouldBe establishOrganizationRequest.contacts
+    }
+
+    "should return correct Organization in findOrganizationByOwner" in {
+      val response =
+        organizationService
+          .establishOrganization(establishOrganizationRequest)
+          .futureValue
+
+      val orgId = response.orgId
+
+      orgId.isDefined shouldBe true
+
+      val ownerId = testOwners.head
+      repository.updateOrganizationByOwner(
+        orgId.map(_.id).getOrElse("orgId is NOT FOUND."),
+        ownerId.id,
+        Organization(
+          orgId = orgId,
+          info = establishOrganizationRequest.info,
+          parent = establishOrganizationRequest.parent,
+          members = establishOrganizationRequest.members,
+          owners = establishOrganizationRequest.owners,
+          contacts = establishOrganizationRequest.contacts,
+          meta = Some(MetaInfo()),
+          status = OrganizationStatus.ORGANIZATION_STATUS_DRAFT
+        )
+      )
+
+      val getOrganizationsByOwnerRequest = GetOrganizationsByOwnerRequest(Some(ownerId))
+
+      val result =
+        organizationService
+          .findOrganizationByOwner(getOrganizationsByOwnerRequest)
+          .futureValue
+
+      result.organizations.isEmpty shouldBe false
+
+      val organization = result.organizations.head
+
+      organization.orgId shouldBe orgId
+      organization.info shouldBe establishOrganizationRequest.info
+      organization.members shouldBe establishOrganizationRequest.members
+      organization.owners shouldBe establishOrganizationRequest.owners
+      organization.contacts shouldBe establishOrganizationRequest.contacts
     }
   }
 }

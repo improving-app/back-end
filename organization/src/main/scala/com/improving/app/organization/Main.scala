@@ -3,7 +3,7 @@ package com.improving.app.organization
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSessionRegistry
-import com.improving.app.organization.repository.{OrganizationByMemberProjection, OrganizationRepositoryImpl}
+import com.improving.app.organization.repository._
 import com.typesafe.config.ConfigFactory
 import org.slf4j.LoggerFactory
 
@@ -41,7 +41,7 @@ object Main {
     val OrganizationServiceKeyspace =
       system.settings.config
         .getString("akka.projection.cassandra.offset-store.keyspace")
-    val organizationRepository =
+    implicit val organizationRepository =
       new OrganizationRepositoryImpl(session, OrganizationServiceKeyspace)(
         system.executionContext
       )
@@ -49,6 +49,7 @@ object Main {
     domain.Organization.init(system)
 
     OrganizationByMemberProjection.init(system, organizationRepository)
+    OrganizationByOwnerProjection.init(system, organizationRepository)
 
     val grpcInterface =
       system.settings.config.getString(

@@ -39,6 +39,8 @@ class TestOrganizationRepository extends OrganizationRepository {
   }
 
   override def getOrganizationsByMember(memberId: String): Future[Seq[Organization]] = {
+    log.info(membersByOrgMap.toList.mkString(",") + " membersByOrgMap")
+    log.info(memberId + " memberId")
     Future.successful(
       membersByOrgMap
         .filter { case (_, (mid, _)) =>

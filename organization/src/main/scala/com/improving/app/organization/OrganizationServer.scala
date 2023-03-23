@@ -6,6 +6,7 @@ import akka.actor.typed.ActorSystem
 import akka.grpc.scaladsl.{ServerReflection, ServiceHandler}
 import akka.http.scaladsl._
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import com.improving.app.organization.repository.OrganizationRepository
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -53,13 +54,14 @@ object OrganizationServer {
   }
 }
 
-class OrganizationServer(interface: String, port: Int, system: ActorSystem[_]) {
+class OrganizationServer(interface: String, port: Int, system: ActorSystem[_], repo: OrganizationRepository) {
 
   private val log = LoggerFactory.getLogger(this.getClass)
 
   def run(): Future[Http.ServerBinding] = {
     implicit val sys = system
     implicit val ec: ExecutionContext = system.executionContext
+    implicit val db: OrganizationRepository = repo
 
     val service: HttpRequest => Future[HttpResponse] =
       OrganizationServiceHandler(new OrganizationServiceImpl())

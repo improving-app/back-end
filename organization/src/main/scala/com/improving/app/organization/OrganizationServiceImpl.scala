@@ -8,12 +8,14 @@ import akka.pattern.StatusReply
 import com.improving.app.organization.domain.Organization.{HasOrganizationId, OrganizationCommand}
 import akka.util.Timeout
 import com.improving.app.organization.domain.Organization.OrganizationEntityKey
+import com.improving.app.organization.repository.OrganizationRepository
 import org.slf4j.LoggerFactory
 
 import java.util.UUID
 import scala.concurrent.{ExecutionContext, Future}
 
-class OrganizationServiceImpl(implicit val system: ActorSystem[_]) extends OrganizationService {
+class OrganizationServiceImpl(implicit val system: ActorSystem[_], repo: OrganizationRepository)
+    extends OrganizationService {
 
   implicit private val ec: ExecutionContext = system.executionContext
   implicit private val timeout: Timeout =
@@ -61,6 +63,73 @@ class OrganizationServiceImpl(implicit val system: ActorSystem[_]) extends Organ
         handleResponse(eventHandler)
       }
   }
+  override def activateOrganization(
+      in: ActivateOrganizationRequest
+  ): Future[OrganizationActivated] = {
+    handleRequest(
+      in,
+      {
+        case StatusReply.Success(
+              OrganizationEventResponse(
+                response: OrganizationActivated,
+                _
+              )
+            ) =>
+          response
+      }
+    )
+  }
+
+  override def addMembersToOrganization(
+      in: AddMembersToOrganizationRequest
+  ): Future[MembersAddedToOrganization] = {
+    handleRequest(
+      in,
+      {
+        case StatusReply.Success(
+              OrganizationEventResponse(
+                response: MembersAddedToOrganization,
+                _
+              )
+            ) =>
+          response
+      }
+    )
+  }
+
+  override def addOwnersToOrganization(
+      in: AddOwnersToOrganizationRequest
+  ): Future[OwnersAddedToOrganization] = {
+    handleRequest(
+      in,
+      {
+        case StatusReply.Success(
+              OrganizationEventResponse(
+                response: OwnersAddedToOrganization,
+                _
+              )
+            ) =>
+          response
+      }
+    )
+  }
+
+  override def editOrganizationInfo(
+      in: EditOrganizationInfoRequest
+  ): Future[OrganizationInfoUpdated] = {
+    handleRequest(
+      in,
+      {
+        case StatusReply.Success(
+              OrganizationEventResponse(
+                response: OrganizationInfoUpdated,
+                _
+              )
+            ) =>
+          response
+      }
+    )
+  }
 
   override def establishOrganization(
       request: EstablishOrganizationRequest
@@ -81,6 +150,14 @@ class OrganizationServiceImpl(implicit val system: ActorSystem[_]) extends Organ
         UUID.randomUUID().toString
       }
     )
+  }
+
+  override def findOrganizationByOwner(in: GetOrganizationsByOwnerRequest): Future[Organizations] = {
+    repo.getOrganizationsByOwner(in.getOwnerId.id).map(Organizations(_))
+  }
+
+  override def findOrganizationByMember(in: GetOrganizationsByMemberRequest): Future[Organizations] = {
+    repo.getOrganizationsByMember(in.getMemberId.id).map(Organizations(_))
   }
 
   override def getOrganization(
@@ -110,16 +187,15 @@ class OrganizationServiceImpl(implicit val system: ActorSystem[_]) extends Organ
       }
     )
   }
-
-  override def addMembersToOrganization(
-      in: AddMembersToOrganizationRequest
-  ): Future[MembersAddedToOrganization] = {
+  override def releaseOrganization(
+      in: ReleaseOrganizationRequest
+  ): Future[OrganizationReleased] = {
     handleRequest(
       in,
       {
         case StatusReply.Success(
               OrganizationEventResponse(
-                response: MembersAddedToOrganization,
+                response: OrganizationReleased,
                 _
               )
             ) =>
@@ -145,23 +221,6 @@ class OrganizationServiceImpl(implicit val system: ActorSystem[_]) extends Organ
     )
   }
 
-  override def addOwnersToOrganization(
-      in: AddOwnersToOrganizationRequest
-  ): Future[OwnersAddedToOrganization] = {
-    handleRequest(
-      in,
-      {
-        case StatusReply.Success(
-              OrganizationEventResponse(
-                response: OwnersAddedToOrganization,
-                _
-              )
-            ) =>
-          response
-      }
-    )
-  }
-
   override def removeOwnersFromOrganization(
       in: RemoveOwnersFromOrganizationRequest
   ): Future[OwnersRemovedFromOrganization] = {
@@ -179,15 +238,15 @@ class OrganizationServiceImpl(implicit val system: ActorSystem[_]) extends Organ
     )
   }
 
-  override def editOrganizationInfo(
-      in: EditOrganizationInfoRequest
-  ): Future[OrganizationInfoUpdated] = {
+  override def suspendOrganization(
+      in: SuspendOrganizationRequest
+  ): Future[OrganizationSuspended] = {
     handleRequest(
       in,
       {
         case StatusReply.Success(
               OrganizationEventResponse(
-                response: OrganizationInfoUpdated,
+                response: OrganizationSuspended,
                 _
               )
             ) =>
@@ -196,15 +255,15 @@ class OrganizationServiceImpl(implicit val system: ActorSystem[_]) extends Organ
     )
   }
 
-  override def releaseOrganization(
-      in: ReleaseOrganizationRequest
-  ): Future[OrganizationReleased] = {
+  override def terminateOrganization(
+      in: TerminateOrganizationRequest
+  ): Future[OrganizationTerminated] = {
     handleRequest(
       in,
       {
         case StatusReply.Success(
               OrganizationEventResponse(
-                response: OrganizationReleased,
+                response: OrganizationTerminated,
                 _
               )
             ) =>
@@ -212,7 +271,6 @@ class OrganizationServiceImpl(implicit val system: ActorSystem[_]) extends Organ
       }
     )
   }
-
   override def updateParent(in: UpdateParentRequest): Future[ParentUpdated] = {
     handleRequest(
       in,
@@ -271,57 +329,6 @@ class OrganizationServiceImpl(implicit val system: ActorSystem[_]) extends Organ
         case StatusReply.Success(
               OrganizationEventResponse(
                 response: OrganizationAccountsUpdated,
-                _
-              )
-            ) =>
-          response
-      }
-    )
-  }
-
-  override def activateOrganization(
-      in: ActivateOrganizationRequest
-  ): Future[OrganizationActivated] = {
-    handleRequest(
-      in,
-      {
-        case StatusReply.Success(
-              OrganizationEventResponse(
-                response: OrganizationActivated,
-                _
-              )
-            ) =>
-          response
-      }
-    )
-  }
-
-  override def suspendOrganization(
-      in: SuspendOrganizationRequest
-  ): Future[OrganizationSuspended] = {
-    handleRequest(
-      in,
-      {
-        case StatusReply.Success(
-              OrganizationEventResponse(
-                response: OrganizationSuspended,
-                _
-              )
-            ) =>
-          response
-      }
-    )
-  }
-
-  override def terminateOrganization(
-      in: TerminateOrganizationRequest
-  ): Future[OrganizationTerminated] = {
-    handleRequest(
-      in,
-      {
-        case StatusReply.Success(
-              OrganizationEventResponse(
-                response: OrganizationTerminated,
                 _
               )
             ) =>

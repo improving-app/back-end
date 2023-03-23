@@ -208,6 +208,14 @@ message UpdateOrganizationContactsRequest {
     common.domain.MemberId acting_member = 3;
 }
 
+message GetOrganizationsByOwnerRequest {
+    common.domain.MemberId owner_id = 1;
+}
+
+message GetOrganizationsByMemberRequest {
+    common.domain.MemberId member_id = 1;
+}
+
 message OrganizationRequest{
     option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
 
@@ -228,6 +236,8 @@ message OrganizationRequest{
         GetOrganizationInfoRequest get_organization_info_request = 14;
         EstablishOrganizationRequest establish_organization_request = 15;
         GetOrganizationByIdRequest get_organization_by_id_request = 16;
+        GetOrganizationsByOwnerRequest get_organization_by_owner_request = 17;
+        GetOrganizationsByMemberRequest get_organization_by_member_request = 18;
     }
 }
 
@@ -353,6 +363,7 @@ message OrganizationResponse {
         Organization organization = 1;
         OrganizationInfo organization_info = 2;
         OrganizationEventResponse organization_event_response = 3;
+        Organizations organizations = 4;
     }
 }
 
@@ -369,4 +380,8 @@ message OrganizationState {
     repeated Contacts contacts = 6;
     MetaInfo meta = 7;
     OrganizationStatus status = 8;
+}
+
+message Organizations {
+    repeated Organization organizations = 1;
 }
