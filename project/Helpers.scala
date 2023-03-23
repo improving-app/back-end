@@ -46,7 +46,7 @@ object C {
     "-parameters" // for Jackson
   )
 
-  def akkaPersistentEntity(artifactName: String)(project: Project): Project = {
+  def akkaPersistentEntity(artifactName: String, port: Integer)(project: Project): Project = {
     project
       .configs(IntegrationTest)
       .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
@@ -98,7 +98,7 @@ object C {
         dockerUsername := sys.props.get("docker.username"),
         dockerRepository := sys.props.get("docker.registry"),
         dockerUpdateLatest := true,
-        dockerExposedPorts ++= Seq(8080),
+        dockerExposedPorts ++= Seq(port),
         dockerBuildCommand := {
           if (sys.props("os.arch") != "amd64") {
             // use buildx with platform to build supported amd64 images on other CPU architectures

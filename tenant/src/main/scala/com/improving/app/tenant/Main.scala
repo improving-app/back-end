@@ -1,8 +1,10 @@
 package com.improving.app.tenant
 
 import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import com.improving.app.tenant.api.TenantServiceHandler
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 
@@ -18,11 +20,11 @@ import scala.util.{Failure, Success}
 object Main extends App with StrictLogging {
   val projectName = "improving-app-tenant"
   val port = 8080
-  // Important: enable HTTP/2 in ActorSystem's config
-  // We do it here programmatically, but you can also set it in the application.conf
-  val conf = ConfigFactory.parseString("akka.http.server.preview.enable-http2 = on")
+
+  val conf = ConfigFactory
+    .load("application.conf")
     .withFallback(ConfigFactory.defaultApplication())
-  implicit val system = ActorSystem[TestActor.TestCommand](TestActor(), projectName, conf)
+  implicit val system = ActorSystem[Nothing](Behaviors.empty, projectName, conf)
 
   // ActorSystem threads will keep the app alive until `system.terminate()` is called
 

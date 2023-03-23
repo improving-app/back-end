@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package com.improving.app.tenant.api;
+
+option java_multiple_files = true;
+option java_package = "com.improving.app.tenant.api";
+option java_outer_classname = "TenantServiceProto1";
+
+import "com/improving/app/tenant/domain/improving-app-tenant-domain.proto";
+
+service TenantService {
+  rpc EstablishTenant (domain.EstablishTenant) returns (domain.TenantEstablished) {}
+
+  rpc UpdateTenantName (domain.UpdateTenantName) returns (domain.TenantNameUpdated) {}
+
+  rpc UpdatePrimaryContact (domain.UpdatePrimaryContact) returns (domain.PrimaryContactUpdated) {}
+
+  rpc UpdateAddress (domain.UpdateAddress) returns (domain.AddressUpdated) {}
+
+  rpc AddOrganizations (domain.AddOrganizations) returns (domain.OrganizationsAdded) {}
+
+  rpc RemoveOrganizations (domain.RemoveOrganizations) returns (domain.OrganizationsRemoved) {}
+
+  rpc ActivateTenant (domain.ActivateTenant) returns (domain.TenantActivated) {}
+
+  rpc SuspendTenant (domain.SuspendTenant) returns (domain.TenantSuspended) {}
+}

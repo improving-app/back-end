@@ -1,0 +1,19 @@
+version: "3"
+
+services:
+  scylla-db:
+    image: scylladb/scylla:latest
+    ports:
+      - "9042:9042"
+
+  tenant-service:
+    image: improving-app-tenant:latest
+    ports:
+      - "8080:8080"
+    depends_on: ["scylla-db"]
+
+  member-service:
+    image: improving-app-member:latest
+    ports:
+      - "8081:8081"
+    depends_on: ["scylla-db"]
