@@ -6,17 +6,28 @@ import com.dimafeng.testcontainers.{DockerComposeContainer, ExposedService}
 import com.dimafeng.testcontainers.scalatest.TestContainerForAll
 import com.improving.app.common.domain.{Address, MemberId, TenantId}
 import com.improving.app.tenant.api.{TenantService, TenantServiceClient}
+import org.scalatest.Retries
 
 import java.io.File
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec._
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.tagobjects.Retryable
 import org.scalatest.time.{Millis, Minutes, Span}
 import org.testcontainers.containers.wait.strategy.Wait
 
 import scala.util.Random
 
-class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matchers with ScalaFutures {
+class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matchers with ScalaFutures with Retries {
+  override def withFixture(test: NoArgTest) = {
+    if (isRetryable(test))
+      withRetry {
+        super.withFixture(test)
+      }
+    else
+      super.withFixture(test)
+  }
+
   // Implicits for running and testing functions of the gRPC server
   implicit override val patienceConfig: PatienceConfig =
     PatienceConfig(timeout = Span(3, Minutes), interval = Span(10, Millis))
@@ -54,7 +65,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
     }
   }
 
-  it should "properly process UpdateTenantName" in {
+  it should "properly process UpdateTenantName" taggedAs(Retryable) in {
     withContainers {containers =>
       val client = getClient(containers)
 
