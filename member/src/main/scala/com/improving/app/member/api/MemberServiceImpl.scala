@@ -15,7 +15,7 @@ import scala.language.postfixOps
 class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberService {
 
   implicit val ec: ExecutionContext = system.executionContext
-  implicit val timeout: Timeout = Timeout(1 minute)
+  implicit val timeout: Timeout = Timeout(5 minute)
 
   //Create a new member
   val sharding: ClusterSharding = ClusterSharding(system)
