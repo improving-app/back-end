@@ -32,7 +32,25 @@ class MemberServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
   val exposedPort = 8081 // This exposed port should match the port on Helpers.scala
   val serviceName = "member-service" // This should be the same name as the container in docker-compose.yml
 
-  val memberInfo = MemberSpec.createMemberInfo()
+  val memberInfo = MemberInfo(
+    handle = "SomeHandle",
+    avatarUrl = "",
+    firstName = "FirstName",
+    lastName = "LastName",
+    notificationPreference = NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL,
+    notificationOptIn = true,
+    contact = Some(
+      Contact(
+        firstName = "FirstName",
+        lastName = "LastName",
+        emailAddress = Some("someone@somewhere.com"),
+        phone = None,
+        userName = "SomeUserName",
+      )
+    ),
+    organizations = Seq(OrganizationId("SomeOrganization")),
+    tenant = Some(TenantId("SomeTenant"))
+  )
   var memberId: MemberId = null
   val memberInfoWithMobNumber = memberInfo.withContact(memberInfo.contact.get.withPhone("123-456-7890"))
 
@@ -55,7 +73,7 @@ class MemberServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
 
   override val containerDef =
     DockerComposeContainer.Def(
-      new File("./docker-compose.yml"),
+      new File("../docker-compose.yml"),
       tailChildContainers = true,
       exposedServices = Seq(
         ExposedService(serviceName, exposedPort, Wait.forLogMessage(".*gRPC server bound to 0.0.0.0:8081*.", 1))

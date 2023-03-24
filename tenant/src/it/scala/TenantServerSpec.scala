@@ -31,7 +31,7 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
   val serviceName = "tenant-service"
   override val containerDef =
     DockerComposeContainer.Def(
-      new File("./docker-compose.yml"),
+      new File("../docker-compose.yml"),
       tailChildContainers = true,
       exposedServices = Seq(
         ExposedService(serviceName, exposedPort, Wait.forLogMessage(s".*gRPC server bound to 0.0.0.0:$exposedPort*.", 1))
