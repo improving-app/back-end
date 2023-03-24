@@ -16,7 +16,25 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
     MemberServiceClient(clientSettings)
   }
 
-  val memberInfo = MemberSpec.createMemberInfo()
+  val memberInfo = MemberInfo(
+    handle = "SomeHandle",
+    avatarUrl = "",
+    firstName = "FirstName",
+    lastName = "LastName",
+    notificationPreference = NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL,
+    notificationOptIn = true,
+    contact = Some(
+      Contact(
+        firstName = "FirstName",
+        lastName = "LastName",
+        emailAddress = Some("someone@somewhere.com"),
+        phone = None,
+        userName = "SomeUserName",
+      )
+    ),
+    organizations = Seq(OrganizationId("SomeOrganization")),
+    tenant = Some(TenantId("SomeTenant"))
+  )
   var memberId: MemberId = null
   val memberInfoWithMobNumber = memberInfo.withContact(memberInfo.contact.get.withPhone("123-456-7890"))
 

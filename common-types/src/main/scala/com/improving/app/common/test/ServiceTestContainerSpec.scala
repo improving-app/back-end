@@ -33,7 +33,7 @@ class ServiceTestContainerSpec(exposedPort: Integer, serviceName: String)
 
   // The definition of the container to use. The docker-compose file is used to start the service and waits for the appropriate message
   override val containerDef = DockerComposeContainer.Def(
-    new File("./docker-compose.yml"),
+    new File("../docker-compose.yml"),
     tailChildContainers = true,
     exposedServices = Seq(
       ExposedService(serviceName, exposedPort, Wait.forLogMessage(s".*gRPC server bound to 0.0.0.0:$exposedPort*.", 1))
