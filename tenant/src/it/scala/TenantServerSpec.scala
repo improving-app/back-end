@@ -1,47 +1,15 @@
-import akka.actor.ActorSystem
+import akka.grpc.GrpcClientSettings
 import com.improving.app.common.domain.{CaPostalCodeImpl, Contact, OrganizationId, PostalCodeMessageImpl}
 import com.improving.app.tenant.domain.{ActivateTenant, AddOrganizations, EstablishTenant, RemoveOrganizations, SuspendTenant, UpdateAddress, UpdatePrimaryContact, UpdateTenantName}
-import akka.grpc.GrpcClientSettings
-import com.dimafeng.testcontainers.{DockerComposeContainer, ExposedService}
-import com.dimafeng.testcontainers.scalatest.TestContainerForAll
 import com.improving.app.common.domain.{Address, MemberId, TenantId}
+import com.improving.app.common.test.ServiceTestContainerSpec
 import com.improving.app.tenant.api.{TenantService, TenantServiceClient}
-
-import java.io.File
-import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.flatspec._
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.{Millis, Minutes, Span}
-import org.testcontainers.containers.wait.strategy.Wait
 
 import scala.util.Random
 
-class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matchers with ScalaFutures {
-  // Implicits for running and testing functions of the gRPC server
-  implicit override val patienceConfig: PatienceConfig =
-    PatienceConfig(timeout = Span(3, Minutes), interval = Span(10, Millis))
-  implicit protected val system: ActorSystem = ActorSystem("testActor")
-
-  // Definition of the container to use. This assumes the sbt command
-  // 'sbt docker:publishLocal' has been run such that
-  // 'docker image ls' shows "improving-app-tenant:latest" as a record
-  // Since the tenant-service uses cassandra for persistence, a docker compose file is used to also run the scylla db
-  // container
-  val exposedPort = 8080 // This exposed port should match the port on Helpers.scala
-  val serviceName = "tenant-service"
-  override val containerDef =
-    DockerComposeContainer.Def(
-      new File("./docker-compose.yml"),
-      tailChildContainers = true,
-      exposedServices = Seq(
-        ExposedService(serviceName, exposedPort, Wait.forLogMessage(s".*gRPC server bound to 0.0.0.0:$exposedPort*.", 1))
-      )
-    )
-
+class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") {
   private def getClient(containers: Containers): TenantService = {
-    val host = containers.container.getServiceHost(serviceName, exposedPort)
-    val port = containers.container.getServicePort(serviceName, exposedPort)
-
+    val (host, port) = getContainerHostPort(containers)
     val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
     TenantServiceClient(clientSettings)
   }
@@ -49,13 +17,13 @@ class TenantServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
   behavior of "TestServer in a test container"
 
   it should "expose a port for tenant-service" in {
-    withContainers { a =>
-      assert(a.container.getServicePort(serviceName, exposedPort) > 0)
+    withContainers { containers =>
+      validateExposedPort(containers)
     }
   }
 
   it should "properly process UpdateTenantName" in {
-    withContainers {containers =>
+    withContainers { containers =>
       val client = getClient(containers)
 
       val tenantId = Random.nextString(31)

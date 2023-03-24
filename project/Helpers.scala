@@ -128,7 +128,14 @@ object C {
         Test / logBuffered := false,
         run / fork := false,
         Global / cancelable := false, // ctrl-c
-        libraryDependencies ++= Seq("org.scalatest" %% "scalatest" % V.scalatest % Test),
+        libraryDependencies ++= Seq(
+          "org.scalatest" %% "scalatest" % V.scalatest,
+          "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion,
+          "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion,
+          "com.typesafe.akka" %% "akka-actor-typed" % V.akka,
+          "com.typesafe.scala-logging" %% "scala-logging" % V.scalalogging,
+          "com.typesafe.akka" %% "akka-http-core" % V.akkaHttp
+        ),
       )
       .configure(scalapbCodeGen)
   }
