@@ -22,16 +22,19 @@ jobs:
       - name: Coursier Caching
         uses: coursier/cache-action@v6
 
+      - name: Build Project
+        run: |
+          sbt -v clean packageBin
+
       - name: Build & Run Tests
         run: |
-          sbt -v clean packageBin +test
-          # sbt "project member" -v clean packageBin +test
+          sbt +test
 
       - name: Build & Run Integration Tests
         run: |
           docker pull scylladb/scylla
-          sbt clean compile && sbt docker:stage && sbt docker:publishLocal
-          sbt -v clean packageBin IntegrationTest/test
+          sbt docker:stage && sbt docker:publishLocal
+          sbt IntegrationTest/test
 
       - name: Cleanup Before Caching
         shell: bash
