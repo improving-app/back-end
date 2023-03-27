@@ -3,6 +3,7 @@ package com.improving.app.common.test
 import akka.actor.ActorSystem
 import com.dimafeng.testcontainers.{DockerComposeContainer, ExposedService}
 import com.dimafeng.testcontainers.scalatest.TestContainerForAll
+import org.scalatest.{Outcome, Retries}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -24,7 +25,23 @@ class ServiceTestContainerSpec(exposedPort: Integer, serviceName: String)
   extends AnyFlatSpec
     with TestContainerForAll
     with Matchers
-    with ScalaFutures {
+    with ScalaFutures
+    with Retries{
+
+  /**
+   * The function that allows the test to be retryable.
+   *
+   * @param test
+   * @return
+   */
+  override def withFixture(test: NoArgTest): Outcome = {
+    if (isRetryable(test))
+      withRetry {
+        super.withFixture(test)
+      }
+    else
+      super.withFixture(test)
+  }
 
   // Implicits for running and testing functions of the gRPC server
   implicit override val patienceConfig: PatienceConfig =

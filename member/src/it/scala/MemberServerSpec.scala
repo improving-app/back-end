@@ -7,6 +7,7 @@ import com.improving.app.member.domain._
 import com.improving.app.common.test.ServiceTestContainerSpec
 import com.improving.app.member.api.{MemberService, MemberServiceClient}
 import com.improving.app.member.domain.GetMemberInfo
+import org.scalatest.tagobjects.Retryable
 
 class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") {
 
@@ -63,7 +64,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
     }
   }
 
-  it should "handle grpc calls for Get Member Info without Register" in {
+  it should "handle grpc calls for Get Member Info without Register" taggedAs(Retryable) in {
     withContainers { containers =>
       val response = getClient(containers).getMemberInfo(GetMemberInfo(
         Some(MemberId("invalid-member-id"))

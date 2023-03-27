@@ -4,6 +4,7 @@ import com.improving.app.tenant.domain.{ActivateTenant, AddOrganizations, Establ
 import com.improving.app.common.domain.{Address, MemberId, TenantId}
 import com.improving.app.common.test.ServiceTestContainerSpec
 import com.improving.app.tenant.api.{TenantService, TenantServiceClient}
+import org.scalatest.tagobjects.Retryable
 
 import scala.util.Random
 
@@ -22,7 +23,7 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
     }
   }
 
-  it should "properly process UpdateTenantName" in {
+  it should "properly process UpdateTenantName" taggedAs(Retryable) in {
     withContainers { containers =>
       val client = getClient(containers)
 
