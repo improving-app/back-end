@@ -1,38 +1,41 @@
-import akka.actor.ActorSystem
-import com.improving.app.common.domain.{Contact, OrganizationId, TenantId, MemberId}
+import akka.grpc.GrpcClientSettings
+import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
 import com.improving.app.member.domain.MemberStatus._
 import com.improving.app.member.domain.NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL
 import org.scalatest.Inside.inside
 import com.improving.app.member.domain._
-
-import akka.grpc.GrpcClientSettings
-import com.dimafeng.testcontainers.{DockerComposeContainer, ExposedService}
-import com.dimafeng.testcontainers.scalatest.TestContainerForAll
+import com.improving.app.common.test.ServiceTestContainerSpec
 import com.improving.app.member.api.{MemberService, MemberServiceClient}
 import com.improving.app.member.domain.GetMemberInfo
+import org.scalatest.tagobjects.Retryable
 
-import java.io.File
-import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.flatspec._
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.{Millis, Minutes, Span}
-import org.testcontainers.containers.wait.strategy.Wait
+class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") {
 
-class MemberServerSpec extends AnyFlatSpec with TestContainerForAll with Matchers with ScalaFutures {
-  // Implicits for running and testing functions of the gRPC server
-  implicit override val patienceConfig: PatienceConfig =
-    PatienceConfig(timeout = Span(3, Minutes), interval = Span(10, Millis))
-  implicit protected val system: ActorSystem = ActorSystem("testActor")
+  private def getClient(containers: Containers): MemberService = {
+    val (host, port) = getContainerHostPort(containers)
+    val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
+    MemberServiceClient(clientSettings)
+  }
 
-  // Definition of the container to use. This assumes the sbt command
-  // 'sbt docker:publishLocal' has been run such that
-  // 'docker image ls' shows "improving-app-tenant:latest" as a record
-  // Since the tenant-service uses cassandra for persistence, a docker compose file is used to also run the scylla db
-  // container
-  val exposedPort = 8081 // This exposed port should match the port on Helpers.scala
-  val serviceName = "member-service" // This should be the same name as the container in docker-compose.yml
-
-  val memberInfo = MemberSpec.createMemberInfo()
+  val memberInfo = MemberInfo(
+    handle = "SomeHandle",
+    avatarUrl = "",
+    firstName = "FirstName",
+    lastName = "LastName",
+    notificationPreference = NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL,
+    notificationOptIn = true,
+    contact = Some(
+      Contact(
+        firstName = "FirstName",
+        lastName = "LastName",
+        emailAddress = Some("someone@somewhere.com"),
+        phone = None,
+        userName = "SomeUserName",
+      )
+    ),
+    organizations = Seq(OrganizationId("SomeOrganization")),
+    tenant = Some(TenantId("SomeTenant"))
+  )
   var memberId: MemberId = null
   val memberInfoWithMobNumber = memberInfo.withContact(memberInfo.contact.get.withPhone("123-456-7890"))
 
@@ -53,32 +56,15 @@ class MemberServerSpec extends AnyFlatSpec with TestContainerForAll with Matcher
     }
   }
 
-  override val containerDef =
-    DockerComposeContainer.Def(
-      new File("./docker-compose.yml"),
-      tailChildContainers = true,
-      exposedServices = Seq(
-        ExposedService(serviceName, exposedPort, Wait.forLogMessage(".*gRPC server bound to 0.0.0.0:8081*.", 1))
-      )
-    )
-
-  private def getClient(containers: Containers): MemberService = {
-    val host = containers.container.getServiceHost(serviceName, exposedPort)
-    val port = containers.container.getServicePort(serviceName, exposedPort)
-
-    val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
-    MemberServiceClient(clientSettings)
-  }
-
   behavior of "MemberServer in a test container"
 
-  it should s"expose a port for $serviceName" in {
-    withContainers { a =>
-      assert(a.container.getServicePort(serviceName, exposedPort) > 0)
+  it should s"expose a port for member-service" in {
+    withContainers { containers =>
+      validateExposedPort(containers)
     }
   }
 
-  it should "handle grpc calls for Get Member Info without Register" in {
+  it should "handle grpc calls for Get Member Info without Register" taggedAs(Retryable) in {
     withContainers { containers =>
       val response = getClient(containers).getMemberInfo(GetMemberInfo(
         Some(MemberId("invalid-member-id"))
