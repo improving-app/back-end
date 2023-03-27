@@ -18,6 +18,10 @@ import java.io.File
  *
  * When running the test cases that extends this class, it is assumed that the user already has a docker container for
  * persistence (Scylla-DB) and has already run the command 'sbt clean compile && sbt docker:stage && sbt docker:publishLocal'
+ *
+ * To ensure completing CI tests, the first test that contains a service endpoint call must have 'taggedAs(Retryable)'.
+ * Without this, the first test may say the service is unavailable while all other tests pass. Local testing should be
+ * unaffected.
  * @param exposedPort The exposedPort is an Integer that should match the port exposed in docker-compose.yml
  * @param serviceName The serviceName is a String that should match the port exposed in docker-compose.yml
  */
@@ -29,7 +33,9 @@ class ServiceTestContainerSpec(exposedPort: Integer, serviceName: String)
     with Retries{
 
   /**
-   * The function that allows the test to be retryable.
+   * The function that allows the test to be retryable. The method's functionality becomes apparent in CI testing when the first test
+   * that uses a service endpoint fails do to an "unavailability". In this case, the solution is to add 'taggedAs(Retryable)'
+   * to the first failing test.
    *
    * @param test
    * @return
