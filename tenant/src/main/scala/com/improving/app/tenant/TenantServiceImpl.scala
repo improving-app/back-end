@@ -16,7 +16,7 @@ import scala.concurrent.duration.DurationInt
 
 class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
   private implicit val system: ActorSystem[_] = sys
-  implicit val timeout: Timeout = 20.seconds
+  implicit val timeout: Timeout = 5.minute
   implicit val executor = system.executionContext
 
   val sharding = ClusterSharding(system)
