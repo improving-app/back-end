@@ -15,7 +15,7 @@ import scala.util.{Failure, Success}
  * This trait is extended by the gRPC services. This file represents the typical pattern for a gRPC server
  * and the parts that only vary across projects is the projectName, port, and ServiceHandler/ServiceImpl to use.
  */
-trait ServiceMain extends App with StrictLogging{
+trait ServiceMain extends App with StrictLogging {
   // projectName is the name of the service, usually in the format of 'improving-app-SOME-SERVICE'
   protected val projectName: String
 
@@ -33,7 +33,7 @@ trait ServiceMain extends App with StrictLogging{
     val conf = ConfigFactory
       .load("application.conf")
       .withFallback(ConfigFactory.defaultApplication())
-    implicit val system = ActorSystem[Nothing](Behaviors.empty, projectName, conf)
+    implicit val system: ActorSystem[Nothing] = ActorSystem[Nothing](Behaviors.empty, projectName, conf)
 
     // ActorSystem threads will keep the app alive until `system.terminate()` is called
 

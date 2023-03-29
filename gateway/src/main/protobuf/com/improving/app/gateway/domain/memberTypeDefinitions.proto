@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package com.improving.app.gateway.domain;
+
+import "scalapb/scalapb.proto";
+import "google/protobuf/timestamp.proto";
+import "com/improving/app/common/domain/address.proto";
+import "com/improving/app/common/domain/tenantId.proto";
+import "com/improving/app/common/domain/memberId.proto";
+import "com/improving/app/common/domain/organizationId.proto";
+
+message Info {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  string handle = 1;
+  string avatar_url = 2;
+  string first_name = 3;
+  string last_name = 4;
+  NotificationPreference notification_preference = 5;
+  bool notification_opt_in = 6;
+  common.domain.Contact contact = 7;
+  repeated common.domain.OrganizationId organizations = 8;
+  common.domain.TenantId tenant = 9;
+}
+
+enum NotificationPreference {
+  option (scalapb.enum_options).extends = "com.improving.app.common.serialize.PBEnumSerializable";
+  NOTIFICATION_PREFERENCE_EMAIL = 0;
+  NOTIFICATION_PREFERENCE_SMS = 1;
+  NOTIFICATION_PREFERENCE_APPLICATION = 2;
+}
+
+enum MemberStatus {
+  option (scalapb.enum_options).extends = "com.improving.app.common.serialize.PBEnumSerializable";
+  MEMBER_STATUS_INITIAL = 0;
+  MEMBER_STATUS_ACTIVE = 1;
+  MEMBER_STATUS_INACTIVE = 2;
+  MEMBER_STATUS_SUSPENDED = 3;
+  MEMBER_STATUS_TERMINATED = 4;
+}
+
+message MetaInfo {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  google.protobuf.Timestamp created_on = 1;
+  com.improving.app.common.domain.MemberId created_by = 2;
+  google.protobuf.Timestamp last_updated = 3;
+  com.improving.app.common.domain.MemberId last_updated_by = 4;
+  MemberStatus status = 5;
+}

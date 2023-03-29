@@ -1,0 +1,137 @@
+syntax =  "proto3";
+
+package com.improving.app.gateway.domain;
+
+import "google/protobuf/timestamp.proto";
+import "scalapb/scalapb.proto";
+import "com/improving/app/common/domain/memberId.proto";
+import "com/improving/app/gateway/domain/memberTypeDefinitions.proto";
+
+option (scalapb.options) = {
+  no_default_values_in_constructor: true
+};
+
+message RegisterMember {
+  Info member_info = 1;
+  common.domain.MemberId acting_member = 2;
+}
+
+message MemberRegistered {
+  common.domain.MemberId member_id = 1;
+  Info member_info =2;
+  common.domain.MemberId acting_member = 3;
+  google.protobuf.Timestamp  event_time = 4;
+}
+
+message ActivateMember {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
+}
+
+message MemberActivated {
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
+  google.protobuf.Timestamp  event_time = 3;
+}
+
+message InactivateMember {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
+}
+
+message MemberInactivated {
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
+  google.protobuf.Timestamp  event_time = 3;
+}
+
+message SuspendMember {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
+}
+
+message MemberSuspended {
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
+  google.protobuf.Timestamp  event_time = 3;
+}
+
+message TerminateMember {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member =2;
+}
+
+message MemberTerminated {
+  common.domain.MemberId member_id = 1;
+  common.domain.MemberId acting_member = 2;
+  google.protobuf.Timestamp  event_time = 3;
+}
+
+message UpdateMemberInfo {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+  common.domain.MemberId member_id = 1;
+  Info member_info = 2;
+  common.domain.MemberId acting_member = 3;
+}
+
+message GetMemberInfo {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+  common.domain.MemberId member_id = 1;
+}
+
+message MemberGatewayRequest{
+  option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
+
+  oneof sealed_value {
+    RegisterMember register_member_value = 1;
+    ActivateMember activate_member_value = 2;
+    InactivateMember inactivate_member_value = 3;
+    SuspendMember suspend_member_value = 4;
+    TerminateMember terminate_member_value = 5;
+    UpdateMemberInfo update_member_info_value = 6;
+    GetMemberInfo get_member_info_value = 7;
+  }
+}
+
+message MemberInfoUpdated {
+  common.domain.MemberId member_id = 1;
+  Info member_info = 2;
+  common.domain.MemberId acting_member = 3;
+  google.protobuf.Timestamp  event_time = 4;
+}
+
+message MemberGatewayEvent{
+
+  option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
+
+  oneof sealed_value {
+    MemberRegistered member_registered_value = 1;
+    MemberActivated member_activated_value = 2;
+    MemberInactivated member_inactivated_value = 3;
+    MemberSuspended member_suspended_value = 4;
+    MemberTerminated member_terminated = 5;
+    MemberInfoUpdated member_info_updated = 6;
+  }
+}
+
+//MemberResponse
+message MemberData {
+  common.domain.MemberId member_id = 1;
+  Info member_info = 2;
+  MetaInfo member_meta_info = 3;
+}
+
+message MemberGatewayEventResponse {
+  MemberGatewayEvent member_event = 1;
+}
+
+message MemberGatewayResponse {
+  oneof sealed_value {
+    MemberData member_state_value = 1;
+    MemberGatewayEventResponse member_event_value = 2;
+  }
+}

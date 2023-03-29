@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package com.improving.app.gateway.api;
+
+option java_multiple_files = true;
+option java_package = "com.improving.app.tenant.api";
+option java_outer_classname = "TenantServiceProto1";
+
+import "com/improving/app/gateway/domain/improving-app-member-gateway-domain.proto";
+
+service MemberGatewayService {
+  rpc RegisterMember (domain.RegisterMember) returns (domain.MemberRegistered) {
+    //post: "member/{memberId}/"
+
+  }
+
+  rpc ActivateMember(domain.ActivateMember) returns (domain.MemberActivated) {
+    //post: "member/{memberId}/activate/"
+
+  }
+
+  rpc InactivateMember(domain.InactivateMember) returns (domain.MemberInactivated) {
+    //post: "member/{memberId}/inactivate/"
+
+  }
+
+  rpc SuspendMember(domain.SuspendMember) returns (domain.MemberSuspended) {
+    //post: "member/{memberId}/suspend/"
+  }
+
+  rpc TerminateMember(domain.TerminateMember) returns (domain.MemberTerminated) {
+    //post: "member/{memberId}/terminate/"
+  }
+
+  rpc UpdateMemberInfo(domain.UpdateMemberInfo) returns (domain.MemberInfoUpdated){
+    //post: "member/{memberId}/update/"
+  }
+
+  rpc GetMemberInfo(domain.GetMemberInfo) returns (domain.MemberData) {
+    //get:"member/{memberId}/"
+  }
+}
