@@ -15,12 +15,14 @@ option (scalapb.options) = {
 message EstablishTenant {
   com.improving.app.common.domain.TenantId tenant_id = 1;
   com.improving.app.common.domain.MemberId establishing_user = 2;
+  TenantInfo tenant_info = 3;
 }
 
 message TenantEstablished {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   com.improving.app.common.domain.TenantId tenant_id = 1;
   TenantMetaInfo meta_info = 2;
+  TenantInfo tenant_info = 3;
 }
 
 message UpdateTenantName {

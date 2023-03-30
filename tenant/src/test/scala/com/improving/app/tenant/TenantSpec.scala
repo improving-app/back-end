@@ -3,7 +3,7 @@ package com.improving.app.tenant
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import akka.pattern.StatusReply
-import com.improving.app.common.domain._
+import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, MemberId, OrganizationId, PostalCodeMessageImpl, TenantId}
 import com.improving.app.tenant.domain.Tenant.TenantCommand
 import com.improving.app.tenant.domain._
 import com.typesafe.config.{Config, ConfigFactory}
@@ -42,88 +42,14 @@ class TenantSpec
   def establishTenant(
     tenantId: String,
     p: ActorRef[TenantCommand],
-    probe: TestProbe[StatusReply[TenantEvent]]
+    probe: TestProbe[StatusReply[TenantEvent]],
+    tenantInfo: TenantInfo = baseTenantInfo
   ): StatusReply[TenantEvent] = {
     p ! Tenant.TenantCommand(
       EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser"))
-      ),
-      probe.ref
-    )
-
-    probe.receiveMessage()
-  }
-
-  def transitionToActive(
-    tenantId: String,
-    p: ActorRef[TenantCommand],
-    probe: TestProbe[StatusReply[TenantEvent]],
-    isTenantAlreadyEstablished: Boolean = false
-  ): StatusReply[TenantEvent] = {
-
-    if (!isTenantAlreadyEstablished) {
-      val establishedResponse = establishTenant(tenantId, p, probe)
-      assert(establishedResponse.isSuccess)
-    }
-
-    // Populate tenant name
-    p ! Tenant.TenantCommand(
-      UpdateTenantName(
-        tenantId = Some(TenantId(tenantId)),
-        newName = "newName",
-        updatingUser = Some(MemberId("updatingUser"))
-      ),
-      probe.ref
-    )
-
-    val updateTenantNameResponse = probe.receiveMessage()
-    assert(updateTenantNameResponse.isSuccess)
-
-    // Populate primary contact
-    p ! Tenant.TenantCommand(
-      UpdatePrimaryContact(
-        tenantId = Some(TenantId(tenantId)),
-        newContact = Some(baseContact),
-        updatingUser = Some(MemberId("updatingUser"))
-      ),
-      probe.ref
-    )
-
-    val updateAddressResponse = probe.receiveMessage()
-    assert(updateAddressResponse.isSuccess)
-
-    // Populate address
-    p ! Tenant.TenantCommand(
-      UpdateAddress(
-        tenantId = Some(TenantId(tenantId)),
-        newAddress = Some(baseAddress),
-        updatingUser = Some(MemberId("updatingUser"))
-      ),
-      probe.ref
-    )
-
-    val updatePrimaryContactResponse = probe.receiveMessage()
-    assert(updatePrimaryContactResponse.isSuccess)
-
-    // Populate organizations
-    p ! Tenant.TenantCommand(
-      AddOrganizations(
-        tenantId = Some(TenantId(tenantId)),
-        orgId = Seq(OrganizationId("org1")),
-        updatingUser = Some(MemberId("updatingUser"))
-      ),
-      probe.ref
-    )
-
-    val addOrganizationsResponse = probe.receiveMessage()
-    assert(addOrganizationsResponse.isSuccess)
-
-    // Change state to active
-    p ! Tenant.TenantCommand(
-      ActivateTenant(
-        tenantId = Some(TenantId(tenantId)),
-        activatingUser = Some(MemberId("activatingUser"))
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(tenantInfo)
       ),
       probe.ref
     )
@@ -133,7 +59,7 @@ class TenantSpec
 
   "A Tenant Actor" when {
     // Should this also error out when other tenants have the same name?
-    "in the Draft State" when {
+    "in the Uninitialized State" when {
       "executing EstablishTenant command" should {
         "error for an unauthorized updating user" ignore {
           val (tenantId, p, probe) = createTestVariables()
@@ -141,7 +67,8 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EstablishTenant(
               tenantId = Some(TenantId(tenantId)),
-              establishingUser = Some(MemberId("unauthorizedUser"))
+              establishingUser = Some(MemberId("unauthorizedUser")),
+              tenantInfo = Some(baseTenantInfo)
             ),
             probe.ref
           )
@@ -151,6 +78,7 @@ class TenantSpec
 
           val responseError = response.getError
           responseError.getMessage shouldEqual "User is not authorized to modify Tenant"
+
         }
 
         "succeed for the golden path and return the proper response" in {
@@ -159,7 +87,8 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EstablishTenant(
               tenantId = Some(TenantId(tenantId)),
-              establishingUser = Some(MemberId("establishingUser"))
+              establishingUser = Some(MemberId("establishingUser")),
+              tenantInfo = Some(baseTenantInfo)
             ),
             probe.ref
           )
@@ -178,7 +107,8 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EstablishTenant(
               tenantId = Some(TenantId(tenantId)),
-              establishingUser = Some(MemberId("establishingUser"))
+              establishingUser = Some(MemberId("establishingUser")),
+              tenantInfo = Some(baseTenantInfo)
             ),
             probe.ref
           )
@@ -189,7 +119,8 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EstablishTenant(
               tenantId = Some(TenantId(tenantId)),
-              establishingUser = Some(MemberId("establishingUser"))
+              establishingUser = Some(MemberId("establishingUser")),
+              tenantInfo = Some(baseTenantInfo)
             ),
             probe.ref
           )
@@ -198,906 +129,33 @@ class TenantSpec
           assert(response2.isError)
 
           val responseError2 = response2.getError
-          responseError2.getMessage shouldEqual "Tenant Id is being used for another tenant"
+          responseError2.getMessage shouldEqual "Tenant is already established"
         }
       }
-
-      "executing UpdateTenantName command" should {
-        "error for an unauthorized updating user" ignore {
+      "executing any command other than establish" should {
+        "error as not established" in {
           val (tenantId, p, probe) = createTestVariables()
 
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            UpdateTenantName(
-              tenantId = Some(TenantId(tenantId)),
-              newName = "newName",
-              updatingUser = Some(MemberId("unauthorizedUser"))
-            ),
-            probe.ref
+          val commands = Seq(
+            UpdateTenantName(Some(TenantId(tenantId)), "name", Some(MemberId("user"))),
+            UpdateAddress(Some(TenantId(tenantId)), Some(baseAddress), Some(MemberId("user"))),
+            UpdatePrimaryContact(Some(TenantId(tenantId)), Some(baseContact), Some(MemberId("user"))),
+            AddOrganizations(Some(TenantId(tenantId)), Seq(), Some(MemberId("user"))),
+            RemoveOrganizations(Some(TenantId(tenantId)), Seq(), Some(MemberId("user"))),
+            ActivateTenant(Some(TenantId(tenantId)), Some(MemberId("user"))),
+            SuspendTenant(Some(TenantId(tenantId)), "just feel like it", Some(MemberId("user"))),
           )
 
-          val response = probe.receiveMessage()
-          assert(response.isError)
+          commands.foreach(command => {
+            p ! Tenant.TenantCommand(command, probe.ref)
 
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "User is not authorized to modify Tenant"
-        }
+            val response = probe.receiveMessage()
 
-        "error for bad message input" in {
-          val (tenantId, p, probe) = createTestVariables()
+            assert(response.isError)
 
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-
-          p ! Tenant.TenantCommand(
-            UpdateTenantName(
-              tenantId = None,
-              newName = "newName",
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response1 = probe.receiveMessage()
-          assert(response1.isError)
-          val responseError1 = response1.getError
-          responseError1.getMessage shouldEqual "Tenant Id is not set"
-
-          p ! Tenant.TenantCommand(
-            UpdateTenantName(
-              tenantId = Some(TenantId("")),
-              newName = "newName",
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response2 = probe.receiveMessage()
-          assert(response2.isError)
-          val responseError2 = response2.getError
-          responseError2.getMessage shouldEqual "Tenant Id is empty"
-
-          p ! Tenant.TenantCommand(
-            UpdateTenantName(
-              tenantId = Some(TenantId(tenantId)),
-              newName = "",
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response3 = probe.receiveMessage()
-          assert(response3.isError)
-          val responseError3 = response3.getError
-          responseError3.getMessage shouldEqual "Updating tenant name is empty"
-
-          p ! Tenant.TenantCommand(
-            UpdateTenantName(
-              tenantId = Some(TenantId(tenantId)),
-              newName = "newName",
-              updatingUser = None
-            ),
-            probe.ref
-          )
-
-          val response4 = probe.receiveMessage()
-          assert(response4.isError)
-          val responseError4 = response4.getError
-          responseError4.getMessage shouldEqual "Updating user Id is not set"
-
-          p ! Tenant.TenantCommand(
-            UpdateTenantName(
-              tenantId = Some(TenantId(tenantId)),
-              newName = "newName",
-              updatingUser = Some(MemberId(""))
-            ),
-            probe.ref
-          )
-
-          val response5 = probe.receiveMessage()
-          assert(response5.isError)
-          val responseError5 = response5.getError
-          responseError5.getMessage shouldEqual "Updating user Id is empty"
-        }
-
-        "succeed for the golden path and return the proper response" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            UpdateTenantName(
-              tenantId = Some(TenantId(tenantId)),
-              newName = "newName",
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isSuccess)
-
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.tenantNameUpdatedValue.isDefined)
-
-          val tenantNameUpdated = successVal.asMessage.sealedValue.tenantNameUpdatedValue.get
-
-          tenantNameUpdated.tenantId shouldEqual Some(TenantId(tenantId))
-          tenantNameUpdated.oldName shouldEqual ""
-          tenantNameUpdated.newName shouldEqual "newName"
-
-          assert(tenantNameUpdated.metaInfo.isDefined)
-
-          val tenantNameUpdatedMeta = tenantNameUpdated.metaInfo.get
-          tenantNameUpdatedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
-          tenantNameUpdatedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
-        }
-
-        "error for the same tenant name as the old one" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            UpdateTenantName(
-              tenantId = Some(TenantId(tenantId)),
-              newName = "name1",
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            UpdateTenantName(
-              tenantId = Some(TenantId(tenantId)),
-              newName = "name1",
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response2 = probe.receiveMessage()
-          assert(response2.isError)
-
-          val responseError = response2.getError
-          responseError.getMessage shouldEqual "Tenant name is already in use"
-        }
-      }
-
-      "executing UpdatePrimaryContact command" should {
-        "error for an unauthorized updating user" ignore {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            UpdatePrimaryContact(
-              tenantId = Some(TenantId(tenantId)),
-              newContact = Some(baseContact),
-              updatingUser = Some(MemberId("unauthorizedUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "User is not authorized to modify Tenant"
-        }
-
-        "error for bad message input" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            UpdatePrimaryContact(
-              tenantId = Some(TenantId(tenantId)),
-              newContact = None,
-              Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response1 = probe.receiveMessage()
-          assert(response1.isError)
-          val responseError1 = response1.getError
-          responseError1.getMessage shouldEqual "Primary contact info is not complete"
-
-          p ! Tenant.TenantCommand(
-            UpdatePrimaryContact(
-              tenantId = Some(TenantId(tenantId)),
-              newContact = Some(baseContact.copy(firstName = "")),
-              Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response2 = probe.receiveMessage()
-          assert(response2.isError)
-          val responseError2 = response2.getError
-          responseError2.getMessage shouldEqual "Primary contact info is not complete"
-
-          p ! Tenant.TenantCommand(
-            UpdatePrimaryContact(
-              tenantId = Some(TenantId(tenantId)),
-              newContact = Some(baseContact.copy(lastName = "")),
-              Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response3 = probe.receiveMessage()
-          assert(response3.isError)
-          val responseError3 = response3.getError
-          responseError3.getMessage shouldEqual "Primary contact info is not complete"
-
-          p ! Tenant.TenantCommand(
-            UpdatePrimaryContact(
-              tenantId = Some(TenantId(tenantId)),
-              newContact = Some(baseContact.copy(emailAddress = Some(""))),
-              Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response4 = probe.receiveMessage()
-          assert(response4.isError)
-          val responseError4 = response4.getError
-          responseError4.getMessage shouldEqual "Primary contact info is not complete"
-
-          p ! Tenant.TenantCommand(
-            UpdatePrimaryContact(
-              tenantId = Some(TenantId(tenantId)),
-              newContact = Some(baseContact.copy(phone = Some(""))),
-              Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response5 = probe.receiveMessage()
-          assert(response5.isError)
-          val responseError5 = response5.getError
-          responseError5.getMessage shouldEqual "Primary contact info is not complete"
-
-          p ! Tenant.TenantCommand(
-            UpdatePrimaryContact(
-              tenantId = Some(TenantId(tenantId)),
-              newContact = Some(baseContact.copy(userName = "")),
-              Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response6 = probe.receiveMessage()
-          assert(response6.isError)
-          val responseError6 = response6.getError
-          responseError6.getMessage shouldEqual "Primary contact info is not complete"
-        }
-
-        "succeed for the golden path and return the proper response" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            UpdatePrimaryContact(
-              tenantId = Some(TenantId(tenantId)),
-              newContact = Some(baseContact),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          //make the assertions for this test
-          val response = probe.receiveMessage()
-          assert(response.isSuccess)
-
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.primaryContactUpdatedValue.isDefined)
-
-          val primaryContactUpdated = successVal.asMessage.sealedValue.primaryContactUpdatedValue.get
-
-          primaryContactUpdated.tenantId shouldEqual Some(TenantId(tenantId))
-          primaryContactUpdated.oldContact shouldEqual None
-          primaryContactUpdated.newContact shouldEqual Some(baseContact)
-
-          assert(primaryContactUpdated.metaInfo.isDefined)
-
-          val primaryContactUpdatedMeta = primaryContactUpdated.metaInfo.get
-
-          primaryContactUpdatedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
-          primaryContactUpdatedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
-        }
-      }
-
-      "executing UpdateAddress command" should {
-        "error for an unauthorized updating user" ignore {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            UpdateAddress(
-              tenantId = Some(TenantId(tenantId)),
-              newAddress = Some(baseAddress),
-              updatingUser = Some(MemberId("unauthorizedUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "User is not authorized to modify Tenant"
-        }
-
-        "error for bad message input" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            UpdateAddress(
-              tenantId = Some(TenantId(tenantId)),
-              newAddress = None,
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "Address information is not complete"
-
-          p ! Tenant.TenantCommand(
-            UpdateAddress(
-              tenantId = Some(TenantId(tenantId)),
-              newAddress = Some(baseAddress.copy(line1 = "")),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response1 = probe.receiveMessage()
-          assert(response1.isError)
-          val responseError1 = response1.getError
-          responseError1.getMessage shouldEqual "Address information is not complete"
-
-          // Notice line2 is not validated as it is assumed that line2 is optional
-
-          p ! Tenant.TenantCommand(
-            UpdateAddress(
-              tenantId = Some(TenantId(tenantId)),
-              newAddress = Some(baseAddress.copy(city = "")),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response2 = probe.receiveMessage()
-          assert(response2.isError)
-          val responseError2 = response2.getError
-          responseError2.getMessage shouldEqual "Address information is not complete"
-
-          p ! Tenant.TenantCommand(
-            UpdateAddress(
-              tenantId = Some(TenantId(tenantId)),
-              newAddress = Some(baseAddress.copy(stateProvince = "")),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response3 = probe.receiveMessage()
-          assert(response3.isError)
-          val responseError3 = response3.getError
-          responseError3.getMessage shouldEqual "Address information is not complete"
-
-          p ! Tenant.TenantCommand(
-            UpdateAddress(
-              tenantId = Some(TenantId(tenantId)),
-              newAddress = Some(baseAddress.copy(country = "")),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response4 = probe.receiveMessage()
-          assert(response4.isError)
-          val responseError4 = response4.getError
-          responseError4.getMessage shouldEqual "Address information is not complete"
-
-          p ! Tenant.TenantCommand(
-            UpdateAddress(
-              tenantId = Some(TenantId(tenantId)),
-              newAddress = Some(baseAddress.copy(postalCode = None)),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response5 = probe.receiveMessage()
-          assert(response5.isError)
-          val responseError5 = response5.getError
-          responseError5.getMessage shouldEqual "Address information is not complete"
-
-          p ! Tenant.TenantCommand(
-            UpdateAddress(
-              tenantId = Some(TenantId(tenantId)),
-              newAddress = Some(baseAddress.copy(postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl(""))))),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response6 = probe.receiveMessage()
-          assert(response6.isError)
-          val responseError6 = response6.getError
-          responseError6.getMessage shouldEqual "Address information is not complete"
-        }
-
-        "succeed for the golden path and return the proper response" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            UpdateAddress(
-              tenantId = Some(TenantId(tenantId)),
-              newAddress = Some(baseAddress),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isSuccess)
-
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.addressUpdatedValue.isDefined)
-
-          val addressUpdated = successVal.asMessage.sealedValue.addressUpdatedValue.get
-          addressUpdated.tenantId shouldEqual Some(TenantId(tenantId))
-          addressUpdated.oldAddress shouldEqual None
-          addressUpdated.newAddress shouldEqual Some(baseAddress)
-
-          assert(addressUpdated.metaInfo.isDefined)
-
-          val addressUpdatedMeta = addressUpdated.metaInfo.get
-
-          addressUpdatedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
-          addressUpdatedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
-        }
-      }
-
-      "executing AddOrganizations command" should {
-        "error for bad message input" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            AddOrganizations(
-              tenantId = Some(TenantId(tenantId)),
-              orgId = Seq.empty,
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "No organizations to add"
-        }
-
-        "error for an unauthorized updating user" ignore {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            AddOrganizations(
-              tenantId = Some(TenantId(tenantId)),
-              orgId = Seq(OrganizationId("org1")),
-              updatingUser = Some(MemberId("unauthorizedUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "User is not authorized to modify Tenant"
-        }
-
-        "succeed for the golden path and return the proper response" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            AddOrganizations(
-              tenantId = Some(TenantId(tenantId)),
-              orgId = Seq(OrganizationId("org1"), OrganizationId("org1")),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isSuccess)
-
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.organizationsAddedValue.isDefined)
-
-          val organizationAdded = successVal.asMessage.sealedValue.organizationsAddedValue.get
-          organizationAdded.tenantId shouldEqual Some(TenantId(tenantId))
-          organizationAdded.newOrgsList shouldEqual Seq(OrganizationId("org1"))
-
-          assert(organizationAdded.metaInfo.isDefined)
-
-          val organizationAddedMeta = organizationAdded.metaInfo.get
-
-          organizationAddedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
-          organizationAddedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
-        }
-
-        "error for organization ids already in the list" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            AddOrganizations(
-              tenantId = Some(TenantId(tenantId)),
-              orgId = Seq(OrganizationId("org1")),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            AddOrganizations(
-              tenantId = Some(TenantId(tenantId)),
-              orgId = Seq(OrganizationId("org1")),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response1 = probe.receiveMessage()
-          assert(response1.isError)
-
-          val responseError = response1.getError
-          responseError.getMessage shouldEqual "Organization ids already present for the tenant is not allowed"
-        }
-      }
-
-      "executing RemoveOrganizations command" should {
-        "error for bad message input" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            RemoveOrganizations(
-              tenantId = Some(TenantId(tenantId)),
-              orgId = Seq.empty,
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "No organizations to remove"
-        }
-
-        "error for an unauthorized updating user" ignore {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            AddOrganizations(
-              tenantId = Some(TenantId(tenantId)),
-              orgId = Seq(OrganizationId("org1")),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val addOrganizationsResponse = probe.receiveMessage()
-          assert(addOrganizationsResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            RemoveOrganizations(
-              tenantId = Some(TenantId(tenantId)),
-              orgId = Seq(OrganizationId("org1")),
-              updatingUser = Some(MemberId("unauthorizedUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "User is not authorized to modify Tenant"
-        }
-
-        "succeed for the golden path and return the proper response" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            AddOrganizations(
-              tenantId = Some(TenantId(tenantId)),
-              orgId = Seq(OrganizationId("org1")),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val addOrganizationsResponse = probe.receiveMessage()
-          assert(addOrganizationsResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            RemoveOrganizations(
-              tenantId = Some(TenantId(tenantId)),
-              orgId = Seq(OrganizationId("org1")),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isSuccess)
-
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.organizationsRemovedValue.isDefined)
-
-          val organizationRemoved = successVal.asMessage.sealedValue.organizationsRemovedValue.get
-          organizationRemoved.tenantId shouldEqual Some(TenantId(tenantId))
-          organizationRemoved.newOrgsList shouldEqual Seq.empty
-
-          assert(organizationRemoved.metaInfo.isDefined)
-
-          val organizationRemovedMeta = organizationRemoved.metaInfo.get
-
-          organizationRemovedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
-          organizationRemovedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser"))
-        }
-
-        "error for organization ids not already in the list" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            RemoveOrganizations(
-              tenantId = Some(TenantId(tenantId)),
-              orgId = Seq(OrganizationId("org1")),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "Organization ids not already present for the tenant is not allowed"
-        }
-      }
-
-      "executing ActivateTenant command" should {
-        "error for incomplete info to transition the tenant" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            ActivateTenant(
-              tenantId = Some(TenantId(tenantId)),
-              activatingUser = Some(MemberId("activatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "Draft tenants may not transition to the Active state with incomplete required fields"
-        }
-
-        "error for an unauthorized updating user" ignore {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          // Populate tenant name
-          p ! Tenant.TenantCommand(
-            UpdateTenantName(
-              tenantId = Some(TenantId(tenantId)),
-              newName = "newName",
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val updateTenantNameResponse = probe.receiveMessage()
-          assert(updateTenantNameResponse.isSuccess)
-
-          // Populate primary contact
-          p ! Tenant.TenantCommand(
-            UpdatePrimaryContact(
-              tenantId = Some(TenantId(tenantId)),
-              newContact = Some(baseContact),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val updateAddressResponse = probe.receiveMessage()
-          assert(updateAddressResponse.isSuccess)
-
-          // Populate address
-          p ! Tenant.TenantCommand(
-            UpdateAddress(
-              tenantId = Some(TenantId(tenantId)),
-              newAddress = Some(baseAddress),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val updatePrimaryContactResponse = probe.receiveMessage()
-          assert(updatePrimaryContactResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            AddOrganizations(
-              tenantId = Some(TenantId(tenantId)),
-              orgId = Seq(OrganizationId("org1")),
-              updatingUser = Some(MemberId("updatingUser"))
-            ),
-            probe.ref
-          )
-
-          val addOrganizationsResponse = probe.receiveMessage()
-          assert(addOrganizationsResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            ActivateTenant(
-              tenantId = Some(TenantId(tenantId)),
-              Some(MemberId("unauthorizedUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "User is not authorized to modify Tenant"
-        }
-
-        "succeed and return the proper response" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val response = transitionToActive(tenantId, p, probe)
-          assert(response.isSuccess)
-
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.tenantActivatedValue.isDefined)
-
-          val tenantActivated = successVal.asMessage.sealedValue.tenantActivatedValue.get
-
-          tenantActivated.tenantId shouldEqual Some(TenantId(tenantId))
-
-          assert(tenantActivated.metaInfo.isDefined)
-
-          val tenantActivatedMeta = tenantActivated.metaInfo.get
-
-          tenantActivatedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
-          tenantActivatedMeta.lastUpdatedBy shouldEqual Some(MemberId("activatingUser"))
-        }
-      }
-
-      "executing SuspendTenant command" should {
-        "error for an unauthorized updating user" ignore {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
-              suspensionReason = "reason",
-              Some(MemberId("unauthorizedUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "User is not authorized to modify Tenant"
-        }
-
-        "succeed and return the proper response" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishResponse = establishTenant(tenantId, p, probe)
-          assert(establishResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
-              suspensionReason = "reason",
-              suspendingUser = Some(MemberId("suspendingUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isSuccess)
-
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.tenantSuspendedValue.isDefined)
-
-          val tenantSuspended = successVal.asMessage.sealedValue.tenantSuspendedValue.get
-
-          tenantSuspended.tenantId shouldEqual Some(TenantId(tenantId))
-          tenantSuspended.suspensionReason shouldEqual "reason"
-
-          assert(tenantSuspended.metaInfo.isDefined)
-
-          val tenantSuspendedMeta = tenantSuspended.metaInfo.get
-
-          tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
-          tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("suspendingUser"))
+            val responseError = response.getError
+            responseError.getMessage shouldEqual "Tenant is not established"
+          })
         }
       }
     }
@@ -1108,8 +166,8 @@ class TenantSpec
           // Transition to Active state
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
 
           // Test command in question
           p ! Tenant.TenantCommand(
@@ -1132,8 +190,12 @@ class TenantSpec
           // Transition to Active state
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val tenantInfo = new TenantInfo(
+            name = "newName"
+          )
+
+          val establishTenantResponse = establishTenant(tenantId, p, probe, tenantInfo)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             UpdateTenantName(
@@ -1167,8 +229,8 @@ class TenantSpec
           // Transition to Active state
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             UpdateTenantName(
@@ -1204,8 +266,8 @@ class TenantSpec
           // Transition to Active state
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             UpdatePrimaryContact(
@@ -1228,8 +290,8 @@ class TenantSpec
           // Transition to Active state
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
 
           // Missing email in the command
           p ! Tenant.TenantCommand(
@@ -1253,8 +315,13 @@ class TenantSpec
           // Transition to Active state
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val tenantInfo = TenantInfo(
+            name = "Name",
+            primaryContact = Some(baseContact)
+          )
+
+          val establishTenantResponse = establishTenant(tenantId, p, probe, tenantInfo)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             UpdatePrimaryContact(
@@ -1307,8 +374,8 @@ class TenantSpec
         "error for an unauthorized updating user" ignore {
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             UpdateAddress(
@@ -1330,8 +397,8 @@ class TenantSpec
           // Transition to Active state
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
 
           // City is not present
           p ! Tenant.TenantCommand(
@@ -1354,8 +421,19 @@ class TenantSpec
           // Transition to Active state
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val tenantInfo = TenantInfo(
+            name = "name",
+            address = Some(Address(
+              line1 = "line1",
+              line2 = "line2",
+              city = "city",
+              stateProvince = "stateProvince",
+              country = "country",
+              postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
+            ))
+          )
+          val establishTenantResponse = establishTenant(tenantId, p, probe, tenantInfo)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             UpdateAddress(
@@ -1408,8 +486,8 @@ class TenantSpec
         "error for bad message input" in {
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             AddOrganizations(
@@ -1430,8 +508,8 @@ class TenantSpec
         "error for an unauthorized updating user" ignore {
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             AddOrganizations(
@@ -1452,8 +530,13 @@ class TenantSpec
         "succeed for the golden path and return the proper response" in {
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val tenantInfo = TenantInfo(
+            name = "name",
+            orgs = Seq(OrganizationId("org1"))
+          )
+
+          val establishTenantResponse = establishTenant(tenantId, p, probe, tenantInfo)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             AddOrganizations(
@@ -1485,8 +568,13 @@ class TenantSpec
         "error for organization ids already in the list" in {
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val tenantInfo = TenantInfo(
+            name = "name",
+            orgs = Seq(OrganizationId("org1"))
+          )
+
+          val establishTenantResponse = establishTenant(tenantId, p, probe, tenantInfo)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             AddOrganizations(
@@ -1509,8 +597,8 @@ class TenantSpec
         "error for bad message input" in {
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             RemoveOrganizations(
@@ -1531,8 +619,8 @@ class TenantSpec
         "error for an unauthorized updating user" ignore {
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             RemoveOrganizations(
@@ -1553,8 +641,13 @@ class TenantSpec
         "succeed for the golden path and return the proper response" in {
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val tenantInfo = TenantInfo(
+            name = "name",
+            orgs = Seq(OrganizationId("org1"))
+          )
+
+          val establishTenantResponse = establishTenant(tenantId, p, probe, tenantInfo)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             RemoveOrganizations(
@@ -1586,8 +679,8 @@ class TenantSpec
         "error for organization ids not already in the list" in {
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             RemoveOrganizations(
@@ -1611,8 +704,8 @@ class TenantSpec
           // Transition to Active state
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             ActivateTenant(
@@ -1635,8 +728,8 @@ class TenantSpec
         "error for an unauthorized updating user" ignore {
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
@@ -1658,8 +751,8 @@ class TenantSpec
           // Transition to Active state
           val (tenantId, p, probe) = createTestVariables()
 
-          val tenantActivatedResponse = transitionToActive(tenantId, p, probe)
-          assert(tenantActivatedResponse.isSuccess)
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
@@ -1764,7 +857,7 @@ class TenantSpec
           val tenantNameUpdated = successVal.asMessage.sealedValue.tenantNameUpdatedValue.get
 
           tenantNameUpdated.tenantId shouldEqual Some(TenantId(tenantId))
-          tenantNameUpdated.oldName shouldEqual ""
+          tenantNameUpdated.oldName shouldEqual "Tenant Name"
           tenantNameUpdated.newName shouldEqual "newName"
 
           assert(tenantNameUpdated.metaInfo.isDefined)
@@ -1911,10 +1004,12 @@ class TenantSpec
           val suspendTenantResponse = probe.receiveMessage()
           assert(suspendTenantResponse.isSuccess)
 
+          val newContact = baseContact.copy(firstName = "bob")
+
           p ! Tenant.TenantCommand(
             UpdatePrimaryContact(
               tenantId = Some(TenantId(tenantId)),
-              newContact = Some(baseContact),
+              newContact = Some(newContact),
               updatingUser = Some(MemberId("updatingUser"))
             ),
             probe.ref
@@ -1930,8 +1025,8 @@ class TenantSpec
           val primaryContactUpdated = successVal.asMessage.sealedValue.primaryContactUpdatedValue.get
 
           primaryContactUpdated.tenantId shouldEqual Some(TenantId(tenantId))
-          primaryContactUpdated.oldContact shouldEqual None
-          primaryContactUpdated.newContact shouldEqual Some(baseContact)
+          primaryContactUpdated.oldContact shouldEqual Some(baseContact)
+          primaryContactUpdated.newContact shouldEqual Some(newContact)
 
           assert(primaryContactUpdated.metaInfo.isDefined)
 
@@ -2030,10 +1125,12 @@ class TenantSpec
           val suspendTenantResponse = probe.receiveMessage()
           assert(suspendTenantResponse.isSuccess)
 
+          val newAddress = baseAddress.copy(line1 = "new line")
+
           p ! Tenant.TenantCommand(
             UpdateAddress(
               tenantId = Some(TenantId(tenantId)),
-              newAddress = Some(baseAddress),
+              newAddress = Some(newAddress),
               updatingUser = Some(MemberId("updatingUser"))
             ),
             probe.ref
@@ -2047,8 +1144,8 @@ class TenantSpec
 
           val addressUpdated = successVal.asMessage.sealedValue.addressUpdatedValue.get
           addressUpdated.tenantId shouldEqual Some(TenantId(tenantId))
-          addressUpdated.oldAddress shouldEqual None
-          addressUpdated.newAddress shouldEqual Some(baseAddress)
+          addressUpdated.oldAddress shouldEqual Some(baseAddress)
+          addressUpdated.newAddress shouldEqual Some(newAddress)
 
           assert(addressUpdated.metaInfo.isDefined)
 
@@ -2445,7 +1542,70 @@ class TenantSpec
           val suspendTenantResponse = probe.receiveMessage()
           assert(suspendTenantResponse.isSuccess)
 
-          val response = transitionToActive(tenantId, p, probe, isTenantAlreadyEstablished = true)
+          val response = {
+            // Populate tenant name
+            p ! Tenant.TenantCommand(
+              UpdateTenantName(
+                tenantId = Some(TenantId(tenantId)),
+                newName = "newName",
+                updatingUser = Some(MemberId("updatingUser"))
+              ),
+              probe.ref
+            )
+
+            val updateTenantNameResponse = probe.receiveMessage()
+            assert(updateTenantNameResponse.isSuccess)
+
+            // Populate primary contact
+            p ! Tenant.TenantCommand(
+              UpdatePrimaryContact(
+                tenantId = Some(TenantId(tenantId)),
+                newContact = Some(baseContact),
+                updatingUser = Some(MemberId("updatingUser"))
+              ),
+              probe.ref
+            )
+
+            val updateAddressResponse = probe.receiveMessage()
+            assert(updateAddressResponse.isSuccess)
+
+            // Populate address
+            p ! Tenant.TenantCommand(
+              UpdateAddress(
+                tenantId = Some(TenantId(tenantId)),
+                newAddress = Some(baseAddress),
+                updatingUser = Some(MemberId("updatingUser"))
+              ),
+              probe.ref
+            )
+
+            val updatePrimaryContactResponse = probe.receiveMessage()
+            assert(updatePrimaryContactResponse.isSuccess)
+
+            // Populate organizations
+            p ! Tenant.TenantCommand(
+              AddOrganizations(
+                tenantId = Some(TenantId(tenantId)),
+                orgId = Seq(OrganizationId("org1")),
+                updatingUser = Some(MemberId("updatingUser"))
+              ),
+              probe.ref
+            )
+
+            val addOrganizationsResponse = probe.receiveMessage()
+            assert(addOrganizationsResponse.isSuccess)
+
+            // Change state to active
+            p ! Tenant.TenantCommand(
+              ActivateTenant(
+                tenantId = Some(TenantId(tenantId)),
+                activatingUser = Some(MemberId("activatingUser"))
+              ),
+              probe.ref
+            )
+
+            probe.receiveMessage()
+          }
           assert(response.isSuccess)
 
           val successVal = response.getValue

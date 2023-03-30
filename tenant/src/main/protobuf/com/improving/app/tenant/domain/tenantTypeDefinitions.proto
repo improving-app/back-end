@@ -16,7 +16,7 @@ enum TenantState {
 message TenantInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   string name = 1;
-  com.improving.app.common.domain.Contact contact = 2;
+  com.improving.app.common.domain.Contact primaryContact = 2;
   com.improving.app.common.domain.Address address = 3;
   repeated com.improving.app.common.domain.OrganizationId orgs = 4;
 }

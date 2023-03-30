@@ -8,6 +8,8 @@ import org.scalatest.tagobjects.Retryable
 
 import scala.util.Random
 
+import TestData._
+
 class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") {
   private def getClient(containers: Containers): TenantService = {
     val (host, port) = getContainerHostPort(containers)
@@ -31,7 +33,8 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser"))
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(baseTenantInfo)
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -44,7 +47,7 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
       )).futureValue
 
       response.tenantId shouldBe Some(TenantId(tenantId))
-      response.oldName shouldBe ""
+      response.oldName shouldBe "Tenant Name"
       response.newName shouldBe "newName"
       response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
     }
@@ -58,37 +61,30 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser"))
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(baseTenantInfo)
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
       establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
 
+      val newContact = Contact(
+        firstName = "firstName1",
+        lastName = "lastName1",
+        emailAddress = Some("test1@test.com"),
+        phone = Some("111-111-1112"),
+        userName = "contactUsername1"
+      )
+
       val response = client.updatePrimaryContact(UpdatePrimaryContact(
         tenantId = Some(TenantId(tenantId)),
-        newContact = Some(
-          Contact(
-            firstName = "firstName1",
-            lastName = "lastName1",
-            emailAddress = Some("test1@test.com"),
-            phone = Some("111-111-1112"),
-            userName = "contactUsername1"
-          )
-        ),
+        newContact = Some(newContact),
         updatingUser = Some(MemberId("updatingUser"))
       )).futureValue
 
       response.tenantId shouldBe Some(TenantId(tenantId))
-      response.oldContact shouldBe None
-      response.newContact shouldBe Some(
-        Contact(
-          firstName = "firstName1",
-          lastName = "lastName1",
-          emailAddress = Some("test1@test.com"),
-          phone = Some("111-111-1112"),
-          userName = "contactUsername1"
-        )
-      )
+      response.oldContact shouldBe Some(baseContact)
+      response.newContact shouldBe Some(newContact)
       response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
     }
   }
@@ -101,30 +97,14 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser"))
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(baseTenantInfo)
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
       establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
 
-      val response = client.updateAddress(UpdateAddress(
-        tenantId = Some(TenantId(tenantId)),
-        newAddress = Some(
-          Address(
-            line1 = "line3",
-            line2 = "line4",
-            city = "city1",
-            stateProvince = "stateProvince1",
-            country = "country1",
-            postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode1")))
-          )
-        ),
-        updatingUser = Some(MemberId("updatingUser"))
-      )).futureValue
-
-      response.tenantId shouldBe Some(TenantId(tenantId))
-      response.oldAddress shouldBe None
-      response.newAddress shouldBe Some(
+      val newAddress =
         Address(
           line1 = "line3",
           line2 = "line4",
@@ -133,7 +113,16 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
           country = "country1",
           postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode1")))
         )
-      )
+
+      val response = client.updateAddress(UpdateAddress(
+        tenantId = Some(TenantId(tenantId)),
+        newAddress = Some(newAddress),
+        updatingUser = Some(MemberId("updatingUser"))
+      )).futureValue
+
+      response.tenantId shouldBe Some(TenantId(tenantId))
+      response.oldAddress shouldBe Some(baseAddress)
+      response.newAddress shouldBe Some(newAddress)
       response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
     }
   }
@@ -146,7 +135,8 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser"))
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(baseTenantInfo)
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -172,7 +162,8 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser"))
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(baseTenantInfo)
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -206,7 +197,8 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser"))
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(baseTenantInfo)
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -273,6 +265,15 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
         )
       )
 
+      val suspendResponse = client.suspendTenant(SuspendTenant(
+        tenantId = Some(TenantId(tenantId)),
+        suspensionReason = "reason",
+        suspendingUser = Some(MemberId("suspendingUser"))
+      )).futureValue
+
+      suspendResponse.tenantId shouldBe Some(TenantId(tenantId))
+      suspendResponse.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("suspendingUser"))
+
       val response = client.activateTenant(ActivateTenant(
         tenantId = Some(TenantId(tenantId)),
         activatingUser = Some(MemberId("activatingUser"))
@@ -291,7 +292,8 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
 
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser"))
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(baseTenantInfo)
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
