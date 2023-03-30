@@ -6,7 +6,7 @@ import akka.persistence.testkit.javadsl.EventSourcedBehaviorTestKit
 import com.improving.app.common.domain.{MemberId, OrganizationId}
 import com.improving.app.organization.OrganizationStatus.{ORGANIZATION_STATUS_ACTIVE, ORGANIZATION_STATUS_DRAFT, ORGANIZATION_STATUS_SUSPENDED, ORGANIZATION_STATUS_TERMINATED}
 import com.improving.app.organization.TestData.{activateOrganizationRequest, establishOrganizationRequest, _}
-import com.improving.app.organization.{ActivateOrganizationRequest, AddMembersToOrganizationRequest, AddOwnersToOrganizationRequest, Contacts, DraftOrganizationState, EditOrganizationInfoRequest, EstablishOrganizationRequest, EstablishedOrganizationState, GetOrganizationByIdRequest, GetOrganizationInfoRequest, Info, InitialEmptyOrganizationState, MembersAddedToOrganization, MembersRemovedFromOrganization, MetaInfo, OptionalDraftInfo, OrganizationActivated, OrganizationContactsUpdated, OrganizationEstablished, OrganizationEventResponse, OrganizationInfoEdited, OrganizationResponse, OrganizationState, OrganizationStatus, OrganizationSuspended, OrganizationTerminated, OwnersAddedToOrganization, OwnersRemovedFromOrganization, ParentUpdated, RemoveMembersFromOrganizationRequest, RemoveOwnersFromOrganizationRequest, RequiredDraftInfo, SuspendOrganizationRequest, TerminateOrganizationRequest, TerminatedOrganizationState, TestData, UpdateOrganizationContactsRequest, UpdateParentRequest}
+import com.improving.app.organization.{ActivateOrganizationRequest, AddMembersToOrganizationRequest, AddOwnersToOrganizationRequest, Contacts, DraftOrganizationState, EditOrganizationInfoRequest, EstablishOrganizationRequest, EstablishedOrganizationState, GetOrganizationByIdRequest, GetOrganizationInfoRequest, Info, InitialEmptyOrganizationState, MembersAddedToOrganization, MembersRemovedFromOrganization, MetaInfo, OptionalDraftInfo, OrganizationActivated, OrganizationContactsUpdated, OrganizationEstablished, OrganizationEventResponse, OrganizationInfo, OrganizationInfoEdited, OrganizationResponse, OrganizationState, OrganizationStatus, OrganizationSuspended, OrganizationTerminated, OwnersAddedToOrganization, OwnersRemovedFromOrganization, ParentUpdated, RemoveMembersFromOrganizationRequest, RemoveOwnersFromOrganizationRequest, RequiredDraftInfo, SuspendOrganizationRequest, TerminateOrganizationRequest, TerminatedOrganizationState, TestData, UpdateOrganizationContactsRequest, UpdateParentRequest}
 import com.improving.app.organization.domain.Organization.OrganizationCommand
 import com.typesafe.config.Config
 import org.scalatest.BeforeAndAfterAll
@@ -15,6 +15,8 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 
 class OrganizationSpec extends ScalaTestWithActorTestKit(OrganizationSpec.config) with AnyWordSpecLike with Matchers with BeforeAndAfterAll {
+
+  import com.improving.app.organization.domain.OrganizationStateOps._
 
   trait SetUp {
     val orgId: String = testOrgId.id
@@ -181,6 +183,53 @@ class OrganizationSpec extends ScalaTestWithActorTestKit(OrganizationSpec.config
     }
 
     "in draft state" should {
+
+      "Retrieve info on request" in new Established {
+        val request: GetOrganizationInfoRequest = TestData.getOrganizationInfoRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        assert(result.hasNoEvents)
+        assert(result.state == establishedResult.state)
+        private val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+        result.reply.getValue.asInstanceOf[OrganizationInfo] shouldBe OrganizationInfo(
+          request.orgId,
+          Some(Info(
+            name = oldState.requiredDraftInfo.flatMap(_.name),
+            shortName = oldState.optionalDraftInfo.flatMap(_.shortName),
+            address = oldState.optionalDraftInfo.flatMap(_.address),
+            isPrivate = oldState.requiredDraftInfo.map(_.isPrivate),
+            url = oldState.optionalDraftInfo.flatMap(_.url),
+            logo = oldState.optionalDraftInfo.flatMap(_.logo),
+            tenant = oldState.requiredDraftInfo.flatMap(_.tenant)
+          ))
+        )
+      }
+
+      "Retrieve organization on request" in new Established {
+        val request: GetOrganizationByIdRequest = TestData.getOrganizationByIdRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        assert(result.hasNoEvents)
+        assert(result.state == establishedResult.state)
+        private val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+        result.reply.getValue.asInstanceOf[com.improving.app.organization.Organization] shouldBe com.improving.app.organization.Organization(
+          orgId = request.orgId,
+          info = Some(Info(
+            name = oldState.requiredDraftInfo.flatMap(_.name),
+            shortName = oldState.optionalDraftInfo.flatMap(_.shortName),
+            address = oldState.optionalDraftInfo.flatMap(_.address),
+            isPrivate = oldState.requiredDraftInfo.map(_.isPrivate),
+            url = oldState.optionalDraftInfo.flatMap(_.url),
+            logo = oldState.optionalDraftInfo.flatMap(_.logo),
+            tenant = oldState.requiredDraftInfo.flatMap(_.tenant)
+          )),
+          parent = oldState.optionalDraftInfo.flatMap(_.parent),
+          members = oldState.getMembers,
+          owners = oldState.getOwners,
+          contacts = oldState.getContacts,
+          meta = oldState.orgMeta
+        )
+      }
 
       "Edit info when commanded" in new Established {
         val request: EditOrganizationInfoRequest = editOrganizationInfoRequest
@@ -557,8 +606,6 @@ class OrganizationSpec extends ScalaTestWithActorTestKit(OrganizationSpec.config
         }
       }
 
-      //TODO tests on the get requests
-
       "Fail if the organization is already established" in new Established {
         val request: EstablishOrganizationRequest = establishOrganizationRequest
         private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
@@ -685,6 +732,35 @@ class OrganizationSpec extends ScalaTestWithActorTestKit(OrganizationSpec.config
     }
 
     "In active state" should {
+
+      "Retrieve info on request" in new Active {
+        val request: GetOrganizationInfoRequest = TestData.getOrganizationInfoRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        assert(result.hasNoEvents)
+        assert(result.state == activatedResult.state)
+        result.reply.getValue.asInstanceOf[OrganizationInfo] shouldBe OrganizationInfo(
+          request.orgId,
+          activatedResult.state.asInstanceOf[EstablishedOrganizationState].info,
+        )
+      }
+
+      "Retrieve organization on request" in new Active  {
+        val request: GetOrganizationByIdRequest = TestData.getOrganizationByIdRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        assert(result.hasNoEvents)
+        assert(result.state == activatedResult.state)
+        result.reply.getValue.asInstanceOf[com.improving.app.organization.Organization] shouldBe com.improving.app.organization.Organization(
+          orgId = request.orgId,
+          info = oldState.info,
+          parent = oldState.parent,
+          members = oldState.getMembers,
+          owners = oldState.getOwners,
+          contacts = oldState.getContacts,
+          meta = oldState.meta
+        )
+      }
 
 
       "Edit info when commanded" in new Active {
@@ -1104,6 +1180,35 @@ class OrganizationSpec extends ScalaTestWithActorTestKit(OrganizationSpec.config
     }
 
     "In suspended state" should {
+
+      "Retrieve info on request" in new Suspended {
+        val request: GetOrganizationInfoRequest = TestData.getOrganizationInfoRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        assert(result.hasNoEvents)
+        assert(result.state == suspendedResult.state)
+        result.reply.getValue.asInstanceOf[OrganizationInfo] shouldBe OrganizationInfo(
+          request.orgId,
+          suspendedResult.state.asInstanceOf[EstablishedOrganizationState].info,
+        )
+      }
+
+      "Retrieve organization on request" in new Suspended {
+        val request: GetOrganizationByIdRequest = TestData.getOrganizationByIdRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        assert(result.hasNoEvents)
+        assert(result.state == suspendedResult.state)
+        result.reply.getValue.asInstanceOf[com.improving.app.organization.Organization] shouldBe com.improving.app.organization.Organization(
+          orgId = request.orgId,
+          info = oldState.info,
+          parent = oldState.parent,
+          members = oldState.getMembers,
+          owners = oldState.getOwners,
+          contacts = oldState.getContacts,
+          meta = oldState.meta
+        )
+      }
 
       "Activate upon command" in new Suspended {
         val request: ActivateOrganizationRequest = TestData.activateOrganizationRequest

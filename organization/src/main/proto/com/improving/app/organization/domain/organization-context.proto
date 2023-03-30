@@ -21,7 +21,6 @@ message Organization {
     repeated common.domain.MemberId owners = 5;
     repeated Contacts contacts = 6;
     MetaInfo meta = 7;
-    OrganizationStatus status = 8;
 }
 
 enum OrganizationStatus {

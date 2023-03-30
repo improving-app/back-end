@@ -142,12 +142,20 @@ object TestData {
     Some(testActingMember5)
   )
 
+  val getOrganizationInfoRequest: GetOrganizationInfoRequest = GetOrganizationInfoRequest(
+    Some(testOrgId)
+  )
+
+  val getOrganizationByIdRequest: GetOrganizationByIdRequest = GetOrganizationByIdRequest(
+    Some(testOrgId)
+  )
+
+
   val editOrganizationInfoRequest: EditOrganizationInfoRequest = EditOrganizationInfoRequest(
     Some(testOrgId),
     Some(testNewPartialTestInfo),
     Some(testActingMember3)
   )
-
 
 
   val updateParentRequest: UpdateParentRequest = UpdateParentRequest(
