@@ -20,7 +20,7 @@ message EstablishTenant {
 message TenantEstablished {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   com.improving.app.common.domain.TenantId tenant_id = 1;
-  MetaInfo meta_info = 2;
+  TenantMetaInfo meta_info = 2;
 }
 
 message UpdateTenantName {
@@ -34,7 +34,7 @@ message TenantNameUpdated {
   com.improving.app.common.domain.TenantId tenant_id = 1;
   string old_name = 2;
   string new_name = 3;
-  MetaInfo meta_info = 4;
+  TenantMetaInfo meta_info = 4;
 }
 
 message UpdatePrimaryContact {
@@ -48,7 +48,7 @@ message PrimaryContactUpdated {
   com.improving.app.common.domain.TenantId tenant_id = 1;
   com.improving.app.common.domain.Contact old_contact = 2;
   com.improving.app.common.domain.Contact new_contact = 3;
-  MetaInfo meta_info = 4;
+  TenantMetaInfo meta_info = 4;
 }
 
 message UpdateAddress {
@@ -62,7 +62,7 @@ message AddressUpdated {
   com.improving.app.common.domain.TenantId tenant_id = 1;
   com.improving.app.common.domain.Address old_address = 2;
   com.improving.app.common.domain.Address new_address = 3;
-  MetaInfo meta_info = 4;
+  TenantMetaInfo meta_info = 4;
 }
 
 message AddOrganizations {
@@ -75,7 +75,7 @@ message OrganizationsAdded {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   com.improving.app.common.domain.TenantId tenant_id = 1;
   repeated com.improving.app.common.domain.OrganizationId new_orgs_list = 2;
-  MetaInfo meta_info = 3;
+  TenantMetaInfo meta_info = 3;
 }
 
 message RemoveOrganizations {
@@ -88,7 +88,7 @@ message OrganizationsRemoved {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   com.improving.app.common.domain.TenantId tenant_id = 1;
   repeated com.improving.app.common.domain.OrganizationId new_orgs_list = 2;
-  MetaInfo meta_info = 3;
+  TenantMetaInfo meta_info = 3;
 }
 
 message ActivateTenant {
@@ -99,7 +99,7 @@ message ActivateTenant {
 message TenantActivated {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   com.improving.app.common.domain.TenantId tenant_id = 1;
-  MetaInfo meta_info = 2;
+  TenantMetaInfo meta_info = 2;
 }
 
 message SuspendTenant {
@@ -111,7 +111,7 @@ message SuspendTenant {
 message TenantSuspended {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   com.improving.app.common.domain.TenantId tenant_id = 1;
-  MetaInfo meta_info = 2;
+  TenantMetaInfo meta_info = 2;
   string suspension_reason = 3;
 }
 

@@ -27,11 +27,11 @@ object Tenant {
    */
   sealed trait TenantState
 
-  case class DraftTenant(info: Info, metaInfo: MetaInfo) extends TenantState
+  case class DraftTenant(info: TenantInfo, metaInfo: TenantMetaInfo) extends TenantState
 
-  case class ActiveTenant(info: Info, metaInfo: MetaInfo) extends TenantState
+  case class ActiveTenant(info: TenantInfo, metaInfo: TenantMetaInfo) extends TenantState
 
-  case class SuspendedTenant(info: Info, metaInfo: MetaInfo, suspensionReason: String) extends TenantState
+  case class SuspendedTenant(info: TenantInfo, metaInfo: TenantMetaInfo, suspensionReason: String) extends TenantState
 
   /**
    * Constructor of the Tenant which provides the initial state
@@ -43,8 +43,8 @@ object Tenant {
       EventSourcedBehavior[TenantCommand, TenantEvent, TenantState](
         persistenceId = persistenceId,
         emptyState = DraftTenant(
-          info = Info(),
-          metaInfo = MetaInfo()
+          info = TenantInfo(),
+          metaInfo = TenantMetaInfo()
         ),
         commandHandler = commandHandler,
         eventHandler = eventHandler
@@ -82,7 +82,7 @@ object Tenant {
   private def updateInfoForOrganizationEvent(
     state: TenantState,
     orgList: Seq[OrganizationId],
-    metaInfo: MetaInfo
+    metaInfo: TenantMetaInfo
   ): TenantState = {
     state match {
       case x: DraftTenant => x.copy(info = x.info.copy(orgs = orgList), metaInfo = metaInfo)
@@ -146,7 +146,7 @@ object Tenant {
    * @param lastUpdatedByOpt
    * @return
    */
-  private def updateMetaInfo(metaInfo: MetaInfo, lastUpdatedByOpt: Option[MemberId]): MetaInfo = {
+  private def updateMetaInfo(metaInfo: TenantMetaInfo, lastUpdatedByOpt: Option[MemberId]): TenantMetaInfo = {
     val currentTime = Timestamp(Instant.now())
     metaInfo.copy(lastUpdatedBy = lastUpdatedByOpt, lastUpdated = Some(currentTime))
   }
@@ -188,10 +188,10 @@ object Tenant {
    * @return
    */
   private def establishTenantLogic(
-    info: Info,
-    metaInfo: MetaInfo,
-    establishTenant: EstablishTenant,
-    replyTo: ActorRef[StatusReply[TenantEvent]]
+                                    info: TenantInfo,
+                                    metaInfo: TenantMetaInfo,
+                                    establishTenant: EstablishTenant,
+                                    replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
     if (metaInfo.createdBy.isDefined) {
       Effect.reply(replyTo)(
@@ -268,9 +268,9 @@ object Tenant {
    * @return
    */
   private def updateTenantNameLogic(
-    info: Info, metaInfo: MetaInfo,
-    updateTenantNameCommand: UpdateTenantName,
-    replyTo: ActorRef[StatusReply[TenantEvent]]
+                                     info: TenantInfo, metaInfo: TenantMetaInfo,
+                                     updateTenantNameCommand: UpdateTenantName,
+                                     replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
     if (metaInfo.createdBy.isEmpty) {
       Effect.reply(replyTo)(
@@ -362,10 +362,10 @@ object Tenant {
    * @return
    */
   private def updatePrimaryContactLogic(
-    info:Info,
-    metaInfo: MetaInfo,
-    updatePrimaryContact: UpdatePrimaryContact,
-    replyTo: ActorRef[StatusReply[TenantEvent]]
+                                         info:TenantInfo,
+                                         metaInfo: TenantMetaInfo,
+                                         updatePrimaryContact: UpdatePrimaryContact,
+                                         replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
     if (metaInfo.createdBy.isEmpty) {
       Effect.reply(replyTo)(
@@ -459,9 +459,9 @@ object Tenant {
    * @return
    */
   private def updateAddressLogic(
-    info: Info, metaInfo: MetaInfo,
-    updateAddress: UpdateAddress,
-    replyTo: ActorRef[StatusReply[TenantEvent]]
+                                  info: TenantInfo, metaInfo: TenantMetaInfo,
+                                  updateAddress: UpdateAddress,
+                                  replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
     if (metaInfo.createdBy.isEmpty) {
       Effect.reply(replyTo)(
@@ -540,10 +540,10 @@ object Tenant {
    * @return
    */
   private def addOrganizationsLogic(
-    info: Info,
-    metaInfo: MetaInfo,
-    addOrganizations: AddOrganizations,
-    replyTo: ActorRef[StatusReply[TenantEvent]]
+                                     info: TenantInfo,
+                                     metaInfo: TenantMetaInfo,
+                                     addOrganizations: AddOrganizations,
+                                     replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
     if (metaInfo.createdBy.isEmpty) {
       Effect.reply(replyTo)(
@@ -628,10 +628,10 @@ object Tenant {
    * @return
    */
   private def removeOrganizationsLogic(
-    info: Info,
-    metaInfo: MetaInfo,
-    removeOrganizations: RemoveOrganizations,
-    replyTo: ActorRef[StatusReply[TenantEvent]]
+                                        info: TenantInfo,
+                                        metaInfo: TenantMetaInfo,
+                                        removeOrganizations: RemoveOrganizations,
+                                        replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
     if (metaInfo.createdBy.isEmpty) {
       Effect.reply(replyTo)(
@@ -693,10 +693,10 @@ object Tenant {
    * @return
    */
   private def activateTenantLogic(
-    info: Info,
-    metaInfo: MetaInfo,
-    activateTenant: ActivateTenant,
-    replyTo: ActorRef[StatusReply[TenantEvent]]
+                                   info: TenantInfo,
+                                   metaInfo: TenantMetaInfo,
+                                   activateTenant: ActivateTenant,
+                                   replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
     if (metaInfo.createdBy.isEmpty) {
       Effect.reply(replyTo)(
@@ -756,9 +756,9 @@ object Tenant {
    * @return
    */
   private def suspendTenantLogic(
-    metaInfo: MetaInfo,
-    suspendTenant: SuspendTenant,
-    replyTo: ActorRef[StatusReply[TenantEvent]]
+                                  metaInfo: TenantMetaInfo,
+                                  suspendTenant: SuspendTenant,
+                                  replyTo: ActorRef[StatusReply[TenantEvent]]
   ): ReplyEffect[TenantEvent, TenantState] = {
     if (metaInfo.createdBy.isEmpty) {
       Effect.reply(replyTo)(
