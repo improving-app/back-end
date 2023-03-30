@@ -9,7 +9,7 @@ import akka.persistence.typed.PersistenceId
 import com.google.rpc.Code
 import com.google.rpc.error_details.LocalizedMessage
 import com.improving.app.tenant.api.TenantService
-import com.improving.app.tenant.domain.{ActivateTenant, AddOrganizations, AddressUpdated, EstablishTenant, OrganizationsAdded, OrganizationsRemoved, PrimaryContactUpdated, RemoveOrganizations, SuspendTenant, Tenant, TenantActivated, TenantEstablished, TenantNameUpdated, TenantSuspended, UpdateAddress, UpdatePrimaryContact, UpdateTenantName}
+import com.improving.app.tenant.domain.{ActivateTenant, AddOrganizations, AddressUpdated, EstablishTenant, Info, OrganizationsAdded, OrganizationsRemoved, PrimaryContactUpdated, RemoveOrganizations, SuspendTenant, Tenant, TenantActivated, TenantEstablished, TenantNameUpdated, TenantSuspended, UpdateAddress, UpdatePrimaryContact, UpdateTenantName}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
@@ -24,7 +24,8 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
   sharding.init(Entity(Tenant.TypeKey)(
     createBehavior = entityContext =>
       Tenant(
-        PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
+        PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId),
+        new Info() // TODO: obtain correct Info
       )
   ))
 

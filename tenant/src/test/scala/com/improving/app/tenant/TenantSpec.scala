@@ -3,7 +3,7 @@ package com.improving.app.tenant
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import akka.pattern.StatusReply
-import com.improving.app.common.domain._
+import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, MemberId, OrganizationId, PostalCodeMessageImpl, TenantId}
 import com.improving.app.tenant.domain.Tenant.TenantCommand
 import com.improving.app.tenant.domain._
 import com.typesafe.config.{Config, ConfigFactory}
@@ -44,10 +44,12 @@ class TenantSpec
     p: ActorRef[TenantCommand],
     probe: TestProbe[StatusReply[TenantEvent]]
   ): StatusReply[TenantEvent] = {
+    val tenantInfo : Info = ???;
     p ! Tenant.TenantCommand(
       EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser"))
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(tenantInfo)
       ),
       probe.ref
     )
@@ -141,7 +143,8 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EstablishTenant(
               tenantId = Some(TenantId(tenantId)),
-              establishingUser = Some(MemberId("unauthorizedUser"))
+              establishingUser = Some(MemberId("unauthorizedUser")),
+              tenantInfo = Some(Info())
             ),
             probe.ref
           )

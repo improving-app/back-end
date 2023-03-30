@@ -27,8 +27,6 @@ object Tenant {
    */
   sealed trait TenantState
 
-  case class DraftTenant(info: Info, metaInfo: MetaInfo) extends TenantState
-
   case class ActiveTenant(info: Info, metaInfo: MetaInfo) extends TenantState
 
   case class SuspendedTenant(info: Info, metaInfo: MetaInfo, suspensionReason: String) extends TenantState
@@ -38,12 +36,12 @@ object Tenant {
    * @param createdBy
    * @return
    */
-  def apply(persistenceId: PersistenceId): Behavior[TenantCommand] = {
+  def apply(persistenceId: PersistenceId, tenantInfo: Info): Behavior[TenantCommand] = {
     Behaviors.setup(context =>
       EventSourcedBehavior[TenantCommand, TenantEvent, TenantState](
         persistenceId = persistenceId,
-        emptyState = DraftTenant(
-          info = Info(),
+        emptyState = ActiveTenant(
+          info = tenantInfo,
           metaInfo = MetaInfo()
         ),
         commandHandler = commandHandler,
@@ -85,7 +83,6 @@ object Tenant {
     metaInfo: MetaInfo
   ): TenantState = {
     state match {
-      case x: DraftTenant => x.copy(info = x.info.copy(orgs = orgList), metaInfo = metaInfo)
       case x: ActiveTenant => x.copy(info = x.info.copy(orgs = orgList), metaInfo = metaInfo)
       case x: SuspendedTenant => x.copy(info = x.info.copy(orgs = orgList), metaInfo = metaInfo)
     }
@@ -99,25 +96,21 @@ object Tenant {
       case TenantEventMessage.SealedValue.Empty => state
       case TenantEventMessage.SealedValue.TenantEstablishedValue(value) =>
         state match {
-          case x : DraftTenant => x.copy(metaInfo = value.metaInfo.get)
           case _: ActiveTenant => state
           case _: SuspendedTenant => state
         }
       case TenantEventMessage.SealedValue.TenantNameUpdatedValue(value) =>
         state match {
-          case x: DraftTenant => x.copy(info = x.info.copy(name = value.newName), metaInfo = value.metaInfo.get)
           case x: ActiveTenant => x.copy(info = x.info.copy(name = value.newName), metaInfo = value.metaInfo.get)
           case x: SuspendedTenant => x.copy(info = x.info.copy(name = value.newName), metaInfo = value.metaInfo.get)
         }
       case TenantEventMessage.SealedValue.PrimaryContactUpdatedValue(value) =>
         state match {
-          case x: DraftTenant => x.copy(info = x.info.copy(contact = value.newContact), metaInfo = value.metaInfo.get)
-          case x: ActiveTenant => x.copy(info = x.info.copy(contact = value.newContact), metaInfo = value.metaInfo.get)
-          case x: SuspendedTenant => x.copy(info = x.info.copy(contact = value.newContact), metaInfo = value.metaInfo.get)
+          case x: ActiveTenant => x.copy(info = x.info.copy(primaryContact = value.newContact), metaInfo = value.metaInfo.get)
+          case x: SuspendedTenant => x.copy(info = x.info.copy(primaryContact = value.newContact), metaInfo = value.metaInfo.get)
         }
       case TenantEventMessage.SealedValue.AddressUpdatedValue(value) =>
         state match {
-          case x: DraftTenant => x.copy(info = x.info.copy(address = value.newAddress), metaInfo = value.metaInfo.get)
           case x: ActiveTenant => x.copy(info = x.info.copy(address = value.newAddress), metaInfo = value.metaInfo.get)
           case x: SuspendedTenant => x.copy(info = x.info.copy(address = value.newAddress), metaInfo = value.metaInfo.get)
         }
@@ -127,13 +120,11 @@ object Tenant {
         updateInfoForOrganizationEvent(state, value.newOrgsList, value.metaInfo.get)
       case TenantEventMessage.SealedValue.TenantActivatedValue(value) =>
         state match {
-          case x: DraftTenant => ActiveTenant(x.info, value.metaInfo.get)
           case _: ActiveTenant => state // tenant cannot have TenantActivated in Active state
           case x: SuspendedTenant => ActiveTenant(x.info, value.metaInfo.get)
         }
       case TenantEventMessage.SealedValue.TenantSuspendedValue(value) =>
         state match {
-          case x: DraftTenant => SuspendedTenant(x.info, value.metaInfo.get, value.suspensionReason)
           case x: ActiveTenant => SuspendedTenant(x.info, value.metaInfo.get, value.suspensionReason)
           case x: SuspendedTenant => SuspendedTenant(x.info, value.metaInfo.get, value.suspensionReason)
         }
@@ -202,7 +193,8 @@ object Tenant {
       val newMetaInfo = metaInfo.copy(createdBy = establishTenant.establishingUser, createdOn = Some(currentTime))
       val event = TenantEstablished(
         tenantId = establishTenant.tenantId,
-        metaInfo = Some(newMetaInfo)
+        metaInfo = Some(newMetaInfo),
+        tenantInfo = Some(info)
       )
 
       Effect.persist(event).thenReply(replyTo) { _ => StatusReply.Success(event) }
@@ -224,8 +216,6 @@ object Tenant {
     val preconditionMessageOpt = validateCommonFieldsPrecondition(establishTenant.tenantId, establishTenant.establishingUser)
     preconditionMessageOpt.fold(
       state match {
-        case DraftTenant(info, metaInfo) =>
-          establishTenantLogic(info, metaInfo, establishTenant, replyTo)
         case ActiveTenant(info, metaInfo) =>
           establishTenantLogic(info, metaInfo, establishTenant, replyTo)
         case SuspendedTenant(info, metaInfo, _) =>
@@ -308,8 +298,6 @@ object Tenant {
     val preconditionMessageOpt = validateUpdateTenantNamePreconditions(updateTenantNameCommand)
     preconditionMessageOpt.fold(
       state match {
-        case DraftTenant(info, metaInfo) =>
-          updateTenantNameLogic(info, metaInfo, updateTenantNameCommand, replyTo)
         case ActiveTenant(info, metaInfo) =>
           updateTenantNameLogic(info, metaInfo, updateTenantNameCommand, replyTo)
         case SuspendedTenant(info, metaInfo, _) =>
@@ -375,7 +363,7 @@ object Tenant {
       val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = updatePrimaryContact.updatingUser)
       val event = PrimaryContactUpdated(
         tenantId = updatePrimaryContact.tenantId,
-        oldContact = info.contact,
+        oldContact = info.primaryContact,
         newContact = updatePrimaryContact.newContact,
         metaInfo = Some(newMetaInfo)
       )
@@ -399,8 +387,6 @@ object Tenant {
     val preconditionMessageOpt = validateUpdatePrimaryContactPreconditions(updatePrimaryContact)
     preconditionMessageOpt.fold(
       state match {
-        case DraftTenant(info, metaInfo) =>
-          updatePrimaryContactLogic(info, metaInfo, updatePrimaryContact, replyTo)
         case ActiveTenant(info, metaInfo) =>
           updatePrimaryContactLogic(info, metaInfo, updatePrimaryContact, replyTo)
         case SuspendedTenant(info, metaInfo, _) =>
@@ -494,8 +480,6 @@ object Tenant {
     val preconditionMessageOpt = validateUpdateAddressPreconditions(updateAddress)
     preconditionMessageOpt.fold(
       state match {
-        case DraftTenant(info, metaInfo) =>
-          updateAddressLogic(info, metaInfo, updateAddress, replyTo)
         case ActiveTenant(info, metaInfo) =>
           updateAddressLogic(info, metaInfo, updateAddress, replyTo)
         case SuspendedTenant(info, metaInfo, _) =>
@@ -581,8 +565,6 @@ object Tenant {
     val preconditionMessageOpt = validateAddOrganizationsPreconditions(addOrganizations)
     preconditionMessageOpt.fold(
       state match {
-        case DraftTenant(info, metaInfo) =>
-          addOrganizationsLogic(info, metaInfo, addOrganizations, replyTo)
         case ActiveTenant(info, metaInfo) =>
           addOrganizationsLogic(info, metaInfo, addOrganizations, replyTo)
         case SuspendedTenant(info, metaInfo, _) =>
@@ -669,8 +651,6 @@ object Tenant {
     val preconditionMessageOpt = validateRemoveOrganizationsPreconditions(removeOrganizations)
     preconditionMessageOpt.fold(
       state match {
-        case DraftTenant(info, metaInfo) =>
-          removeOrganizationsLogic(info, metaInfo, removeOrganizations, replyTo)
         case ActiveTenant(info, metaInfo) =>
           removeOrganizationsLogic(info, metaInfo, removeOrganizations, replyTo)
         case SuspendedTenant(info, metaInfo, _) =>
@@ -702,7 +682,7 @@ object Tenant {
       Effect.reply(replyTo)(
         StatusReply.Error("Tenant has not yet been established")
       )
-    } else if (info.name.nonEmpty && info.address.isDefined && info.contact.isDefined) {
+    } else if (info.name.nonEmpty && info.address.isDefined && info.primaryContact.isDefined) {
       val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = activateTenant.activatingUser)
       val event = TenantActivated(
         tenantId = activateTenant.tenantId,
@@ -731,8 +711,6 @@ object Tenant {
     val preconditionMessageOpt = validateCommonFieldsPrecondition(activateTenant.tenantId, activateTenant.activatingUser)
     preconditionMessageOpt.fold(
       state match {
-        case DraftTenant(info, metaInfo) =>
-          activateTenantLogic(info, metaInfo, activateTenant, replyTo)
         case ActiveTenant(_, _) =>
           Effect.reply[StatusReply[TenantEvent], TenantEvent, TenantState](replyTo)(
             StatusReply.Error("Active tenants may not transition to the Active state")
@@ -790,8 +768,6 @@ object Tenant {
     val preconditionMessageOpt = validateCommonFieldsPrecondition(suspendTenant.tenantId, suspendTenant.suspendingUser)
     preconditionMessageOpt.fold(
       state match {
-        case DraftTenant(_, metaInfo) =>
-          suspendTenantLogic(metaInfo, suspendTenant, replyTo)
         case ActiveTenant(_, metaInfo) =>
           suspendTenantLogic(metaInfo, suspendTenant, replyTo)
         case SuspendedTenant(_, metaInfo, _) =>
