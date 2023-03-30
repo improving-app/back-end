@@ -26,17 +26,13 @@ service OrganizationService {
 
     rpc RemoveOwnersFromOrganization(RemoveOwnersFromOrganizationRequest) returns (OwnersRemovedFromOrganization) {}
 
-    rpc EditOrganizationInfo(EditOrganizationInfoRequest) returns (OrganizationInfoUpdated) {}
+    rpc EditOrganizationInfo(EditOrganizationInfoRequest) returns (OrganizationInfoEdited) {}
 
     rpc ReleaseOrganization(ReleaseOrganizationRequest) returns (OrganizationReleased) {}
 
     rpc UpdateParent(UpdateParentRequest) returns (ParentUpdated) {}
 
-    rpc UpdateOrganizationStatus(UpdateOrganizationStatusRequest) returns (OrganizationStatusUpdated) {}
-
     rpc UpdateOrganizationContacts(UpdateOrganizationContactsRequest) returns (OrganizationContactsUpdated) {}
-
-    rpc UpdateOrganizationAccounts(UpdateOrganizationAccountsRequest) returns (OrganizationAccountsUpdated) {}
 
     rpc ActivateOrganization(ActivateOrganizationRequest) returns (OrganizationActivated) {}
 
@@ -47,4 +43,5 @@ service OrganizationService {
     rpc FindOrganizationByOwner(GetOrganizationsByOwnerRequest) returns (Organizations) {}
 
     rpc FindOrganizationByMember(GetOrganizationsByMemberRequest) returns (Organizations) {}
+
 }

@@ -120,7 +120,7 @@ class OrganizationByMemberProjectionHandler(tag: String, system: ActorSystem[_],
           })
           .map(_ => Done)
       }
-      case OrganizationInfoUpdated(Some(orgId), Some(info), actingMember, _) => {
+      case OrganizationInfoEdited(Some(orgId), Some(info), actingMember, _) => {
         repo
           .getOrganizationsByMemberByOrgId(orgId.id)
           .map(organizations => {

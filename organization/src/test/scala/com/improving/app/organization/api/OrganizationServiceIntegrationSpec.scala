@@ -523,7 +523,7 @@ class OrganizationServiceIntegrationSpec
 
       orgId.isDefined shouldBe true
 
-      val updateOrganizationStatusRequest =
+      /*val updateOrganizationStatusRequest =
         UpdateOrganizationStatusRequest(
           orgId,
           OrganizationStatus.ORGANIZATION_STATUS_ACTIVE,
@@ -535,7 +535,7 @@ class OrganizationServiceIntegrationSpec
           .updateOrganizationStatus(updateOrganizationStatusRequest)
           .futureValue
 
-      organizationStatusUpdated.actingMember shouldBe Some(testActingMember2)
+      organizationStatusUpdated.actingMember shouldBe Some(testActingMember2)*/
 
       val getOrganizationByIdRequest = GetOrganizationByIdRequest(orgId)
 
@@ -596,7 +596,7 @@ class OrganizationServiceIntegrationSpec
 
       orgId.isDefined shouldBe true
 
-      val updateOrganizationAccountsRequest =
+      /*val updateOrganizationAccountsRequest =
         UpdateOrganizationAccountsRequest(
           orgId,
           Some(testNewTestInfo),
@@ -608,7 +608,7 @@ class OrganizationServiceIntegrationSpec
           .updateOrganizationAccounts(updateOrganizationAccountsRequest)
           .futureValue
 
-      organizationAccountsUpdated.actingMember shouldBe Some(testActingMember2)
+      organizationAccountsUpdated.actingMember shouldBe Some(testActingMember2)*/
 
       val getOrganizationByIdRequest = GetOrganizationByIdRequest(orgId)
 

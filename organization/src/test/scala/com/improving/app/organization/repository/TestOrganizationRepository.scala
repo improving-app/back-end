@@ -93,4 +93,8 @@ class TestOrganizationRepository extends OrganizationRepository {
     ownersByOrgMap = ownersByOrgMap.dropWhile { case (oid, (_, _)) => oid == orgId }
     Future.successful(Done)
   }
+
+  override def getRootOrganization(orgId: String): Future[Organization] = ???
+
+  override def getDescendants(orgId: String): Future[Organization] = ???
 }

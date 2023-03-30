@@ -306,7 +306,7 @@ class OrganizationByMemberProjectionSpec extends ScalaTestWithActorTestKit with 
               0L
             ),
             createEnvelope(
-              OrganizationInfoUpdated(
+              OrganizationInfoEdited(
                 Some(testOrgId),
                 Some(testNewTestInfo),
                 Some(testActingMember)

@@ -47,10 +47,10 @@ message ContactList {
 
 message Info {
     option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-    string name = 1;
+    optional string name = 1; //making optional for updates
     optional string short_name = 2;
     common.domain.Address address = 3;
-    bool isPrivate = 4;
+    optional bool is_private = 4; //has to be optional or else it will default to false
     optional string url = 5; // URL type?
     optional string logo = 6; // URL type?
     common.domain.TenantId tenant = 7;
@@ -103,11 +103,14 @@ message OrganizationInfo {
 // Organization Requests
 
 message GetOrganizationByIdRequest {
-    option (scalapb.message).extends = "com.improving.app.organization.domain.Organization.HasOrganizationId";
+    option (scalapb.message).extends = "com.improving.app.organization.domain.HasOrganizationId";
     common.domain.OrganizationId org_id = 1;
 }
 
 message EstablishOrganizationRequest {
+    option (scalapb.message) = {
+        extends: ["com.improving.app.organization.domain.HasActingMember", "com.improving.app.common.serialize.PBMsgSerializable"];
+    };
     Info info = 2;
     common.domain.OrganizationId parent = 3;
     repeated common.domain.MemberId members = 4;
@@ -117,92 +120,100 @@ message EstablishOrganizationRequest {
 }
 
 message GetOrganizationInfoRequest {
-    option (scalapb.message).extends = "com.improving.app.organization.domain.Organization.HasOrganizationId";
+    option (scalapb.message).extends = "com.improving.app.organization.domain.HasOrganizationId";
     common.domain.OrganizationId org_id = 1;
 }
 
 message AddMembersToOrganizationRequest {
-    option (scalapb.message).extends = "com.improving.app.organization.domain.Organization.HasOrganizationId";
+    option (scalapb.message) = {
+        extends: ["com.improving.app.organization.domain.HasOrganizationId", "com.improving.app.organization.domain.HasActingMember"]
+    };
     common.domain.OrganizationId org_id = 1;
     repeated common.domain.MemberId new_members = 2;
     common.domain.MemberId acting_member = 3;
 }
 
 message RemoveMembersFromOrganizationRequest {
-    option (scalapb.message).extends = "com.improving.app.organization.domain.Organization.HasOrganizationId";
+    option (scalapb.message) = {
+        extends: ["com.improving.app.organization.domain.HasOrganizationId", "com.improving.app.organization.domain.HasActingMember"]
+    };
     common.domain.OrganizationId org_id = 1;
     repeated common.domain.MemberId removed_members = 2;
     common.domain.MemberId acting_member = 3;
 }
 
 message AddOwnersToOrganizationRequest {
-    option (scalapb.message).extends = "com.improving.app.organization.domain.Organization.HasOrganizationId";
+    option (scalapb.message) = {
+        extends: ["com.improving.app.organization.domain.HasOrganizationId", "com.improving.app.organization.domain.HasActingMember"]
+    };
     common.domain.OrganizationId org_id = 1;
     repeated common.domain.MemberId new_owners = 2;
     common.domain.MemberId acting_member = 3;
 }
 
 message RemoveOwnersFromOrganizationRequest {
-    option (scalapb.message).extends = "com.improving.app.organization.domain.Organization.HasOrganizationId";
+    option (scalapb.message) = {
+        extends: ["com.improving.app.organization.domain.HasOrganizationId", "com.improving.app.organization.domain.HasActingMember"]
+    };
     common.domain.OrganizationId org_id = 1;
     repeated common.domain.MemberId removed_owners = 2;
     common.domain.MemberId acting_member = 3;
 }
 
 message EditOrganizationInfoRequest {
-    option (scalapb.message).extends = "com.improving.app.organization.domain.Organization.HasOrganizationId";
+    option (scalapb.message) = {
+            extends: ["com.improving.app.organization.domain.HasOrganizationId", "com.improving.app.organization.domain.HasActingMember"]
+    };
     common.domain.OrganizationId org_id = 1;
     Info info = 2;
     common.domain.MemberId acting_member = 3;
 }
 
 message ReleaseOrganizationRequest {
-    option (scalapb.message).extends = "com.improving.app.organization.domain.Organization.HasOrganizationId";
+    option (scalapb.message) = {
+        extends: ["com.improving.app.organization.domain.HasOrganizationId", "com.improving.app.organization.domain.HasActingMember"]
+    };
     common.domain.OrganizationId org_id = 1;
     common.domain.MemberId acting_member = 2;
 }
 
 message ActivateOrganizationRequest {
-    option (scalapb.message).extends = "com.improving.app.organization.domain.Organization.HasOrganizationId";
+    option (scalapb.message) = {
+        extends: ["com.improving.app.organization.domain.HasOrganizationId", "com.improving.app.organization.domain.HasActingMember"]
+}   ;
     common.domain.OrganizationId org_id = 1;
     common.domain.MemberId acting_member = 2;
 }
 
 message SuspendOrganizationRequest {
-    option (scalapb.message).extends = "com.improving.app.organization.domain.Organization.HasOrganizationId";
+    option (scalapb.message) = {
+        extends: ["com.improving.app.organization.domain.HasOrganizationId", "com.improving.app.organization.domain.HasActingMember"]
+    };
     common.domain.OrganizationId org_id = 1;
     common.domain.MemberId acting_member = 2;
 }
 
 message TerminateOrganizationRequest {
-    option (scalapb.message).extends = "com.improving.app.organization.domain.Organization.HasOrganizationId";
+    option (scalapb.message) = {
+        extends: ["com.improving.app.organization.domain.HasOrganizationId", "com.improving.app.organization.domain.HasActingMember"]
+    };
     common.domain.OrganizationId org_id = 1;
     common.domain.MemberId acting_member = 2;
 }
 
 message UpdateParentRequest {
-    option (scalapb.message).extends = "com.improving.app.organization.domain.Organization.HasOrganizationId";
+    option (scalapb.message) = {
+        extends:["com.improving.app.organization.domain.HasOrganizationId", "com.improving.app.organization.domain.HasActingMember"]
+    };
     common.domain.OrganizationId org_id = 1;
     common.domain.OrganizationId new_parent = 2;
     common.domain.MemberId acting_member = 3;
 }
 
-message UpdateOrganizationStatusRequest {
-    option (scalapb.message).extends = "com.improving.app.organization.domain.Organization.HasOrganizationId";
-    common.domain.OrganizationId org_id = 1;
-    OrganizationStatus new_status = 2;
-    common.domain.MemberId acting_member = 3;
-}
-
-message UpdateOrganizationAccountsRequest {
-    option (scalapb.message).extends = "com.improving.app.organization.domain.Organization.HasOrganizationId";
-    common.domain.OrganizationId org_id = 1;
-    Info info = 2;
-    common.domain.MemberId acting_member = 3;
-}
-
 message UpdateOrganizationContactsRequest {
-    option (scalapb.message).extends = "com.improving.app.organization.domain.Organization.HasOrganizationId";
+    option (scalapb.message) = {
+        extends: ["com.improving.app.organization.domain.HasOrganizationId", "com.improving.app.organization.domain.HasActingMember"]
+    };
     common.domain.OrganizationId org_id = 1;
     repeated Contacts contacts = 2;
     common.domain.MemberId acting_member = 3;
@@ -216,13 +227,23 @@ message GetOrganizationsByMemberRequest {
     common.domain.MemberId member_id = 1;
 }
 
+message GetRootOrganizationRequest {
+    option (scalapb.message).extends = "com.improving.app.organization.domain.HasOrganizationId";
+    common.domain.OrganizationId org_id = 1;
+}
+
+message GetDescendantOrganizationsRequest {
+    option (scalapb.message).extends = "com.improving.app.organization.domain.HasOrganizationId";
+    common.domain.OrganizationId org_id = 1;
+}
+
 message OrganizationRequest{
-    option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
+    option (scalapb.message) = {
+        sealed_oneof_extends: ["com.improving.app.common.serialize.PBMsgOneOfSerializable"]
+    };
 
     oneof sealed_value {
         UpdateOrganizationContactsRequest update_organization_contacts_request = 1;
-        UpdateOrganizationAccountsRequest update_organization_accounts_request = 2;
-        UpdateOrganizationStatusRequest update_organization_status_request = 3;
         UpdateParentRequest update_parent_request = 4;
         TerminateOrganizationRequest terminate_organization_request = 5;
         SuspendOrganizationRequest suspend_organization_request = 6;
@@ -238,6 +259,8 @@ message OrganizationRequest{
         GetOrganizationByIdRequest get_organization_by_id_request = 16;
         GetOrganizationsByOwnerRequest get_organization_by_owner_request = 17;
         GetOrganizationsByMemberRequest get_organization_by_member_request = 18;
+        GetRootOrganizationRequest get_root_organization_request = 19;
+        GetDescendantOrganizationsRequest get_descendant_organizations_request = 20;
     }
 }
 
@@ -294,7 +317,7 @@ message OrganizationReleased {
     common.domain.MemberId acting_member = 2;
 }
 
-message OrganizationInfoUpdated {
+message OrganizationInfoEdited {
     common.domain.OrganizationId org_id = 1;
     Info info = 2;
     common.domain.MemberId acting_member = 3;
@@ -344,7 +367,7 @@ message OrganizationEvent {
         MembersRemovedFromOrganization members_removed_from_organization = 3;
         OwnersAddedToOrganization owners_added_to_organization = 4;
         OwnersRemovedFromOrganization owners_removed_from_organization = 5;
-        OrganizationInfoUpdated organization_info_updated = 6;
+        OrganizationInfoEdited organization_info_edited = 6;
         OrganizationReleased organization_released = 7;
         OrganizationActivated organization_activated = 8;
         OrganizationSuspended organization_suspended = 9;
@@ -371,7 +394,54 @@ message OrganizationEventResponse {
     OrganizationEvent organization_event = 1;
 }
 
+
 message OrganizationState {
+    oneof sealed_value {
+        InitialEmptyOrganizationState initial_empty_organization_state = 1;
+        DraftOrganizationState draft_organization_state = 2;
+        EstablishedOrganizationState established_organization_state = 3;
+        TerminatedOrganizationState terminated_organization_state = 4;
+    }
+}
+
+message InitialEmptyOrganizationState {
+    option (scalapb.message).extends = "com.improving.app.organization.domain.HasOrganizationId";
+    common.domain.OrganizationId org_id = 1;
+}
+
+message DraftOrganizationState {
+    option (scalapb.message).extends = "com.improving.app.organization.domain.HasOrganizationId";
+    common.domain.OrganizationId org_id = 1;
+    RequiredDraftInfo required_draft_info = 2;
+    OptionalDraftInfo optional_draft_info = 3;
+    MetaInfo org_meta = 4;
+}
+
+message RequiredDraftInfo {
+    optional string name = 1; // optional so protobuf will make the empty string a None.
+    bool is_private = 2;
+    common.domain.TenantId tenant = 3;
+    repeated common.domain.MemberId owners = 4;
+}
+
+message OptionalDraftInfo {
+    optional string short_name = 1;
+    optional common.domain.Address address = 2;
+    optional string url = 3;
+    optional string logo = 4;
+    optional common.domain.OrganizationId parent = 5;
+    repeated Contacts contacts = 6;
+    repeated common.domain.MemberId members = 7;
+}
+
+message TerminatedOrganizationState {
+    option (scalapb.message).extends = "com.improving.app.organization.domain.HasOrganizationId";
+    common.domain.OrganizationId org_id = 1;
+    MetaInfo last_meta = 2;
+}
+
+message EstablishedOrganizationState {
+    option (scalapb.message).extends = "com.improving.app.organization.domain.HasOrganizationId";
     common.domain.OrganizationId org_id = 1;
     Info info = 2;
     common.domain.OrganizationId parent = 3;
@@ -379,7 +449,6 @@ message OrganizationState {
     repeated common.domain.MemberId owners = 5;
     repeated Contacts contacts = 6;
     MetaInfo meta = 7;
-    OrganizationStatus status = 8;
 }
 
 message Organizations {

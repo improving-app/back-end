@@ -5,9 +5,9 @@ import akka.actor.typed.ActorSystem
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.pattern.StatusReply
-import com.improving.app.organization.domain.Organization.{HasOrganizationId, OrganizationCommand}
+import com.improving.app.organization.domain.HasOrganizationId
 import akka.util.Timeout
-import com.improving.app.organization.domain.Organization.OrganizationEntityKey
+import com.improving.app.organization.domain.Organization.{OrganizationEntityKey, OrganizationCommand}
 import com.improving.app.organization.repository.OrganizationRepository
 import org.slf4j.LoggerFactory
 
@@ -116,13 +116,13 @@ class OrganizationServiceImpl(implicit val system: ActorSystem[_], repo: Organiz
 
   override def editOrganizationInfo(
       in: EditOrganizationInfoRequest
-  ): Future[OrganizationInfoUpdated] = {
+  ): Future[OrganizationInfoEdited] = {
     handleRequest(
       in,
       {
         case StatusReply.Success(
               OrganizationEventResponse(
-                response: OrganizationInfoUpdated,
+                response: OrganizationInfoEdited,
                 _
               )
             ) =>
@@ -286,22 +286,6 @@ class OrganizationServiceImpl(implicit val system: ActorSystem[_], repo: Organiz
     )
   }
 
-  override def updateOrganizationStatus(
-      in: UpdateOrganizationStatusRequest
-  ): Future[OrganizationStatusUpdated] = {
-    handleRequest(
-      in,
-      {
-        case StatusReply.Success(
-              OrganizationEventResponse(
-                response: OrganizationStatusUpdated,
-                _
-              )
-            ) =>
-          response
-      }
-    )
-  }
 
   override def updateOrganizationContacts(
       in: UpdateOrganizationContactsRequest
@@ -320,20 +304,5 @@ class OrganizationServiceImpl(implicit val system: ActorSystem[_], repo: Organiz
     )
   }
 
-  override def updateOrganizationAccounts(
-      in: UpdateOrganizationAccountsRequest
-  ): Future[OrganizationAccountsUpdated] = {
-    handleRequest(
-      in,
-      {
-        case StatusReply.Success(
-              OrganizationEventResponse(
-                response: OrganizationAccountsUpdated,
-                _
-              )
-            ) =>
-          response
-      }
-    )
-  }
+
 }

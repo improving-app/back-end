@@ -23,6 +23,8 @@ trait OrganizationRepository {
   def getOrganizationsByMemberByOrgId(orgId: String): Future[Seq[Organization]]
   def getOrganizationsByOwner(ownerId: String): Future[Seq[Organization]]
   def getOrganizationsByOwnerByOrgId(orgId: String): Future[Seq[Organization]]
+  def getRootOrganization(orgId: String): Future[Organization]
+  def getDescendants(orgId: String): Future[Organization]
 
 }
 
@@ -171,4 +173,9 @@ class OrganizationRepositoryImpl(session: CassandraSession, keyspace: String)(im
       done
     }
   }
+
+  override def getRootOrganization(orgId: String): Future[Organization] = ??? //TODO implement this?
+
+  override def getDescendants(orgId: String): Future[Organization] = ??? //TODO implement this?
+
 }

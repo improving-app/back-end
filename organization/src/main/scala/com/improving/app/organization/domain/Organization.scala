@@ -11,34 +11,29 @@ import cats.implicits.toFoldableOps
 import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain._
 import com.improving.app.organization._
-import com.typesafe.config.ConfigFactory
+import com.improving.app.organization.domain.OrganizationValidation.ValidationResult
+import com.typesafe.config.{Config, ConfigFactory}
 import org.slf4j.LoggerFactory
 
+import java.time.Instant
+
 object Organization {
+  import com.improving.app.organization.domain.OrganizationStateOps._
 
   private val log =
     LoggerFactory.getLogger(
       "com.improving.app.organization.domain.Organization"
     )
 
-  val config = ConfigFactory.load()
+  //TODO add all extra validation from the riddl (on things other than existince/nonexistence)
 
-  def now = java.time.Instant.now()
+  val config: Config = ConfigFactory.load()
 
-  val index = config.getInt("organization-service.tags")
+  def now: Instant = java.time.Instant.now()
 
-  val tags = Vector.tabulate(index)(i => s"organizations-$i")
+  val index: Int = config.getInt("organization-service.tags")
 
-  trait HasOrganizationId {
-    def orgId: Option[OrganizationId]
-
-    def extractOrganizationId: String =
-      orgId match {
-        case Some(OrganizationId(id, _)) => id
-        case other =>
-          throw new RuntimeException(s"Unexpected request to extract id $other")
-      }
-  }
+  val tags: Vector[String] = Vector.tabulate(index)(i => s"organizations-$i")
 
   val OrganizationEntityKey: EntityTypeKey[OrganizationCommand] =
     EntityTypeKey[OrganizationCommand]("Organization")
@@ -56,7 +51,7 @@ object Organization {
   )
 
   private def emptyState(id: String): OrganizationState =
-    OrganizationState(Some(OrganizationId(id)))
+    InitialEmptyOrganizationState(Some(OrganizationId(id)))
 
   def apply(
       orgId: String
@@ -84,7 +79,7 @@ object Organization {
     }
 
   /**
-   * @param actingMember
+   * @param actingMember the member that acted on the organization
    * @return new MetaInfo with draft status
    */
   def createMetaInfo(actingMember: Option[MemberId]): MetaInfo = {
@@ -104,7 +99,7 @@ object Organization {
       actingMember: Option[MemberId],
       newStatus: Option[OrganizationStatus] = None,
       children: Seq[OrganizationId] = Seq.empty[OrganizationId]
-  ) = {
+  ): MetaInfo = {
     val timestamp = Timestamp.of(now.getEpochSecond, now.getNano)
     metaInfo.copy(
       lastUpdated = Some(timestamp),
@@ -126,49 +121,66 @@ object Organization {
     )
   }
 
+
   /**
-   * @param state
-   * @param command
+   * @param state - current state of the organization
+   * @param command - command to be executed on the organization
    * @return boolean - validate if state transition is valid for the command.
    */
   private def isCommandValidForState(
       state: OrganizationState,
       command: OrganizationRequest
   ): Boolean = {
-    command match {
-      case _: UpdateOrganizationContactsRequest | _: UpdateOrganizationAccountsRequest | _: UpdateParentRequest |
-          _: SuspendOrganizationRequest | _: EditOrganizationInfoRequest | _: RemoveOwnersFromOrganizationRequest |
-          _: AddOwnersToOrganizationRequest | _: RemoveMembersFromOrganizationRequest |
-          _: AddMembersToOrganizationRequest =>
-        state.meta.exists(meta =>
-          meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_DRAFT || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_ACTIVE
-        )
-      case _: UpdateOrganizationStatusRequest =>
-        state.meta.exists(meta =>
-          !(meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_TERMINATED || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_RELEASED)
-        )
-      case _: TerminateOrganizationRequest =>
-        state.meta.exists(meta =>
-          !(meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_TERMINATED || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_RELEASED)
-        )
-      case _: ActivateOrganizationRequest =>
-        state.meta.exists(meta =>
-          meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_DRAFT || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_SUSPENDED
-        )
-      case _: ReleaseOrganizationRequest =>
-        state.meta.exists(meta => meta.currentStatus != OrganizationStatus.ORGANIZATION_STATUS_RELEASED)
-      case _: GetOrganizationInfoRequest =>
-        state.meta.exists(meta =>
-          !(meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_TERMINATED || meta.currentStatus == OrganizationStatus.ORGANIZATION_STATUS_RELEASED)
-        )
-      case _: EstablishOrganizationRequest =>
-        state.meta.isEmpty
-      case _: GetOrganizationByIdRequest =>
-        true
-      case other =>
-        log.error(s"Invalid Organization Command $other")
-        false
+    //TODO how wedded are we to the specific errors in the riddl? If we don't mind having a generic mismatch message then this works fine
+    state match {
+      case _: InitialEmptyOrganizationState =>
+        command match {
+          case _: EstablishOrganizationRequest => true
+          case _                               => false
+        }
+      case _: DraftOrganizationState =>
+        command match { //TODO confirm you can Terminate from Draft
+          case _: EditOrganizationInfoRequest | _: UpdateParentRequest | _: AddMembersToOrganizationRequest |
+               _: RemoveMembersFromOrganizationRequest | _: AddOwnersToOrganizationRequest |
+               _: RemoveOwnersFromOrganizationRequest | _: UpdateOrganizationContactsRequest |
+               _: GetOrganizationByIdRequest | _: GetOrganizationInfoRequest | _: TerminateOrganizationRequest |
+               _: ActivateOrganizationRequest => true
+          case _ => false
+        }
+      case state: EstablishedOrganizationState if state.isSuspended =>
+        command match {
+          case _: ActivateOrganizationRequest | _: TerminateOrganizationRequest | _: GetOrganizationByIdRequest
+               | _: GetOrganizationInfoRequest | _: SuspendOrganizationRequest => true
+          case _ => false
+        }
+      case _: EstablishedOrganizationState =>
+        command match {
+          case _: EditOrganizationInfoRequest | _: UpdateParentRequest | _: AddMembersToOrganizationRequest |
+               _: RemoveMembersFromOrganizationRequest | _: AddOwnersToOrganizationRequest |
+               _: RemoveOwnersFromOrganizationRequest | _: UpdateOrganizationContactsRequest |
+               _: SuspendOrganizationRequest | _: GetOrganizationByIdRequest | _: GetOrganizationInfoRequest |
+               _: TerminateOrganizationRequest => true
+          case _ => false
+        }
+      case _: TerminatedOrganizationState => false
+      case OrganizationState.Empty => false
     }
+  }
+
+  private def buildInfoFromDraft(draft: DraftOrganizationState): Option[Info] = {
+    for {
+      required <- draft.requiredDraftInfo
+      optional <- draft.optionalDraftInfo
+    }
+      yield Info(
+        name = required.name,
+        shortName = optional.shortName,
+        address = optional.address,
+        isPrivate = Some(required.isPrivate),
+        url = optional.url,
+        logo = optional.logo,
+        tenant = required.tenant
+      )
   }
 
   private def getOrganizationInfo(
@@ -177,12 +189,34 @@ object Organization {
       replyTo: ActorRef[StatusReply[OrganizationResponse]]
   ): ReplyEffect[OrganizationEvent, OrganizationState] = {
     log.info(s"getOrganizationInfo: orgId ${orgId.map(_.id)}")
-    Effect.reply(replyTo) {
-      StatusReply.Success(
-        OrganizationInfo(orgId, state.info)
-      )
+    state match {
+      case establishedOrganizationState: EstablishedOrganizationState =>
+        Effect.reply(replyTo) {
+          StatusReply.Success(
+            OrganizationInfo(
+              orgId,
+              establishedOrganizationState.info
+            )
+          )
+        }
+      case draft: DraftOrganizationState =>
+        Effect.reply(replyTo) {
+          StatusReply.Success(
+            OrganizationInfo(
+              orgId,
+              buildInfoFromDraft(draft)
+            )
+          )
+        }
+      case _ =>
+        Effect.reply(replyTo) {
+          StatusReply.Error(
+            s"Organization ${orgId.map(_.id)} is not established"
+          )
+        }
     }
   }
+
 
   private def getOrganizationById(
       orgId: Option[OrganizationId],
@@ -190,20 +224,52 @@ object Organization {
       replyTo: ActorRef[StatusReply[OrganizationResponse]]
   ): ReplyEffect[OrganizationEvent, OrganizationState] = {
     log.info(s"getOrganizationById: orgId ${orgId.map(_.id)}")
-    Effect.reply(replyTo) {
-      StatusReply.Success(
-        com.improving.app.organization.Organization(
-          orgId,
-          state.info,
-          state.parent,
-          state.members,
-          state.owners,
-          state.contacts,
-          state.meta,
-          state.status
+    state match {
+      case draft: DraftOrganizationState =>
+        val org = for {
+          required <- draft.requiredDraftInfo
+          optional <- draft.optionalDraftInfo
+        } yield com.improving.app.organization.Organization(
+          orgId = orgId,
+          info = buildInfoFromDraft(draft),
+          parent = optional.parent,
+          members = optional.members,
+          owners = required.owners,
+          contacts = optional.contacts,
+          meta = draft.orgMeta,
+          status = OrganizationStatus.ORGANIZATION_STATUS_DRAFT)
+
+        org match {
+          case Some(org) => Effect.reply(replyTo) {
+            StatusReply.Success(org)
+          }
+          case None => Effect.reply(replyTo) {
+            StatusReply.Error(
+              s"Internal error in draft state for organization ${orgId.map(_.id)}"
+            )
+          }
+        }
+      case establishedOrganizationState: EstablishedOrganizationState =>
+        Effect.reply(replyTo) {
+          StatusReply.Success(
+            com.improving.app.organization.Organization(
+              orgId,
+              establishedOrganizationState.info,
+              establishedOrganizationState.parent,
+              establishedOrganizationState.members,
+              establishedOrganizationState.owners,
+              establishedOrganizationState.contacts,
+              establishedOrganizationState.meta
+            )
+          )
+        }
+      case _ => Effect.reply(replyTo) {
+        StatusReply.Error(
+          s"Organization ${orgId.map(_.id)} is not established"
         )
-      )
+      }
     }
+
   }
 
   private def updateOrganizationContacts(
@@ -222,61 +288,13 @@ object Organization {
       StatusReply.Success(OrganizationEventResponse(event))
     }
   }
-  private def updateOrganizationAccounts(
-      uoar: UpdateOrganizationAccountsRequest,
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val info = uoar.info.getOrElse(Info())
-    OrganizationValidation.validateInfo(info) match {
-      case Validated.Valid(_) => {
-        val event = OrganizationAccountsUpdated(
-          uoar.orgId,
-          uoar.info,
-          uoar.actingMember
-        )
-        log.info(
-          s"updateOrganizationAccounts: UpdateOrganizationAccountsRequest $uoar"
-        )
-        Effect.persist(event).thenReply(replyTo) { _ =>
-          StatusReply.Success(OrganizationEventResponse(event))
-        }
-      }
-      case Validated.Invalid(errors) => {
-        Effect.reply(replyTo) {
-          StatusReply.Error(
-            s"updateOrganizationAccounts: Invalid Organization Info with errors: ${errors
-              .map {
-                _.errorMessage
-              }
-              .toList
-              .mkString(",")}"
-          )
-        }
-      }
-    }
-  }
-
-  private def updateOrganizationStatus(
-      uosr: UpdateOrganizationStatusRequest,
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val event = OrganizationStatusUpdated(
-      uosr.orgId,
-      uosr.newStatus,
-      uosr.actingMember
-    )
-    log.info(
-      s"updateOrganizationStatus: UpdateOrganizationStatusRequest $uosr"
-    )
-    Effect.persist(event).thenReply(replyTo) { _ =>
-      StatusReply.Success(OrganizationEventResponse(event))
-    }
-  }
 
   private def updateParent(
       upr: UpdateParentRequest,
       replyTo: ActorRef[StatusReply[OrganizationResponse]]
   ): ReplyEffect[OrganizationEvent, OrganizationState] = {
+    //TODO implement child/parent checks per riddl
+
     val event = ParentUpdated(
       upr.orgId,
       upr.newParent,
@@ -338,52 +356,19 @@ object Organization {
     }
   }
 
-  private def releaseOrganization(
-      ror: ReleaseOrganizationRequest,
-      replyTo: ActorRef[StatusReply[OrganizationResponse]]
-  ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val event = OrganizationReleased(
-      ror.orgId,
-      ror.actingMember
-    )
-    log.info(
-      s"releaseOrganization: ReleaseOrganizationRequest $ror"
-    )
-    Effect.persist(event).thenReply(replyTo) { _ =>
-      StatusReply.Success(OrganizationEventResponse(event))
-    }
-  }
-
   private def editOrganizationInfo(
       eoir: EditOrganizationInfoRequest,
       replyTo: ActorRef[StatusReply[OrganizationResponse]]
   ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val info = eoir.info.getOrElse(Info())
-    OrganizationValidation.validateInfo(info) match {
-      case Validated.Valid(_) => {
-        val event = OrganizationInfoUpdated(
-          eoir.orgId,
-          eoir.info,
-          eoir.actingMember
-        )
-        log.info(s"editOrganizationInfo: EditOrganizationInfoRequest $eoir")
+      val event = OrganizationInfoEdited(
+        eoir.orgId,
+        eoir.info,
+        eoir.actingMember
+      )
+      log.info(s"editOrganizationInfo: EditOrganizationInfoRequest $eoir")
         Effect.persist(event).thenReply(replyTo) { _ =>
           StatusReply.Success(OrganizationEventResponse(event))
         }
-      }
-      case Validated.Invalid(errors) => {
-        Effect.reply(replyTo) {
-          StatusReply.Error(
-            s"editOrganizationInfo: Invalid Organization Info with errors: ${errors
-              .map {
-                _.errorMessage
-              }
-              .toList
-              .mkString(",")}"
-          )
-        }
-      }
-    }
   }
 
   private def removeOwnersFromOrganization(
@@ -455,35 +440,39 @@ object Organization {
       orgId: Option[OrganizationId],
       replyTo: ActorRef[StatusReply[OrganizationResponse]]
   ): ReplyEffect[OrganizationEvent, OrganizationState] = {
-    val info = eor.info.getOrElse(Info())
-    OrganizationValidation.validateInfo(info) match {
-      case Validated.Valid(_) => {
-        val event = OrganizationEstablished(
-          orgId,
-          eor.info,
-          eor.parent,
-          eor.members,
-          eor.owners,
-          eor.contacts,
-          eor.actingMember
-        )
-        log.info(s"establishOrganization: event $event")
-        Effect.persist(event).thenReply(replyTo) { _ =>
-          StatusReply.Success(OrganizationEventResponse(event))
-        }
+      val event = OrganizationEstablished(
+        orgId,
+        eor.info.map(info => info.copy(isPrivate = info.isPrivate.orElse(Some(true)))),
+        eor.parent,
+        eor.members,
+        eor.owners,
+        eor.contacts,
+        eor.actingMember
+      )
+      log.info(s"establishOrganization: event $event")
+      Effect.persist(event).thenReply(replyTo) { _ =>
+        StatusReply.Success(OrganizationEventResponse(event))
       }
-      case Validated.Invalid(errors) => {
+  }
+
+  private def handleCommandWithValidate[T <: OrganizationRequest](request: T,
+          replyTo: ActorRef[StatusReply[OrganizationResponse]],
+          validator: T => ValidationResult[T],
+          handler: (T, ActorRef[StatusReply[OrganizationResponse]])  => ReplyEffect[OrganizationEvent, OrganizationState]): ReplyEffect[OrganizationEvent, OrganizationState] = {
+    validator(request) match {
+      case Validated.Valid(_) =>
+        handler(request, replyTo)
+      case Validated.Invalid(errors) =>
         Effect.reply(replyTo) {
           StatusReply.Error(
-            s"establishOrganization: Invalid Organization Info with errors: ${errors
+            errors
               .map {
                 _.errorMessage
               }
               .toList
-              .mkString(",")}"
+              .mkString(start = "Invalid request with errors: ", sep = ", ", end = ".")
           )
         }
-      }
     }
   }
 
@@ -492,217 +481,281 @@ object Organization {
       OrganizationCommand
   ) => ReplyEffect[OrganizationEvent, OrganizationState] = { (state, command: OrganizationCommand) =>
     {
-      command.request match {
-        case cmd if !isCommandValidForState(state, cmd) => {
-          Effect.reply(command.replyTo) {
-            StatusReply.Error(
-              s"Invalid Command ${command.request} for State $state"
-            )
+          command.request match {
+            case cmd if !isCommandValidForState(state, cmd) =>
+              val stateString = state match {
+                case _: InitialEmptyOrganizationState => "Empty"
+                case _: DraftOrganizationState => "Draft"
+                case e: EstablishedOrganizationState if e.isSuspended => "Suspended"
+                case _: EstablishedOrganizationState => "Active"
+                case _: TerminatedOrganizationState => "Terminated"
+                case _ => "Unknown"
+              }
+              Effect.reply(command.replyTo) {
+                StatusReply.Error(
+                  s"Invalid Command ${command.request.getClass.getSimpleName} for State $stateString"
+                )
+              }
+            case uopc: UpdateOrganizationContactsRequest =>
+              handleCommandWithValidate(uopc, command.replyTo, OrganizationValidation.validateUpdateOrganizationContactsRequest, updateOrganizationContacts)
+            case upr: UpdateParentRequest =>
+              handleCommandWithValidate(upr, command.replyTo, OrganizationValidation.validateUpdateParentRequest, updateParent)
+            case tor: TerminateOrganizationRequest =>
+              handleCommandWithValidate(tor, command.replyTo, OrganizationValidation.validateBasicRequest[TerminateOrganizationRequest], terminateOrganization)
+            case sor: SuspendOrganizationRequest =>
+              handleCommandWithValidate(sor, command.replyTo, OrganizationValidation.validateBasicRequest[SuspendOrganizationRequest], suspendOrganization)
+            case aor: ActivateOrganizationRequest =>
+              handleCommandWithValidate(aor, command.replyTo, OrganizationValidation.validateBasicRequest[ActivateOrganizationRequest], activateOrganization)
+            case eoir: EditOrganizationInfoRequest =>
+              handleCommandWithValidate(eoir, command.replyTo, OrganizationValidation.validateEditOrganizationInfoRequest, editOrganizationInfo)
+            case rfor: RemoveOwnersFromOrganizationRequest =>
+              val removeOwnersValidate = (x: RemoveOwnersFromOrganizationRequest) => OrganizationValidation.validateRemoveOwnersFromOrganizationRequest(x, state.getOwners)
+              handleCommandWithValidate(rfor, command.replyTo, removeOwnersValidate, removeOwnersFromOrganization)
+            case aoor: AddOwnersToOrganizationRequest =>
+              handleCommandWithValidate(aoor, command.replyTo, OrganizationValidation.validateAddOwnersToOrganizationRequest, addOwnersToOrganization)
+            case rfor: RemoveMembersFromOrganizationRequest =>
+              handleCommandWithValidate(rfor, command.replyTo, OrganizationValidation.validateRemoveMembersFromOrganizationRequest, removeMembersFromOrganization)
+            case amor: AddMembersToOrganizationRequest =>
+              handleCommandWithValidate(amor, command.replyTo, OrganizationValidation.validateAddMembersToOrganizationRequest, addMembersToOrganization)
+            case eor: EstablishOrganizationRequest =>
+              val establishOrganizationCommand = (x: EstablishOrganizationRequest, y: ActorRef[StatusReply[OrganizationResponse]]) => establishOrganization(x, state.getOrgId, y)
+              handleCommandWithValidate(eor, command.replyTo, OrganizationValidation.validateEstablishOrganizationRequest, establishOrganizationCommand)
+            case gobir: GetOrganizationByIdRequest =>
+              val getOrganizationByIdCommand = (x: GetOrganizationByIdRequest, y: ActorRef[StatusReply[OrganizationResponse]]) => getOrganizationById(x.orgId, state, y)
+              handleCommandWithValidate(gobir, command.replyTo, OrganizationValidation.validateGetOrganizationByIdRequest, getOrganizationByIdCommand)
+            case goir: GetOrganizationInfoRequest =>
+              val getOrganizationInfoCommand = (x: GetOrganizationInfoRequest, y: ActorRef[StatusReply[OrganizationResponse]]) => getOrganizationInfo(x.orgId, state, y)
+              handleCommandWithValidate(goir, command.replyTo, OrganizationValidation.validateGetOrganizationInfoRequest, getOrganizationInfoCommand)
+            case other =>
+              throw new RuntimeException(s"Invalid/Unhandled request $other")
           }
-        }
-        case uocr: UpdateOrganizationContactsRequest =>
-          updateOrganizationContacts(uocr, command.replyTo)
-        case uoar: UpdateOrganizationAccountsRequest =>
-          updateOrganizationAccounts(uoar, command.replyTo)
-        case uosr: UpdateOrganizationStatusRequest =>
-          updateOrganizationStatus(uosr, command.replyTo)
-        case upr: UpdateParentRequest =>
-          updateParent(upr, command.replyTo)
-        case tor: TerminateOrganizationRequest =>
-          terminateOrganization(tor, command.replyTo)
-        case sor: SuspendOrganizationRequest =>
-          suspendOrganization(sor, command.replyTo)
-        case aor: ActivateOrganizationRequest =>
-          activateOrganization(aor, command.replyTo)
-        case ror: ReleaseOrganizationRequest =>
-          releaseOrganization(ror, command.replyTo)
-        case eoir: EditOrganizationInfoRequest =>
-          editOrganizationInfo(eoir, command.replyTo)
-        case rfor: RemoveOwnersFromOrganizationRequest =>
-          removeOwnersFromOrganization(rfor, command.replyTo)
-        case aoor: AddOwnersToOrganizationRequest =>
-          addOwnersToOrganization(aoor, command.replyTo)
-        case rfor: RemoveMembersFromOrganizationRequest =>
-          removeMembersFromOrganization(rfor, command.replyTo)
-        case amor: AddMembersToOrganizationRequest =>
-          addMembersToOrganization(amor, command.replyTo)
-        case eor: EstablishOrganizationRequest =>
-          establishOrganization(eor, state.orgId, command.replyTo)
-        case GetOrganizationByIdRequest(orgId, _) =>
-          getOrganizationById(orgId, state, command.replyTo)
-        case GetOrganizationInfoRequest(orgId, _) =>
-          getOrganizationInfo(orgId, state, command.replyTo)
-        case other =>
-          throw new RuntimeException(s"Invalid/Unhandled request $other")
-      }
     }
   }
 
-  private val eventHandler: (OrganizationState, OrganizationEvent) => OrganizationState = { (state, event) =>
-    {
-      event match {
-        case OrganizationEstablished(
-              _,
-              info,
-              parent,
-              members,
-              owners,
-              contacts,
-              actingMember,
-              _
-            ) =>
-          state.copy(
-            info = info,
-            parent = parent,
-            members = members,
-            owners = owners,
-            contacts = contacts,
-            meta = Some(createMetaInfo(actingMember)),
-            status = OrganizationStatus.ORGANIZATION_STATUS_DRAFT
-          )
-        case MembersAddedToOrganization(
-              _,
-              newMembers,
-              actingMember,
-              _
-            ) =>
-          state.copy(
-            members = state.members ++ newMembers,
-            meta = state.meta.map(updateMetaInfo(_, actingMember))
-          )
-        case MembersRemovedFromOrganization(
-              _,
-              removedMembers,
-              actingMember,
-              _
-            ) =>
-          state.copy(
-            members = state.members.filterNot(member => removedMembers.contains(member)),
-            meta = state.meta.map(updateMetaInfo(_, actingMember))
-          )
-        case OwnersAddedToOrganization(
-              _,
-              newOwners,
-              actingMember,
-              _
-            ) =>
-          state.copy(
-            owners = state.owners ++ newOwners,
-            meta = state.meta.map(updateMetaInfo(_, actingMember))
-          )
-        case OwnersRemovedFromOrganization(
-              _,
-              removedOwners,
-              actingMember,
-              _
-            ) =>
-          state.copy(
-            owners = state.owners.filterNot(member => removedOwners.contains(member)),
-            meta = state.meta.map(updateMetaInfo(_, actingMember))
-          )
-        case OrganizationInfoUpdated(_, Some(newInfo), actingMember, _) =>
-          state.copy(
-            info = state.info.map(updateInfo(_, newInfo)),
-            meta = state.meta.map(updateMetaInfo(_, actingMember))
-          )
-        case OrganizationReleased(_, actingMember, _) =>
-          state.copy(
-            status = OrganizationStatus.ORGANIZATION_STATUS_RELEASED,
-            meta = state.meta.map(
-              updateMetaInfo(
-                _,
-                actingMember,
-                Some(OrganizationStatus.ORGANIZATION_STATUS_RELEASED)
-              )
-            )
-          )
-        case OrganizationActivated(_, actingMember, _) =>
-          state.copy(
-            status = OrganizationStatus.ORGANIZATION_STATUS_ACTIVE,
-            meta = state.meta.map(
-              updateMetaInfo(
-                _,
-                actingMember,
-                Some(OrganizationStatus.ORGANIZATION_STATUS_ACTIVE)
-              )
-            )
-          )
-        case OrganizationSuspended(_, actingMember, _) =>
-          state.copy(
-            status = OrganizationStatus.ORGANIZATION_STATUS_SUSPENDED,
-            meta = state.meta.map(
-              updateMetaInfo(
-                _,
-                actingMember,
-                Some(OrganizationStatus.ORGANIZATION_STATUS_SUSPENDED)
-              )
-            )
-          )
-        case OrganizationTerminated(_, actingMember, _) =>
-          state.copy(
-            status = OrganizationStatus.ORGANIZATION_STATUS_TERMINATED,
-            meta = state.meta.map(
-              updateMetaInfo(
-                _,
-                actingMember,
-                Some(OrganizationStatus.ORGANIZATION_STATUS_TERMINATED)
-              )
-            )
-          )
-        case ParentUpdated(_, newParent, actingMember, _) =>
-          state.copy(
-            parent = newParent,
-            meta = state.meta.map(
-              updateMetaInfo(
-                _,
-                actingMember
-              )
-            )
-          )
-        case OrganizationStatusUpdated(
-              _,
-              newStatus,
-              actingMember,
-              _
-            ) =>
-          state.copy(
-            status = newStatus,
-            meta = state.meta.map(
-              updateMetaInfo(
-                _,
-                actingMember,
-                Some(newStatus)
-              )
-            )
-          )
-        case OrganizationContactsUpdated(
-              _,
-              contacts,
-              actingMember,
-              _
-            ) =>
-          state.copy(
-            contacts = contacts,
-            meta = state.meta.map(
-              updateMetaInfo(
-                _,
-                actingMember
-              )
-            )
-          )
-        case OrganizationAccountsUpdated(
-              _,
-              Some(newInfo),
-              actingMember,
-              _
-            ) =>
-          state.copy(
-            info = state.info.map(updateInfo(_, newInfo)),
-            meta = state.meta.map(updateMetaInfo(_, actingMember))
-          )
-        case other =>
-          throw new RuntimeException(s"Invalid/Unhandled event $other")
-      }
-    }
+  private def emptyInitialEventHandler(emptyState: InitialEmptyOrganizationState, event: OrganizationEvent): Either[String, OrganizationState] = event match {
+    case OrganizationEstablished(
+        _,
+        info,
+        parent,
+        members,
+        owners,
+        contacts,
+        actingMember,
+        _
+        ) =>
+      Right(DraftOrganizationState(
+        orgId = emptyState.orgId,
+        requiredDraftInfo = Some(RequiredDraftInfo(
+          name = info.flatMap(_.name),
+          isPrivate = info.flatMap(_.isPrivate).get, //The options here are to use get here, which I don't love, or not default it earlier, which I also don't love, or have two places where we're setting the default, which I really don't love. We could also make it an Option here but that seems kind of silly.
+          tenant = info.flatMap(_.tenant),
+          owners = owners
+        )),
+        optionalDraftInfo = Some(OptionalDraftInfo(
+          shortName = info.flatMap(_.shortName),
+          address = info.flatMap(_.address),
+          url = info.flatMap(_.url),
+          logo = info.flatMap(_.logo),
+          parent = parent,
+          contacts = contacts,
+          members = members
+        )),
+        orgMeta = Some(createMetaInfo(actingMember))
+      ))
+    case other => Left(s"Event $other not supported in empty state")
   }
+
+  private def draftEventHandler(draft: DraftOrganizationState, event: OrganizationEvent): Either[String, OrganizationState] = event match {
+    case OrganizationInfoEdited(_, info, actingMember, _ ) =>
+      val newMeta = draft.orgMeta.map(updateMetaInfo(_, actingMember))
+      info match {
+        case None => Right(draft.copy(orgMeta = newMeta))
+        case Some(info) =>
+          val newName: Option[String] = info.name.orElse(draft.requiredDraftInfo.flatMap(_.name))
+          val newIsPrivate: Boolean = info.isPrivate.getOrElse(draft.requiredDraftInfo.map(_.isPrivate).get) //as ever I do not love get but we can only reach here from draft state and the required inf can't be none. But we may just want to change it into an option boolean in required. >:/
+          val newTenant: Option[TenantId] = info.tenant.orElse(draft.requiredDraftInfo.flatMap(_.tenant))
+          val newShortName: Option[String] = info.shortName.orElse(draft.optionalDraftInfo.flatMap(_.shortName))
+          val newAddress: Option[Address] = info.address.orElse(draft.optionalDraftInfo.flatMap(_.address))
+          val newUrl: Option[String] = info.url.orElse(draft.optionalDraftInfo.flatMap(_.url))
+          val newLogo: Option[String] = info.logo.orElse(draft.optionalDraftInfo.flatMap(_.logo))
+          Right(draft.copy(
+            requiredDraftInfo = draft.requiredDraftInfo.map(_.copy(
+              name = newName,
+              isPrivate = newIsPrivate,
+              tenant = newTenant
+            )),
+            optionalDraftInfo = draft.optionalDraftInfo.map(_.copy(
+              shortName = newShortName,
+              address = newAddress,
+              url = newUrl,
+              logo = newLogo
+            )),
+            orgMeta = newMeta
+          ))
+      }
+    case ParentUpdated(_, newParent, actingMember, _) =>
+      Right(draft.copy(
+        optionalDraftInfo = draft.optionalDraftInfo.map(_.copy(parent = newParent)),
+        orgMeta = draft.orgMeta.map(
+          updateMetaInfo(
+            _,
+            actingMember
+          )
+        ))
+      )
+    case MembersAddedToOrganization(_, newMembers, actingMember, _) =>
+      val dedupedMembers = (draft.getMembers ++ newMembers).distinct
+      Right(draft.copy(
+        optionalDraftInfo = draft.optionalDraftInfo.map(_.copy(members = dedupedMembers)),
+        orgMeta = draft.orgMeta.map(updateMetaInfo(_, actingMember))
+      ))
+    case MembersRemovedFromOrganization(_, removedMembers, actingMember, _) =>
+      val newMembers = draft.getMembers.filterNot(removedMembers.contains)
+      Right(draft.copy(
+        optionalDraftInfo = draft.optionalDraftInfo.map(_.copy(members = newMembers)),
+        orgMeta = draft.orgMeta.map(updateMetaInfo(_, actingMember))
+      ))
+    case OwnersAddedToOrganization(_, newOwners, actingMember, _) =>
+      val dedupedOwners = (draft.getOwners ++ newOwners).distinct
+      Right(draft.copy(
+        requiredDraftInfo = draft.requiredDraftInfo.map(_.copy(owners = dedupedOwners)),
+        orgMeta = draft.orgMeta.map(updateMetaInfo(_, actingMember))
+      ))
+    case OwnersRemovedFromOrganization(_, removedOwners, actingMember, _) =>
+      val newOwners = draft.getOwners.filterNot(removedOwners.contains)
+      Right(draft.copy(
+        requiredDraftInfo = draft.requiredDraftInfo.map(_.copy(owners = newOwners)),
+        orgMeta = draft.orgMeta.map(updateMetaInfo(_, actingMember))
+      ))
+    case OrganizationContactsUpdated(_, newContacts, actingMember, _) =>
+    val dedupedNewContacts = (draft.getContacts ++ newContacts).distinct
+      Right(draft.copy(
+        optionalDraftInfo = draft.optionalDraftInfo.map(_.copy(contacts = dedupedNewContacts)),
+        orgMeta = draft.orgMeta.map(updateMetaInfo(_, actingMember))
+      ))
+    case OrganizationActivated(_, actingMember, _) =>
+      Right(EstablishedOrganizationState(
+        orgId = draft.orgId,
+        info = Some(Info(
+          name = draft.requiredDraftInfo.flatMap(_.name),
+          shortName = draft.optionalDraftInfo.flatMap(_.shortName),
+          isPrivate = draft.requiredDraftInfo.map(_.isPrivate),
+          tenant = draft.requiredDraftInfo.flatMap(_.tenant),
+          address = draft.optionalDraftInfo.flatMap(_.address),
+          url = draft.optionalDraftInfo.flatMap(_.url),
+          logo = draft.optionalDraftInfo.flatMap(_.logo)
+        )),
+        parent = draft.optionalDraftInfo.flatMap(_.parent),
+        contacts = draft.optionalDraftInfo.map(_.contacts).getOrElse(Seq.empty[Contacts]),
+        members = draft.optionalDraftInfo.map(_.members).getOrElse(Seq.empty[MemberId]),
+        owners = draft.requiredDraftInfo.map(_.owners).getOrElse(Seq.empty[MemberId]),
+        meta = draft.orgMeta.map(updateMetaInfo(_, actingMember, Some(OrganizationStatus.ORGANIZATION_STATUS_ACTIVE)))
+      ))
+    case OrganizationTerminated(orgId, actingMember, _) =>
+      Right(TerminatedOrganizationState(
+        orgId = orgId,
+        lastMeta = draft.orgMeta.map(updateMetaInfo(_, actingMember, Some(OrganizationStatus.ORGANIZATION_STATUS_TERMINATED)))
+      ))
+    case _: OrganizationEstablished => Left("Organization already established")
+    case other => Left(s"Event $other not supported in state draft")
+  }
+
+  private def activeEventHandler(established: EstablishedOrganizationState, event: OrganizationEvent): Either[String, OrganizationState] = event match {
+    case OrganizationInfoEdited(_, newInfo, actingMember, _) =>
+      val newMeta = established.meta.map(updateMetaInfo(_, actingMember))
+      newInfo match {
+        case None => Right(established.copy(meta = newMeta))
+        case Some(info) => Right(established.copy(
+          info = Some(Info(
+            name = info.name.orElse(established.info.flatMap(_.name)),
+            shortName = info.shortName.orElse(established.info.flatMap(_.shortName)),
+            isPrivate = info.isPrivate.orElse(established.info.flatMap(_.isPrivate)),
+            tenant = info.tenant.orElse(established.info.flatMap(_.tenant)),
+            address = info.address.orElse(established.info.flatMap(_.address)),
+            url = info.url.orElse(established.info.flatMap(_.url)),
+            logo = info.logo.orElse(established.info.flatMap(_.logo))
+          )),
+          meta = newMeta
+        ))
+      }
+    case ParentUpdated(_, newParent, actingMember, _) =>
+      Right(established.copy(
+        parent = newParent,
+        meta = established.meta.map(updateMetaInfo(_, actingMember))
+      ))
+    case MembersAddedToOrganization(_, newMembers, actingMember, _) =>
+      Right(established.copy(
+        members = (established.members ++ newMembers).distinct,
+        meta = established.meta.map(updateMetaInfo(_, actingMember))
+      ))
+    case MembersRemovedFromOrganization(_, removedMembers, actingMember, _) =>
+      Right(established.copy(
+        members = established.members.filterNot(removedMembers.contains),
+        meta = established.meta.map(updateMetaInfo(_, actingMember))
+      ))
+    case OwnersAddedToOrganization(_, newOwners, actingMember, _) =>
+      Right(established.copy(
+        owners = (established.owners ++ newOwners).distinct,
+        meta = established.meta.map(updateMetaInfo(_, actingMember))
+      ))
+    case OwnersRemovedFromOrganization(_, removedOwners, actingMember, _) =>
+      Right(established.copy(
+        owners = established.owners.filterNot(removedOwners.contains),
+        meta = established.meta.map(updateMetaInfo(_, actingMember))
+      ))
+    case OrganizationContactsUpdated(_, newContacts, actingMember, _) =>
+      Right(established.copy(
+        contacts = (established.contacts ++ newContacts).distinct,
+        meta = established.meta.map(updateMetaInfo(_, actingMember))
+      ))
+    case OrganizationSuspended(_, actingMember, _) =>
+      Right(established.copy(
+        meta = established.meta.map(updateMetaInfo(_, actingMember, Some(OrganizationStatus.ORGANIZATION_STATUS_SUSPENDED)))
+      ))
+    case OrganizationTerminated(orgId, actingMember, _) => //TODO string for reason terminated? I remember Alex mentioning something about that
+      Right(TerminatedOrganizationState(
+        orgId = orgId,
+        lastMeta = established.meta.map(updateMetaInfo(_, actingMember, Some(OrganizationStatus.ORGANIZATION_STATUS_TERMINATED)))
+      ))
+    case _: OrganizationEstablished => Left("Organization already established")
+    case other => Left(s"Event $other not supported in state active")
+  }
+
+  private def suspendedEventHandler(suspended: EstablishedOrganizationState, event: OrganizationEvent): Either[String, OrganizationState] = event match {
+    case OrganizationActivated(_, actingMember, _) =>
+      Right(suspended.copy(
+        meta = suspended.meta.map(updateMetaInfo(_, actingMember, Some(OrganizationStatus.ORGANIZATION_STATUS_ACTIVE)))
+      ))
+    case OrganizationSuspended(_, actingMember, _) =>
+      Right(suspended.copy(meta = suspended.meta.map(updateMetaInfo(_, actingMember))))
+    case OrganizationTerminated(orgId, actingMember, _) =>
+      Right(TerminatedOrganizationState(orgId = orgId, lastMeta = suspended.meta.map(updateMetaInfo(_, actingMember, Some(OrganizationStatus.ORGANIZATION_STATUS_TERMINATED)))))
+    case _: OrganizationEstablished => Left("Organization already established")
+    case other => Left(s"Event $other not supported in state suspended")
+  }
+
+  private def terminatedEventHandler(event: OrganizationEvent): Either[String, OrganizationState] = event match {
+    //TODO allow duplicate terminations?
+    case _ => Left("No events allowed in state terminated")
+  }
+
+
+  private val eventHandler: (OrganizationState, OrganizationEvent) => OrganizationState = { (state, event) =>
+    val stateOrError = state match {
+      case empty: InitialEmptyOrganizationState => emptyInitialEventHandler(empty, event)
+      case draft: DraftOrganizationState => draftEventHandler(draft, event)
+      case established: EstablishedOrganizationState if !established.meta.map(_.currentStatus).contains(OrganizationStatus.ORGANIZATION_STATUS_SUSPENDED) => activeEventHandler(established, event)
+      case suspended: EstablishedOrganizationState => suspendedEventHandler(suspended, event)
+      case _: TerminatedOrganizationState => terminatedEventHandler(event)
+      case OrganizationState.Empty => throw new RuntimeException("This state should not be reachable")
+    }
+
+    stateOrError match {
+      case Left(error) => throw new RuntimeException(s"Error handling event $event in state $state: $error")
+      case Right(newState) => newState
+    }
+
+  }
+
+
 }

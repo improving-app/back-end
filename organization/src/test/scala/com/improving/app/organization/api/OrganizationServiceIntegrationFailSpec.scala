@@ -177,7 +177,7 @@ class OrganizationServiceIntegrationFailSpec
           .futureValue
       )
 
-      val updateOrganizationStatusRequest =
+      /*val updateOrganizationStatusRequest =
         UpdateOrganizationStatusRequest(
           orgId,
           OrganizationStatus.ORGANIZATION_STATUS_ACTIVE,
@@ -188,7 +188,7 @@ class OrganizationServiceIntegrationFailSpec
         organizationService
           .updateOrganizationStatus(updateOrganizationStatusRequest)
           .futureValue
-      )
+      )*/
 
       val updateOrganizationContactsRequest =
         UpdateOrganizationContactsRequest(
@@ -203,7 +203,7 @@ class OrganizationServiceIntegrationFailSpec
           .futureValue
       )
 
-      val updateOrganizationAccountsRequest =
+      /*val updateOrganizationAccountsRequest =
         UpdateOrganizationAccountsRequest(
           orgId,
           Some(testNewTestInfo),
@@ -214,7 +214,7 @@ class OrganizationServiceIntegrationFailSpec
         organizationService
           .updateOrganizationAccounts(updateOrganizationAccountsRequest)
           .futureValue
-      )
+      )*/
 
       intercept[TestFailedException](
         organizationService
@@ -359,7 +359,7 @@ class OrganizationServiceIntegrationFailSpec
           .futureValue
       )
 
-      val updateOrganizationStatusRequest =
+      /*val updateOrganizationStatusRequest =
         UpdateOrganizationStatusRequest(
           orgId,
           OrganizationStatus.ORGANIZATION_STATUS_ACTIVE,
@@ -370,7 +370,7 @@ class OrganizationServiceIntegrationFailSpec
         organizationService
           .updateOrganizationStatus(updateOrganizationStatusRequest)
           .futureValue
-      )
+      )*/
 
       val updateOrganizationContactsRequest =
         UpdateOrganizationContactsRequest(
@@ -385,7 +385,7 @@ class OrganizationServiceIntegrationFailSpec
           .futureValue
       )
 
-      val updateOrganizationAccountsRequest =
+      /*val updateOrganizationAccountsRequest =
         UpdateOrganizationAccountsRequest(
           orgId,
           Some(testNewTestInfo),
@@ -396,7 +396,7 @@ class OrganizationServiceIntegrationFailSpec
         organizationService
           .updateOrganizationAccounts(updateOrganizationAccountsRequest)
           .futureValue
-      )
+      )*/
 
       val terminateOrganizationRequest =
         TerminateOrganizationRequest(
@@ -522,7 +522,7 @@ class OrganizationServiceIntegrationFailSpec
           .futureValue
       )
 
-      val updateOrganizationStatusRequest =
+      /*val updateOrganizationStatusRequest =
         UpdateOrganizationStatusRequest(
           orgId,
           OrganizationStatus.ORGANIZATION_STATUS_ACTIVE,
@@ -533,7 +533,7 @@ class OrganizationServiceIntegrationFailSpec
         organizationService
           .updateOrganizationStatus(updateOrganizationStatusRequest)
           .futureValue
-      )
+      )*/
 
       val updateOrganizationContactsRequest =
         UpdateOrganizationContactsRequest(
@@ -548,7 +548,7 @@ class OrganizationServiceIntegrationFailSpec
           .futureValue
       )
 
-      val updateOrganizationAccountsRequest =
+      /*val updateOrganizationAccountsRequest =
         UpdateOrganizationAccountsRequest(
           orgId,
           Some(testNewTestInfo),
@@ -559,7 +559,7 @@ class OrganizationServiceIntegrationFailSpec
         organizationService
           .updateOrganizationAccounts(updateOrganizationAccountsRequest)
           .futureValue
-      )
+      )*/
     }
   }
 }

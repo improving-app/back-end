@@ -120,7 +120,7 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
           })
           .map(_ => Done)
       }
-      case OrganizationInfoUpdated(Some(orgId), Some(info), actingMember, _) => {
+      case OrganizationInfoEdited(Some(orgId), Some(info), actingMember, _) => {
         repo
           .getOrganizationsByOwnerByOrgId(orgId.id)
           .map(organizations => {

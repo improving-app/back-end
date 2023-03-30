@@ -18,7 +18,7 @@ object TestData {
   val newMembers =
     Seq[MemberId](MemberId("new-member1"), MemberId("new-member2"))
   val testInfo = Info(
-    "name-test",
+    Some("name-test"),
     Some("shortname-test"),
     Some(
       Address(
@@ -32,7 +32,7 @@ object TestData {
         )
       )
     ),
-    true,
+    Some(true),
     Some("www.test.com"),
     Some("N/A"),
     Some(TenantId(testTenantId))
@@ -64,6 +64,7 @@ object TestData {
   val testActingMember2 = MemberId("test-acting-member2")
   val testActingMember3 = MemberId("test-acting-member3")
   val testActingMember4 = MemberId("test-acting-member4")
+  val testActingMember5 = MemberId("test-acting-member5")
 
   val testNewName = "test-new-name"
   val testNewShortName = "test-new-short-name"
@@ -82,21 +83,22 @@ object TestData {
   val testNewTenantId = TenantId("test-new-tenant-id")
   val testNewParent = OrganizationId("test-new-parent-id")
   val testNewTestInfo = Info(
-    testNewName,
+    Some(testNewName),
     Some(testNewShortName),
     Some(testNewAddress),
-    true,
+    Some(true),
     Some(testNewUrl),
     Some(testNewLogo),
     Some(testNewTenantId)
   )
   val testNewPartialTestInfo = Info(
-    testNewName,
-    None,
-    None,
-    false,
-    Some(testNewUrl),
-    Some(testNewLogo)
+    name = Some(testNewName),
+    shortName = None,
+    address = None,
+    isPrivate = Some(false),
+    url = Some(testNewUrl),
+    logo = Some(testNewLogo),
+    tenant = None
   )
   val testNewContacts = Seq[Contacts](
     Contacts(
@@ -115,12 +117,92 @@ object TestData {
       testContacts,
       Some(testActingMember)
     )
-  val establishOrganizationRequest = EstablishOrganizationRequest(
+
+  val establishOrganizationRequest: EstablishOrganizationRequest = EstablishOrganizationRequest(
     Some(testInfo),
     Some(parentIdTest),
     testMembers,
     testOwners,
     testContacts,
     Some(testActingMember)
+  )
+
+  val activateOrganizationRequest: ActivateOrganizationRequest = ActivateOrganizationRequest(
+    Some(testOrgId),
+    Some(testActingMember2)
+  )
+
+  val suspendOrganizationRequest: SuspendOrganizationRequest = SuspendOrganizationRequest(
+    Some(testOrgId),
+    Some(testActingMember4)
+  )
+
+  val terminateOrganizationRequest: TerminateOrganizationRequest = TerminateOrganizationRequest(
+    Some(testOrgId),
+    Some(testActingMember5)
+  )
+
+  val editOrganizationInfoRequest: EditOrganizationInfoRequest = EditOrganizationInfoRequest(
+    Some(testOrgId),
+    Some(testNewPartialTestInfo),
+    Some(testActingMember3)
+  )
+
+
+
+  val updateParentRequest: UpdateParentRequest = UpdateParentRequest(
+    Some(testOrgId),
+    Some(testNewParent),
+    Some(testActingMember3)
+  )
+
+  val addMembersToOrganizationRequest: AddMembersToOrganizationRequest = AddMembersToOrganizationRequest(
+    Some(testOrgId),
+    testNewMembers :+ scala.util.Random.shuffle(testMembers).head,
+    Some(testActingMember3)
+  )
+
+  val removeMembersFromOrganizationRequest: RemoveMembersFromOrganizationRequest = RemoveMembersFromOrganizationRequest(
+    Some(testOrgId),
+    scala.util.Random.shuffle(testMembers).take(2),
+    Some(testActingMember3)
+  )
+
+  val addOwnersToOrganizationRequest: AddOwnersToOrganizationRequest = AddOwnersToOrganizationRequest(
+    Some(testOrgId),
+    testNewOwners :+ scala.util.Random.shuffle(testOwners).head,
+    Some(testActingMember3)
+  )
+
+  val removeOwnersFromOrganizationRequest: RemoveOwnersFromOrganizationRequest = RemoveOwnersFromOrganizationRequest(
+    Some(testOrgId),
+    scala.util.Random.shuffle(testOwners).take(2),
+    Some(testActingMember3)
+  )
+
+  val updateOrganizationContactsRequest: UpdateOrganizationContactsRequest = UpdateOrganizationContactsRequest(
+    Some(testOrgId),
+    testNewContacts :+ scala.util.Random.shuffle(testContacts).head,
+    Some(testActingMember3)
+  )
+
+  val everyMinimalRequest: Seq[OrganizationRequest] = Seq(UpdateOrganizationContactsRequest(),
+    UpdateParentRequest(),
+    TerminateOrganizationRequest(),
+    SuspendOrganizationRequest(),
+    ActivateOrganizationRequest(),
+    ReleaseOrganizationRequest(),
+    EditOrganizationInfoRequest(),
+    RemoveOwnersFromOrganizationRequest(),
+    AddOwnersToOrganizationRequest(),
+    RemoveMembersFromOrganizationRequest(),
+    AddMembersToOrganizationRequest(),
+    GetOrganizationInfoRequest(),
+    EstablishOrganizationRequest(),
+    GetOrganizationByIdRequest(),
+    GetOrganizationsByOwnerRequest(),
+    GetOrganizationsByMemberRequest(),
+    GetRootOrganizationRequest(),
+    GetDescendantOrganizationsRequest()
   )
 }

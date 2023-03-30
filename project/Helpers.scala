@@ -26,13 +26,15 @@ object V {
   lazy val testcontainersScalaVersion = "0.40.12"
   lazy val airframeUlidVersion = "23.3.0"
   lazy val scalaPbJson = "0.11.1"
+  lazy val quicklens = "1.9.0"
 }
 
 // C for Configuration functions
 object C {
 
   val scala3Options = Seq(
-    "-release:17",
+    //"-release:17",
+    "-release:11",
     "-deprecation",
     "-feature",
     "-unchecked",
@@ -98,7 +100,8 @@ object C {
           "com.thesamet.scalapb" %% "scalapb-json4s" % V.scalaPbJson,
           "com.lightbend.akka" %% "akka-projection-cassandra" % V.akkaProjection,
           "com.lightbend.akka" %% "akka-projection-testkit" % V.akkaProjection % "it, test",
-          "com.typesafe.akka" %% "akka-persistence-testkit" % V.akka % "it, test"
+          "com.typesafe.akka" %% "akka-persistence-testkit" % V.akka % "it, test",
+          "com.softwaremill.quicklens" %% "quicklens" % V.quicklens
         ),
         dockerBaseImage := "docker.io/library/eclipse-temurin:17.0.6_10-jre",
         dockerUsername := sys.props.get("docker.username"),

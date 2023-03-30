@@ -1,627 +1,1231 @@
 package com.improving.app.organization.domain
 
-import akka.actor.testkit.typed.FishingOutcome
-import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
-import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity, EntityRef}
-import akka.cluster.typed.{Cluster, Join}
+import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.pattern.StatusReply
-import com.improving.app.common.domain._
-import com.improving.app.organization.{OrganizationResponse, _}
-import com.improving.app.organization.domain.Organization.{OrganizationCommand, OrganizationEntityKey}
-import com.typesafe.config.{Config, ConfigFactory}
+import akka.persistence.testkit.javadsl.EventSourcedBehaviorTestKit
+import com.improving.app.common.domain.{MemberId, OrganizationId}
+import com.improving.app.organization.OrganizationStatus.{ORGANIZATION_STATUS_ACTIVE, ORGANIZATION_STATUS_DRAFT, ORGANIZATION_STATUS_SUSPENDED, ORGANIZATION_STATUS_TERMINATED}
+import com.improving.app.organization.TestData.{activateOrganizationRequest, establishOrganizationRequest, _}
+import com.improving.app.organization.{ActivateOrganizationRequest, AddMembersToOrganizationRequest, AddOwnersToOrganizationRequest, Contacts, DraftOrganizationState, EditOrganizationInfoRequest, EstablishOrganizationRequest, EstablishedOrganizationState, GetOrganizationByIdRequest, GetOrganizationInfoRequest, Info, InitialEmptyOrganizationState, MembersAddedToOrganization, MembersRemovedFromOrganization, MetaInfo, OptionalDraftInfo, OrganizationActivated, OrganizationContactsUpdated, OrganizationEstablished, OrganizationEventResponse, OrganizationInfoEdited, OrganizationResponse, OrganizationState, OrganizationStatus, OrganizationSuspended, OrganizationTerminated, OwnersAddedToOrganization, OwnersRemovedFromOrganization, ParentUpdated, RemoveMembersFromOrganizationRequest, RemoveOwnersFromOrganizationRequest, RequiredDraftInfo, SuspendOrganizationRequest, TerminateOrganizationRequest, TerminatedOrganizationState, TestData, UpdateOrganizationContactsRequest, UpdateParentRequest}
+import com.improving.app.organization.domain.Organization.OrganizationCommand
+import com.typesafe.config.Config
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.slf4j.LoggerFactory
-import TestData._
-import cats.data.Validated
-import com.improving.app.organization.domain.OrganizationValidation.StringIsEmptyError
 
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-class OrganizationSpec extends ScalaTestWithActorTestKit(OrganizationSpec.config) with AnyWordSpecLike with Matchers {
+class OrganizationSpec extends ScalaTestWithActorTestKit(OrganizationSpec.config) with AnyWordSpecLike with Matchers with BeforeAndAfterAll {
 
-  private val log = LoggerFactory.getLogger(getClass)
+  trait SetUp {
+    val orgId: String = testOrgId.id
+    val eventSourcedTestKit: EventSourcedBehaviorTestKit[OrganizationCommand, OrganizationResponse, OrganizationState] = EventSourcedBehaviorTestKit.create[OrganizationCommand, OrganizationResponse, OrganizationState](system, Organization(orgId), EventSourcedBehaviorTestKit.disabledSerializationSettings)
+  }
 
-  val organizationId: String = "test-organization-id"
+  trait Established extends SetUp {
+    val establishOrganizationRequest: EstablishOrganizationRequest = TestData.establishOrganizationRequest
+    val establishedResult: EventSourcedBehaviorTestKit.CommandResultWithReply[OrganizationCommand, OrganizationResponse, OrganizationState, StatusReply[OrganizationResponse]] = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(establishOrganizationRequest, _))
+  }
 
-  val organizationId2: String = "test-organization-id2"
+  trait ValidateNewEstablishedState {
+    val oldState: EstablishedOrganizationState
+    val defaultStatus: OrganizationStatus
 
-  val waitDuration: FiniteDuration = 5.seconds
+    def validateNewState(sOrgId: Option[OrganizationId], maybeInfo: Option[Option[Info]], maybeParent: Option[Option[OrganizationId]], maybeMembers: Option[Seq[MemberId]], maybeOwners: Option[Seq[MemberId]], maybeContacts: Option[Seq[Contacts]], meta: Option[MetaInfo], actingMember: Option[MemberId], newStatus: OrganizationStatus = defaultStatus): Unit = {
+      sOrgId shouldBe oldState.orgId
+      maybeInfo.foreach(_ shouldBe oldState.info)
+      maybeParent.foreach(_ shouldBe oldState.parent)
+      maybeMembers.foreach(_ shouldBe oldState.members)
+      maybeOwners.foreach(_ shouldBe oldState.owners)
+      maybeContacts.foreach(_ shouldBe oldState.contacts)
+      meta.map(_.currentStatus) shouldBe Some(newStatus)
+      meta.flatMap(_.lastUpdatedBy) shouldBe actingMember
+    }
+  }
 
-  val sharding: ClusterSharding = ClusterSharding(system)
-
-  "Organization Service" should {
-
-    ClusterSharding(system).init(
-      Entity(OrganizationEntityKey)(entityContext =>
-        domain.Organization(
-          entityContext.entityId
-        )
-      )
+  trait Active extends Established with ValidateNewEstablishedState {
+    val activateOrganizationRequest: ActivateOrganizationRequest = ActivateOrganizationRequest(
+      Some(testOrgId),
+      Some(testActingMember2)
     )
+    val activatedResult: EventSourcedBehaviorTestKit.CommandResultWithReply[OrganizationCommand, OrganizationResponse, OrganizationState, StatusReply[OrganizationResponse]] = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(activateOrganizationRequest, _))
+    override val oldState: EstablishedOrganizationState = activatedResult.state.asInstanceOf[EstablishedOrganizationState]
+    override val defaultStatus: OrganizationStatus = ORGANIZATION_STATUS_ACTIVE
+  }
 
-    Cluster(system).manager ! Join(Cluster(system).selfMember.address)
+  trait Suspended extends Active with ValidateNewEstablishedState {
+    val suspendOrganizationRequest: SuspendOrganizationRequest = TestData.suspendOrganizationRequest
+    val suspendedResult: EventSourcedBehaviorTestKit.CommandResultWithReply[OrganizationCommand, OrganizationResponse, OrganizationState, StatusReply[OrganizationResponse]] = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(suspendOrganizationRequest, _))
 
-    "allow Organization to be established" in {
+    override val oldState: EstablishedOrganizationState = suspendedResult.state.asInstanceOf[EstablishedOrganizationState]
+    override val defaultStatus: OrganizationStatus = ORGANIZATION_STATUS_SUSPENDED
+  }
 
-      val establishOrganizationRequest = TestData.establishOrganizationRequest
+  trait Terminated extends Suspended {
+    val terminateOrganizationRequest: TerminateOrganizationRequest = TestData.terminateOrganizationRequest
+    val terminatedResult: EventSourcedBehaviorTestKit.CommandResultWithReply[OrganizationCommand, OrganizationResponse, OrganizationState, StatusReply[OrganizationResponse]] = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(terminateOrganizationRequest, _))
+  }
 
-      val probe = TestProbe[StatusReply[OrganizationResponse]]()
-      val ref: EntityRef[OrganizationCommand] =
-        sharding.entityRefFor(OrganizationEntityKey, organizationId)
-
-      ref.ask[OrganizationResponse](_ => OrganizationCommand(establishOrganizationRequest, probe.ref))
-
-      val result: Seq[StatusReply[OrganizationResponse]] =
-        probe.fishForMessagePF(waitDuration) {
-          case StatusReply.Success(
-                OrganizationEventResponse(
-                  organizationEstablished,
-                  _
-                )
-              ) =>
-            log.info(
-              s"StatusReply.Success establishedOrganization ${organizationEstablished}"
-            )
-            FishingOutcome.Complete
-          case other =>
-            log.info(s"Skipping $other")
-            FishingOutcome.ContinueAndIgnore
-        }
-      result.length shouldBe 1
-    }
-
-    "not allow Organization to be re-established" in {
-
-      val establishOrganizationRequest = TestData.establishOrganizationRequest
-
-      val probe = TestProbe[StatusReply[OrganizationResponse]]()
-      val ref: EntityRef[OrganizationCommand] =
-        sharding.entityRefFor(OrganizationEntityKey, organizationId)
-
-      ref.ask[OrganizationResponse](_ => OrganizationCommand(establishOrganizationRequest, probe.ref))
-
-      val result: Seq[StatusReply[OrganizationResponse]] =
-        probe.fishForMessagePF(waitDuration) {
-          case StatusReply.Error(error) =>
-            log.error(
-              s"Organization establish failed with error ${error.getMessage}",
-              error
-            )
-            FishingOutcome.Complete
-          case other =>
-            log.info(s"Skipping $other")
-            FishingOutcome.ContinueAndIgnore
-        }
-      result.length shouldBe 1
-    }
-
-    "return correct Organization from getOrganzation request" in {
-
-      val getOrganizationByIdRequest =
-        GetOrganizationByIdRequest(Some(OrganizationId(organizationId)))
-
-      val probe = TestProbe[StatusReply[OrganizationResponse]]()
-      val ref: EntityRef[OrganizationCommand] =
-        sharding.entityRefFor(OrganizationEntityKey, organizationId)
-
-      ref.ask[OrganizationResponse](_ => OrganizationCommand(getOrganizationByIdRequest, probe.ref))
-
-      val result: Seq[StatusReply[OrganizationResponse]] =
-        probe.fishForMessagePF(waitDuration) {
-          case StatusReply.Success(organization) =>
-            log.info(
-              s"Organization returned $organization",
-              organization
-            )
-            FishingOutcome.Complete
-          case other =>
-            log.info(s"Skipping $other")
-            FishingOutcome.ContinueAndIgnore
-        }
-      result.length shouldBe 1
-    }
-
-    "return correct OrganizationInfo from getOrganzationInfo request" in {
-
-      val getOrganizationInfoRequest =
-        GetOrganizationInfoRequest(Some(OrganizationId(organizationId)))
-
-      val probe = TestProbe[StatusReply[OrganizationResponse]]()
-      val ref: EntityRef[OrganizationCommand] =
-        sharding.entityRefFor(OrganizationEntityKey, organizationId)
-
-      ref.ask[OrganizationResponse](_ => OrganizationCommand(getOrganizationInfoRequest, probe.ref))
-
-      val result: Seq[StatusReply[OrganizationResponse]] =
-        probe.fishForMessagePF(waitDuration) {
-          case StatusReply.Success(organizationInfo) =>
-            log.info(
-              s"OrganizationInfo returned $organizationInfo",
-              organizationInfo
-            )
-            FishingOutcome.Complete
-          case other =>
-            log.info(s"Skipping $other")
-            FishingOutcome.ContinueAndIgnore
-        }
-      result.length shouldBe 1
-    }
-
-    "add new members correctly to Organization" in {
-
-      val addMembersToOrganizationRequest =
-        AddMembersToOrganizationRequest(
-          Some(OrganizationId(organizationId)),
-          newMembers
+  "Organization service" when {
+    "in initial state" should {
+      "allow Organization to be established" in new SetUp {
+        val request: EstablishOrganizationRequest = TestData.establishOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationEstablished]
+        result.event shouldBe OrganizationEstablished(
+          orgId = Some(OrganizationId(orgId)),
+          info = request.info,
+          parent = request.parent,
+          members = request.members,
+          owners = request.owners,
+          contacts = request.contacts,
+          actingMember = request.actingMember
         )
+        result.state match {
+          case DraftOrganizationState(dOrgId, requiredDraftInfo, optionalDraftInfo, orgMeta, _) =>
+            dOrgId shouldBe Some(OrganizationId(orgId))
+            requiredDraftInfo shouldBe Some(RequiredDraftInfo(
+              name = request.info.flatMap(_.name),
+              isPrivate = request.info.get.isPrivate.getOrElse(true),
+              tenant = request.info.get.tenant,
+              owners = request.owners
+            ))
+            optionalDraftInfo shouldBe Some(OptionalDraftInfo(
+              shortName = request.info.flatMap(_.shortName),
+              address = request.info.flatMap(_.address),
+              url = request.info.flatMap(_.url),
+              logo = request.info.flatMap(_.logo),
+              parent = request.parent,
+              contacts = request.contacts,
+              members = request.members
+            ))
+            orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_DRAFT) shouldBe true
+            orgMeta.flatMap(_.createdBy) shouldBe request.actingMember
 
-      val probe = TestProbe[StatusReply[OrganizationResponse]]()
-      val ref: EntityRef[OrganizationCommand] =
-        sharding.entityRefFor(OrganizationEntityKey, organizationId)
-
-      ref.ask[OrganizationResponse](_ => OrganizationCommand(addMembersToOrganizationRequest, probe.ref))
-
-      val result: Seq[StatusReply[OrganizationResponse]] =
-        probe.fishForMessagePF(waitDuration) {
-          case StatusReply.Success(
-                OrganizationEventResponse(
-                  membersAddedToOrganization: MembersAddedToOrganization,
-                  _
-                )
-              ) =>
-            log.info(
-              s"membersAddedToOrganization returned $membersAddedToOrganization",
-              membersAddedToOrganization
-            )
-            FishingOutcome.Complete
-          case other =>
-            log.info(s"Skipping $other")
-            FishingOutcome.ContinueAndIgnore
+          case _ => fail("Incorrect state")
         }
-      result.length shouldBe 1
-    }
-    "remove members correctly from Organization" in {
+      }
 
-      val removeMembersFromOrganizationRequest =
-        RemoveMembersFromOrganizationRequest(
-          Some(OrganizationId(organizationId)),
-          newMembers
+      "Succeed on establish if optional data is missing" in new SetUp {
+        val request: EstablishOrganizationRequest = establishOrganizationRequest.copy(info = establishOrganizationRequest.info.map(_.copy(shortName = None, address = None, url = None, logo = None)), parent = None, contacts = Seq.empty[Contacts], members = Seq.empty[MemberId])
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationEstablished]
+        result.event shouldBe OrganizationEstablished(
+          orgId = Some(OrganizationId(orgId)),
+          info = request.info,
+          parent = None,
+          members = request.members,
+          owners = request.owners,
+          contacts = request.contacts,
+          actingMember = request.actingMember
         )
+        result.state match {
+          case DraftOrganizationState(dOrgId, requiredDraftInfo, optionalDraftInfo, orgMeta, _) =>
+            dOrgId shouldBe Some(OrganizationId(orgId))
+            requiredDraftInfo shouldBe Some(RequiredDraftInfo(
+              name = establishOrganizationRequest.info.flatMap(_.name),
+              isPrivate = establishOrganizationRequest.info.get.isPrivate.getOrElse(true),
+              tenant = establishOrganizationRequest.info.get.tenant,
+              owners = establishOrganizationRequest.owners
+            ))
+            optionalDraftInfo shouldBe Some(OptionalDraftInfo(
+              shortName = None,
+              address = None,
+              url = None,
+              logo = None,
+              parent = None,
+              contacts = Seq.empty[Contacts]
+            ))
+            orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_DRAFT) shouldBe true
+            orgMeta.flatMap(_.createdBy) shouldBe request.actingMember
 
-      val probe = TestProbe[StatusReply[OrganizationResponse]]()
-      val ref: EntityRef[OrganizationCommand] =
-        sharding.entityRefFor(OrganizationEntityKey, organizationId)
-
-      ref.ask[OrganizationResponse](_ => OrganizationCommand(removeMembersFromOrganizationRequest, probe.ref))
-
-      val result: Seq[StatusReply[OrganizationResponse]] =
-        probe.fishForMessagePF(waitDuration) {
-          case StatusReply.Success(
-                OrganizationEventResponse(
-                  membersRemovedFromOrganization: MembersRemovedFromOrganization,
-                  _
-                )
-              ) =>
-            log.info(
-              s"membersRemovedFromOrganization returned $membersRemovedFromOrganization",
-              membersRemovedFromOrganization
-            )
-            FishingOutcome.Complete
-          case other =>
-            log.info(s"Skipping $other")
-            FishingOutcome.ContinueAndIgnore
+          case _ => fail("Incorrect state")
         }
-      result.length shouldBe 1
+      }
+
+      "Fail on establish if required data is missing" in new SetUp {
+        val request: EstablishOrganizationRequest = establishOrganizationRequest.copy(info = establishOrganizationRequest.info.map(_.copy(name = None, tenant = None)), members = Seq.empty[MemberId], owners = Seq.empty[MemberId])
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: name in info cannot be empty, tenant in info cannot be empty, owners cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe a[InitialEmptyOrganizationState]
+      }
+
+      "Fail on establish if info is empty" in new SetUp {
+        val request: EstablishOrganizationRequest = establishOrganizationRequest.copy(info = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: info cannot be empty, name in info cannot be empty, tenant in info cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe a[InitialEmptyOrganizationState]
+      }
+
+
+      "Reject every other command" in new SetUp {
+        everyMinimalRequest.filterNot(_.isInstanceOf[EstablishOrganizationRequest]).map(
+          request => (request, eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _)))
+        ).foreach(requestAndResult => {
+          val (request, result) = requestAndResult
+          assert(result.reply.isError)
+          result.reply.getError.getMessage shouldBe s"Invalid Command ${request.getClass.getSimpleName} for State Empty"
+          assert(result.hasNoEvents)
+          result.state shouldBe a[InitialEmptyOrganizationState]
+        })
+      }
+
+
     }
 
-    "add new owners correctly to Organization" in {
+    "in draft state" should {
 
-      val addOwnersToOrganizationRequest =
-        AddOwnersToOrganizationRequest(
-          Some(OrganizationId(organizationId)),
-          newMembers
+      "Edit info when commanded" in new Established {
+        val request: EditOrganizationInfoRequest = editOrganizationInfoRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationInfoEdited]
+        result.event shouldBe OrganizationInfoEdited(
+          orgId = Some(OrganizationId(orgId)),
+          info = request.info,
+          actingMember = request.actingMember
         )
-
-      val probe = TestProbe[StatusReply[OrganizationResponse]]()
-      val ref: EntityRef[OrganizationCommand] =
-        sharding.entityRefFor(OrganizationEntityKey, organizationId)
-
-      ref.ask[OrganizationResponse](_ => OrganizationCommand(addOwnersToOrganizationRequest, probe.ref))
-
-      val result: Seq[StatusReply[OrganizationResponse]] =
-        probe.fishForMessagePF(waitDuration) {
-          case StatusReply.Success(
-                OrganizationEventResponse(
-                  ownersAddedToOrganization: OwnersAddedToOrganization,
-                  _
-                )
-              ) =>
-            log.info(
-              s"ownersAddedToOrganization returned $ownersAddedToOrganization",
-              ownersAddedToOrganization
+        result.state match {
+          case DraftOrganizationState(dOrgId, requiredDraftInfo, optionalDraftInfo, orgMeta, _) =>
+            dOrgId shouldBe Some(OrganizationId(orgId))
+            requiredDraftInfo.get shouldBe establishedResult.state.asInstanceOf[DraftOrganizationState].requiredDraftInfo.get.copy(
+              name = request.info.flatMap(_.name),
+              isPrivate = request.info.flatMap(_.isPrivate).get
             )
-            FishingOutcome.Complete
-          case other =>
-            log.info(s"Skipping $other")
-            FishingOutcome.ContinueAndIgnore
+            optionalDraftInfo.get shouldBe establishedResult.state.asInstanceOf[DraftOrganizationState].optionalDraftInfo.get.copy(
+              shortName = establishOrganizationRequest.info.get.shortName,
+              url = request.info.get.url,
+              logo = request.info.get.logo
+            )
+            orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_DRAFT) shouldBe true
+            orgMeta.flatMap(_.lastUpdatedBy) shouldBe request.actingMember
+
+          case _ => fail("Incorrect state")
         }
-      result.length shouldBe 1
-    }
+      }
 
-    "remove owners correctly from Organization" in {
-
-      val removeOwnersFromOrganizationRequest =
-        RemoveOwnersFromOrganizationRequest(
-          Some(OrganizationId(organizationId)),
-          newMembers
+      "Succeed on edit info with empty info fields" in new Established {
+        val request: EditOrganizationInfoRequest = editOrganizationInfoRequest.copy(info = Some(Info()))
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationInfoEdited]
+        result.event shouldBe OrganizationInfoEdited(
+          orgId = Some(OrganizationId(orgId)),
+          info = request.info,
+          actingMember = request.actingMember
         )
+        result.state match {
+          case DraftOrganizationState(dOrgId, requiredDraftInfo, optionalDraftInfo, orgMeta, _) =>
+            val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+            dOrgId shouldBe Some(OrganizationId(orgId))
+            requiredDraftInfo shouldBe oldState.requiredDraftInfo
+            optionalDraftInfo shouldBe oldState.optionalDraftInfo
+            orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_DRAFT) shouldBe true
+            orgMeta.flatMap(_.lastUpdatedBy) shouldBe request.actingMember
 
-      val probe = TestProbe[StatusReply[OrganizationResponse]]()
-      val ref: EntityRef[OrganizationCommand] =
-        sharding.entityRefFor(OrganizationEntityKey, organizationId)
-
-      ref.ask[OrganizationResponse](_ => OrganizationCommand(removeOwnersFromOrganizationRequest, probe.ref))
-
-      val result: Seq[StatusReply[OrganizationResponse]] =
-        probe.fishForMessagePF(waitDuration) {
-          case StatusReply.Success(
-                OrganizationEventResponse(
-                  ownersRemovedFromOrganization: OwnersRemovedFromOrganization,
-                  _
-                )
-              ) =>
-            log.info(
-              s"ownersRemovedFromOrganization returned $ownersRemovedFromOrganization",
-              ownersRemovedFromOrganization
-            )
-            FishingOutcome.Complete
-          case other =>
-            log.info(s"Skipping $other")
-            FishingOutcome.ContinueAndIgnore
+          case _ => fail("Incorrect state")
         }
-      result.length shouldBe 1
-    }
+      }
 
-    "update info correctly in Organization" in {
-
-      val editOrganizationInfoRequest =
-        EditOrganizationInfoRequest(
-          Some(OrganizationId(organizationId)),
-          Some(testInfo),
-          Some(testActingMember4)
+      "Update parent on command" in new Established {
+        val request: UpdateParentRequest = TestData.updateParentRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[ParentUpdated]
+        result.event shouldBe ParentUpdated(
+            orgId = Some(OrganizationId(orgId)),
+            newParent = request.newParent,
+            actingMember = request.actingMember
         )
-
-      val probe = TestProbe[StatusReply[OrganizationResponse]]()
-      val ref: EntityRef[OrganizationCommand] =
-        sharding.entityRefFor(OrganizationEntityKey, organizationId)
-
-      ref.ask[OrganizationResponse](_ => OrganizationCommand(editOrganizationInfoRequest, probe.ref))
-
-      val result: Seq[StatusReply[OrganizationResponse]] =
-        probe.fishForMessagePF(waitDuration) {
-          case StatusReply.Success(
-                OrganizationEventResponse(
-                  organizationInfoUpdated: OrganizationInfoUpdated,
-                  _
-                )
-              ) =>
-            log.info(
-              s"organizationInfoUpdated returned $organizationInfoUpdated",
-              organizationInfoUpdated
-            )
-            FishingOutcome.Complete
-          case other =>
-            log.info(s"Skipping $other")
-            FishingOutcome.ContinueAndIgnore
+        result.state match {
+          case DraftOrganizationState(dOrgId, requiredDraftInfo, optionalDraftInfo, orgMeta, _) =>
+            val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+            dOrgId shouldBe Some(OrganizationId(orgId))
+            requiredDraftInfo shouldBe oldState.requiredDraftInfo
+            optionalDraftInfo shouldBe oldState.optionalDraftInfo.map(_.copy(parent = request.newParent))
+            orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_DRAFT) shouldBe true
+          case _ => fail("Incorrect state")
         }
-      result.length shouldBe 1
+      }
+
+      "Remove parent if newParent = None in UpdateParentRequest" in new Established {
+        val request: UpdateParentRequest = TestData.updateParentRequest.copy(newParent = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[ParentUpdated]
+        result.event shouldBe ParentUpdated(
+          orgId = Some(OrganizationId(orgId)),
+          newParent = None,
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case DraftOrganizationState(dOrgId, requiredDraftInfo, optionalDraftInfo, orgMeta, _) =>
+            val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+            dOrgId shouldBe Some(OrganizationId(orgId))
+            requiredDraftInfo shouldBe oldState.requiredDraftInfo
+            optionalDraftInfo shouldBe oldState.optionalDraftInfo.map(_.copy(parent = None))
+            orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_DRAFT) shouldBe true
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Add members on command (without duplicates)" in new Established {
+        val request: AddMembersToOrganizationRequest = addMembersToOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[MembersAddedToOrganization]
+        result.event shouldBe MembersAddedToOrganization(
+          orgId = Some(OrganizationId(orgId)),
+          newMembers = request.newMembers,
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case DraftOrganizationState(dOrgId, requiredDraftInfo, optionalDraftInfo, orgMeta, _) =>
+            val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+            dOrgId shouldBe Some(OrganizationId(orgId))
+            requiredDraftInfo shouldBe oldState.requiredDraftInfo
+            optionalDraftInfo shouldBe oldState.optionalDraftInfo.map(_.copy(members = testMembers ++ testNewMembers))
+            orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_DRAFT) shouldBe true
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Succeed on AddMembers command with no new members" in new Established {
+        val request: AddMembersToOrganizationRequest = addMembersToOrganizationRequest.copy(newMembers = Seq.empty[MemberId])
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[MembersAddedToOrganization]
+        result.event shouldBe MembersAddedToOrganization(
+          orgId = Some(OrganizationId(orgId)),
+          newMembers = Seq.empty[MemberId],
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case DraftOrganizationState(dOrgId, requiredDraftInfo, optionalDraftInfo, orgMeta, _) =>
+            val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+            dOrgId shouldBe Some(OrganizationId(orgId))
+            requiredDraftInfo shouldBe oldState.requiredDraftInfo
+            optionalDraftInfo shouldBe oldState.optionalDraftInfo
+            orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_DRAFT) shouldBe true
+            orgMeta.flatMap(_.lastUpdatedBy) shouldBe request.actingMember
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Remove members on command" in new Established {
+        val request: RemoveMembersFromOrganizationRequest = removeMembersFromOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[MembersRemovedFromOrganization]
+        result.event shouldBe MembersRemovedFromOrganization(
+          orgId = Some(OrganizationId(orgId)),
+          removedMembers = request.removedMembers,
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case DraftOrganizationState(dOrgId, requiredDraftInfo, optionalDraftInfo, orgMeta, _) =>
+            val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+            dOrgId shouldBe Some(OrganizationId(orgId))
+            requiredDraftInfo shouldBe oldState.requiredDraftInfo
+            optionalDraftInfo shouldBe oldState.optionalDraftInfo.map(_.copy(members = testMembers.filterNot(request.removedMembers.contains)))
+            orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_DRAFT) shouldBe true
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Succeed on remove members with no members to remove" in new Established {
+        val request: RemoveMembersFromOrganizationRequest = removeMembersFromOrganizationRequest.copy(removedMembers = Seq.empty[MemberId])
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[MembersRemovedFromOrganization]
+        result.event shouldBe MembersRemovedFromOrganization(
+          orgId = Some(OrganizationId(orgId)),
+          removedMembers = Seq.empty[MemberId],
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case DraftOrganizationState(dOrgId, requiredDraftInfo, optionalDraftInfo, orgMeta, _) =>
+            val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+            dOrgId shouldBe Some(OrganizationId(orgId))
+            requiredDraftInfo shouldBe oldState.requiredDraftInfo
+            optionalDraftInfo shouldBe oldState.optionalDraftInfo
+            orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_DRAFT) shouldBe true
+            orgMeta.flatMap(_.lastUpdatedBy) shouldBe request.actingMember
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Add owners on command (without duplicates)" in new Established {
+        val request: AddOwnersToOrganizationRequest = addOwnersToOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OwnersAddedToOrganization]
+        result.event shouldBe OwnersAddedToOrganization(
+          orgId = Some(OrganizationId(orgId)),
+          newOwners = request.newOwners,
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case DraftOrganizationState(dOrgId, requiredDraftInfo, optionalDraftInfo, orgMeta, _) =>
+            val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+            dOrgId shouldBe Some(OrganizationId(orgId))
+            requiredDraftInfo shouldBe oldState.requiredDraftInfo.map(_.copy(owners = testOwners ++ testNewOwners))
+            optionalDraftInfo shouldBe oldState.optionalDraftInfo
+            orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_DRAFT) shouldBe true
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Succeed on add owners with no new owners" in new Established {
+        val request: AddOwnersToOrganizationRequest = addOwnersToOrganizationRequest.copy(newOwners = Seq.empty[MemberId])
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OwnersAddedToOrganization]
+        result.event shouldBe OwnersAddedToOrganization(
+          orgId = Some(OrganizationId(orgId)),
+          newOwners = Seq.empty[MemberId],
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case DraftOrganizationState(dOrgId, requiredDraftInfo, optionalDraftInfo, orgMeta, _) =>
+            val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+            dOrgId shouldBe Some(OrganizationId(orgId))
+            requiredDraftInfo shouldBe oldState.requiredDraftInfo
+            optionalDraftInfo shouldBe oldState.optionalDraftInfo
+            orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_DRAFT) shouldBe true
+            orgMeta.flatMap(_.lastUpdatedBy) shouldBe request.actingMember
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Remove owners on command" in new Established {
+        val request: RemoveOwnersFromOrganizationRequest = removeOwnersFromOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OwnersRemovedFromOrganization]
+        result.event shouldBe OwnersRemovedFromOrganization(
+          orgId = Some(OrganizationId(orgId)),
+          removedOwners = request.removedOwners,
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case DraftOrganizationState(dOrgId, requiredDraftInfo, optionalDraftInfo, orgMeta, _) =>
+            val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+            dOrgId shouldBe Some(OrganizationId(orgId))
+            requiredDraftInfo shouldBe oldState.requiredDraftInfo.map(_.copy(owners = testOwners.filterNot(request.removedOwners.contains)))
+            optionalDraftInfo shouldBe oldState.optionalDraftInfo
+            orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_DRAFT) shouldBe true
+          case _ => fail("Incorrect state")
+        }
+      }
+
+    "Succeed on remove owners with no owners to remove" in new Established {
+      val request: RemoveOwnersFromOrganizationRequest = removeOwnersFromOrganizationRequest.copy(removedOwners = Seq.empty[MemberId])
+      private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+      assert(result.reply.isSuccess)
+      result.reply.getValue shouldBe a[OrganizationEventResponse]
+      result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OwnersRemovedFromOrganization]
+      result.event shouldBe OwnersRemovedFromOrganization(
+        orgId = Some(OrganizationId(orgId)),
+        removedOwners = Seq.empty[MemberId],
+        actingMember = request.actingMember
+      )
+      result.state match {
+        case DraftOrganizationState(dOrgId, requiredDraftInfo, optionalDraftInfo, orgMeta, _) =>
+          val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+          dOrgId shouldBe Some(OrganizationId(orgId))
+          requiredDraftInfo shouldBe oldState.requiredDraftInfo.map(_.copy(owners = testOwners.filterNot(request.removedOwners.contains)))
+          optionalDraftInfo shouldBe oldState.optionalDraftInfo
+          orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_DRAFT) shouldBe true
+        case _ => fail("Incorrect state")
+      }
     }
-  }
 
-  "update parent correctly in Organization" in {
-
-    val updateParentRequest =
-      UpdateParentRequest(
-        Some(OrganizationId(organizationId)),
-        Some(testNewParent),
-        Some(testActingMember3)
-      )
-
-    val probe = TestProbe[StatusReply[OrganizationResponse]]()
-    val ref: EntityRef[OrganizationCommand] =
-      sharding.entityRefFor(OrganizationEntityKey, organizationId)
-
-    ref.ask[OrganizationResponse](_ => OrganizationCommand(updateParentRequest, probe.ref))
-
-    val result: Seq[StatusReply[OrganizationResponse]] =
-      probe.fishForMessagePF(waitDuration) {
-        case StatusReply.Success(
-              OrganizationEventResponse(
-                parentUpdated: ParentUpdated,
-                _
-              )
-            ) =>
-          log.info(
-            s"parentUpdated returned $parentUpdated",
-            parentUpdated
-          )
-          FishingOutcome.Complete
-        case other =>
-          log.info(s"Skipping $other")
-          FishingOutcome.ContinueAndIgnore
+      "Update contacts on command" in new Established {
+        val request: UpdateOrganizationContactsRequest = updateOrganizationContactsRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationContactsUpdated]
+        result.event shouldBe OrganizationContactsUpdated(
+          orgId = Some(OrganizationId(orgId)),
+          contacts = request.contacts,
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case DraftOrganizationState(dOrgId, requiredDraftInfo, optionalDraftInfo, orgMeta, _) =>
+            val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+            dOrgId shouldBe Some(OrganizationId(orgId))
+            requiredDraftInfo shouldBe oldState.requiredDraftInfo
+            optionalDraftInfo shouldBe oldState.optionalDraftInfo.map(_.copy(contacts = testContacts ++ testNewContacts))
+            orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_DRAFT) shouldBe true
+          case _ => fail("Incorrect state")
+        }
       }
-    result.length shouldBe 1
-  }
 
-  "activate Organization correctly" in {
-
-    val activateOrganizationRequest =
-      ActivateOrganizationRequest(
-        Some(OrganizationId(organizationId)),
-        Some(testActingMember3)
-      )
-
-    val probe = TestProbe[StatusReply[OrganizationResponse]]()
-    val ref: EntityRef[OrganizationCommand] =
-      sharding.entityRefFor(OrganizationEntityKey, organizationId)
-
-    ref.ask[OrganizationResponse](_ => OrganizationCommand(activateOrganizationRequest, probe.ref))
-
-    val result: Seq[StatusReply[OrganizationResponse]] =
-      probe.fishForMessagePF(waitDuration) {
-        case StatusReply.Success(
-              OrganizationEventResponse(
-                organizationActivated: OrganizationActivated,
-                _
-              )
-            ) =>
-          log.info(
-            s"organizationActivated returned $organizationActivated",
-            organizationActivated
-          )
-          FishingOutcome.Complete
-        case other =>
-          log.info(s"Skipping $other")
-          FishingOutcome.ContinueAndIgnore
+      "Succeed on update contacts with no new contacts" in new Established {
+        val request: UpdateOrganizationContactsRequest = updateOrganizationContactsRequest.copy(contacts = Seq.empty[Contacts])
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationContactsUpdated]
+        result.event shouldBe OrganizationContactsUpdated(
+          orgId = Some(OrganizationId(orgId)),
+          contacts = Seq.empty[Contacts],
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case DraftOrganizationState(dOrgId, requiredDraftInfo, optionalDraftInfo, orgMeta, _) =>
+            val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+            dOrgId shouldBe Some(OrganizationId(orgId))
+            requiredDraftInfo shouldBe oldState.requiredDraftInfo
+            optionalDraftInfo shouldBe oldState.optionalDraftInfo
+            orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_DRAFT) shouldBe true
+            orgMeta.flatMap(_.lastUpdatedBy) shouldBe request.actingMember
+          case _ => fail("Incorrect state")
+        }
       }
-    result.length shouldBe 1
-  }
 
-  "suspend Organization correctly" in {
-
-    val suspendOrganizationRequest =
-      SuspendOrganizationRequest(
-        Some(OrganizationId(organizationId)),
-        Some(testActingMember3)
-      )
-
-    val probe = TestProbe[StatusReply[OrganizationResponse]]()
-    val ref: EntityRef[OrganizationCommand] =
-      sharding.entityRefFor(OrganizationEntityKey, organizationId)
-
-    ref.ask[OrganizationResponse](_ => OrganizationCommand(suspendOrganizationRequest, probe.ref))
-
-    val result: Seq[StatusReply[OrganizationResponse]] =
-      probe.fishForMessagePF(waitDuration) {
-        case StatusReply.Success(
-              OrganizationEventResponse(
-                organizationSuspended: OrganizationSuspended,
-                _
-              )
-            ) =>
-          log.info(
-            s"organizationSuspended returned $organizationSuspended",
-            organizationSuspended
-          )
-          FishingOutcome.Complete
-        case other =>
-          log.info(s"Skipping $other")
-          FishingOutcome.ContinueAndIgnore
+      "Activate the organization when commanded" in new Established {
+        val request: ActivateOrganizationRequest = activateOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationActivated]
+        result.event shouldBe OrganizationActivated(
+          orgId = Some(OrganizationId(orgId)),
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(sOrgId, info, parent, members, owners, contacts, orgMeta, _) =>
+            val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+            sOrgId shouldBe Some(OrganizationId(orgId))
+            info shouldBe Some(Info(
+                name = oldState.requiredDraftInfo.flatMap(_.name),
+                shortName = oldState.optionalDraftInfo.flatMap(_.shortName),
+                isPrivate = oldState.requiredDraftInfo.map(_.isPrivate),
+                tenant = oldState.requiredDraftInfo.flatMap(_.tenant),
+                address = oldState.optionalDraftInfo.flatMap(_.address),
+                url = oldState.optionalDraftInfo.flatMap(_.url),
+                logo = oldState.optionalDraftInfo.flatMap(_.logo)
+            ))
+            parent shouldBe oldState.optionalDraftInfo.flatMap(_.parent)
+            members shouldBe oldState.optionalDraftInfo.map(_.members).get
+            owners shouldBe oldState.requiredDraftInfo.map(_.owners).get
+            contacts shouldBe oldState.optionalDraftInfo.map(_.contacts).get
+            orgMeta.map(_.currentStatus).contains(ORGANIZATION_STATUS_ACTIVE) shouldBe true
+            orgMeta.flatMap(_.lastUpdatedBy) shouldBe request.actingMember
+          case _ => fail("Incorrect state")
+        }
       }
-    result.length shouldBe 1
-  }
 
-  "terminate Organization correctly" in {
-
-    val terminateOrganizationRequest =
-      TerminateOrganizationRequest(
-        Some(OrganizationId(organizationId)),
-        Some(testActingMember3)
-      )
-
-    val probe = TestProbe[StatusReply[OrganizationResponse]]()
-    val ref: EntityRef[OrganizationCommand] =
-      sharding.entityRefFor(OrganizationEntityKey, organizationId)
-
-    ref.ask[OrganizationResponse](_ => OrganizationCommand(terminateOrganizationRequest, probe.ref))
-
-    val result: Seq[StatusReply[OrganizationResponse]] =
-      probe.fishForMessagePF(waitDuration) {
-        case StatusReply.Success(
-              OrganizationEventResponse(
-                organizationTerminated: OrganizationTerminated,
-                _
-              )
-            ) =>
-          log.info(
-            s"organizationTerminated returned $organizationTerminated",
-            organizationTerminated
-          )
-          FishingOutcome.Complete
-        case other =>
-          log.info(s"Skipping $other")
-          FishingOutcome.ContinueAndIgnore
+      "Terminate the organization when commanded" in new Established {
+        val request: TerminateOrganizationRequest = terminateOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationTerminated]
+        result.event shouldBe OrganizationTerminated(
+          orgId = Some(OrganizationId(orgId)),
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case TerminatedOrganizationState(orgId, lastMeta, _) =>
+            val oldState = establishedResult.state.asInstanceOf[DraftOrganizationState]
+            orgId shouldBe oldState.orgId
+            lastMeta.flatMap(_.lastUpdatedBy) shouldBe request.actingMember
+            lastMeta.map(_.currentStatus) shouldBe Some(ORGANIZATION_STATUS_TERMINATED)
+          case _ => fail("incorrect state")
+        }
       }
-    result.length shouldBe 1
-  }
 
-  "release Organization correctly" in {
+      //TODO tests on the get requests
 
-    val releaseOrganizationRequest =
-      ReleaseOrganizationRequest(
-        Some(OrganizationId(organizationId)),
-        Some(testActingMember3)
-      )
-
-    val probe = TestProbe[StatusReply[OrganizationResponse]]()
-    val ref: EntityRef[OrganizationCommand] =
-      sharding.entityRefFor(OrganizationEntityKey, organizationId)
-
-    ref.ask[OrganizationResponse](_ => OrganizationCommand(releaseOrganizationRequest, probe.ref))
-
-    val result: Seq[StatusReply[OrganizationResponse]] =
-      probe.fishForMessagePF(waitDuration) {
-        case StatusReply.Success(
-              OrganizationEventResponse(
-                organizationReleased: OrganizationReleased,
-                _
-              )
-            ) =>
-          log.info(
-            s"organizationReleased returned $organizationReleased",
-            organizationReleased
-          )
-          FishingOutcome.Complete
-        case other =>
-          log.info(s"Skipping $other")
-          FishingOutcome.ContinueAndIgnore
+      "Fail if the organization is already established" in new Established {
+        val request: EstablishOrganizationRequest = establishOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid Command EstablishOrganizationRequest for State Draft"
+        assert(result.hasNoEvents)
+        result.state shouldBe establishedResult.state
       }
-    result.length shouldBe 1
-  }
 
-  "update Organization status correctly" in {
-
-    val establishOrganizationRequest = TestData.establishOrganizationRequest
-
-    val probe = TestProbe[StatusReply[OrganizationResponse]]()
-    val ref: EntityRef[OrganizationCommand] =
-      sharding.entityRefFor(OrganizationEntityKey, organizationId2)
-
-    ref.ask[OrganizationResponse](_ => OrganizationCommand(establishOrganizationRequest, probe.ref))
-
-    val updateOrganizationStatusRequest =
-      UpdateOrganizationStatusRequest(
-        Some(OrganizationId(organizationId2)),
-        OrganizationStatus.ORGANIZATION_STATUS_ACTIVE,
-        Some(testActingMember3)
-      )
-
-    ref.ask[OrganizationResponse](_ => OrganizationCommand(updateOrganizationStatusRequest, probe.ref))
-
-    val result: Seq[StatusReply[OrganizationResponse]] =
-      probe.fishForMessagePF(waitDuration) {
-        case StatusReply.Success(
-              OrganizationEventResponse(
-                organizationStatusUpdated: OrganizationStatusUpdated,
-                _
-              )
-            ) =>
-          log.info(
-            s"organizationStatusUpdated returned $organizationStatusUpdated",
-            organizationStatusUpdated
-          )
-          FishingOutcome.Complete
-        case other =>
-          log.info(s"Skipping $other")
-          FishingOutcome.ContinueAndIgnore
+      "Fail if you attempt to remove all existing owners" in new Established {
+        val request: RemoveOwnersFromOrganizationRequest = removeOwnersFromOrganizationRequest.copy(removedOwners = testOwners)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: the result of removing the requested owners cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe establishedResult.state
       }
-    result.length shouldBe 1
-  }
 
-  "update Organization contact correctly" in {
-
-    val updateOrganizationContactsRequest =
-      UpdateOrganizationContactsRequest(
-        Some(OrganizationId(organizationId2)),
-        testNewContacts,
-        Some(testActingMember3)
-      )
-
-    val probe = TestProbe[StatusReply[OrganizationResponse]]()
-    val ref: EntityRef[OrganizationCommand] =
-      sharding.entityRefFor(OrganizationEntityKey, organizationId2)
-
-    ref.ask[OrganizationResponse](_ => OrganizationCommand(updateOrganizationContactsRequest, probe.ref))
-
-    val result: Seq[StatusReply[OrganizationResponse]] =
-      probe.fishForMessagePF(waitDuration) {
-        case StatusReply.Success(
-              OrganizationEventResponse(
-                organizationContactsUpdated: OrganizationContactsUpdated,
-                _
-              )
-            ) =>
-          log.info(
-            s"organizationContactsUpdated returned $organizationContactsUpdated",
-            organizationContactsUpdated
-          )
-          FishingOutcome.Complete
-        case other =>
-          log.info(s"Skipping $other")
-          FishingOutcome.ContinueAndIgnore
+      "Fail on edit info command with with info = None" in new Established {
+        val request: EditOrganizationInfoRequest = editOrganizationInfoRequest.copy(info = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: info cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe establishedResult.state
       }
-    result.length shouldBe 1
-  }
 
-  "update Organization account correctly" in {
-
-    val updateOrganizationAccountsRequest =
-      UpdateOrganizationAccountsRequest(
-        Some(OrganizationId(organizationId2)),
-        Some(testNewTestInfo),
-        Some(testActingMember3)
-      )
-
-    val probe = TestProbe[StatusReply[OrganizationResponse]]()
-    val ref: EntityRef[OrganizationCommand] =
-      sharding.entityRefFor(OrganizationEntityKey, organizationId2)
-
-    ref.ask[OrganizationResponse](_ => OrganizationCommand(updateOrganizationAccountsRequest, probe.ref))
-
-    val result: Seq[StatusReply[OrganizationResponse]] =
-      probe.fishForMessagePF(waitDuration) {
-        case StatusReply.Success(
-              OrganizationEventResponse(
-                organizationAccountsUpdated: OrganizationAccountsUpdated,
-                _
-              )
-            ) =>
-          log.info(
-            s"organizationAccountsUpdated returned $organizationAccountsUpdated",
-            organizationAccountsUpdated
-          )
-          FishingOutcome.Complete
-        case other =>
-          log.info(s"Skipping $other")
-          FishingOutcome.ContinueAndIgnore
+      "Fail on update parent with missing data" in new Established {
+        val request: UpdateParentRequest = updateParentRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe establishedResult.state
       }
-    result.length shouldBe 1
-  }
 
-  "fail validation for organization" in {
-    OrganizationValidation.validateInfo(Info()) match {
-      case Validated.Valid(a)   => fail("Validation should fail with info with empty name")
-      case Validated.Invalid(e) => e.leftSideValue.toNonEmptyList.head shouldBe StringIsEmptyError("name")
+      "Fail on add members with missing data" in new Established {
+        val request: AddMembersToOrganizationRequest = addMembersToOrganizationRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe establishedResult.state
+      }
+
+      "Fail on removing members with missing data" in new Established {
+        val request: RemoveMembersFromOrganizationRequest = removeMembersFromOrganizationRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe establishedResult.state
+      }
+
+      "Fail on adding owners with missing data" in new Established {
+        val request: AddOwnersToOrganizationRequest = addOwnersToOrganizationRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe establishedResult.state
+      }
+
+      "Fail on removing owners with missing data" in new Established {
+        val request: RemoveOwnersFromOrganizationRequest = removeOwnersFromOrganizationRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe establishedResult.state
+      }
+
+      "Fail on update contacts with missing data" in new Established {
+        val request: UpdateOrganizationContactsRequest = updateOrganizationContactsRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe establishedResult.state
+      }
+
+      "Fail on activate command with missing data" in new Established {
+        val request: ActivateOrganizationRequest = activateOrganizationRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe establishedResult.state
+      }
+
+      "Fail on terminate command with missing data" in new Established {
+        val request: TerminateOrganizationRequest = terminateOrganizationRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe establishedResult.state
+      }
+
+      "fail on all other requests" in new Established {
+        everyMinimalRequest.filterNot(request =>
+          request.isInstanceOf[EditOrganizationInfoRequest] ||
+          request.isInstanceOf[UpdateParentRequest] ||
+          request.isInstanceOf[AddMembersToOrganizationRequest] ||
+          request.isInstanceOf[RemoveMembersFromOrganizationRequest] ||
+          request.isInstanceOf[AddOwnersToOrganizationRequest] ||
+          request.isInstanceOf[RemoveOwnersFromOrganizationRequest] ||
+          request.isInstanceOf[UpdateOrganizationContactsRequest] ||
+          request.isInstanceOf[GetOrganizationByIdRequest] ||
+          request.isInstanceOf[GetOrganizationInfoRequest] ||
+          request.isInstanceOf[TerminateOrganizationRequest] ||
+          request.isInstanceOf[ActivateOrganizationRequest]
+        ).map(
+          request => (request, eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _)))
+        ).foreach(requestAndResult => {
+          val (request, result) = requestAndResult
+          assert(result.reply.isError)
+          result.reply.getError.getMessage shouldBe s"Invalid Command ${request.getClass.getSimpleName} for State Draft"
+          assert(result.hasNoEvents)
+          result.state shouldBe establishedResult.state
+        })
+      }
+
     }
+
+    "In active state" should {
+
+
+      "Edit info when commanded" in new Active {
+        val request: EditOrganizationInfoRequest = editOrganizationInfoRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationInfoEdited]
+        result.event shouldBe OrganizationInfoEdited(
+          orgId = Some(OrganizationId(orgId)),
+          info = request.info,
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(sOrgId, info, parent, members, owners, contacts, meta, _) =>
+            val oldState = activatedResult.state.asInstanceOf[EstablishedOrganizationState]
+            val requestInfo = request.info.get
+            val oldInfo = oldState.info.get
+            sOrgId shouldBe Some(OrganizationId(orgId))
+            info shouldBe Some(Info(
+              name = requestInfo.name,
+              shortName = oldInfo.shortName,
+              address = oldInfo.address,
+              isPrivate = requestInfo.isPrivate,
+              url = requestInfo.url,
+              logo = requestInfo.logo,
+              tenant = oldInfo.tenant
+            ))
+            validateNewState(sOrgId, None, Some(parent), Some(members), Some(owners), Some(contacts), meta, request.actingMember)
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Succeed on edit info with empty info fields" in new Active {
+        val request: EditOrganizationInfoRequest = editOrganizationInfoRequest.copy(info = Some(Info()))
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationInfoEdited]
+        result.event shouldBe OrganizationInfoEdited(
+          orgId = Some(OrganizationId(orgId)),
+          info = request.info,
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(sOrgId, info, parent, members, owners, contacts, meta, _) =>
+            validateNewState(sOrgId, Some(info), Some(parent), Some(members), Some(owners), Some(contacts), meta, request.actingMember)
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Update parent on command" in new Active {
+        val request: UpdateParentRequest = TestData.updateParentRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[ParentUpdated]
+        result.event shouldBe ParentUpdated(
+          orgId = Some(OrganizationId(orgId)),
+          newParent = request.newParent,
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(sOrgId, info, parent, members, owners, contacts, meta, _) =>
+            validateNewState(sOrgId, Some(info), None, Some(members), Some(owners), Some(contacts), meta, request.actingMember)
+            parent shouldBe request.newParent
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Remove parent if newParent = None in UpdateParentRequest" in new Active {
+        val request: UpdateParentRequest = TestData.updateParentRequest.copy(newParent = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[ParentUpdated]
+        result.event shouldBe ParentUpdated(
+          orgId = Some(OrganizationId(orgId)),
+          newParent = None,
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(sOrgId, info, parent, members, owners, contacts, meta, _) =>
+            validateNewState(sOrgId, Some(info), None, Some(members), Some(owners), Some(contacts), meta, request.actingMember)
+            parent shouldBe None
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Add members on command (without duplicates)" in new Active {
+        val request: AddMembersToOrganizationRequest = addMembersToOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[MembersAddedToOrganization]
+        result.event shouldBe MembersAddedToOrganization(
+          orgId = Some(OrganizationId(orgId)),
+          newMembers = request.newMembers,
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(sOrgId, info, parent, members, owners, contacts, meta, _) =>
+            validateNewState(sOrgId, Some(info), Some(parent), None, Some(owners), Some(contacts), meta, request.actingMember)
+            members shouldBe testMembers ++ testNewMembers
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Succeed on AddMembers command with no new members" in new Active {
+        val request: AddMembersToOrganizationRequest = addMembersToOrganizationRequest.copy(newMembers = Seq.empty[MemberId])
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[MembersAddedToOrganization]
+        result.event shouldBe MembersAddedToOrganization(
+          orgId = Some(OrganizationId(orgId)),
+          newMembers = Seq.empty[MemberId],
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(sOrgId, info, parent, members, owners, contacts, meta, _) =>
+            validateNewState(sOrgId, Some(info), Some(parent), Some(members), Some(owners), Some(contacts), meta, request.actingMember)
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Remove members on command" in new Active {
+        val request: RemoveMembersFromOrganizationRequest = removeMembersFromOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[MembersRemovedFromOrganization]
+        result.event shouldBe MembersRemovedFromOrganization(
+          orgId = Some(OrganizationId(orgId)),
+          removedMembers = request.removedMembers,
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(sOrgId, info, parent, members, owners, contacts, meta, _) =>
+            validateNewState(sOrgId, Some(info), Some(parent), None, Some(owners), Some(contacts), meta, request.actingMember)
+            members shouldBe testMembers.filterNot(request.removedMembers.contains)
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Succeed on remove members with no members to remove" in new Active {
+        val request: RemoveMembersFromOrganizationRequest = removeMembersFromOrganizationRequest.copy(removedMembers = Seq.empty[MemberId])
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[MembersRemovedFromOrganization]
+        result.event shouldBe MembersRemovedFromOrganization(
+          orgId = Some(OrganizationId(orgId)),
+          removedMembers = Seq.empty[MemberId],
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(sOrgId, info, parent, members, owners, contacts, meta, _) =>
+            validateNewState(sOrgId, Some(info), Some(parent), Some(members), Some(owners), Some(contacts), meta, request.actingMember)
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Add owners on command (without duplicates)" in new Active {
+        val request: AddOwnersToOrganizationRequest = addOwnersToOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OwnersAddedToOrganization]
+        result.event shouldBe OwnersAddedToOrganization(
+          orgId = Some(OrganizationId(orgId)),
+          newOwners = request.newOwners,
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(sOrgId, info, parent, members, owners, contacts, meta, _) =>
+            validateNewState(sOrgId, Some(info), Some(parent), Some(members), None, Some(contacts), meta, request.actingMember)
+            owners shouldBe testOwners ++ testNewOwners
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Succeed on add owners with no new owners" in new Active {
+        val request: AddOwnersToOrganizationRequest = addOwnersToOrganizationRequest.copy(newOwners = Seq.empty[MemberId])
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OwnersAddedToOrganization]
+        result.event shouldBe OwnersAddedToOrganization(
+          orgId = Some(OrganizationId(orgId)),
+          newOwners = Seq.empty[MemberId],
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(sOrgId, info, parent, members, owners, contacts, meta, _) =>
+            validateNewState(sOrgId, Some(info), Some(parent), Some(members), Some(owners), Some(contacts), meta, request.actingMember)
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Remove owners on command" in new Active {
+        val request: RemoveOwnersFromOrganizationRequest = removeOwnersFromOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OwnersRemovedFromOrganization]
+        result.event shouldBe OwnersRemovedFromOrganization(
+          orgId = Some(OrganizationId(orgId)),
+          removedOwners = request.removedOwners,
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(sOrgId, info, parent, members, owners, contacts, meta, _) =>
+            validateNewState(sOrgId, Some(info), Some(parent), Some(members), None, Some(contacts), meta, request.actingMember)
+            owners shouldBe testOwners.filterNot(request.removedOwners.contains)
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Succeed on remove owners with no owners to remove" in new Active {
+        val request: RemoveOwnersFromOrganizationRequest = removeOwnersFromOrganizationRequest.copy(removedOwners = Seq.empty[MemberId])
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OwnersRemovedFromOrganization]
+        result.event shouldBe OwnersRemovedFromOrganization(
+          orgId = Some(OrganizationId(orgId)),
+          removedOwners = Seq.empty[MemberId],
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(sOrgId, info, parent, members, owners, contacts, meta, _) =>
+            validateNewState(sOrgId, Some(info), Some(parent), Some(members), Some(owners), Some(contacts), meta, request.actingMember)
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Update contacts on command" in new Active {
+        val request: UpdateOrganizationContactsRequest = updateOrganizationContactsRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationContactsUpdated]
+        result.event shouldBe OrganizationContactsUpdated(
+          orgId = Some(OrganizationId(orgId)),
+          contacts = request.contacts,
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(sOrgId, info, parent, members, owners, contacts, meta, _) =>
+            validateNewState(sOrgId, Some(info), Some(parent), Some(members), Some(owners), None, meta, request.actingMember)
+            contacts shouldBe testContacts ++ testNewContacts
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Succeed on update contacts with no new contacts" in new Active {
+        val request: UpdateOrganizationContactsRequest = updateOrganizationContactsRequest.copy(contacts = Seq.empty[Contacts])
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationContactsUpdated]
+        result.event shouldBe OrganizationContactsUpdated(
+          orgId = Some(OrganizationId(orgId)),
+          contacts = Seq.empty[Contacts],
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(sOrgId, info, parent, members, owners, contacts, meta, _) =>
+            validateNewState(sOrgId, Some(info), Some(parent), Some(members), Some(owners), Some(contacts), meta, request.actingMember)
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Suspend upon command" in new Active {
+        val request: SuspendOrganizationRequest = TestData.suspendOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationSuspended]
+        result.event shouldBe OrganizationSuspended(
+          orgId = Some(OrganizationId(orgId)),
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(dOrgId, info, parent, members, owners, contacts, orgMeta, _) =>
+            validateNewState(dOrgId, Some(info), Some(parent), Some(members), Some(owners), Some(contacts), orgMeta, request.actingMember, ORGANIZATION_STATUS_SUSPENDED)
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Terminate upon request" in new Active {
+        val request: TerminateOrganizationRequest = TestData.terminateOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationTerminated]
+        result.event shouldBe OrganizationTerminated(
+          orgId = Some(OrganizationId(orgId)),
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case TerminatedOrganizationState(tOrgId, lastMeta, _) =>
+            tOrgId shouldBe Some(OrganizationId(orgId))
+            lastMeta.map(_.currentStatus) shouldBe Some(ORGANIZATION_STATUS_TERMINATED)
+            lastMeta.flatMap(_.lastUpdatedBy) shouldBe request.actingMember
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Fail if you attempt to remove all existing owners" in new Active {
+        val request: RemoveOwnersFromOrganizationRequest = removeOwnersFromOrganizationRequest.copy(removedOwners = testOwners)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: the result of removing the requested owners cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe activatedResult.state
+      }
+
+      "Fail on edit info command with with info = None" in new Active {
+        val request: EditOrganizationInfoRequest = editOrganizationInfoRequest.copy(info = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: info cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe activatedResult.state
+      }
+
+      "Fail on update parent with missing data" in new Active {
+        val request: UpdateParentRequest = updateParentRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe activatedResult.state
+      }
+
+      "Fail on add members with missing data" in new Active {
+        val request: AddMembersToOrganizationRequest = addMembersToOrganizationRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe activatedResult.state
+      }
+
+      "Fail on removing members with missing data" in new Active {
+        val request: RemoveMembersFromOrganizationRequest = removeMembersFromOrganizationRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe activatedResult.state
+      }
+
+      "Fail on adding owners with missing data" in new Active {
+        val request: AddOwnersToOrganizationRequest = addOwnersToOrganizationRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe activatedResult.state
+      }
+
+      "Fail on removing owners with missing data" in new Active {
+        val request: RemoveOwnersFromOrganizationRequest = removeOwnersFromOrganizationRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe activatedResult.state
+      }
+
+      "Fail on update contacts with missing data" in new Active {
+        val request: UpdateOrganizationContactsRequest = updateOrganizationContactsRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe activatedResult.state
+      }
+
+      "Fail on terminate command with missing data" in new Active {
+        val request: TerminateOrganizationRequest = terminateOrganizationRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe activatedResult.state
+      }
+
+      "fail on all other requests" in new Active {
+        everyMinimalRequest.filterNot(request =>
+          request.isInstanceOf[EditOrganizationInfoRequest] ||
+            request.isInstanceOf[UpdateParentRequest] ||
+            request.isInstanceOf[AddMembersToOrganizationRequest] ||
+            request.isInstanceOf[RemoveMembersFromOrganizationRequest] ||
+            request.isInstanceOf[AddOwnersToOrganizationRequest] ||
+            request.isInstanceOf[RemoveOwnersFromOrganizationRequest] ||
+            request.isInstanceOf[UpdateOrganizationContactsRequest] ||
+            request.isInstanceOf[SuspendOrganizationRequest] ||
+            request.isInstanceOf[GetOrganizationByIdRequest] ||
+            request.isInstanceOf[GetOrganizationInfoRequest] ||
+            request.isInstanceOf[TerminateOrganizationRequest]
+        ).map(
+          request => (request, eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _)))
+        ).foreach(requestAndResult => {
+          val (request, result) = requestAndResult
+          assert(result.reply.isError)
+          result.reply.getError.getMessage shouldBe s"Invalid Command ${request.getClass.getSimpleName} for State Active"
+          assert(result.hasNoEvents)
+          result.state shouldBe activatedResult.state
+        })
+      }
+
+
+    }
+
+    "In suspended state" should {
+
+      "Activate upon command" in new Suspended {
+        val request: ActivateOrganizationRequest = TestData.activateOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationActivated]
+        result.event shouldBe OrganizationActivated(
+          orgId = Some(OrganizationId(orgId)),
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(dOrgId, info, parent, members, owners, contacts, orgMeta, _) =>
+            validateNewState(dOrgId, Some(info), Some(parent), Some(members), Some(owners), Some(contacts), orgMeta, request.actingMember, ORGANIZATION_STATUS_ACTIVE)
+          case _ => fail("incorrect state")
+        }
+      }
+
+      "Allow a second suspend command" in new Suspended {
+        val request: SuspendOrganizationRequest = TestData.suspendOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationSuspended]
+        result.event shouldBe OrganizationSuspended(
+          orgId = Some(OrganizationId(orgId)),
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case EstablishedOrganizationState(dOrgId, info, parent, members, owners, contacts, orgMeta, _) =>
+            validateNewState(dOrgId, Some(info), Some(parent), Some(members), Some(owners), Some(contacts), orgMeta, request.actingMember)
+          case _ => fail("incorrect state")
+        }
+      }
+
+      "Terminate upon request" in new Suspended {
+        val request: TerminateOrganizationRequest = TestData.terminateOrganizationRequest
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isSuccess)
+        result.reply.getValue shouldBe a[OrganizationEventResponse]
+        result.reply.getValue.asInstanceOf[OrganizationEventResponse].organizationEvent shouldBe a[OrganizationTerminated]
+        result.event shouldBe OrganizationTerminated(
+          orgId = Some(OrganizationId(orgId)),
+          actingMember = request.actingMember
+        )
+        result.state match {
+          case TerminatedOrganizationState(tOrgId, lastMeta, _) =>
+            tOrgId shouldBe Some(OrganizationId(orgId))
+            lastMeta.map(_.currentStatus) shouldBe Some(ORGANIZATION_STATUS_TERMINATED)
+            lastMeta.flatMap(_.lastUpdatedBy) shouldBe request.actingMember
+          case _ => fail("Incorrect state")
+        }
+      }
+
+      "Fail if activate is missing data" in new Suspended {
+        val request: ActivateOrganizationRequest = activateOrganizationRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe suspendedResult.state
+      }
+
+      "Fail if suspend is missing data" in new Suspended {
+        val request: SuspendOrganizationRequest = suspendOrganizationRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe suspendedResult.state
+      }
+
+      "Fail if terminate is missing data" in new Suspended {
+        val request: TerminateOrganizationRequest = terminateOrganizationRequest.copy(actingMember = None)
+        private val result = eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _))
+        assert(result.reply.isError)
+        result.reply.getError.getMessage shouldBe "Invalid request with errors: acting member cannot be empty."
+        assert(result.hasNoEvents)
+        result.state shouldBe suspendedResult.state
+      }
+
+      "Reject every other command" in new Suspended {
+        everyMinimalRequest.filterNot(request =>
+          request.isInstanceOf[ActivateOrganizationRequest] ||
+          request.isInstanceOf[SuspendOrganizationRequest] ||
+          request.isInstanceOf[TerminateOrganizationRequest] ||
+          request.isInstanceOf[GetOrganizationByIdRequest] ||
+          request.isInstanceOf[GetOrganizationInfoRequest]
+        ).map(
+          request => (request, eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _)))
+        ).foreach(requestAndResult => {
+          val (request, result) = requestAndResult
+          assert(result.reply.isError)
+          result.reply.getError.getMessage shouldBe s"Invalid Command ${request.getClass.getSimpleName} for State Suspended"
+          assert(result.hasNoEvents)
+          result.state shouldBe suspendedResult.state
+        })
+      }
+    }
+
+    "In terminated state" should {
+      "Reject every command" in new Terminated {
+        everyMinimalRequest.map(
+          request => (request, eventSourcedTestKit.runCommand[StatusReply[OrganizationResponse]](OrganizationCommand(request, _)))
+        ).foreach(requestAndResult => {
+          val (request, result) = requestAndResult
+          assert(result.reply.isError)
+          result.reply.getError.getMessage shouldBe s"Invalid Command ${request.getClass.getSimpleName} for State Terminated"
+          assert(result.hasNoEvents)
+          result.state shouldBe terminatedResult.state
+        })
+      }
+    }
+
+
   }
+
+
+
+
 }
 
 object OrganizationSpec {
-  val config: Config = ConfigFactory.parseString("""
-        akka.loglevel = INFO
-        #akka.persistence.typed.log-stashing = on
-        akka.actor.provider = cluster
-        akka.remote.artery.canonical.port = 0
-        akka.remote.artery.canonical.hostname = 127.0.0.1
-
-        akka.persistence.journal.plugin = "akka.persistence.journal.inmem"
-        akka.persistence.journal.inmem.test-serialization = on
-
-        akka.actor.serialization-bindings{
-          "com.improving.app.common.serialize.PBMsgSerializable" = proto
-          "com.improving.app.common.serialize.PBMsgOneOfSerializable" = proto
-          "com.improving.app.common.serialize.PBEnumSerializable" = proto
-        }
-      """)
+  val config: Config = EventSourcedBehaviorTestKit.config
 }
