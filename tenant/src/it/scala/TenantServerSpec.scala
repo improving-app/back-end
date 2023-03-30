@@ -1,6 +1,6 @@
 import akka.grpc.GrpcClientSettings
 import com.improving.app.common.domain.{CaPostalCodeImpl, Contact, OrganizationId, PostalCodeMessageImpl}
-import com.improving.app.tenant.domain.{ActivateTenant, AddOrganizations, EstablishTenant, RemoveOrganizations, SuspendTenant, UpdateAddress, UpdatePrimaryContact, UpdateTenantName}
+import com.improving.app.tenant.domain.{ActivateTenant, AddOrganizations, EstablishTenant, Info, RemoveOrganizations, SuspendTenant, UpdateAddress, UpdatePrimaryContact, UpdateTenantName}
 import com.improving.app.common.domain.{Address, MemberId, TenantId}
 import com.improving.app.common.test.ServiceTestContainerSpec
 import com.improving.app.tenant.api.{TenantService, TenantServiceClient}
@@ -29,9 +29,12 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
 
       val tenantId = Random.nextString(31)
 
+      val tenantInfo = Info()
+
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser"))
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(tenantInfo)
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -56,9 +59,12 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
 
       val tenantId = Random.nextString(31)
 
+      val tenantInfo = Info()
+
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser"))
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(tenantInfo)
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -99,9 +105,12 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
 
       val tenantId = Random.nextString(31)
 
+      val tenantInfo = Info()
+
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser"))
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(tenantInfo)
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -144,9 +153,12 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
 
       val tenantId = Random.nextString(31)
 
+      val tenantInfo = Info()
+
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser"))
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(tenantInfo)
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -170,9 +182,12 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
 
       val tenantId = Random.nextString(31)
 
+      val tenantInfo = Info()
+
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser"))
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(tenantInfo)
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -204,9 +219,12 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
 
       val tenantId = Random.nextString(31)
 
+      val tenantInfo = Info()
+
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser"))
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(tenantInfo)
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
@@ -289,9 +307,12 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
 
       val tenantId = Random.nextString(31)
 
+      val tenantInfo = Info()
+
       val establishedResponse = client.establishTenant(EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser"))
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(tenantInfo)
       )).futureValue
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
