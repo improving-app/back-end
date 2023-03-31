@@ -15,7 +15,7 @@ import com.improving.app.organization.domain.Organization
 
 object OrganizationByMemberProjection {
 
-  def init(system: ActorSystem[_], repository: OrganizationRepository): Unit = {
+  def init(system: ActorSystem[_], repository: OrganizationRepositoryImpl): Unit = {
     ShardedDaemonProcess(system).init(
       name = "OrganizationByMemberProjection",
       Organization.tags.size,
@@ -26,9 +26,9 @@ object OrganizationByMemberProjection {
   }
 
   private def createProjectionFor(
-      system: ActorSystem[_],
-      repository: OrganizationRepository,
-      index: Int
+                                   system: ActorSystem[_],
+                                   repository: OrganizationRepositoryImpl,
+                                   index: Int
   ): AtLeastOnceProjection[Offset, EventEnvelope[OrganizationEvent]] = {
     val tag = Organization.tags(index)
 

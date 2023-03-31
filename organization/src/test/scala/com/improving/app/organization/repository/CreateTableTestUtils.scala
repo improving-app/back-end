@@ -3,7 +3,7 @@ package com.improving.app.organization.repository
 import akka.actor.typed.ActorSystem
 import akka.projection.cassandra.scaladsl.CassandraProjection
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSessionRegistry
-import com.improving.app.organization.repository.OrganizationRepositoryImpl._
+import OrganizationRepositoryImpl._
 
 object CreateTableTestUtils {
 

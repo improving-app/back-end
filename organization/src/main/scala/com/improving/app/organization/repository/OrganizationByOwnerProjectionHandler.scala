@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], repo: OrganizationRepository)
+class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], repo: OrganizationRepositoryImpl)
     extends Handler[EventEnvelope[OrganizationEvent]]() {
 
   private val log = LoggerFactory.getLogger(getClass)

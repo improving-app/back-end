@@ -1,15 +1,12 @@
 package com.improving.app.organization.repository
 
-import scala.concurrent.Future
 import akka.Done
-
-import scala.concurrent.ExecutionContext
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSession
-//import com.datastax.oss.driver.api.core.cql.BatchType
-//import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder
 import com.improving.app.organization.Organization
 import org.slf4j.LoggerFactory
 import scalapb.json4s.JsonFormat
+
+import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters._
 
 trait OrganizationRepository {
