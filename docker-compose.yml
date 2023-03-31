@@ -6,10 +6,10 @@ services:
     ports:
       - "9042:9042"
 
-  tenant-service:
-    image: improving-app-tenant:latest
+  gateway-service:
+    image: improving-app-gateway:latest
     ports:
-      - "8080:8080"
+      - "8090:8090"
     depends_on: ["scylla-db"]
 
   member-service:
