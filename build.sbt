@@ -24,6 +24,3 @@ lazy val tenant = project
   .in(file("tenant"))
   .configure(C.akkaPersistentEntity("improving-app-tenant"))
   .dependsOn(commonTypes)
-
-(Compile / runMain) := (org / Compile / runMain).evaluated
-onLoad in Global := (onLoad in Global).value.andThen(Command.process("project org", _))
