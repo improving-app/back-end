@@ -29,5 +29,5 @@ lazy val member = project
 
 lazy val gateway = project
   .in(file("gateway"))
-  .configure(C.akkaPersistentEntity("improving-app-gateway", 8090))
+  .configure(C.service("improving-app-gateway", 8090))
   .dependsOn(commonTypes, member)

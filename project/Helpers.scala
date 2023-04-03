@@ -52,18 +52,16 @@ object C {
       project: Project
   ): Project = {
     project
-      .enablePlugins(JavaAppPackaging, DockerPlugin)
+      .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
       .configure(Compilation.scala)
       .configure(Testing.scalaTest)
       .configure(Packaging.docker)
       .settings(
         name := componentName,
         run / fork := true,
-        libraryDependencies ++= utilityDependencies ++ loggingDependencies ++ scalaPbDependencies ++ scalaPbValidationDependencies,
-        Compile / managedSourceDirectories ++= Seq(
-          target.value / "scala-2.13" / "akka-grpc",
-          target.value / "scala-2.13" / "src_managed"
-        )
+        scalaVersion := V.scala,
+        libraryDependencies ++=
+          utilityDependencies ++ loggingDependencies ++ httpDependencies
       )
   }
 
@@ -71,14 +69,7 @@ object C {
 
     def scala(project: Project): Project = {
       project.settings(
-        ThisBuild / dynverSeparator := "-",
         run / fork := true,
-        run / envVars += ("HOST", "0.0.0.0"),
-        Compile / run := {
-          // needed for the proxy to access the user function on all platforms
-          sys.props += "kalix.user-function-interface" -> "0.0.0.0"
-          (Compile / run).evaluated
-        },
         Compile / scalacOptions ++= Seq(
           "-release:11",
           "-deprecation",
@@ -164,6 +155,7 @@ object C {
         scalacOptions := scala3Options,
         Compile / scalacOptions ++= scala3Options,
         Compile / javacOptions ++= javaOptions,
+        Compile / publishLocal := true,
         Test / parallelExecution := false,
         Test / testOptions += Tests.Argument("-oDF"),
         Test / logBuffered := false,

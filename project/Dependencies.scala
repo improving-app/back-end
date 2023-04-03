@@ -2,27 +2,28 @@ import sbt._
 
 object Dependencies {
   object Versions {
-    val akka = "2.7.0"
-    val akkaHttp = "10.4.0"
+    val akka = "2.8.0"
+    val akkaHttp = "10.5.0"
     val akkaKafka = "4.0.0"
+    val akkaHttpCirce = "1.39.2"
     val alpakka = "5.0.0"
     val chimney = "0.6.2"
     val commonsCodec = "1.15"
-    val jsoniterScala = "2.19.1"
-    val logback = "1.4.5"
+    val jsoniterScala = "2.21.3"
+    val logback = "1.4.6"
     val monocle = "3.1.0"
     val pureconfig = "0.17.2"
     val scapegoat = "2.1.0"
     val scalalogging = "3.9.5"
     val scalamock = "5.2.0"
-    val scalapbCompiler = "0.11.12"
-    val scalatest = "3.2.14"
-    val scalacheck = "1.14.1"
+    val scalapbCompiler = "0.11.13"
+    val scalatest = "3.2.15"
+    val scalacheck = "1.17.0"
     val scalaxml = "2.1.0"
-    val sttp = "3.8.5"
+    val sttp = "3.8.13"
     val testcontainers = "1.17.6"
     val cats = "2.9.0"
-    val circe = "0.14.1"
+    val circe = "0.14.5"
     val gatling = "3.9.2"
   }
 
@@ -58,7 +59,8 @@ object Dependencies {
   val httpDependencies: Seq[ModuleID] = Seq(
     "com.softwaremill.sttp.client3" %% "core" % sttp,
     "com.softwaremill.sttp.client3" %% "jsoniter" % sttp,
-    "com.softwaremill.sttp.client3" %% "okhttp-backend" % sttp
+    "com.softwaremill.sttp.client3" %% "okhttp-backend" % sttp,
+    "de.heikoseeberger" %% "akka-http-circe" % akkaHttpCirce
   )
 
   val jsonDependencies: Seq[ModuleID] = Seq(
@@ -84,12 +86,12 @@ object Dependencies {
     "io.circe" %% "circe-core" % circe % "test,it",
     "io.circe" %% "circe-generic" % circe % "test,it",
     "io.circe" %% "circe-parser" % circe % "test,it",
-    "com.thesamet.scalapb" %% "compilerplugin" % "0.11.11" % "test,it"
+    "com.thesamet.scalapb" %% "compilerplugin" % "0.11.13" % "test,it"
   )
 
   val scalaPbDependencies: Seq[ModuleID] = Seq(
     "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
-    "com.google.protobuf" % "protobuf-java" % "3.21.9" % "protobuf",
+    "com.google.protobuf" % "protobuf-java" % "3.22.2" % "protobuf",
     "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0" % "protobuf",
     "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0"
   )
