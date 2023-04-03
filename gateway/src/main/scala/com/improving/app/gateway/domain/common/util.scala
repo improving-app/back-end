@@ -47,6 +47,18 @@ object util {
     tenant = Some(TenantId(info.tenant.toString))
   )
 
+  def memberInfoToGatewayMemberInfo(info: MemberInfo): GatewayMemberInfo = GatewayMemberInfo(
+    handle = info.handle,
+    avatarUrl = info.avatarUrl,
+    firstName = info.firstName,
+    lastName = info.lastName,
+    notificationPreference = notificationPreferenceToGatewayNotificationPreference(info.notificationPreference),
+    notificationOptIn = info.notificationOptIn,
+    contact = contactToGatewayContact(info.contact.getOrElse(Contact.defaultInstance)),
+    organizations = info.organizations.map(id => UUID.fromString(id.id)),
+    tenant = UUID.fromString(info.tenant.getOrElse(TenantId.defaultInstance).id)
+  )
+
   private def gatewayContactToContact(contact: GatewayContact): Contact = Contact(
     firstName = contact.firstName,
     lastName = contact.lastName,
@@ -76,18 +88,6 @@ object util {
     lastUpdated = Instant.ofEpochSecond(info.lastModifiedOn.map(_.seconds).getOrElse(0L)),
     lastUpdatedBy = UUID.fromString(info.lastModifiedBy.getOrElse(MemberId.defaultInstance).id),
     status = memberStateToGatewayMemberState(info.memberState)
-  )
-
-  private def memberInfoToGatewayMemberInfo(info: MemberInfo): GatewayMemberInfo = GatewayMemberInfo(
-    handle = info.handle,
-    avatarUrl = info.avatarUrl,
-    firstName = info.firstName,
-    lastName = info.lastName,
-    notificationPreference = notificationPreferenceToGatewayNotificationPreference(info.notificationPreference),
-    notificationOptIn = info.notificationOptIn,
-    contact = contactToGatewayContact(info.contact.getOrElse(Contact.defaultInstance)),
-    organizations = info.organizations.map(id => UUID.fromString(id.id)),
-    tenant = UUID.fromString(info.tenant.getOrElse(TenantId.defaultInstance).id)
   )
 
   private def notificationPreferenceToGatewayNotificationPreference(
