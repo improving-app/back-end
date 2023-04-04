@@ -1,14 +1,12 @@
+import TestData._
 import akka.grpc.GrpcClientSettings
-import com.improving.app.common.domain.{CaPostalCodeImpl, Contact, OrganizationId, PostalCodeMessageImpl}
-import com.improving.app.tenant.domain.{ActivateTenant, AddOrganizations, EstablishTenant, RemoveOrganizations, SuspendTenant, UpdateAddress, UpdatePrimaryContact, UpdateTenantName}
-import com.improving.app.common.domain.{Address, MemberId, TenantId}
+import com.improving.app.common.domain._
 import com.improving.app.common.test.ServiceTestContainerSpec
 import com.improving.app.tenant.api.{TenantService, TenantServiceClient}
+import com.improving.app.tenant.domain._
 import org.scalatest.tagobjects.Retryable
 
 import scala.util.Random
-
-import TestData._
 
 class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") {
   private def getClient(containers: Containers): TenantService = {
@@ -25,7 +23,7 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
     }
   }
 
-  it should "properly process UpdateTenantName" taggedAs(Retryable) in {
+  it should "properly process EditInfo" taggedAs(Retryable) in {
     withContainers { containers =>
       val client = getClient(containers)
 
@@ -40,69 +38,7 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
       establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
 
-      val response = client.updateTenantName(UpdateTenantName(
-        tenantId = Some(TenantId(tenantId)),
-        newName = "newName",
-        updatingUser = Some(MemberId("updatingUser"))
-      )).futureValue
-
-      response.tenantId shouldBe Some(TenantId(tenantId))
-      response.oldName shouldBe "Tenant Name"
-      response.newName shouldBe "newName"
-      response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
-    }
-  }
-
-  it should "properly process UpdatePrimaryContact" in {
-    withContainers { containers =>
-      val client = getClient(containers)
-
-      val tenantId = Random.nextString(31)
-
-      val establishedResponse = client.establishTenant(EstablishTenant(
-        tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser")),
-        tenantInfo = Some(baseTenantInfo)
-      )).futureValue
-
-      establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
-      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
-
-      val newContact = Contact(
-        firstName = "firstName1",
-        lastName = "lastName1",
-        emailAddress = Some("test1@test.com"),
-        phone = Some("111-111-1112"),
-        userName = "contactUsername1"
-      )
-
-      val response = client.updatePrimaryContact(UpdatePrimaryContact(
-        tenantId = Some(TenantId(tenantId)),
-        newContact = Some(newContact),
-        updatingUser = Some(MemberId("updatingUser"))
-      )).futureValue
-
-      response.tenantId shouldBe Some(TenantId(tenantId))
-      response.oldContact shouldBe Some(baseContact)
-      response.newContact shouldBe Some(newContact)
-      response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
-    }
-  }
-
-  it should "properly process UpdateAddress" in {
-    withContainers { containers =>
-      val client = getClient(containers)
-
-      val tenantId = Random.nextString(31)
-
-      val establishedResponse = client.establishTenant(EstablishTenant(
-        tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser")),
-        tenantInfo = Some(baseTenantInfo)
-      )).futureValue
-
-      establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
-      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
+      val newName = "newName"
 
       val newAddress =
         Address(
@@ -114,78 +50,36 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
           postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode1")))
         )
 
-      val response = client.updateAddress(UpdateAddress(
+      val newContact = Contact(
+        firstName = "firstName1",
+        lastName = "lastName1",
+        emailAddress = Some("test1@test.com"),
+        phone = Some("111-111-1112"),
+        userName = "contactUsername1"
+      )
+
+      val newOrgs = Seq(
+        OrganizationId("a"),
+        OrganizationId("b")
+      )
+
+      val updateInfo = TenantInfo(
+        name = newName,
+        address = Some(newAddress),
+        primaryContact = Some(newContact),
+        orgs = newOrgs
+      )
+
+      val response = client.editInfo(EditInfo(
         tenantId = Some(TenantId(tenantId)),
-        newAddress = Some(newAddress),
-        updatingUser = Some(MemberId("updatingUser"))
+        editingUser = Some(MemberId("updatingUser")),
+        infoToUpdate = Some(updateInfo)
       )).futureValue
 
       response.tenantId shouldBe Some(TenantId(tenantId))
-      response.oldAddress shouldBe Some(baseAddress)
-      response.newAddress shouldBe Some(newAddress)
+      response.oldInfo shouldBe Some(baseTenantInfo)
+      response.newInfo shouldBe Some(updateInfo)
       response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
-    }
-  }
-
-  it should "properly process AddOrganizations" in {
-    withContainers { containers =>
-      val client = getClient(containers)
-
-      val tenantId = Random.nextString(31)
-
-      val establishedResponse = client.establishTenant(EstablishTenant(
-        tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser")),
-        tenantInfo = Some(baseTenantInfo)
-      )).futureValue
-
-      establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
-      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
-
-      val response = client.addOrganizations(AddOrganizations(
-        tenantId = Some(TenantId(tenantId)),
-        orgId = Seq(OrganizationId("org1")),
-        updatingUser = Some(MemberId("updatingUser"))
-      )).futureValue
-
-      response.tenantId shouldBe Some(TenantId(tenantId))
-      response.newOrgsList shouldBe Seq(OrganizationId("org1"))
-      response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
-    }
-  }
-
-  it should "properly process RemoveOrganizations" in {
-    withContainers { containers =>
-      val client = getClient(containers)
-
-      val tenantId = Random.nextString(31)
-
-      val establishedResponse = client.establishTenant(EstablishTenant(
-        tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser")),
-        tenantInfo = Some(baseTenantInfo)
-      )).futureValue
-
-      establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
-      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
-
-      val response = client.addOrganizations(AddOrganizations(
-        tenantId = Some(TenantId(tenantId)),
-        orgId = Seq(OrganizationId("org1")),
-        updatingUser = Some(MemberId("updatingUser"))
-      )).futureValue
-
-      response.newOrgsList shouldBe Seq(OrganizationId("org1"))
-
-      val removeResponse = client.removeOrganizations(RemoveOrganizations(
-        tenantId = Some(TenantId(tenantId)),
-        orgId = Seq(OrganizationId("org1")),
-        updatingUser = Some(MemberId("updatingUser"))
-      )).futureValue
-
-      removeResponse.tenantId shouldBe Some(TenantId(tenantId))
-      removeResponse.newOrgsList shouldBe Seq.empty
-      removeResponse.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("updatingUser"))
     }
   }
 
@@ -203,67 +97,6 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
 
       establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
       establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
-
-      val updateTenantNameResponse = client.updateTenantName(UpdateTenantName(
-        tenantId = Some(TenantId(tenantId)),
-        newName = "newName",
-        updatingUser = Some(MemberId("updatingUser"))
-      )).futureValue
-
-      updateTenantNameResponse.tenantId shouldBe Some(TenantId(tenantId))
-      updateTenantNameResponse.newName shouldBe "newName"
-
-      val updatePrimaryContactResponse = client.updatePrimaryContact(UpdatePrimaryContact(
-        tenantId = Some(TenantId(tenantId)),
-        newContact = Some(
-          Contact(
-            firstName = "firstName1",
-            lastName = "lastName1",
-            emailAddress = Some("test1@test.com"),
-            phone = Some("111-111-1112"),
-            userName = "contactUsername1"
-          )
-        ),
-        updatingUser = Some(MemberId("updatingUser"))
-      )).futureValue
-
-      updatePrimaryContactResponse.tenantId shouldBe Some(TenantId(tenantId))
-      updatePrimaryContactResponse.newContact shouldBe Some(
-        Contact(
-          firstName = "firstName1",
-          lastName = "lastName1",
-          emailAddress = Some("test1@test.com"),
-          phone = Some("111-111-1112"),
-          userName = "contactUsername1"
-        )
-      )
-
-      val updateAddressResponse = client.updateAddress(UpdateAddress(
-        tenantId = Some(TenantId(tenantId)),
-        newAddress = Some(
-          Address(
-            line1 = "line3",
-            line2 = "line4",
-            city = "city1",
-            stateProvince = "stateProvince1",
-            country = "country1",
-            postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode1")))
-          )
-        ),
-        updatingUser = Some(MemberId("updatingUser"))
-      )).futureValue
-
-      updateAddressResponse.tenantId shouldBe Some(TenantId(tenantId))
-      updateAddressResponse.newAddress shouldBe Some(
-        Address(
-          line1 = "line3",
-          line2 = "line4",
-          city = "city1",
-          stateProvince = "stateProvince1",
-          country = "country1",
-          postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode1")))
-        )
-      )
 
       val suspendResponse = client.suspendTenant(SuspendTenant(
         tenantId = Some(TenantId(tenantId)),
