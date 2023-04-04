@@ -30,8 +30,8 @@ object util {
   def getHostAndPortForService(serviceName: String): (String, Int) = {
     val config = ConfigFactory.load("application.conf")
     (
-      config.getString(s"app.improving.akka.grpc.$serviceName.client-url"),
-      config.getInt(s"app.improving.akka.grpc.$serviceName.client-url-port")
+      config.getString(s"services.$serviceName.host"),
+      config.getInt(s"services.$serviceName.port")
     )
   }
 

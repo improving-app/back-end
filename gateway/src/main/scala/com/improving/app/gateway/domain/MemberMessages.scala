@@ -6,8 +6,9 @@ import java.time.Instant
 
 object MemberMessages {
 
-  trait MemberCommand
-  trait MemberResponse extends MemberEventResponse
+  sealed trait MemberCommand
+
+  sealed trait MemberResponse extends MemberEventResponse
   trait MemberEventResponse
 
   case class RegisterMember(

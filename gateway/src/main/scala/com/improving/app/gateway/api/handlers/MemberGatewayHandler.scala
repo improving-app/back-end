@@ -20,7 +20,7 @@ class MemberGatewayHandler(implicit val system: ActorSystem[_]) {
   implicit val ec: ExecutionContext = system.executionContext
   implicit val timeout: Timeout = Timeout(5 minute)
 
-  private val (clientHost, clientPort) = getHostAndPortForService("member")
+  private val (clientHost, clientPort) = getHostAndPortForService("member-service")
 
   private val memberClient = MemberServiceClient(
     GrpcClientSettings
