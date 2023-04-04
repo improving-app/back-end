@@ -12,10 +12,12 @@ import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain._
 import com.improving.app.organization._
 import com.improving.app.organization.domain.OrganizationValidation.ValidationResult
+import com.improving.app.organization.repository.OrganizationRepository
 import com.typesafe.config.{Config, ConfigFactory}
 import org.slf4j.LoggerFactory
 
 import java.time.Instant
+import scala.concurrent.ExecutionContext
 
 object Organization {
   import com.improving.app.organization.domain.OrganizationStateOps._
@@ -40,7 +42,7 @@ object Organization {
 
   def init(system: ActorSystem[_]): Unit = {
     val behaviorFactory: EntityContext[OrganizationCommand] => Behavior[OrganizationCommand] = { entityContext =>
-      Organization(entityContext.entityId)
+      Organization(entityContext.entityId, None)
     }
     ClusterSharding(system).init(Entity(OrganizationEntityKey)(behaviorFactory))
   }
@@ -54,7 +56,7 @@ object Organization {
     InitialEmptyOrganizationState(Some(OrganizationId(id)))
 
   def apply(
-      orgId: String
+      orgId: String, repo: Option[OrganizationRepository]
   ): Behavior[OrganizationCommand] =
     Behaviors.setup { context =>
       context.log.info("Starting Organization {}", orgId)
@@ -66,7 +68,7 @@ object Organization {
         ](
           persistenceId = PersistenceId("Organization", orgId),
           emptyState = emptyState(orgId),
-          commandHandler = commandHandler,
+          commandHandler = commandHandler(repo, context.executionContext, _, _),
           eventHandler = eventHandler
         )
         .receiveSignal {
@@ -89,8 +91,7 @@ object Organization {
       createdBy = actingMember,
       lastUpdated = Some(timestamp),
       lastUpdatedBy = actingMember,
-      currentStatus = OrganizationStatus.ORGANIZATION_STATUS_DRAFT,
-      children = Seq.empty[OrganizationId]
+      currentStatus = OrganizationStatus.ORGANIZATION_STATUS_DRAFT
     )
   }
 
@@ -104,8 +105,7 @@ object Organization {
     metaInfo.copy(
       lastUpdated = Some(timestamp),
       lastUpdatedBy = actingMember,
-      currentStatus = newStatus.getOrElse(metaInfo.currentStatus),
-      children = if (children.isEmpty) metaInfo.children else children
+      currentStatus = newStatus.getOrElse(metaInfo.currentStatus)
     )
   }
 
@@ -236,9 +236,8 @@ object Organization {
           members = optional.members,
           owners = required.owners,
           contacts = optional.contacts,
-          meta = draft.orgMeta,
-          status = OrganizationStatus.ORGANIZATION_STATUS_DRAFT)
-
+          meta = draft.orgMeta
+        )
         org match {
           case Some(org) => Effect.reply(replyTo) {
             StatusReply.Success(org)
@@ -294,7 +293,7 @@ object Organization {
       replyTo: ActorRef[StatusReply[OrganizationResponse]]
   ): ReplyEffect[OrganizationEvent, OrganizationState] = {
     //TODO implement child/parent checks per riddl
-
+    //TODO if you try to make it a root when you set parent=None, thot would also move any and all children to a different organization
     val event = ParentUpdated(
       upr.orgId,
       upr.newParent,
@@ -477,10 +476,13 @@ object Organization {
   }
 
   private val commandHandler: (
+      Option[OrganizationRepository],
+      ExecutionContext,
       OrganizationState,
       OrganizationCommand
-  ) => ReplyEffect[OrganizationEvent, OrganizationState] = { (state, command: OrganizationCommand) =>
+  ) => ReplyEffect[OrganizationEvent, OrganizationState] = { (maybeRepo, executionContext, state, command: OrganizationCommand) =>
     {
+        implicit val ec: ExecutionContext = executionContext
           command.request match {
             case cmd if !isCommandValidForState(state, cmd) =>
               val stateString = state match {
@@ -499,7 +501,8 @@ object Organization {
             case uopc: UpdateOrganizationContactsRequest =>
               handleCommandWithValidate(uopc, command.replyTo, OrganizationValidation.validateUpdateOrganizationContactsRequest, updateOrganizationContacts)
             case upr: UpdateParentRequest =>
-              handleCommandWithValidate(upr, command.replyTo, OrganizationValidation.validateUpdateParentRequest, updateParent)
+              val validateParent = OrganizationValidation.validateUpdateParentRequest(_, maybeRepo)
+              handleCommandWithValidate(upr, command.replyTo, validateParent, updateParent)
             case tor: TerminateOrganizationRequest =>
               handleCommandWithValidate(tor, command.replyTo, OrganizationValidation.validateBasicRequest[TerminateOrganizationRequest], terminateOrganization)
             case sor: SuspendOrganizationRequest =>
@@ -518,8 +521,9 @@ object Organization {
             case amor: AddMembersToOrganizationRequest =>
               handleCommandWithValidate(amor, command.replyTo, OrganizationValidation.validateAddMembersToOrganizationRequest, addMembersToOrganization)
             case eor: EstablishOrganizationRequest =>
+              val validateEstablish = OrganizationValidation.validateEstablishOrganizationRequest(_, state.getOrgId, maybeRepo)
               val establishOrganizationCommand = (x: EstablishOrganizationRequest, y: ActorRef[StatusReply[OrganizationResponse]]) => establishOrganization(x, state.getOrgId, y)
-              handleCommandWithValidate(eor, command.replyTo, OrganizationValidation.validateEstablishOrganizationRequest, establishOrganizationCommand)
+              handleCommandWithValidate(eor, command.replyTo, validateEstablish, establishOrganizationCommand)
             case gobir: GetOrganizationByIdRequest =>
               val getOrganizationByIdCommand = (x: GetOrganizationByIdRequest, y: ActorRef[StatusReply[OrganizationResponse]]) => getOrganizationById(x.orgId, state, y)
               handleCommandWithValidate(gobir, command.replyTo, OrganizationValidation.validateGetOrganizationByIdRequest, getOrganizationByIdCommand)

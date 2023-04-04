@@ -223,7 +223,7 @@ class OrganizationServiceIntegrationFailSpec
       )
     }
 
-    "fail when operate on released Organization" in {
+    /*"fail when operate on released Organization" in {
 
       val response =
         organizationService
@@ -415,7 +415,7 @@ class OrganizationServiceIntegrationFailSpec
           .releaseOrganization(releaseOrganizationRequest)
           .futureValue
       )
-    }
+    }*/
 
     "fail when operate on suspended Organization" in {
 

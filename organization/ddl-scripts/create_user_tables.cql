@@ -34,3 +34,14 @@ CREATE TABLE IF NOT EXISTS member_to_organization (
   member_id text,
   organization text,
   PRIMARY KEY (member_id));
+
+CREATE TABLE IF NOT EXISTS organization_to_root (
+    org_id text,
+    root_id text,
+    PRIMARY KEY (org_id));
+)
+
+CREATE TABLE IF NOT EXISTS children_to_organization (
+    child_id text,
+    parent_id text
+    PRIMARY KEY (child_id));

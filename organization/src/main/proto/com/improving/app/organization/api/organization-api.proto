@@ -28,8 +28,6 @@ service OrganizationService {
 
     rpc EditOrganizationInfo(EditOrganizationInfoRequest) returns (OrganizationInfoEdited) {}
 
-    rpc ReleaseOrganization(ReleaseOrganizationRequest) returns (OrganizationReleased) {}
-
     rpc UpdateParent(UpdateParentRequest) returns (ParentUpdated) {}
 
     rpc UpdateOrganizationContacts(UpdateOrganizationContactsRequest) returns (OrganizationContactsUpdated) {}

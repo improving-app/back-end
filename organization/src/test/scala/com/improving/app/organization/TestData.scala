@@ -199,7 +199,6 @@ object TestData {
     TerminateOrganizationRequest(),
     SuspendOrganizationRequest(),
     ActivateOrganizationRequest(),
-    ReleaseOrganizationRequest(),
     EditOrganizationInfoRequest(),
     RemoveOwnersFromOrganizationRequest(),
     AddOwnersToOrganizationRequest(),

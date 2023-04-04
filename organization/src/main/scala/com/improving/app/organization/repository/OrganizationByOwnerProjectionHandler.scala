@@ -22,7 +22,7 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
   override def process(envelope: EventEnvelope[OrganizationEvent]): Future[Done] = {
     envelope.event match {
       case Empty => Future.successful(Done)
-      case OrganizationEstablished(Some(orgId), info, parent, members, owners, contacts, actingMember, _) => {
+      case OrganizationEstablished(Some(orgId), info, parent, members, owners, contacts, actingMember, _) =>
         log.info("OrganizationEstablished")
         val organization = Organization(
           Some(orgId),
@@ -31,16 +31,14 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
           members,
           owners,
           contacts,
-          Some(createMetaInfo(actingMember)),
-          OrganizationStatus.ORGANIZATION_STATUS_DRAFT
+          Some(createMetaInfo(actingMember))
         )
         Future
           .sequence(owners.map(ownerId => {
             repo.updateOrganizationByOwner(orgId.id, ownerId.id, organization)
           }))
           .map(_ => Done)
-      }
-      case MembersAddedToOrganization(Some(orgId), newMembers, actingMember, _) => {
+      case MembersAddedToOrganization(Some(orgId), newMembers, actingMember, _) =>
         repo
           .getOrganizationsByOwnerByOrgId(orgId.id)
           .map(organizations => {
@@ -59,8 +57,7 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
             })
           })
           .map(_ => Done)
-      }
-      case MembersRemovedFromOrganization(Some(orgId), removedMembers, actingMember, _) => {
+      case MembersRemovedFromOrganization(Some(orgId), removedMembers, actingMember, _) =>
         repo
           .getOrganizationsByOwnerByOrgId(orgId.id)
           .map(organizations => {
@@ -79,8 +76,7 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
             })
           })
           .map(_ => Done)
-      }
-      case OwnersAddedToOrganization(Some(orgId), newOwners, actingMember, _) => {
+      case OwnersAddedToOrganization(Some(orgId), newOwners, actingMember, _) =>
         repo
           .getOrganizationsByOwnerByOrgId(orgId.id)
           .map(organizations => {
@@ -99,8 +95,7 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
             })
           })
           .map(_ => Done)
-      }
-      case OwnersRemovedFromOrganization(Some(orgId), removedOwners, actingMember, _) => {
+      case OwnersRemovedFromOrganization(Some(orgId), removedOwners, actingMember, _) =>
         repo
           .getOrganizationsByOwnerByOrgId(orgId.id)
           .map(organizations => {
@@ -119,8 +114,7 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
             })
           })
           .map(_ => Done)
-      }
-      case OrganizationInfoEdited(Some(orgId), Some(info), actingMember, _) => {
+      case OrganizationInfoEdited(Some(orgId), Some(info), actingMember, _) =>
         repo
           .getOrganizationsByOwnerByOrgId(orgId.id)
           .map(organizations => {
@@ -139,11 +133,7 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
             })
           })
           .map(_ => Done)
-      }
-      case OrganizationReleased(Some(orgId), _, _) => {
-        repo.deleteOrganizationByOwnerByOrgId(orgId.id)
-      }
-      case OrganizationActivated(Some(orgId), actingMember, _) => {
+      case OrganizationActivated(Some(orgId), actingMember, _) =>
         repo
           .getOrganizationsByOwnerByOrgId(orgId.id)
           .map(organizations => {
@@ -155,7 +145,6 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
                 organization.orgId.map(_.id).getOrElse("OrgId is NOT FOUND."),
                 owner.id,
                 organization.copy(
-                  status = OrganizationStatus.ORGANIZATION_STATUS_ACTIVE,
                   meta = Some(
                     updateMetaInfo(
                       organization.getMeta,
@@ -168,8 +157,7 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
             })
           })
           .map(_ => Done)
-      }
-      case OrganizationSuspended(Some(orgId), actingMember, _) => {
+      case OrganizationSuspended(Some(orgId), actingMember, _) =>
         repo
           .getOrganizationsByOwnerByOrgId(orgId.id)
           .map(organizations => {
@@ -181,7 +169,6 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
                 organization.orgId.map(_.id).getOrElse("OrgId is NOT FOUND."),
                 owner.id,
                 organization.copy(
-                  status = OrganizationStatus.ORGANIZATION_STATUS_SUSPENDED,
                   meta = Some(
                     updateMetaInfo(
                       organization.getMeta,
@@ -194,11 +181,9 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
             })
           })
           .map(_ => Done)
-      }
-      case OrganizationTerminated(Some(orgId), _, _) => {
+      case OrganizationTerminated(Some(orgId), _, _) =>
         repo.deleteOrganizationByOwnerByOrgId(orgId.id)
-      }
-      case ParentUpdated(Some(orgId), Some(newParent), actingMember, _) => {
+      case ParentUpdated(Some(orgId), Some(newParent), actingMember, _) =>
         repo
           .getOrganizationsByOwnerByOrgId(orgId.id)
           .map(organizations => {
@@ -222,34 +207,7 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
             })
           })
           .map(_ => Done)
-      }
-      case OrganizationStatusUpdated(Some(orgId), newStatus, actingMember, _) => {
-        repo
-          .getOrganizationsByOwnerByOrgId(orgId.id)
-          .map(organizations => {
-            Future.sequence(for {
-              organization <- organizations
-              owner <- organization.owners
-            } yield {
-              repo.updateOrganizationByOwner(
-                organization.orgId.map(_.id).getOrElse("OrgId is NOT FOUND."),
-                owner.id,
-                organization.copy(
-                  status = newStatus,
-                  meta = Some(
-                    updateMetaInfo(
-                      organization.getMeta,
-                      actingMember,
-                      Some(newStatus)
-                    )
-                  )
-                )
-              )
-            })
-          })
-          .map(_ => Done)
-      }
-      case OrganizationContactsUpdated(Some(orgId), contacts, actingMember, _) => {
+      case OrganizationContactsUpdated(Some(orgId), contacts, actingMember, _) =>
         repo
           .getOrganizationsByOwnerByOrgId(orgId.id)
           .map(organizations => {
@@ -273,27 +231,6 @@ class OrganizationByOwnerProjectionHandler(tag: String, system: ActorSystem[_], 
             })
           })
           .map(_ => Done)
-      }
-      case OrganizationAccountsUpdated(Some(orgId), Some(info), actingMember, _) => {
-        repo
-          .getOrganizationsByOwnerByOrgId(orgId.id)
-          .map(organizations => {
-            Future.sequence(for {
-              organization <- organizations
-              owner <- organization.owners
-            } yield {
-              repo.updateOrganizationByOwner(
-                organization.orgId.map(_.id).getOrElse("OrgId is NOT FOUND."),
-                owner.id,
-                organization.copy(
-                  info = organization.info.map(updateInfo(_, info)),
-                  meta = Some(updateMetaInfo(organization.getMeta, actingMember))
-                )
-              )
-            })
-          })
-          .map(_ => Done)
-      }
       case other =>
         throw new IllegalArgumentException(
           s"OrganizationByOwnerProjectionHandler: unknown event - $other is not valid."

@@ -28,7 +28,7 @@ class OrganizationServiceImpl(implicit val system: ActorSystem[_], repo: Organiz
   private val sharding = ClusterSharding(system)
 
   sharding.init(
-    Entity(OrganizationEntityKey)(entityContext => domain.Organization(entityContext.entityId))
+    Entity(OrganizationEntityKey)(entityContext => domain.Organization(entityContext.entityId, Some(repo)))
   )
 
   Cluster(system).manager ! Join(Cluster(system).selfMember.address)
@@ -156,6 +156,8 @@ class OrganizationServiceImpl(implicit val system: ActorSystem[_], repo: Organiz
     repo.getOrganizationsByOwner(in.getOwnerId.id).map(Organizations(_))
   }
 
+
+
   override def findOrganizationByMember(in: GetOrganizationsByMemberRequest): Future[Organizations] = {
     repo.getOrganizationsByMember(in.getMemberId.id).map(Organizations(_))
   }
@@ -182,22 +184,6 @@ class OrganizationServiceImpl(implicit val system: ActorSystem[_], repo: Organiz
       {
         case StatusReply.Success(
               response: OrganizationInfo
-            ) =>
-          response
-      }
-    )
-  }
-  override def releaseOrganization(
-      in: ReleaseOrganizationRequest
-  ): Future[OrganizationReleased] = {
-    handleRequest(
-      in,
-      {
-        case StatusReply.Success(
-              OrganizationEventResponse(
-                response: OrganizationReleased,
-                _
-              )
             ) =>
           response
       }

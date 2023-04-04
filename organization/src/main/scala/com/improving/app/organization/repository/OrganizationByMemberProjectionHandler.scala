@@ -60,7 +60,7 @@ class OrganizationByMemberProjectionHandler(tag: String, system: ActorSystem[_],
   override def process(envelope: EventEnvelope[OrganizationEvent]): Future[Done] = {
     envelope.event match {
       case Empty => Future.successful(Done)
-      case OrganizationEstablished(Some(orgId), info, parent, members, owners, contacts, actingMember, _) => {
+      case OrganizationEstablished(Some(orgId), info, parent, members, owners, contacts, actingMember, _) =>
         log.info("OrganizationByMemberProjectionHandler: OrganizationEstablished")
         val organization = Organization(
           Some(orgId),
@@ -69,62 +69,51 @@ class OrganizationByMemberProjectionHandler(tag: String, system: ActorSystem[_],
           members,
           owners,
           contacts,
-          Some(createMetaInfo(actingMember)),
-          OrganizationStatus.ORGANIZATION_STATUS_DRAFT
+          Some(createMetaInfo(actingMember))
         )
         Future
           .sequence(members.map(memberId => {
             repo.updateOrganizationByMember(orgId.id, memberId.id, organization)
           }))
           .map(_ => Done)
-      }
-      case MembersAddedToOrganization(Some(orgId), newMembers, actingMember, _) => {
+      case MembersAddedToOrganization(Some(orgId), newMembers, actingMember, _) =>
         handleOrgEvent(orgId, newMembers) { organization =>
           organization.copy(
             members = organization.members ++ newMembers,
             meta = Some(updateMetaInfo(organization.getMeta, actingMember))
           )
         }
-      }
-      case MembersRemovedFromOrganization(Some(orgId), removedMembers, actingMember, _) => {
+      case MembersRemovedFromOrganization(Some(orgId), removedMembers, actingMember, _) =>
         handleOrgEvent(orgId, removedMembers) { organization =>
           organization.copy(
             members = organization.members.filterNot(removedMembers.contains(_)),
             meta = Some(updateMetaInfo(organization.getMeta, actingMember))
           )
         }
-      }
-      case OwnersAddedToOrganization(Some(orgId), newOwners, actingMember, _) => {
+      case OwnersAddedToOrganization(Some(orgId), newOwners, actingMember, _) =>
         handleOrgEvent(orgId) { organization =>
           organization.copy(
             owners = organization.owners ++ newOwners,
             meta = Some(updateMetaInfo(organization.getMeta, actingMember))
           )
         }
-      }
-      case OwnersRemovedFromOrganization(Some(orgId), removedOwners, actingMember, _) => {
+      case OwnersRemovedFromOrganization(Some(orgId), removedOwners, actingMember, _) =>
         handleOrgEvent(orgId) { organization =>
           organization.copy(
             owners = organization.owners.filterNot(removedOwners.contains(_)),
             meta = Some(updateMetaInfo(organization.getMeta, actingMember))
           )
         }
-      }
-      case OrganizationInfoUpdated(Some(orgId), Some(info), actingMember, _) => {
+      case OrganizationInfoEdited(Some(orgId), Some(info), actingMember, _) =>
         handleOrgEvent(orgId) { organization =>
           organization.copy(
             info = organization.info.map(updateInfo(_, info)),
             meta = Some(updateMetaInfo(organization.getMeta, actingMember))
           )
         }
-      }
-      case OrganizationReleased(Some(orgId), _, _) => {
-        repo.deleteOrganizationByMemberByOrgId(orgId.id)
-      }
-      case OrganizationActivated(Some(orgId), actingMember, _) => {
+      case OrganizationActivated(Some(orgId), actingMember, _) =>
         handleOrgEvent(orgId) { organization =>
           organization.copy(
-            status = OrganizationStatus.ORGANIZATION_STATUS_ACTIVE,
             meta = Some(
               updateMetaInfo(
                 organization.getMeta,
@@ -134,11 +123,9 @@ class OrganizationByMemberProjectionHandler(tag: String, system: ActorSystem[_],
             )
           )
         }
-      }
-      case OrganizationSuspended(Some(orgId), actingMember, _) => {
+      case OrganizationSuspended(Some(orgId), actingMember, _) =>
         handleOrgEvent(orgId) { organization =>
           organization.copy(
-            status = OrganizationStatus.ORGANIZATION_STATUS_SUSPENDED,
             meta = Some(
               updateMetaInfo(
                 organization.getMeta,
@@ -148,11 +135,9 @@ class OrganizationByMemberProjectionHandler(tag: String, system: ActorSystem[_],
             )
           )
         }
-      }
-      case OrganizationTerminated(Some(orgId), _, _) => {
+      case OrganizationTerminated(Some(orgId), _, _) =>
         repo.deleteOrganizationByMemberByOrgId(orgId.id)
-      }
-      case ParentUpdated(Some(orgId), Some(newParent), actingMember, _) => {
+      case ParentUpdated(Some(orgId), Some(newParent), actingMember, _) =>
         handleOrgEvent(orgId) { organization =>
           organization.copy(
             parent = Some(newParent),
@@ -164,22 +149,7 @@ class OrganizationByMemberProjectionHandler(tag: String, system: ActorSystem[_],
             )
           )
         }
-      }
-      case OrganizationStatusUpdated(Some(orgId), newStatus, actingMember, _) => {
-        handleOrgEvent(orgId) { organization =>
-          organization.copy(
-            status = newStatus,
-            meta = Some(
-              updateMetaInfo(
-                organization.getMeta,
-                actingMember,
-                Some(newStatus)
-              )
-            )
-          )
-        }
-      }
-      case OrganizationContactsUpdated(Some(orgId), contacts, actingMember, _) => {
+      case OrganizationContactsUpdated(Some(orgId), contacts, actingMember, _) =>
         handleOrgEvent(orgId) { organization =>
           organization.copy(
             contacts = contacts,
@@ -191,15 +161,6 @@ class OrganizationByMemberProjectionHandler(tag: String, system: ActorSystem[_],
             )
           )
         }
-      }
-      case OrganizationAccountsUpdated(Some(orgId), Some(info), actingMember, _) => {
-        handleOrgEvent(orgId) { organization =>
-          organization.copy(
-            info = organization.info.map(updateInfo(_, info)),
-            meta = Some(updateMetaInfo(organization.getMeta, actingMember))
-          )
-        }
-      }
       case other =>
         throw new IllegalArgumentException(
           s"OrganizationByMemberProjectionHandler: unknown event - $other is not valid."

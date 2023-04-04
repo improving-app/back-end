@@ -6,7 +6,7 @@ import akka.persistence.testkit.javadsl.EventSourcedBehaviorTestKit
 import com.improving.app.common.domain.{MemberId, OrganizationId}
 import com.improving.app.organization.OrganizationStatus.{ORGANIZATION_STATUS_ACTIVE, ORGANIZATION_STATUS_DRAFT, ORGANIZATION_STATUS_SUSPENDED, ORGANIZATION_STATUS_TERMINATED}
 import com.improving.app.organization.TestData.{activateOrganizationRequest, establishOrganizationRequest, _}
-import com.improving.app.organization.{ActivateOrganizationRequest, AddMembersToOrganizationRequest, AddOwnersToOrganizationRequest, Contacts, DraftOrganizationState, EditOrganizationInfoRequest, EstablishOrganizationRequest, EstablishedOrganizationState, GetOrganizationByIdRequest, GetOrganizationInfoRequest, Info, InitialEmptyOrganizationState, MembersAddedToOrganization, MembersRemovedFromOrganization, MetaInfo, OptionalDraftInfo, OrganizationActivated, OrganizationContactsUpdated, OrganizationEstablished, OrganizationEventResponse, OrganizationInfo, OrganizationInfoEdited, OrganizationResponse, OrganizationState, OrganizationStatus, OrganizationSuspended, OrganizationTerminated, OwnersAddedToOrganization, OwnersRemovedFromOrganization, ParentUpdated, RemoveMembersFromOrganizationRequest, RemoveOwnersFromOrganizationRequest, RequiredDraftInfo, SuspendOrganizationRequest, TerminateOrganizationRequest, TerminatedOrganizationState, TestData, UpdateOrganizationContactsRequest, UpdateParentRequest}
+import com.improving.app.organization._
 import com.improving.app.organization.domain.Organization.OrganizationCommand
 import com.typesafe.config.Config
 import org.scalatest.BeforeAndAfterAll
@@ -20,7 +20,7 @@ class OrganizationSpec extends ScalaTestWithActorTestKit(OrganizationSpec.config
 
   trait SetUp {
     val orgId: String = testOrgId.id
-    val eventSourcedTestKit: EventSourcedBehaviorTestKit[OrganizationCommand, OrganizationResponse, OrganizationState] = EventSourcedBehaviorTestKit.create[OrganizationCommand, OrganizationResponse, OrganizationState](system, Organization(orgId), EventSourcedBehaviorTestKit.disabledSerializationSettings)
+    val eventSourcedTestKit: EventSourcedBehaviorTestKit[OrganizationCommand, OrganizationResponse, OrganizationState] = EventSourcedBehaviorTestKit.create[OrganizationCommand, OrganizationResponse, OrganizationState](system, com.improving.app.organization.domain.Organization(orgId, None), EventSourcedBehaviorTestKit.disabledSerializationSettings)
   }
 
   trait Established extends SetUp {

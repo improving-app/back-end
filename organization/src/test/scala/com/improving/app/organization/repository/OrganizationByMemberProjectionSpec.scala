@@ -390,8 +390,7 @@ class OrganizationByMemberProjectionSpec extends ScalaTestWithActorTestKit with 
           testMembers,
           testOwners,
           testContacts,
-          Some(result.getMeta),
-          OrganizationStatus.ORGANIZATION_STATUS_ACTIVE
+          Some(result.getMeta)
         )
       }
     }
@@ -444,8 +443,7 @@ class OrganizationByMemberProjectionSpec extends ScalaTestWithActorTestKit with 
           testMembers,
           testOwners,
           testContacts,
-          Some(result.getMeta),
-          OrganizationStatus.ORGANIZATION_STATUS_SUSPENDED
+          Some(result.getMeta)
         )
       }
     }
@@ -499,62 +497,7 @@ class OrganizationByMemberProjectionSpec extends ScalaTestWithActorTestKit with 
           testMembers,
           testOwners,
           testContacts,
-          Some(result.getMeta),
-          result.status
-        )
-      }
-    }
-    "organization by member projection - OrganizationStatusUpdated" in {
-
-      val events =
-        Source(
-          List[EventEnvelope[OrganizationEvent]](
-            createEnvelope(
-              OrganizationEstablished(
-                Some(testOrgId),
-                Some(testInfo),
-                Some(testNewParent),
-                testMembers,
-                testOwners,
-                testContacts,
-                Some(testActingMember)
-              ),
-              0L
-            ),
-            createEnvelope(
-              OrganizationStatusUpdated(
-                Some(testOrgId),
-                OrganizationStatus.ORGANIZATION_STATUS_ACTIVE,
-                Some(testActingMember2)
-              ),
-              1L
-            )
-          )
-        )
-
-      val sourceProvider =
-        TestSourceProvider[Offset, EventEnvelope[OrganizationEvent]](events, extractOffset = env => env.offset)
-      val projection =
-        TestProjection[Offset, EventEnvelope[OrganizationEvent]](
-          projectionId,
-          sourceProvider,
-          () => new OrganizationByMemberProjectionHandler("carts-0", system, repository)
-        )
-
-      projectionTestKit.run(projection) {
-        val seq = repository.getOrganizationsByMemberByOrgId(testOrgId.id).futureValue
-        seq.isEmpty shouldBe false
-
-        val result = seq.head
-        result shouldBe Organization(
-          Some(testOrgId),
-          Some(testInfo),
-          Some(testNewParent),
-          testMembers,
-          testOwners,
-          testContacts,
-          Some(result.getMeta),
-          result.status
+          Some(result.getMeta)
         )
       }
     }
@@ -608,65 +551,10 @@ class OrganizationByMemberProjectionSpec extends ScalaTestWithActorTestKit with 
           testMembers,
           testOwners,
           testNewContacts,
-          Some(result.getMeta),
-          result.status
+          Some(result.getMeta)
         )
       }
     }
 
-    "organization by member projection - OrganizationAccountsUpdated" in {
-
-      val events =
-        Source(
-          List[EventEnvelope[OrganizationEvent]](
-            createEnvelope(
-              OrganizationEstablished(
-                Some(testOrgId),
-                Some(testInfo),
-                Some(testNewParent),
-                testMembers,
-                testOwners,
-                testContacts,
-                Some(testActingMember)
-              ),
-              0L
-            ),
-            createEnvelope(
-              OrganizationAccountsUpdated(
-                Some(testOrgId),
-                Some(testNewTestInfo),
-                Some(testActingMember2)
-              ),
-              1L
-            )
-          )
-        )
-
-      val sourceProvider =
-        TestSourceProvider[Offset, EventEnvelope[OrganizationEvent]](events, extractOffset = env => env.offset)
-      val projection =
-        TestProjection[Offset, EventEnvelope[OrganizationEvent]](
-          projectionId,
-          sourceProvider,
-          () => new OrganizationByMemberProjectionHandler("carts-0", system, repository)
-        )
-
-      projectionTestKit.run(projection) {
-        val seq = repository.getOrganizationsByMemberByOrgId(testOrgId.id).futureValue
-        seq.isEmpty shouldBe false
-
-        val result = seq.head
-        result shouldBe Organization(
-          Some(testOrgId),
-          Some(testNewTestInfo),
-          Some(testNewParent),
-          testMembers,
-          testOwners,
-          testContacts,
-          Some(result.getMeta),
-          result.status
-        )
-      }
-    }
   }
 }

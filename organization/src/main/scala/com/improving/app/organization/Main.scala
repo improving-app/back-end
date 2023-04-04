@@ -50,6 +50,8 @@ object Main {
 
     OrganizationByMemberProjection.init(system, organizationRepository)
     OrganizationByOwnerProjection.init(system, organizationRepository)
+    OrganizationToRootProjection.init(system, organizationRepository)
+    OrganizationByChildrenProjection.init(system, organizationRepository)
 
     val grpcInterface =
       system.settings.config.getString(

@@ -1,10 +1,13 @@
 package com.improving.app.organization.domain
 
-import cats.data.ValidatedNec
+import cats.data.{Validated, ValidatedNec}
 import cats.implicits._
-import com.improving.app.common.domain.MemberId
+import com.improving.app.common.domain.{MemberId, OrganizationId}
 import com.improving.app.organization._
-import com.improving.app.organization.domain.{HasActingMember, HasOrganizationId}
+import com.improving.app.organization.repository.OrganizationRepository
+
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, ExecutionContext}
 
 
 /**
@@ -29,6 +32,16 @@ object OrganizationValidation {
   case class FieldIsEmptyError(fieldName: String) extends OrganizationValidationError {
     val errorMessage: String =
       s"$fieldName cannot be empty"
+  }
+
+  case class ParentNotInOrgError(parentId: String) extends OrganizationValidationError {
+    val errorMessage: String =
+      s"New parent organization with id $parentId is not a descendant of this organization's root"
+  }
+
+  case class ParentIsDescendantError(parentId: String) extends OrganizationValidationError {
+    val errorMessage: String =
+      s"New parent organization with id $parentId is a descendant of this organization"
   }
 
   private def validateNonEmpty[T <: IterableOnce[_]](field: T, fieldName: String): ValidationResult[T] = {
@@ -64,8 +77,33 @@ object OrganizationValidation {
   def validateUpdateOrganizationContactsRequest(request: UpdateOrganizationContactsRequest): ValidationResult[UpdateOrganizationContactsRequest] =
     validateBasicRequest(request).map(_  => request)
 
-  def validateUpdateParentRequest(request: UpdateParentRequest): ValidationResult[UpdateParentRequest] =
-    validateBasicRequest(request).map(_  => request)
+
+  private def validateNewParent(newParentId: String, orgId: String, repo: OrganizationRepository)(implicit ec: ExecutionContext): ValidationResult[_] = {
+    val fRes = for {
+      root <- repo.getRootOrganization(orgId)
+      descendants <- repo.getDescendants(root)
+      localDescendants <- repo.getDescendants(orgId)
+      isInOrg = descendants.contains(newParentId)
+      isNotCircular = !localDescendants.contains(newParentId)
+    } yield
+      (if (isInOrg) ().validNec else ParentNotInOrgError(newParentId).invalidNec,
+        if (isNotCircular) ().validNec else ParentIsDescendantError(newParentId).invalidNec).mapN((_, _) => ())
+    Await.result(fRes, 5.minutes)
+  }
+
+  def validateUpdateParentRequest(request: UpdateParentRequest, maybeRepo: Option[OrganizationRepository])(implicit ec: ExecutionContext): ValidationResult[UpdateParentRequest] = {
+    val basicValidation = validateBasicRequest(request)
+    //To some extent this defeats the purpose of the validation pattern, but I think it's best not to query the projections unless we have to
+    basicValidation match {
+      case Validated.Valid(_) =>
+        (maybeRepo, request.newParent, request.orgId) match {
+          case (Some(repo), Some(newParent), Some(orgId)) =>
+            validateNewParent(newParent.id, orgId.id, repo).map(_ => request)
+          case _ => basicValidation
+        }
+      case _ => basicValidation
+    }
+  }
 
   def validateEditOrganizationInfoRequest(request: EditOrganizationInfoRequest): ValidationResult[EditOrganizationInfoRequest] =
     (validateBasicRequest(request),
@@ -87,9 +125,17 @@ object OrganizationValidation {
     validateBasicRequest(request).map(_  => request)
 
   //TODO verify name-uniqueness across entire organizational structure
-  def validateEstablishOrganizationRequest(request: EstablishOrganizationRequest): ValidationResult[EstablishOrganizationRequest] =
-    (validateNonEmpty(request.actingMember, "actingMember"), validateNonEmpty(request.info, "info"),
+  def validateEstablishOrganizationRequest(request: EstablishOrganizationRequest, orgId: Option[OrganizationId], maybeRepo: Option[OrganizationRepository])(implicit ec: ExecutionContext): ValidationResult[EstablishOrganizationRequest] = {
+    val presentValidation = (validateNonEmpty(request.actingMember, "actingMember"), validateNonEmpty(request.info, "info"),
       validateInfo(request.info.getOrElse(Info())), validateNonEmpty(request.owners, "owners")).mapN((_, _, _, _)  => request)
+    presentValidation match {
+      case Validated.Valid(_) => (request.parent, orgId, maybeRepo) match {
+        case (Some(parent), Some(orgId), Some(repo)) => validateNewParent(parent.id, orgId.id, repo).map(_  => request)
+        case _ => presentValidation
+      }
+      case _ => presentValidation
+    }
+  }
 
   def validateGetOrganizationByIdRequest(request: GetOrganizationByIdRequest): ValidationResult[GetOrganizationByIdRequest] =
     validateNonEmpty(request.orgId, "orgId").map(_  => request)

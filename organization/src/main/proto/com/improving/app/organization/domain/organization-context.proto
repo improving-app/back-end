@@ -28,7 +28,6 @@ enum OrganizationStatus {
     ORGANIZATION_STATUS_DRAFT = 0;
     ORGANIZATION_STATUS_ACTIVE = 1;
     ORGANIZATION_STATUS_SUSPENDED = 2;
-    ORGANIZATION_STATUS_RELEASED = 3;
     ORGANIZATION_STATUS_TERMINATED = 4;
 }
 
@@ -67,7 +66,6 @@ message MetaInfo {
     google.protobuf.Timestamp last_updated = 3;
     common.domain.MemberId last_updated_by = 4;
     OrganizationStatus current_status = 5;
-    repeated common.domain.OrganizationId children = 6;
 }
 
 message UpdateInfo {
@@ -168,14 +166,6 @@ message EditOrganizationInfoRequest {
     common.domain.MemberId acting_member = 3;
 }
 
-message ReleaseOrganizationRequest {
-    option (scalapb.message) = {
-        extends: ["com.improving.app.organization.domain.HasOrganizationId", "com.improving.app.organization.domain.HasActingMember"]
-    };
-    common.domain.OrganizationId org_id = 1;
-    common.domain.MemberId acting_member = 2;
-}
-
 message ActivateOrganizationRequest {
     option (scalapb.message) = {
         extends: ["com.improving.app.organization.domain.HasOrganizationId", "com.improving.app.organization.domain.HasActingMember"]
@@ -247,7 +237,6 @@ message OrganizationRequest{
         TerminateOrganizationRequest terminate_organization_request = 5;
         SuspendOrganizationRequest suspend_organization_request = 6;
         ActivateOrganizationRequest activate_organization_request = 7;
-        ReleaseOrganizationRequest release_organization_request = 8;
         EditOrganizationInfoRequest edit_organization_info_request = 9;
         RemoveOwnersFromOrganizationRequest remove_owners_from_organization_request = 10;
         AddOwnersToOrganizationRequest add_owners_to_organization_request = 11;
@@ -265,25 +254,11 @@ message OrganizationRequest{
 
 // Events for Organization
 
-message OrganizationAccountsUpdated {
-    common.domain.OrganizationId org_id = 1;
-    Info info = 2;
-    common.domain.MemberId acting_member = 3;
-}
-
 message OrganizationContactsUpdated {
     common.domain.OrganizationId org_id = 1;
     repeated Contacts contacts = 2;
     common.domain.MemberId acting_member = 3;
 }
-
-
-message OrganizationStatusUpdated {
-    common.domain.OrganizationId org_id = 1;
-    OrganizationStatus new_status = 2;
-    common.domain.MemberId acting_member = 3;
-}
-
 
 message ParentUpdated {
     common.domain.OrganizationId org_id = 1;
@@ -307,11 +282,6 @@ message OrganizationActivated {
 }
 
 message OrganizationInactivated {
-    common.domain.OrganizationId org_id = 1;
-    common.domain.MemberId acting_member = 2;
-}
-
-message OrganizationReleased {
     common.domain.OrganizationId org_id = 1;
     common.domain.MemberId acting_member = 2;
 }
@@ -367,14 +337,11 @@ message OrganizationEvent {
         OwnersAddedToOrganization owners_added_to_organization = 4;
         OwnersRemovedFromOrganization owners_removed_from_organization = 5;
         OrganizationInfoEdited organization_info_edited = 6;
-        OrganizationReleased organization_released = 7;
         OrganizationActivated organization_activated = 8;
         OrganizationSuspended organization_suspended = 9;
         OrganizationTerminated organization_terminated = 10;
         ParentUpdated parent_updated = 11;
-        OrganizationStatusUpdated organization_status_updated = 12;
         OrganizationContactsUpdated organization_contacts_updated = 13;
-        OrganizationAccountsUpdated organization_accounts_updated = 14;
     }
 }
 

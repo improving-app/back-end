@@ -1,7 +1,11 @@
 package com.improving.app.organization.repository
 
+
 import akka.Done
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSession
+import scala.annotation.tailrec
+//import com.datastax.oss.driver.api.core.cql.BatchType
+//import com.datastax.oss.driver.api.core.cql.BatchStatementBuilder
 import com.improving.app.organization.Organization
 import org.slf4j.LoggerFactory
 import scalapb.json4s.JsonFormat
@@ -16,18 +20,24 @@ trait OrganizationRepository {
   def updateOrganizationByOwner(orgId: String, ownerId: String, organization: Organization): Future[Done]
   def deleteOrganizationByOwner(orgId: String, ownerId: String): Future[Done]
   def deleteOrganizationByOwnerByOrgId(orgId: String): Future[Done]
+  def updateOrganizationByRoot(orgId: String, rootId: String): Future[Done]
   def getOrganizationsByMember(memberId: String): Future[Seq[Organization]]
   def getOrganizationsByMemberByOrgId(orgId: String): Future[Seq[Organization]]
   def getOrganizationsByOwner(ownerId: String): Future[Seq[Organization]]
   def getOrganizationsByOwnerByOrgId(orgId: String): Future[Seq[Organization]]
-  def getRootOrganization(orgId: String): Future[Organization]
-  def getDescendants(orgId: String): Future[Organization]
+  def getRootOrganization(orgId: String): Future[String]
+  def getDescendants(orgId: String): Future[Seq[String]]
+  def updateOrganizationByChildren(newParentOrgId: String, childId: String): Future[Done]
+  def getChildrenForOrganization(parentId: String): Future[Seq[String]]
+  def deleteOrganizationByChildren(childId: String): Future[Done]
 
 }
 
 object OrganizationRepositoryImpl {
   val organizationsAndOwnersTable = "organization_and_owner"
   val organizationsAndMembersTable = "organization_and_member"
+  val organizationsToRootTable = "organization_to_root"
+  val organizationByChildrenTable = "organization_by_children"
 }
 
 class OrganizationRepositoryImpl(session: CassandraSession, keyspace: String)(implicit val ec: ExecutionContext)
@@ -62,6 +72,28 @@ class OrganizationRepositoryImpl(session: CassandraSession, keyspace: String)(im
       JsonFormat.toJsonString(organization),
       orgId,
       memberId
+    )
+  }
+
+  override def updateOrganizationByChildren(newParentOrgId: String, childId: String): Future[Done] = {
+    log.info(s"OrganizationRepositoryImpl updateOrganizationByChildren newParentOrgId - $newParentOrgId childId - $childId")
+    session.executeWrite(
+      s"""
+          UPDATE $keyspace.$organizationByChildrenTable SET parent_org_id = ? WHERE child_id = ?;
+        """,
+      newParentOrgId,
+      childId
+    )
+  }
+
+  override def updateOrganizationByRoot(orgId: String, rootId: String): Future[Done] = {
+    log.info(s"OrganizationRepositoryImpl updateOrganizationByRoot orgId - $orgId rootId - $rootId")
+    session.executeWrite(
+      s"""
+          UPDATE $keyspace.$organizationsToRootTable SET root_id = ? WHERE org_id = ?;
+        """,
+      rootId,
+      orgId
     )
   }
 
@@ -171,8 +203,57 @@ class OrganizationRepositoryImpl(session: CassandraSession, keyspace: String)(im
     }
   }
 
-  override def getRootOrganization(orgId: String): Future[Organization] = ??? //TODO implement this?
+  override def deleteOrganizationByChildren(childId: String): Future[Done] = {
+    log.info(s"OrganizationRepositoryImpl deleteOrganizationByChildren childId - $childId")
+    session.executeWrite(
+      s"""
+          DELETE FROM $keyspace.$organizationByChildrenTable WHERE child_id = ?;
+        """,
+      childId
+    )
+  }
 
-  override def getDescendants(orgId: String): Future[Organization] = ??? //TODO implement this?
+  override def getRootOrganization(orgId: String): Future[String] =
+  {
+    log.info(s"OrganizationRepositoryImpl getRootOrganization orgId - $orgId")
+    session
+      .selectAll(
+        s"SELECT org_id, root_id FROM $keyspace.$organizationsToRootTable;"
+      )
+      .map(rows => {
+        rows
+          .filter(row => row.getString("org_id") == orgId)
+          .map(row => row.getString("root_id"))
+      }.head)
+  }
+
+  override def getChildrenForOrganization(parentId: String): Future[Seq[String]] = {
+    log.info(s"OrganizationRepositoryImpl getChildrenForOrganization parentId - $parentId")
+    session
+      .selectAll(
+        s"SELECT parent_id, child_id FROM $keyspace.$organizationByChildrenTable;"
+      )
+      .map(rows => {
+        rows
+          .filter(row => row.getString("parent_id") == parentId)
+          .map(row => row.getString("child_id"))
+      })
+  }
+
+
+  //TODO: make it return the root org id
+  @tailrec
+  private def getDescendants(inOrgs: Seq[String], children: Future[Seq[String]]): Future[Seq[String]] = {
+    if(inOrgs.isEmpty) children
+    else {
+      val newChildren = getChildrenForOrganization(inOrgs.head)
+      val allChildren: Future[Seq[String]] = children.flatMap(c => newChildren.map(n => c ++ n))
+      getDescendants(inOrgs.tail, allChildren)
+    }
+  }
+
+  override def getDescendants(orgId: String): Future[Seq[String]] = {
+    getDescendants(Seq(orgId), Future.successful(Seq.empty[String]))
+  }
 
 }
