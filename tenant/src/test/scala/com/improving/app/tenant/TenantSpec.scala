@@ -192,7 +192,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EditInfo(
               Some(TenantId(tenantId)),
-              Some(MemberId("unauthorizedUser")),
+              Some(MemberId("someUser")),
               Some(TenantInfo()),
             ),
             probe.ref
@@ -232,7 +232,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EditInfo(
               Some(TenantId(tenantId)),
-              Some(MemberId("unauthorizedUser")),
+              Some(MemberId("someUser")),
               Some(updatedInfo),
             ),
             probe.ref
@@ -268,7 +268,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EditInfo(
               Some(TenantId(tenantId)),
-              Some(MemberId("unauthorizedUser")),
+              Some(MemberId("someUser")),
               Some(updatedInfo),
             ),
             probe.ref
@@ -438,6 +438,18 @@ class TenantSpec
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
 
+          p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId(tenantId)),
+              suspensionReason = "reason1",
+              suspendingUser = Some(MemberId("suspendingUser"))
+            ),
+            probe.ref
+          )
+
+          val suspendResponse = probe.receiveMessage()
+          assert(suspendResponse.isSuccess)
+
           // Test command in question
           p ! Tenant.TenantCommand(
             EditInfo(
@@ -456,16 +468,27 @@ class TenantSpec
         }
 
         "succeed for an empty edit and return the proper response" in {
-          // Transition to Active state
           val (tenantId, p, probe) = createTestVariables()
 
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId(tenantId)),
+              suspensionReason = "reason1",
+              suspendingUser = Some(MemberId("suspendingUser"))
+            ),
+            probe.ref
+          )
+
+          val suspendResponse = probe.receiveMessage()
+          assert(suspendResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
             EditInfo(
               Some(TenantId(tenantId)),
-              Some(MemberId("unauthorizedUser")),
+              Some(MemberId("someUser")),
               Some(TenantInfo()),
             ),
             probe.ref
@@ -492,6 +515,18 @@ class TenantSpec
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
 
+          p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId(tenantId)),
+              suspensionReason = "reason1",
+              suspendingUser = Some(MemberId("suspendingUser"))
+            ),
+            probe.ref
+          )
+
+          val suspendResponse = probe.receiveMessage()
+          assert(suspendResponse.isSuccess)
+
           val newContact = baseContact.copy(firstName = "Bob")
           val newAddress = baseAddress.copy(city = "Timbuktu")
           val newName = "A new name"
@@ -507,7 +542,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EditInfo(
               Some(TenantId(tenantId)),
-              Some(MemberId("unauthorizedUser")),
+              Some(MemberId("someUser")),
               Some(updatedInfo),
             ),
             probe.ref
@@ -534,6 +569,18 @@ class TenantSpec
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
 
+          p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId(tenantId)),
+              suspensionReason = "reason1",
+              suspendingUser = Some(MemberId("suspendingUser"))
+            ),
+            probe.ref
+          )
+
+          val suspendResponse = probe.receiveMessage()
+          assert(suspendResponse.isSuccess)
+
           val newName = "A new name"
           val newOrgs = Seq(OrganizationId("a"), OrganizationId("b"))
 
@@ -545,7 +592,7 @@ class TenantSpec
           p ! Tenant.TenantCommand(
             EditInfo(
               Some(TenantId(tenantId)),
-              Some(MemberId("unauthorizedUser")),
+              Some(MemberId("someUser")),
               Some(updatedInfo),
             ),
             probe.ref
@@ -571,6 +618,18 @@ class TenantSpec
 
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId(tenantId)),
+              suspensionReason = "reason1",
+              suspendingUser = Some(MemberId("suspendingUser"))
+            ),
+            probe.ref
+          )
+
+          val suspendResponse = probe.receiveMessage()
+          assert(suspendResponse.isSuccess)
 
           val badContact = baseContact.copy(emailAddress = None)
 
@@ -599,6 +658,18 @@ class TenantSpec
 
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId(tenantId)),
+              suspensionReason = "reason1",
+              suspendingUser = Some(MemberId("suspendingUser"))
+            ),
+            probe.ref
+          )
+
+          val suspendResponse = probe.receiveMessage()
+          assert(suspendResponse.isSuccess)
 
           val badAddress = baseAddress.copy(city = "")
 
@@ -725,7 +796,7 @@ class TenantSpec
             SuspendTenant(
               tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason",
-              Some(MemberId("unauthorizedUser"))
+              Some(MemberId("someUser"))
             ),
             probe.ref
           )
