@@ -14,7 +14,7 @@ import scalapb.GeneratorOption.{FlatPackage, RetainSourceCodeInfo, SingleLineToP
  */
 object V {
   lazy val scala = "2.13.10"
-  lazy val akka = "2.7.0"
+  lazy val akka = "2.8.0"
   lazy val akkaHttp = "10.5.0"
   lazy val akkaManagement = "1.2.0"
   lazy val akkaProjection = "1.3.1"
@@ -53,15 +53,18 @@ object C {
   ): Project = {
     project
       .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
+      .configs(IntegrationTest)
       .configure(Compilation.scala)
       .configure(Testing.scalaTest)
       .configure(Packaging.docker)
       .settings(
+        Defaults.itSettings,
+        Defaults.itSettings,
         name := componentName,
         run / fork := true,
         scalaVersion := V.scala,
         libraryDependencies ++=
-          utilityDependencies ++ loggingDependencies ++ httpDependencies
+          utilityDependencies ++ loggingDependencies ++ httpDependencies ++ akkaHttpTestingDependencies
       )
   }
 

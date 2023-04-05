@@ -2,18 +2,21 @@ package com.improving.app.gateway.domain.common
 
 import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
-import com.improving.app.gateway.domain.MemberMessages.{MemberEventResponse, MemberRegistered}
-import com.improving.app.gateway.domain.common.{Contact => GatewayContact}
-import com.improving.app.gateway.domain.{
+import com.improving.app.gateway.domain.MemberMessages.{MemberData, MemberEventResponse, MemberRegistered}
+import com.improving.app.gateway.domain.MemberStatus.{
   ACTIVE_MEMBER_STATUS,
-  APPLICATION_NOTIFICATION_PREFERENCE,
-  EMAIL_NOTIFICATION_PREFERENCE,
   INACTIVE_MEMBER_STATUS,
   INITIAL_MEMBER_STATUS,
-  MemberData,
-  SMS_NOTIFICATION_PREFERENCE,
   SUSPENDED_MEMBER_STATUS,
-  TERMINATED_MEMBER_STATUS,
+  TERMINATED_MEMBER_STATUS
+}
+import com.improving.app.gateway.domain.NotificationPreference.{
+  APPLICATION_NOTIFICATION_PREFERENCE,
+  EMAIL_NOTIFICATION_PREFERENCE,
+  SMS_NOTIFICATION_PREFERENCE
+}
+import com.improving.app.gateway.domain.common.{Contact => GatewayContact}
+import com.improving.app.gateway.domain.{
   MemberInfo => GatewayMemberInfo,
   MemberMetaInfo => GatewayMemberMetaInfo,
   MemberStatus => GatewayMemberStatus,
