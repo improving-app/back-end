@@ -6,7 +6,7 @@ import akka.persistence.testkit.scaladsl.EventSourcedBehaviorTestKit
 import akka.persistence.testkit.scaladsl.EventSourcedBehaviorTestKit.SerializationSettings
 import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
 import com.improving.app.member.domain.Member.{DraftMemberState, MemberCommand, MemberState, RegisteredMemberState, TerminatedMemberState}
-import com.improving.app.member.domain.MemberStatus.{MEMBER_STATUS_ACTIVE, MEMBER_STATUS_DRAFT, MEMBER_STATUS_SUSPENDED}
+import com.improving.app.member.domain.MemberState.{MEMBER_STATUS_ACTIVE, MEMBER_STATUS_DRAFT, MEMBER_STATUS_SUSPENDED}
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -44,7 +44,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
     result: EventSourcedBehaviorTestKit.CommandResultWithReply[MemberCommand, MemberEvent, MemberState, StatusReply[MemberResponse]]
   ): Unit = {
     result.hasNoEvents
-    result.stateOfType[DraftMemberState].meta.memberStatus shouldBe MEMBER_STATUS_DRAFT
+    result.stateOfType[DraftMemberState].meta.currentState shouldBe MEMBER_STATUS_DRAFT
     result.stateOfType[DraftMemberState].meta.lastModifiedBy.get.id shouldBe "registeringMember"
   }
 
@@ -52,7 +52,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
     result: EventSourcedBehaviorTestKit.CommandResultWithReply[MemberCommand, MemberEvent, MemberState, StatusReply[MemberResponse]]
   ): Unit = {
     result.hasNoEvents
-    result.stateOfType[RegisteredMemberState].meta.memberStatus shouldBe MEMBER_STATUS_ACTIVE
+    result.stateOfType[RegisteredMemberState].meta.currentState shouldBe MEMBER_STATUS_ACTIVE
     result.stateOfType[RegisteredMemberState].meta.lastModifiedBy.get.id shouldBe "activatingMember"
   }
 
@@ -204,7 +204,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             MemberId(testMemberIdString)
           )
           memberRegistered.memberInfo shouldBe Some(baseMemberInfo)
-          memberRegistered.meta.get.memberStatus shouldBe MEMBER_STATUS_DRAFT
+          memberRegistered.meta.get.currentState shouldBe MEMBER_STATUS_DRAFT
           memberRegistered.meta.get.createdBy shouldBe Some(
             MemberId("registeringMember")
           )
@@ -212,7 +212,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
           val event = result.eventOfType[MemberRegistered]
           event.memberId.get.id shouldBe testMemberIdString
           event.memberInfo.get shouldBe baseMemberInfo
-          event.meta.get.memberStatus shouldBe MEMBER_STATUS_DRAFT
+          event.meta.get.currentState shouldBe MEMBER_STATUS_DRAFT
           event.meta.get.createdBy.get.id shouldBe "registeringMember"
 
           val state = result.stateOfType[DraftMemberState]
@@ -350,12 +350,12 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
           memberActivated.memberId shouldBe Some(
             MemberId(testMemberIdString)
           )
-          memberActivated.meta.get.memberStatus shouldBe MEMBER_STATUS_ACTIVE
+          memberActivated.meta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
           memberActivated.meta.get.lastModifiedBy.get.id shouldBe "activatingMember"
 
           val event = result.eventOfType[MemberActivated]
           event.memberId.get.id shouldBe testMemberIdString
-          event.meta.get.memberStatus shouldBe MEMBER_STATUS_ACTIVE
+          event.meta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
           event.meta.get.lastModifiedBy.get.id shouldBe "activatingMember"
 
           val state = result.stateOfType[RegisteredMemberState]
@@ -582,7 +582,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             contact = Some(editContact),
             tenant = Some(TenantId("editTenantId"))
           ))
-          memberInfoEdited.meta.get.memberStatus shouldBe MEMBER_STATUS_DRAFT
+          memberInfoEdited.meta.get.currentState shouldBe MEMBER_STATUS_DRAFT
           memberInfoEdited.meta.get.createdBy shouldBe Some(
             MemberId("registeringMember")
           )
@@ -599,7 +599,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             contact = Some(editContact),
             tenant = Some(TenantId("editTenantId"))
           )
-          event.meta.get.memberStatus shouldBe MEMBER_STATUS_DRAFT
+          event.meta.get.currentState shouldBe MEMBER_STATUS_DRAFT
           event.meta.get.createdBy.get.id shouldBe "registeringMember"
           event.meta.get.lastModifiedBy.get.id shouldBe "editingMember"
 
@@ -642,7 +642,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             tenant = Some(TenantId("editTenantId")),
             organizationMembership = baseEditableInfo.organizationMembership
           ))
-          memberInfoEdited.meta.get.memberStatus shouldBe MEMBER_STATUS_DRAFT
+          memberInfoEdited.meta.get.currentState shouldBe MEMBER_STATUS_DRAFT
           memberInfoEdited.meta.get.createdBy shouldBe Some(
             MemberId("registeringMember")
           )
@@ -662,7 +662,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             tenant = Some(TenantId("editTenantId")),
             organizationMembership = baseEditableInfo.organizationMembership
           )
-          event.meta.get.memberStatus shouldBe MEMBER_STATUS_DRAFT
+          event.meta.get.currentState shouldBe MEMBER_STATUS_DRAFT
           event.meta.get.createdBy.get.id shouldBe "registeringMember"
           event.meta.get.lastModifiedBy.get.id shouldBe "editingMember"
 
@@ -878,12 +878,12 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             memberSuspended.memberId shouldBe Some(
               MemberId(testMemberIdString)
             )
-            memberSuspended.meta.get.memberStatus shouldBe MEMBER_STATUS_SUSPENDED
+            memberSuspended.meta.get.currentState shouldBe MEMBER_STATUS_SUSPENDED
             memberSuspended.meta.get.lastModifiedBy.get.id shouldBe "suspendingMember"
 
             val event = result.eventOfType[MemberSuspended]
             event.memberId.get.id shouldBe testMemberIdString
-            event.meta.get.memberStatus shouldBe MEMBER_STATUS_SUSPENDED
+            event.meta.get.currentState shouldBe MEMBER_STATUS_SUSPENDED
             event.meta.get.lastModifiedBy.get.id shouldBe "suspendingMember"
 
             val state = result.stateOfType[RegisteredMemberState]
@@ -894,7 +894,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             state.info.organizationMembership shouldBe Seq(OrganizationId("org1"))
             state.meta.createdBy.get.id shouldBe "registeringMember"
             state.meta.lastModifiedBy.get.id shouldBe "suspendingMember"
-            state.meta.memberStatus shouldBe MEMBER_STATUS_SUSPENDED
+            state.meta.currentState shouldBe MEMBER_STATUS_SUSPENDED
           }
         }
 
@@ -990,19 +990,19 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             memberTerminated.memberId shouldBe Some(
               MemberId(testMemberIdString)
             )
-            memberTerminated.lastMeta.get.memberStatus shouldBe MEMBER_STATUS_ACTIVE
+            memberTerminated.lastMeta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
             memberTerminated.lastMeta.get.lastModifiedBy.get.id shouldBe "terminatingMember"
 
             val event = result.eventOfType[MemberTerminated]
             event.memberId.get.id shouldBe testMemberIdString
-            event.lastMeta.get.memberStatus shouldBe MEMBER_STATUS_ACTIVE
+            event.lastMeta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
             event.lastMeta.get.lastModifiedBy.get.id shouldBe "terminatingMember"
 
             val state = result.stateOfType[TerminatedMemberState]
 
             state.lastMeta.createdBy.get.id shouldBe "registeringMember"
             state.lastMeta.lastModifiedBy.get.id shouldBe "terminatingMember"
-            state.lastMeta.memberStatus shouldBe MEMBER_STATUS_ACTIVE
+            state.lastMeta.currentState shouldBe MEMBER_STATUS_ACTIVE
           }
         }
 
@@ -1034,7 +1034,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
               tenant = Some(TenantId("editTenantId")),
               organizationMembership = baseEditableInfo.organizationMembership
             ))
-            memberInfoEdited.meta.get.memberStatus shouldBe MEMBER_STATUS_ACTIVE
+            memberInfoEdited.meta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
             memberInfoEdited.meta.get.createdBy shouldBe Some(
               MemberId("registeringMember")
             )
@@ -1054,7 +1054,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
               tenant = Some(TenantId("editTenantId")),
               organizationMembership = baseEditableInfo.organizationMembership
             )
-            event.meta.get.memberStatus shouldBe MEMBER_STATUS_ACTIVE
+            event.meta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
             event.meta.get.createdBy.get.id shouldBe "registeringMember"
             event.meta.get.lastModifiedBy.get.id shouldBe "editingMember"
 
@@ -1070,7 +1070,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             state.info.organizationMembership shouldBe Seq(OrganizationId("editOrg1"))
             state.meta.createdBy.get.id shouldBe "registeringMember"
             state.meta.lastModifiedBy.get.id shouldBe "editingMember"
-            state.meta.memberStatus shouldBe MEMBER_STATUS_ACTIVE
+            state.meta.currentState shouldBe MEMBER_STATUS_ACTIVE
           }
         }
 
@@ -1144,12 +1144,12 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             memberActivated.memberId shouldBe Some(
               MemberId(testMemberIdString)
             )
-            memberActivated.meta.get.memberStatus shouldBe MEMBER_STATUS_ACTIVE
+            memberActivated.meta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
             memberActivated.meta.get.lastModifiedBy.get.id shouldBe "activatingMember2"
 
             val event = result.eventOfType[MemberActivated]
             event.memberId.get.id shouldBe testMemberIdString
-            event.meta.get.memberStatus shouldBe MEMBER_STATUS_ACTIVE
+            event.meta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
             event.meta.get.lastModifiedBy.get.id shouldBe "activatingMember2"
 
             val state = result.stateOfType[RegisteredMemberState]
@@ -1182,12 +1182,12 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             memberSuspended.memberId shouldBe Some(
               MemberId(testMemberIdString)
             )
-            memberSuspended.meta.get.memberStatus shouldBe MEMBER_STATUS_SUSPENDED
+            memberSuspended.meta.get.currentState shouldBe MEMBER_STATUS_SUSPENDED
             memberSuspended.meta.get.lastModifiedBy.get.id shouldBe "suspendingMember"
 
             val event = result.eventOfType[MemberSuspended]
             event.memberId.get.id shouldBe testMemberIdString
-            event.meta.get.memberStatus shouldBe MEMBER_STATUS_SUSPENDED
+            event.meta.get.currentState shouldBe MEMBER_STATUS_SUSPENDED
             event.meta.get.lastModifiedBy.get.id shouldBe "suspendingMember"
 
             val state = result.stateOfType[RegisteredMemberState]
@@ -1198,7 +1198,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             state.info.organizationMembership shouldBe Seq(OrganizationId("org1"))
             state.meta.createdBy.get.id shouldBe "registeringMember"
             state.meta.lastModifiedBy.get.id shouldBe "suspendingMember"
-            state.meta.memberStatus shouldBe MEMBER_STATUS_SUSPENDED          }
+            state.meta.currentState shouldBe MEMBER_STATUS_SUSPENDED          }
         }
 
         "executing TerminateMember" should {
@@ -1220,19 +1220,19 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             memberTerminated.memberId shouldBe Some(
               MemberId(testMemberIdString)
             )
-            memberTerminated.lastMeta.get.memberStatus shouldBe MEMBER_STATUS_SUSPENDED
+            memberTerminated.lastMeta.get.currentState shouldBe MEMBER_STATUS_SUSPENDED
             memberTerminated.lastMeta.get.lastModifiedBy.get.id shouldBe "terminatingMember"
 
             val event = result.eventOfType[MemberTerminated]
             event.memberId.get.id shouldBe testMemberIdString
-            event.lastMeta.get.memberStatus shouldBe MEMBER_STATUS_SUSPENDED
+            event.lastMeta.get.currentState shouldBe MEMBER_STATUS_SUSPENDED
             event.lastMeta.get.lastModifiedBy.get.id shouldBe "terminatingMember"
 
             val state = result.stateOfType[TerminatedMemberState]
 
             state.lastMeta.createdBy.get.id shouldBe "registeringMember"
             state.lastMeta.lastModifiedBy.get.id shouldBe "terminatingMember"
-            state.lastMeta.memberStatus shouldBe MEMBER_STATUS_SUSPENDED
+            state.lastMeta.currentState shouldBe MEMBER_STATUS_SUSPENDED
           }
         }
 

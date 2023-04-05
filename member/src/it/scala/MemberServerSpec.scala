@@ -1,6 +1,6 @@
 import akka.grpc.GrpcClientSettings
 import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
-import com.improving.app.member.domain.MemberStatus._
+import com.improving.app.member.domain.MemberState._
 import com.improving.app.member.domain.NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL
 import org.scalatest.Inside.inside
 import com.improving.app.member.domain._
@@ -55,7 +55,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
                       memberInfo: Option[MemberInfo],
                       createdBy: Option[MemberId],
                       lastUpdatedBy: Option[MemberId],
-                      memberStatus: MemberStatus,
+                      memberStatus: MemberState,
                       client: MemberService
                     ) = {
     val response = client.getMemberInfo(GetMemberInfo(memberId)).futureValue

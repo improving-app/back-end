@@ -11,7 +11,7 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.implicits.toFoldableOps
 import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.MemberId
-import com.improving.app.member.domain.MemberStatus._
+import com.improving.app.member.domain.MemberState._
 import com.typesafe.scalalogging.StrictLogging
 
 import java.time.{Clock, Instant}
@@ -119,7 +119,7 @@ object Member extends StrictLogging {
             meta = memberActivatedEvent.meta.get
           )
           case x: RegisteredMemberState =>
-            if (x.meta.memberStatus.isMemberStatusSuspended) {
+            if (x.meta.currentState.isMemberStatusSuspended) {
               x.copy(meta = memberActivatedEvent.meta.get)
             } else {
               state
@@ -187,7 +187,7 @@ object Member extends StrictLogging {
         lastModifiedBy = registerMemberCommand.registeringMember,
         createdOn = now,
         createdBy = registerMemberCommand.registeringMember,
-        memberStatus = MEMBER_STATUS_DRAFT
+        currentState = MEMBER_STATUS_DRAFT
       )
       val event =
         MemberRegistered(registerMemberCommand.memberId, registerMemberCommand.memberInfo, Some(newMeta))
@@ -224,7 +224,7 @@ object Member extends StrictLogging {
   ): ReplyEffect[MemberEvent, MemberState] = {
     if (meta.createdBy.isEmpty) {
       useErrorStatusReply(replyTo, s"A member not registered cannot be activated")
-    } else if (meta.memberStatus.isMemberStatusActive) {
+    } else if (meta.currentState.isMemberStatusActive) {
       useErrorStatusReply(replyTo, s"Member has already been activated")
     } else {
       MemberValidation.validateMemberInfo(info) match {
@@ -232,7 +232,7 @@ object Member extends StrictLogging {
           val newMeta = meta.copy(
             lastModifiedBy = activateMemberCommand.activatingMember,
             lastModifiedOn = Some(Timestamp(Instant.now(clock))),
-            memberStatus = MEMBER_STATUS_ACTIVE
+            currentState = MEMBER_STATUS_ACTIVE
           )
           val event = MemberActivated(activateMemberCommand.memberId, Some(newMeta))
 
@@ -281,7 +281,7 @@ object Member extends StrictLogging {
         val newMeta = meta.copy(
           lastModifiedBy = suspendMemberCommand.suspendingMember,
           lastModifiedOn = Some(Timestamp(Instant.now(clock))),
-          memberStatus = MEMBER_STATUS_SUSPENDED
+          currentState = MEMBER_STATUS_SUSPENDED
         )
         val event = MemberSuspended(suspendMemberCommand.memberId, Some(newMeta))
         Effect
@@ -347,7 +347,7 @@ object Member extends StrictLogging {
   ): ReplyEffect[MemberEvent, MemberState] = {
     if (metaInfo.createdBy.isEmpty) {
       useErrorStatusReply(replyTo, s"A member not registered cannot be edited")
-    } else if (metaInfo.memberStatus.isMemberStatusSuspended) {
+    } else if (metaInfo.currentState.isMemberStatusSuspended) {
       useErrorStatusReply(replyTo, s"Cannot edit info for suspended members")
     } else {
       val editInfo = editMemberInfoCommand.memberInfo.get

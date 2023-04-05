@@ -18,7 +18,7 @@ enum NotificationPreference {
   NOTIFICATION_PREFERENCE_APPLICATION = 2;
 }
 
-enum MemberStatus {
+enum MemberState {
   option (scalapb.enum_options).extends = "com.improving.app.common.serialize.PBEnumSerializable";
   MEMBER_STATUS_DRAFT = 0;
   MEMBER_STATUS_ACTIVE = 1;
@@ -66,7 +66,7 @@ message MemberMetaInfo {
   common.domain.MemberId created_by = 2;
   google.protobuf.Timestamp  last_modified_on = 3;
   common.domain.MemberId last_modified_by = 4;
-  MemberStatus member_status = 5;
+  MemberState current_state = 5;
 }
 
 message EditableInfo {
