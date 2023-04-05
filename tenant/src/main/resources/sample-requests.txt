@@ -2,25 +2,14 @@
 grpcurl -plaintext localhost:8080 list
 
 -- Establish Tenant
-grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "establishing_user": {"id": "establishingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/EstablishTenant
-
--- Update Tenant Name
-grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "new_name":"newName", "updating_user": {"id": "updatingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/UpdateTenantName
-
--- Update Primary Contact
-grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "new_contact": {"first_name": "firstName", "last_name": "lastName", "email_address": "email@email.com", "phone": "111-111-1111", "user_name": "userName"}, "updating_user": {"id": "updatingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/UpdatePrimaryContact
-
--- Update Address
-grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "new_address": {"line1": "line1", "line2": "line2", "city": "city", "state_province": "stateProvince", "country": "country", "postal_code": {"ca_postal_code_message": "caPostalCode"}}, "updating_user": {"id": "updatingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/UpdateAddress
-
--- Add Organizations
-grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "org_id": [{"id": "org1"}, {"id": "org2"}], "updating_user": {"id": "updatingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/AddOrganizations
-
--- Remove Organizations
-grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "org_id": [{"id": "org1"}, {"id": "org2"}], "updating_user": {"id": "updatingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/RemoveOrganizations
+grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "establishing_user": {"id": "establishingUser"}, "tenant_info": { "name": "Tenant Name", "primary_contact": {"first_name": "firstName", "last_name": "lastName", "email_address": "email@email.com", "phone": "111-111-1111", "user_name": "userName"}, "address": {"line1": "line1", "line2": "line2", "city": "city", "state_province": "stateProvince", "country": "country", "postal_code": {"ca_postal_code_message": "caPostalCode"}}, "organizations": {"value": [{"id": "org1"}, {"id": "org2"}]} }}' localhost:8080 com.improving.app.tenant.api.TenantService/EstablishTenant
 
 -- Activate Tenant
 grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "activating_user": {"id": "activatingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/ActivateTenant
 
 -- Suspend Tenant
 grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "suspending_user": {"id": "suspendingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/SuspendTenant
+
+-- Edit Info
+grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "updating_user": {"id": "updatingUser"}, "info_to_update": { "name": "Tenant Name", "primary_contact": {"first_name": "firstName", "last_name": "lastName", "email_address": "email@email.com", "phone": "111-111-1111", "user_name": "userName"}, "address": {"line1": "line1", "line2": "line2", "city": "city", "state_province": "stateProvince", "country": "country", "postal_code": {"ca_postal_code_message": "caPostalCode"}}, "organizations": {"value": [{"id": "org1"}, {"id": "org2"}]} }}' localhost:8080 com.improving.app.tenant.api.TenantService/EditInfo
+

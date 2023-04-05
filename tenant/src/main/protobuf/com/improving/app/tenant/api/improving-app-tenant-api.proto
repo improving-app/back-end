@@ -11,15 +11,7 @@ import "com/improving/app/tenant/domain/improving-app-tenant-domain.proto";
 service TenantService {
   rpc EstablishTenant (domain.EstablishTenant) returns (domain.TenantEstablished) {}
 
-  rpc UpdateTenantName (domain.UpdateTenantName) returns (domain.TenantNameUpdated) {}
-
-  rpc UpdatePrimaryContact (domain.UpdatePrimaryContact) returns (domain.PrimaryContactUpdated) {}
-
-  rpc UpdateAddress (domain.UpdateAddress) returns (domain.AddressUpdated) {}
-
-  rpc AddOrganizations (domain.AddOrganizations) returns (domain.OrganizationsAdded) {}
-
-  rpc RemoveOrganizations (domain.RemoveOrganizations) returns (domain.OrganizationsRemoved) {}
+  rpc EditInfo (domain.EditInfo) returns (domain.InfoEdited) {}
 
   rpc ActivateTenant (domain.ActivateTenant) returns (domain.TenantActivated) {}
 

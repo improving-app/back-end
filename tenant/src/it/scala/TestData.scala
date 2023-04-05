@@ -1,5 +1,3 @@
-package com.improving.app.tenant
-
 import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, PostalCodeMessageImpl}
 import com.improving.app.tenant.domain.{TenantInfo, TenantOrganizationList}
 
