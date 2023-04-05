@@ -1,7 +1,7 @@
 package com.improving.app.tenant
 
 import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, PostalCodeMessageImpl}
-import com.improving.app.tenant.domain.TenantInfo
+import com.improving.app.tenant.domain.{TenantInfo, TenantOrganizationList}
 
 object TestData {
   val baseContact = Contact(
@@ -24,6 +24,6 @@ object TestData {
     name = "Tenant Name",
     primaryContact = Some(baseContact),
     address = Some(baseAddress),
-    orgs = Seq()
+    organizations = Some(TenantOrganizationList())
   )
 }

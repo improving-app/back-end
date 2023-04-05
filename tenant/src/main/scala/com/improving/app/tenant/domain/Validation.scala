@@ -1,6 +1,6 @@
 package com.improving.app.tenant.domain
 
-import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, MemberId, OrganizationId, TenantId, UsPostalCodeImpl}
+import com.improving.app.common.domain._
 
 object Validation {
   case class ValidationError(message: String) extends Error
@@ -84,7 +84,7 @@ object Validation {
     }
   }
 
-  val organizationsValidator: Validator[Seq[OrganizationId]] = orgs => {
+  val organizationsValidator: Validator[TenantOrganizationList] = organizationList => {
     None
   }
 
@@ -101,7 +101,7 @@ object Validation {
       ti => tenantNameValidator(ti.name),
       ti => required("primary contact", contactValidator)(ti.primaryContact),
       ti => required("address", addressValidator)(ti.address),
-      ti => organizationsValidator(ti.orgs)
+      ti => required("organizations", organizationsValidator)(ti.organizations)
     ))(tenantInfo)
   }
 
@@ -110,7 +110,7 @@ object Validation {
       ti => skipEmpty(tenantNameValidator)(ti.name),
       ti => optional(contactValidator)(ti.primaryContact),
       ti => optional(addressValidator)(ti.address),
-      ti => organizationsValidator(ti.orgs)
+      ti => optional(organizationsValidator)(ti.organizations)
     ))(tenantInfo)
   }
 

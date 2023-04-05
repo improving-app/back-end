@@ -197,8 +197,8 @@ object Tenant {
         if (infoToUpdate.primaryContact.isDefined) {
           updatedInfo = updatedInfo.copy(primaryContact = infoToUpdate.primaryContact)
         }
-        if (infoToUpdate.orgs.nonEmpty) {
-          updatedInfo = updatedInfo.copy(orgs = infoToUpdate.orgs)
+        if (infoToUpdate.organizations.isDefined) {
+          updatedInfo = updatedInfo.copy(organizations = infoToUpdate.organizations)
         }
 
         val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = editInfoCommand.editingUser)

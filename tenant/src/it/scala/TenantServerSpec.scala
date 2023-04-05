@@ -58,16 +58,16 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
         userName = "contactUsername1"
       )
 
-      val newOrgs = Seq(
+      val newOrgs = TenantOrganizationList(Seq(
         OrganizationId("a"),
         OrganizationId("b")
-      )
+      ))
 
       val updateInfo = TenantInfo(
         name = newName,
         address = Some(newAddress),
         primaryContact = Some(newContact),
-        orgs = newOrgs
+        organizations = Some(newOrgs)
       )
 
       val response = client.editInfo(EditInfo(

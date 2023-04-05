@@ -220,13 +220,13 @@ class TenantSpec
           val newContact = baseContact.copy(firstName = "Bob")
           val newAddress = baseAddress.copy(city = "Timbuktu")
           val newName = "A new name"
-          val newOrgs = Seq(OrganizationId("a"), OrganizationId("b"))
+          val newOrgs = TenantOrganizationList(Seq(OrganizationId("a"), OrganizationId("b")))
 
           val updatedInfo = TenantInfo(
             name = newName,
             primaryContact = Some(newContact),
             address = Some(newAddress),
-            orgs = newOrgs
+            organizations = Some(newOrgs)
           )
 
           p ! Tenant.TenantCommand(
@@ -258,11 +258,11 @@ class TenantSpec
           assert(establishTenantResponse.isSuccess)
 
           val newName = "A new name"
-          val newOrgs = Seq(OrganizationId("a"), OrganizationId("b"))
+          val newOrgs = TenantOrganizationList(Seq(OrganizationId("a"), OrganizationId("b")))
 
           val updatedInfo = TenantInfo(
             name = newName,
-            orgs = newOrgs
+            organizations = Some(newOrgs)
           )
 
           p ! Tenant.TenantCommand(
@@ -283,7 +283,7 @@ class TenantSpec
           val infoEdited = successVal.asMessage.sealedValue.infoEditedValue.get
 
           infoEdited.oldInfo shouldBe Some(baseTenantInfo)
-          infoEdited.newInfo shouldBe Some(baseTenantInfo.copy(name = newName, orgs = newOrgs))
+          infoEdited.newInfo shouldBe Some(baseTenantInfo.copy(name = newName, organizations = Some(newOrgs)))
         }
 
         "error for incomplete updating primary contact info" in {
@@ -530,13 +530,13 @@ class TenantSpec
           val newContact = baseContact.copy(firstName = "Bob")
           val newAddress = baseAddress.copy(city = "Timbuktu")
           val newName = "A new name"
-          val newOrgs = Seq(OrganizationId("a"), OrganizationId("b"))
+          val newOrgs = TenantOrganizationList(Seq(OrganizationId("a"), OrganizationId("b")))
 
           val updatedInfo = TenantInfo(
             name = newName,
             primaryContact = Some(newContact),
             address = Some(newAddress),
-            orgs = newOrgs
+            organizations = Some(newOrgs)
           )
 
           p ! Tenant.TenantCommand(
@@ -582,11 +582,11 @@ class TenantSpec
           assert(suspendResponse.isSuccess)
 
           val newName = "A new name"
-          val newOrgs = Seq(OrganizationId("a"), OrganizationId("b"))
+          val newOrgs = TenantOrganizationList(Seq(OrganizationId("a"), OrganizationId("b")))
 
           val updatedInfo = TenantInfo(
             name = newName,
-            orgs = newOrgs
+            organizations = Some(newOrgs)
           )
 
           p ! Tenant.TenantCommand(
@@ -609,7 +609,7 @@ class TenantSpec
           assert(infoEdited.metaInfo.isDefined)
           assert(infoEdited.oldInfo.isDefined)
           infoEdited.oldInfo.get shouldEqual baseTenantInfo
-          infoEdited.newInfo.get shouldEqual baseTenantInfo.copy(name = newName, orgs = newOrgs)
+          infoEdited.newInfo.get shouldEqual baseTenantInfo.copy(name = newName, organizations = Some(newOrgs))
         }
 
         "error for incomplete updating primary contact info" in {

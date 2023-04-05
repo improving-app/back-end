@@ -13,12 +13,17 @@ enum TenantState {
   Suspended = 1;
 }
 
+message TenantOrganizationList {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  repeated com.improving.app.common.domain.OrganizationId value = 1;
+}
+
 message TenantInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   string name = 1;
   com.improving.app.common.domain.Contact primaryContact = 2;
   com.improving.app.common.domain.Address address = 3;
-  repeated com.improving.app.common.domain.OrganizationId orgs = 4;
+  TenantOrganizationList organizations = 4;
 }
 
 message TenantMetaInfo {
