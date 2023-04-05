@@ -1,15 +1,15 @@
 package com.improving.app.tenant
 
 import akka.actor.typed.ActorSystem
-import akka.cluster.typed.{Cluster, Join}
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
-import akka.util.Timeout
+import akka.cluster.typed.{Cluster, Join}
 import akka.grpc.GrpcServiceException
 import akka.persistence.typed.PersistenceId
+import akka.util.Timeout
 import com.google.rpc.Code
 import com.google.rpc.error_details.LocalizedMessage
 import com.improving.app.tenant.api.TenantService
-import com.improving.app.tenant.domain.{ActivateTenant, AddOrganizations, AddressUpdated, EstablishTenant, OrganizationsAdded, OrganizationsRemoved, PrimaryContactUpdated, RemoveOrganizations, SuspendTenant, Tenant, TenantActivated, TenantEstablished, TenantNameUpdated, TenantSuspended, UpdateAddress, UpdatePrimaryContact, UpdateTenantName}
+import com.improving.app.tenant.domain._
 
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
@@ -47,47 +47,12 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
     )
   }
 
-  override def updateTenantName(in: UpdateTenantName): Future[TenantNameUpdated] = {
+  override def editInfo(in: EditInfo): Future[InfoEdited] = {
     val result = sharding.entityRefFor(Tenant.TypeKey, in.tenantId.get.id)
       .ask(ref => Tenant.TenantCommand(in, ref))
-    result.transform(
-      result => result.getValue.asMessage.sealedValue.tenantNameUpdatedValue.get,
-      exception => exceptionHandler(exception)
-    )
-  }
 
-  override def updatePrimaryContact(in: UpdatePrimaryContact): Future[PrimaryContactUpdated] = {
-    val result = sharding.entityRefFor(Tenant.TypeKey, in.tenantId.get.id)
-      .ask(ref => Tenant.TenantCommand(in, ref))
     result.transform(
-      result => result.getValue.asMessage.sealedValue.primaryContactUpdatedValue.get,
-      exception => exceptionHandler(exception)
-    )
-  }
-
-  override def updateAddress(in: UpdateAddress): Future[AddressUpdated] = {
-    val result = sharding.entityRefFor(Tenant.TypeKey, in.tenantId.get.id)
-      .ask(ref => Tenant.TenantCommand(in, ref))
-    result.transform(
-      result => result.getValue.asMessage.sealedValue.addressUpdatedValue.get,
-      exception => exceptionHandler(exception)
-    )
-  }
-
-  override def addOrganizations(in: AddOrganizations): Future[OrganizationsAdded] = {
-    val result = sharding.entityRefFor(Tenant.TypeKey, in.tenantId.get.id)
-      .ask(ref => Tenant.TenantCommand(in, ref))
-    result.transform(
-      result => result.getValue.asMessage.sealedValue.organizationsAddedValue.get,
-      exception => exceptionHandler(exception)
-    )
-  }
-
-  override def removeOrganizations(in: RemoveOrganizations): Future[OrganizationsRemoved] = {
-    val result = sharding.entityRefFor(Tenant.TypeKey, in.tenantId.get.id)
-      .ask(ref => Tenant.TenantCommand(in, ref))
-    result.transform(
-      result => result.getValue.asMessage.sealedValue.organizationsRemovedValue.get,
+      result => result.getValue.asMessage.sealedValue.infoEditedValue.get,
       exception => exceptionHandler(exception)
     )
   }
