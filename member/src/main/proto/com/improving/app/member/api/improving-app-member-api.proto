@@ -20,11 +20,6 @@ service MemberService {
 
   }
 
-  rpc InactivateMember(domain.InactivateMember) returns (domain.MemberInactivated) {
-      //post: "member/{memberId}/inactivate/"
-
-  }
-
   rpc SuspendMember(domain.SuspendMember) returns (domain.MemberSuspended) {
       //post: "member/{memberId}/suspend/"
   }
@@ -33,7 +28,7 @@ service MemberService {
       //post: "member/{memberId}/terminate/"
   }
 
-  rpc UpdateMemberInfo(domain.UpdateMemberInfo) returns (domain.MemberInfoUpdated){
+  rpc EditMemberInfo(domain.EditMemberInfo) returns (domain.MemberInfoEdited){
       //post: "member/{memberId}/update/"
   }
 

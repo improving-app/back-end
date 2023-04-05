@@ -6,6 +6,7 @@ import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.pattern.StatusReply
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import akka.persistence.typed.{PersistenceId, RecoveryCompleted}
+import cats.data
 import cats.data.Validated.{Invalid, Valid}
 import cats.implicits.toFoldableOps
 import com.google.protobuf.timestamp.Timestamp
@@ -24,8 +25,19 @@ object Member extends StrictLogging {
   //Command wraps the request type
   final case class MemberCommand(request: MemberRequest, replyTo: ActorRef[StatusReply[MemberResponse]])
 
-  private def emptyState(entityId: String): MemberState =
-    MemberState(Some(MemberId(entityId)), None, None)
+  private def emptyState(): MemberState = {
+    DraftMemberState(
+      requiredInfo = RequiredDraftInfo(),
+      optionalInfo = OptionalDraftInfo(),
+      meta = MemberMetaInfo()
+    )
+  }
+
+  sealed trait MemberState
+
+  case class DraftMemberState(requiredInfo: RequiredDraftInfo, optionalInfo: OptionalDraftInfo, meta: MemberMetaInfo) extends MemberState
+  case class RegisteredMemberState(info: MemberInfo, meta: MemberMetaInfo) extends MemberState
+  case class TerminatedMemberState(lastMeta: MemberMetaInfo) extends MemberState
 
   trait HasMemberId {
     def memberId: Option[MemberId]
@@ -43,7 +55,7 @@ object Member extends StrictLogging {
       EventSourcedBehavior
         .withEnforcedReplies[MemberCommand, MemberEvent, MemberState](
           persistenceId = PersistenceId(entityTypeHint, memberId),
-          emptyState = emptyState(memberId),
+          emptyState = emptyState(),
           commandHandler = commandHandler,
           eventHandler = eventHandler
         )
@@ -56,220 +68,409 @@ object Member extends StrictLogging {
         }
     }
 
-  //Check if the command is valid for the current state
-  //TODO validate state transitions
   /**
    * State Diagram
    *
    * Initial -> Active <-> Inactive <-> Suspended -> Terminated
    */
-  private def isCommandValidForState(state: MemberState, command: MemberRequest): Boolean = {
-    command match {
-      case RegisterMember(_, _, _) => state.memberMetaInfo.isEmpty
-      case ActivateMember(_, _, _) =>
-        state.memberMetaInfo.exists(metaInf =>
-          metaInf.memberState == MemberStatus.MEMBER_STATUS_INITIAL || metaInf.memberState == MemberStatus.MEMBER_STATUS_INACTIVE
-        )
-      case InactivateMember(_, _, _) =>
-        state.memberMetaInfo.exists(metaInf =>
-          metaInf.memberState == MemberStatus.MEMBER_STATUS_ACTIVE || metaInf.memberState == MemberStatus.MEMBER_STATUS_SUSPENDED
-        )
-      case SuspendMember(_, _, _) => state.memberMetaInfo.exists(_.memberState == MemberStatus.MEMBER_STATUS_INACTIVE)
-      case TerminateMember(_, _, _) =>
-        state.memberMetaInfo.exists(_.memberState == MemberStatus.MEMBER_STATUS_SUSPENDED)
-      case UpdateMemberInfo(_, _, _, _) =>
-        state.memberMetaInfo.exists(_.memberState != MemberStatus.MEMBER_STATUS_TERMINATED)
-      case GetMemberInfo(_, _) => true
-      case other =>
-        logger.error(s"Invalid Member Command $other")
-        false
-    }
-  }
-
   //CommandHandler
   private val commandHandler: (MemberState, MemberCommand) => ReplyEffect[MemberEvent, MemberState] = {
-    (state, command: MemberCommand) =>
+    (state, command) =>
       command.request match {
-        case cmd if !isCommandValidForState(state, cmd) =>
-          Effect.reply(command.replyTo) { StatusReply.Error(s"Invalid Command ${command.request} for State $state") }
-        case RegisterMember(Some(memberInfo: MemberInfo), Some(registeringMember), _) =>
-          registerMember(state.memberId.get, memberInfo, registeringMember, command.replyTo)
-        case ActivateMember(Some(memberId: MemberId), Some(activatingMemberId), _)
-            if state.memberId.contains(memberId) =>
-          activateMember(memberId, activatingMemberId, command.replyTo)
-        case InactivateMember(Some(memberId: MemberId), Some(inactivatingMemberId), _)
-            if state.memberId.contains(memberId) =>
-          inactivateMember(memberId, inactivatingMemberId, command.replyTo)
-        case SuspendMember(Some(memberId: MemberId), Some(suspendingMemberId), _)
-            if state.memberId.contains(memberId) =>
-          suspendMember(memberId, suspendingMemberId, command.replyTo)
-        case TerminateMember(Some(memberId: MemberId), Some(terminatingMemberId), _)
-            if state.memberId.contains(memberId) =>
-          terminateMember(memberId, terminatingMemberId, command.replyTo)
-        case UpdateMemberInfo(Some(memberId: MemberId), Some(memberInfo: MemberInfo), Some(updatingMember), _)
-            if state.memberId.contains(memberId) =>
-          updateMemberInfo(memberId, memberInfo, updatingMember, command.replyTo)
-        case GetMemberInfo(Some(memberId), _) if state.memberId.contains(memberId) =>
-          getMemberInfo(memberId, state, command.replyTo)
-        case _ =>
-          Effect.reply(command.replyTo) {
-            StatusReply.Error(s"Invalid Command ${command.request} for State: $state")
-          }
+        case registerMemberCommand: RegisterMember => registerMember(state, registerMemberCommand, command.replyTo)
+        case activateMemberCommand: ActivateMember => activateMember(state, activateMemberCommand, command.replyTo)
+        case suspendMemberCommand: SuspendMember => suspendMember(state, suspendMemberCommand, command.replyTo)
+        case terminateMemberCommand: TerminateMember => terminateMember(state, terminateMemberCommand, command.replyTo)
+        case editMemberInfoCommand: EditMemberInfo => editMemberInfo(state,  editMemberInfoCommand, command.replyTo)
+        case getMemberInfoCommand: GetMemberInfo => getMemberInfo(state, getMemberInfoCommand, command.replyTo)
+        case _ => useErrorStatusReply(command.replyTo, s"Invalid Command ${command.request}")
       }
   }
-
-  def registerMember(
-      memberId: MemberId,
-      memberInfo: MemberInfo,
-      actingMember: MemberId,
-      replyTo: ActorRef[StatusReply[MemberResponse]]
-  ): ReplyEffect[MemberEvent, MemberState] =
-    MemberValidation.validateMemberInfo(memberInfo) match {
-      case Valid(memberInfo) =>
-        val event =
-          MemberRegistered(Some(memberId), Some(memberInfo), Some(actingMember), Some(Timestamp(Instant.now(clock))))
-        Effect.persist(event).thenReply(replyTo) { _ =>
-          val res = StatusReply.Success(MemberEventResponse(event))
-          logger.info(s"registerMember: $res")
-          res
-        }
-      case Invalid(errors) =>
-        Effect.reply(replyTo) {
-          StatusReply.Error(
-            s"Invalid Member Info: $memberInfo with errors: ${errors.map { _.errorMessage }.toList.mkString(",")}"
-          )
-        }
-    }
-
-  def activateMember(
-      memberId: MemberId,
-      activatingMember: MemberId,
-      replyTo: ActorRef[StatusReply[MemberResponse]]
-  ): ReplyEffect[MemberEvent, MemberState] = {
-    val event = MemberActivated(Some(memberId), Some(activatingMember), Some(Timestamp(Instant.now(clock))))
-
-    Effect
-      .persist(event)
-      .thenReply(replyTo) { _ => StatusReply.Success(MemberEventResponse(event)) }
-  }
-
-  def inactivateMember(
-      memberId: MemberId,
-      actingMember: MemberId,
-      replyTo: ActorRef[StatusReply[MemberResponse]]
-  ): ReplyEffect[MemberEvent, MemberState] = {
-
-    val event = MemberInactivated(Some(memberId), Some(actingMember), Some(Timestamp(Instant.now(clock))))
-    Effect
-      .persist(event)
-      .thenReply(replyTo) { _ => StatusReply.Success(MemberEventResponse(event)) }
-
-  }
-
-  def suspendMember(
-      memberId: MemberId,
-      suspendingMemberId: MemberId,
-      replyTo: ActorRef[StatusReply[MemberResponse]]
-  ): ReplyEffect[MemberEvent, MemberState] = {
-    val event = MemberSuspended(Some(memberId), Some(suspendingMemberId), Some(Timestamp(Instant.now(clock))))
-    Effect
-      .persist(event)
-      .thenReply(replyTo) { _ => StatusReply.Success(MemberEventResponse(event)) }
-
-  }
-  def terminateMember(
-      memberId: MemberId,
-      terminatingMember: MemberId,
-      replyTo: ActorRef[StatusReply[MemberResponse]]
-  ): ReplyEffect[MemberEvent, MemberState] = {
-    val event = MemberTerminated(Some(memberId), Some(terminatingMember), Some(Timestamp(Instant.now(clock))))
-    Effect.persist(event).thenReply(replyTo) { _ => StatusReply.Success(MemberEventResponse(event)) }
-
-  }
-
-  def updateMemberInfo(
-      memberId: MemberId,
-      memberInfo: MemberInfo,
-      actingMember: MemberId,
-      replyTo: ActorRef[StatusReply[MemberResponse]]
-  ): ReplyEffect[MemberEvent, MemberState] =
-    MemberValidation.validateMemberInfo(memberInfo) match {
-      case Valid(memberInfo) =>
-        val event =
-          MemberInfoUpdated(Some(memberId), Some(memberInfo), Some(actingMember), Some(Timestamp(Instant.now(clock))))
-        Effect.persist(event).thenReply(replyTo) { _ => StatusReply.Success(MemberEventResponse(event)) }
-      case Invalid(errors) =>
-        Effect.reply(replyTo) {
-          StatusReply.Error(
-            s"Invalid Member Info: $memberInfo with errors: ${errors.map { _.errorMessage }.toList.mkString(",")}"
-          )
-        }
-    }
-
-  def getMemberInfo(
-      memberId: MemberId,
-      state: MemberState,
-      value: ActorRef[StatusReply[MemberResponse]]
-  ): ReplyEffect[MemberEvent, MemberState] = {
-    Effect.reply(value) {
-      StatusReply.Success(
-        MemberData(Some(memberId), state.memberInfo, state.memberMetaInfo)
-      )
-    }
-  }
-
-  private def createMemberMetaInfo(createdBy: MemberId, createdOn: Timestamp): MemberMetaInfo =
-    MemberMetaInfo(
-      Some(createdOn),
-      Some(createdBy),
-      Some(createdOn),
-      Some(createdBy),
-      MemberStatus.MEMBER_STATUS_INITIAL
-    )
-
-  //Will fail if invalid state
-  private def updateMemberMetaInfo(
-      state: MemberState,
-      updatedBy: MemberId,
-      updatedOn: Timestamp,
-      updatedStatus: MemberStatus
-  ): MemberState =
-    state.withMemberMetaInfo(
-      state.memberMetaInfo.get
-        .withLastModifiedBy(updatedBy)
-        .withLastModifiedOn(updatedOn)
-        .withMemberState(updatedStatus)
-    )
 
   //EventHandler
   private val eventHandler: (MemberState, MemberEvent) => MemberState = { (state, event) =>
     event match {
+      case memberRegisteredEvent: MemberRegistered =>
+        state match {
+          case x: DraftMemberState =>
+            x.copy(
+              requiredInfo = x.requiredInfo.copy(
+                contact = memberRegisteredEvent.memberInfo.get.contact,
+                handle = memberRegisteredEvent.memberInfo.get.handle,
+                avatarUrl = memberRegisteredEvent.memberInfo.get.avatarUrl,
+                firstName = memberRegisteredEvent.memberInfo.get.firstName,
+                lastName = memberRegisteredEvent.memberInfo.get.lastName,
+                tenant = memberRegisteredEvent.memberInfo.get.tenant
+              ),
+              optionalInfo = x.optionalInfo.copy(
+                notificationPreference = memberRegisteredEvent.memberInfo.get.notificationPreference,
+                organizationMembership = memberRegisteredEvent.memberInfo.get.organizationMembership
+              ),
+              meta = memberRegisteredEvent.meta.get
+            )
+          case _: RegisteredMemberState => state
+          case _: TerminatedMemberState => state
+        }
 
-      case MemberRegistered(_, Some(memberInfo), Some(actingMember), Some(createdOn), _) =>
-        state.withMemberInfo(memberInfo).withMemberMetaInfo(createMemberMetaInfo(actingMember, createdOn))
+      case memberActivatedEvent: MemberActivated =>
+        state match {
+          case DraftMemberState(requiredInfo, optionalInfo, _) => RegisteredMemberState(
+            info = createMemberInfoFromDraftState(requiredInfo, optionalInfo),
+            meta = memberActivatedEvent.meta.get
+          )
+          case x: RegisteredMemberState =>
+            if (x.meta.memberStatus.isMemberStatusSuspended) {
+              x.copy(meta = memberActivatedEvent.meta.get)
+            } else {
+              state
+            }
+          case _: TerminatedMemberState => state
+        }
 
-      case MemberActivated(_, Some(actingMember), Some(updatedOn), _) =>
-        updateMemberMetaInfo(state, actingMember, updatedOn, MEMBER_STATUS_ACTIVE)
+      case memberSuspendedEvent: MemberSuspended =>
+        state match {
+          case _: DraftMemberState => state
+          case x: RegisteredMemberState => x.copy(meta = memberSuspendedEvent.meta.get)
+          case _: TerminatedMemberState => state
+        }
 
-      case MemberInactivated(_, Some(actingMember), Some(updatedOn), _) =>
-        updateMemberMetaInfo(state, actingMember, updatedOn, MEMBER_STATUS_INACTIVE)
+      case memberTerminatedEvent: MemberTerminated =>
+        state match {
+          case _: DraftMemberState => state
+          case _: RegisteredMemberState => TerminatedMemberState(lastMeta = memberTerminatedEvent.lastMeta.get)
+          case _: TerminatedMemberState => state
+        }
 
-      case MemberSuspended(_, Some(actingMember), Some(updatedOn), _) =>
-        updateMemberMetaInfo(state, actingMember, updatedOn, MEMBER_STATUS_SUSPENDED)
-
-      case MemberTerminated(_, Some(actingMember), Some(updatedOn), _) =>
-        updateMemberMetaInfo(state, actingMember, updatedOn, MEMBER_STATUS_TERMINATED)
-
-      case MemberInfoUpdated(_, Some(memberInfo), Some(actingMember), Some(updatedOn), _) =>
-        updateMemberMetaInfo(
-          state.withMemberInfo(memberInfo),
-          actingMember,
-          updatedOn,
-          state.memberMetaInfo.get.memberState
-        )
+      case memberInfoEdited: MemberInfoEdited =>
+        state match {
+          case _: DraftMemberState =>
+            val info = memberInfoEdited.memberInfo.get
+            DraftMemberState(
+              requiredInfo = RequiredDraftInfo(
+                contact = info.contact,
+                handle = info.handle,
+                avatarUrl = info.avatarUrl,
+                firstName = info.firstName,
+                lastName = info.lastName,
+                tenant = info.tenant
+              ),
+              optionalInfo = OptionalDraftInfo(
+                notificationPreference = info.notificationPreference,
+                organizationMembership = info.organizationMembership
+              ),
+              meta = memberInfoEdited.meta.get
+            )
+          case _: RegisteredMemberState =>
+            RegisteredMemberState(
+              info = memberInfoEdited.memberInfo.get,
+              meta = memberInfoEdited.meta.get
+            )
+          case _: TerminatedMemberState => state
+        }
 
       case other =>
         throw new RuntimeException(s"Invalid/Unhandled event $other")
     }
+  }
+
+  private def registerMemberLogic(
+    meta: MemberMetaInfo,
+    registerMemberCommand: RegisterMember,
+    replyTo: ActorRef[StatusReply[MemberResponse]]
+  ): ReplyEffect[MemberEvent, MemberState] = {
+    if (meta.createdBy.isDefined) {
+      useErrorStatusReply(replyTo, s"Member has already been registered.")
+    } else {
+      val now = Some(Timestamp(Instant.now(clock)))
+      val newMeta = meta.copy(
+        lastModifiedOn = now,
+        lastModifiedBy = registerMemberCommand.registeringMember,
+        createdOn = now,
+        createdBy = registerMemberCommand.registeringMember,
+        memberStatus = MEMBER_STATUS_DRAFT
+      )
+      val event =
+        MemberRegistered(registerMemberCommand.memberId, registerMemberCommand.memberInfo, Some(newMeta))
+      Effect.persist(event).thenReply(replyTo) { _ =>
+        val res = StatusReply.Success(MemberEventResponse(event))
+        logger.info(s"registerMember: $res")
+        res
+      }
+    }
+  }
+
+  private def registerMember(
+    state: MemberState,
+    registerMemberCommand: RegisterMember,
+    replyTo: ActorRef[StatusReply[MemberResponse]]
+  ): ReplyEffect[MemberEvent, MemberState] = {
+    MemberValidation.validateRegisterMember(registerMemberCommand) match {
+      case Valid(_) =>
+        state match {
+          case DraftMemberState(_, _, meta) => registerMemberLogic(meta, registerMemberCommand, replyTo)
+          case _: RegisteredMemberState => useErrorStatusReply(replyTo, s"Member has already been registered.")
+          case _: TerminatedMemberState => useTerminatedStateErrorStatusReply(replyTo)
+        }
+      case Invalid(errors) =>
+        useCommandValidationErrorStatusReply(replyTo, errors, "RegisterMember")
+    }
+  }
+
+  private def activateMemberLogic(
+    info: MemberInfo,
+    meta: MemberMetaInfo,
+    activateMemberCommand: ActivateMember,
+    replyTo: ActorRef[StatusReply[MemberResponse]]
+  ): ReplyEffect[MemberEvent, MemberState] = {
+    if (meta.createdBy.isEmpty) {
+      useErrorStatusReply(replyTo, s"A member not registered cannot be activated")
+    } else if (meta.memberStatus.isMemberStatusActive) {
+      useErrorStatusReply(replyTo, s"Member has already been activated")
+    } else {
+      MemberValidation.validateMemberInfo(info) match {
+        case Valid(_) =>
+          val newMeta = meta.copy(
+            lastModifiedBy = activateMemberCommand.activatingMember,
+            lastModifiedOn = Some(Timestamp(Instant.now(clock))),
+            memberStatus = MEMBER_STATUS_ACTIVE
+          )
+          val event = MemberActivated(activateMemberCommand.memberId, Some(newMeta))
+
+          Effect
+            .persist(event)
+            .thenReply(replyTo) { _ => StatusReply.Success(MemberEventResponse(event)) }
+        case Invalid(errors) =>
+          val message = s"Member info is not sufficiently filled out to activate member: ${
+            errors.map {
+              _.errorMessage
+            }.toList.mkString(", ")
+          }"
+          useErrorStatusReply(replyTo, message)
+      }
+    }
+  }
+
+  private def activateMember(
+    state: MemberState,
+    activateMemberCommand: ActivateMember,
+    replyTo: ActorRef[StatusReply[MemberResponse]]
+  ): ReplyEffect[MemberEvent, MemberState] = {
+    MemberValidation.validateActivateMemberCommand(activateMemberCommand) match {
+      case Valid(_) =>
+        state match {
+          case DraftMemberState(requiredInfo, optionalInfo, meta) => {
+            val info = createMemberInfoFromDraftState(requiredInfo, optionalInfo)
+            activateMemberLogic(info, meta, activateMemberCommand, replyTo)
+          }
+          case RegisteredMemberState(info, meta) => activateMemberLogic(info, meta, activateMemberCommand, replyTo)
+          case _: TerminatedMemberState => useTerminatedStateErrorStatusReply(replyTo)
+        }
+      case Invalid(errors) =>
+        useCommandValidationErrorStatusReply(replyTo, errors, "ActivateMember")
+    }
+  }
+
+  private def suspendMemberLogic(
+    info: MemberInfo,
+    meta: MemberMetaInfo,
+    suspendMemberCommand: SuspendMember,
+    replyTo: ActorRef[StatusReply[MemberResponse]]
+  ): ReplyEffect[MemberEvent, MemberState] = {
+    MemberValidation.validateMemberInfo(info) match {
+      case Valid(_) =>
+        val newMeta = meta.copy(
+          lastModifiedBy = suspendMemberCommand.suspendingMember,
+          lastModifiedOn = Some(Timestamp(Instant.now(clock))),
+          memberStatus = MEMBER_STATUS_SUSPENDED
+        )
+        val event = MemberSuspended(suspendMemberCommand.memberId, Some(newMeta))
+        Effect
+          .persist(event)
+          .thenReply(replyTo) { _ => StatusReply.Success(MemberEventResponse(event)) }
+      case Invalid(errors) =>
+        useCommandValidationErrorStatusReply(replyTo, errors, "SuspendMember")
+    }
+  }
+
+  private def suspendMember(
+    state: MemberState,
+    suspendMemberCommand: SuspendMember,
+    replyTo: ActorRef[StatusReply[MemberResponse]]
+  ): ReplyEffect[MemberEvent, MemberState] = {
+    MemberValidation.validateSuspendMemberCommand(suspendMemberCommand) match {
+      case Valid(_) =>
+        state match {
+          case _: DraftMemberState => useErrorStatusReply(replyTo, s"Member has not yet been registered.")
+          case RegisteredMemberState(info, meta) => suspendMemberLogic(info, meta, suspendMemberCommand, replyTo)
+          case _: TerminatedMemberState => useTerminatedStateErrorStatusReply(replyTo)
+        }
+      case Invalid(errors) =>
+        useCommandValidationErrorStatusReply(replyTo, errors, "SuspendMember")
+    }
+  }
+
+  private def terminateMemberLogic(
+    meta: MemberMetaInfo,
+    terminateMemberCommand: TerminateMember,
+    replyTo: ActorRef[StatusReply[MemberResponse]]
+  ): ReplyEffect[MemberEvent, MemberState] = {
+    val newMeta = meta.copy(
+      lastModifiedBy = terminateMemberCommand.terminatingMember,
+      lastModifiedOn = Some(Timestamp(Instant.now(clock)))
+    )
+    val event = MemberTerminated(terminateMemberCommand.memberId, Some(newMeta))
+    Effect.persist(event).thenReply(replyTo) { _ => StatusReply.Success(MemberEventResponse(event)) }
+  }
+
+  private def terminateMember(
+    state: MemberState,
+    terminateMemberCommand: TerminateMember,
+    replyTo: ActorRef[StatusReply[MemberResponse]]
+  ): ReplyEffect[MemberEvent, MemberState] = {
+    MemberValidation.validateTerminateMemberCommand(terminateMemberCommand) match {
+      case Valid(_) =>
+        state match {
+          case _: DraftMemberState => useErrorStatusReply(replyTo, s"Member has not yet been registered.")
+          case RegisteredMemberState(_, meta) => terminateMemberLogic(meta, terminateMemberCommand, replyTo)
+          case _: TerminatedMemberState => useTerminatedStateErrorStatusReply(replyTo)
+        }
+      case Invalid(errors) =>
+        useCommandValidationErrorStatusReply(replyTo, errors, "TerminateMember")
+    }
+  }
+
+  private def editMemberInfoLogic(
+    info: MemberInfo,
+    metaInfo: MemberMetaInfo,
+    editMemberInfoCommand: EditMemberInfo,
+    replyTo: ActorRef[StatusReply[MemberResponse]]
+  ): ReplyEffect[MemberEvent, MemberState] = {
+    if (metaInfo.createdBy.isEmpty) {
+      useErrorStatusReply(replyTo, s"A member not registered cannot be edited")
+    } else if (metaInfo.memberStatus.isMemberStatusSuspended) {
+      useErrorStatusReply(replyTo, s"Cannot edit info for suspended members")
+    } else {
+      val editInfo = editMemberInfoCommand.memberInfo.get
+      val newInfo = info.copy(
+        handle = editInfo.handle.getOrElse(info.handle),
+        avatarUrl = editInfo.avatarUrl.getOrElse(info.avatarUrl),
+        firstName = editInfo.firstName.getOrElse(info.firstName),
+        lastName = editInfo.lastName.getOrElse(info.lastName),
+        notificationPreference = editInfo.notificationPreference.orElse(info.notificationPreference),
+        notificationOptIn = editInfo.notificationPreference.fold(info.notificationOptIn)(_ => true),
+        contact = editInfo.contact.orElse(info.contact),
+        organizationMembership = if (editInfo.organizationMembership.nonEmpty) editInfo.organizationMembership else info.organizationMembership,
+        tenant = editInfo.tenant.orElse(info.tenant)
+      )
+
+      val newMeta = metaInfo.copy(
+        lastModifiedBy = editMemberInfoCommand.editingMember,
+        lastModifiedOn = Some(Timestamp(Instant.now(clock)))
+      )
+      val event = MemberInfoEdited(editMemberInfoCommand.memberId, Some(newInfo), Some(newMeta))
+      Effect.persist(event).thenReply(replyTo) { _ => StatusReply.Success(MemberEventResponse(event)) }
+    }
+  }
+
+  private def editMemberInfo(
+    state: MemberState,
+    editMemberInfoCommand: EditMemberInfo,
+    replyTo: ActorRef[StatusReply[MemberResponse]]
+  ): ReplyEffect[MemberEvent, MemberState] = {
+    MemberValidation.validateEditMemberInfo(editMemberInfoCommand) match {
+      case Valid(_) =>
+        state match {
+          case DraftMemberState(requiredInfo, optionalInfo, meta) =>
+            val info = createMemberInfoFromDraftState(requiredInfo, optionalInfo)
+            editMemberInfoLogic(info, meta, editMemberInfoCommand, replyTo)
+          case RegisteredMemberState(info, meta) => editMemberInfoLogic(info, meta, editMemberInfoCommand, replyTo)
+          case _: TerminatedMemberState => useTerminatedStateErrorStatusReply(replyTo)
+        }
+      case Invalid(errors) =>
+        useCommandValidationErrorStatusReply(replyTo, errors, "EditMemberInfo")
+    }
+  }
+
+  private def getMemberInfoLogic (
+    info: MemberInfo,
+    metaInfo: MemberMetaInfo,
+    getMemberInfoCommand: GetMemberInfo,
+    replyTo: ActorRef[StatusReply[MemberResponse]]
+  ): ReplyEffect[MemberEvent, MemberState] = {
+    val (infoOpt, metaOpt): (Option[MemberInfo], Option[MemberMetaInfo]) =
+      metaInfo.createdBy.fold[(Option[MemberInfo], Option[MemberMetaInfo])]((None, None)) {
+        _ => (Some(info), Some(metaInfo))
+      }
+    Effect.reply(replyTo) {
+      StatusReply.Success(
+        MemberData(getMemberInfoCommand.memberId, infoOpt, metaOpt)
+      )
+    }
+  }
+
+  private def getMemberInfo(
+    state: MemberState,
+    getMemberInfoCommand: GetMemberInfo,
+    replyTo: ActorRef[StatusReply[MemberResponse]]
+  ): ReplyEffect[MemberEvent, MemberState] = {
+    MemberValidation.validateGetMemberInfo(getMemberInfoCommand) match {
+      case Valid(_) =>
+        state match {
+          case DraftMemberState(requiredInfo, optionalInfo, meta) =>
+            val info = createMemberInfoFromDraftState(requiredInfo, optionalInfo)
+            getMemberInfoLogic(info, meta, getMemberInfoCommand, replyTo)
+          case RegisteredMemberState(info, meta) => getMemberInfoLogic(info, meta, getMemberInfoCommand, replyTo)
+          case _: TerminatedMemberState => useTerminatedStateErrorStatusReply(replyTo)
+        }
+      case Invalid(errors) =>
+        useCommandValidationErrorStatusReply(replyTo, errors, "GetMemberInfo")
+    }
+  }
+
+  // Helpers
+
+  private def useCommandValidationErrorStatusReply(
+    replyTo: ActorRef[StatusReply[MemberResponse]],
+    errors: data.NonEmptyChain[MemberValidation.MemberValidationError],
+    commandName: String
+  ): ReplyEffect[MemberEvent, MemberState] = {
+    val message = s"Validation failed for $commandName with errors: ${
+      errors.map {
+        _.errorMessage
+      }.toList.mkString(", ")
+    }"
+    useErrorStatusReply(replyTo, message)
+  }
+
+  private def useTerminatedStateErrorStatusReply(
+    replyTo: ActorRef[StatusReply[MemberResponse]]
+  ): ReplyEffect[MemberEvent, MemberState] = {
+    useErrorStatusReply(replyTo, s"Terminated members cannot process messages")
+  }
+
+  private def useErrorStatusReply(
+    replyTo: ActorRef[StatusReply[MemberResponse]],
+    string: String
+  ): ReplyEffect[MemberEvent, MemberState] = {
+    Effect.reply(replyTo) {
+      StatusReply.Error(string)
+    }
+  }
+
+  private def createMemberInfoFromDraftState(
+    requiredInfo: RequiredDraftInfo,
+    optionalInfo: OptionalDraftInfo
+  ): MemberInfo = {
+    MemberInfo(
+      handle = requiredInfo.handle,
+      avatarUrl = requiredInfo.avatarUrl,
+      firstName = requiredInfo.firstName,
+      lastName = requiredInfo.lastName,
+      notificationPreference = optionalInfo.notificationPreference,
+      notificationOptIn = optionalInfo.notificationPreference.isDefined,
+      contact = requiredInfo.contact,
+      organizationMembership = optionalInfo.organizationMembership,
+      tenant = requiredInfo.tenant
+    )
   }
 }
