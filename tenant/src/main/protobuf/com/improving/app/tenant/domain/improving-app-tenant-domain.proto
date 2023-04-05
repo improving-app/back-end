@@ -15,80 +15,14 @@ option (scalapb.options) = {
 message EstablishTenant {
   com.improving.app.common.domain.TenantId tenant_id = 1;
   com.improving.app.common.domain.MemberId establishing_user = 2;
+  TenantInfo tenant_info = 3;
 }
 
 message TenantEstablished {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   com.improving.app.common.domain.TenantId tenant_id = 1;
-  MetaInfo meta_info = 2;
-}
-
-message UpdateTenantName {
-  com.improving.app.common.domain.TenantId tenant_id = 1;
-  string new_name = 2;
-  com.improving.app.common.domain.MemberId updating_user = 3;
-}
-
-message TenantNameUpdated {
-  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  com.improving.app.common.domain.TenantId tenant_id = 1;
-  string old_name = 2;
-  string new_name = 3;
-  MetaInfo meta_info = 4;
-}
-
-message UpdatePrimaryContact {
-  com.improving.app.common.domain.TenantId tenant_id = 1;
-  com.improving.app.common.domain.Contact new_contact = 2;
-  com.improving.app.common.domain.MemberId updating_user = 3;
-}
-
-message PrimaryContactUpdated {
-  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  com.improving.app.common.domain.TenantId tenant_id = 1;
-  com.improving.app.common.domain.Contact old_contact = 2;
-  com.improving.app.common.domain.Contact new_contact = 3;
-  MetaInfo meta_info = 4;
-}
-
-message UpdateAddress {
-  com.improving.app.common.domain.TenantId tenant_id = 1;
-  com.improving.app.common.domain.Address new_address = 2;
-  com.improving.app.common.domain.MemberId updating_user = 3;
-}
-
-message AddressUpdated {
-  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  com.improving.app.common.domain.TenantId tenant_id = 1;
-  com.improving.app.common.domain.Address old_address = 2;
-  com.improving.app.common.domain.Address new_address = 3;
-  MetaInfo meta_info = 4;
-}
-
-message AddOrganizations {
-  com.improving.app.common.domain.TenantId tenant_id = 1;
-  repeated com.improving.app.common.domain.OrganizationId org_id = 2;
-  com.improving.app.common.domain.MemberId updating_user = 3;
-}
-
-message OrganizationsAdded {
-  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  com.improving.app.common.domain.TenantId tenant_id = 1;
-  repeated com.improving.app.common.domain.OrganizationId new_orgs_list = 2;
-  MetaInfo meta_info = 3;
-}
-
-message RemoveOrganizations {
-  com.improving.app.common.domain.TenantId tenant_id = 1;
-  repeated com.improving.app.common.domain.OrganizationId org_id = 2;
-  com.improving.app.common.domain.MemberId updating_user = 3;
-}
-
-message OrganizationsRemoved {
-  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  com.improving.app.common.domain.TenantId tenant_id = 1;
-  repeated com.improving.app.common.domain.OrganizationId new_orgs_list = 2;
-  MetaInfo meta_info = 3;
+  TenantMetaInfo meta_info = 2;
+  TenantInfo tenant_info = 3;
 }
 
 message ActivateTenant {
@@ -99,7 +33,7 @@ message ActivateTenant {
 message TenantActivated {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   com.improving.app.common.domain.TenantId tenant_id = 1;
-  MetaInfo meta_info = 2;
+  TenantMetaInfo meta_info = 2;
 }
 
 message SuspendTenant {
@@ -111,21 +45,31 @@ message SuspendTenant {
 message TenantSuspended {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   com.improving.app.common.domain.TenantId tenant_id = 1;
-  MetaInfo meta_info = 2;
+  TenantMetaInfo meta_info = 2;
   string suspension_reason = 3;
+}
+
+message EditInfo {
+  com.improving.app.common.domain.TenantId tenant_id = 1;
+  com.improving.app.common.domain.MemberId editing_user = 2;
+  TenantInfo info_to_update = 3;
+}
+
+message InfoEdited {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  com.improving.app.common.domain.TenantId tenant_id = 1;
+  TenantMetaInfo meta_info = 2;
+  TenantInfo old_info = 3;
+  TenantInfo new_info = 4;
 }
 
 message TenantRequest {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   oneof sealed_value {
     EstablishTenant establish_tenant_value = 1;
-    UpdateTenantName update_tenant_name_value = 2;
-    UpdatePrimaryContact update_primary_contact_value = 3;
-    UpdateAddress update_address_value = 4;
-    AddOrganizations add_organizations_value = 5;
-    RemoveOrganizations remove_organizations_value = 6;
-    ActivateTenant activate_tenant_value = 7;
-    SuspendTenant suspend_tenant_value = 8;
+    ActivateTenant activate_tenant_value = 2;
+    SuspendTenant suspend_tenant_value = 3;
+    EditInfo edit_info_value = 4;
   }
 }
 
@@ -133,12 +77,8 @@ message TenantEvent {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   oneof sealed_value {
     TenantEstablished tenant_established_value = 1;
-    TenantNameUpdated tenant_name_updated_value = 2;
-    PrimaryContactUpdated primary_contact_updated_value = 3;
-    AddressUpdated address_updated_value = 4;
-    OrganizationsAdded organizations_added_value = 5;
-    OrganizationsRemoved organizations_removed_value = 6;
-    TenantActivated tenant_activated_value = 7;
-    TenantSuspended tenant_suspended_value = 8;
+    TenantActivated tenant_activated_value = 2;
+    TenantSuspended tenant_suspended_value = 3;
+    InfoEdited info_edited_value = 4;
   }
 }
