@@ -3,7 +3,7 @@ package com.improving.app.tenant.domain
 import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, MemberId, OrganizationId, TenantId, UsPostalCodeImpl}
 
 object Validation {
-  case class ValidationError(message: String)
+  case class ValidationError(message: String) extends Error
 
   type Validator[T] = T => Option[ValidationError]
 
