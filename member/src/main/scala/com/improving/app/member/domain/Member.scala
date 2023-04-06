@@ -119,11 +119,7 @@ object Member extends StrictLogging {
             meta = memberActivatedEvent.meta.get
           )
           case x: RegisteredMemberState =>
-            if (x.meta.currentState.isMemberStatusSuspended) {
-              x.copy(meta = memberActivatedEvent.meta.get)
-            } else {
-              state
-            }
+            x.copy(meta = memberActivatedEvent.meta.get)
           case _: TerminatedMemberState => state
         }
 
