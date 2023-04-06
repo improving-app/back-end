@@ -125,58 +125,6 @@ object util {
             UUID.fromString(response.actingMember.getOrElse(MemberId.defaultInstance).id),
             response.eventTime.getOrElse(Timestamp.defaultInstance).asJavaInstant
           )
-        //  case response @ com.improving.app.member.domain.MemberActivated(_, _, _, _) =>
-        //    Some(
-        //      MemberResponse.of(
-        //        MemberActivated(
-        //          response.memberId,
-        //          response.actingMember,
-        //          response.eventTime
-        //        )
-        //      )
-        //    )
-        //  case response @ com.improving.app.member.domain.MemberInactivated(_, _, _, _) =>
-        //    Some(
-        //      MemberResponse.of(
-        //        MemberInactivated(
-        //          response.memberId,
-        //          response.actingMember,
-        //          response.eventTime
-        //        )
-        //      )
-        //    )
-        //  case response @ com.improving.app.member.domain.MemberSuspended(_, _, _, _) =>
-        //    Some(
-        //      MemberResponse.of(
-        //        MemberSuspended(
-        //          response.memberId,
-        //          response.actingMember,
-        //          response.eventTime
-        //        )
-        //      )
-        //    )
-        //  case response @ com.improving.app.member.domain.MemberTerminated(_, _, _, _) =>
-        //    Some(
-        //      MemberResponse(
-        //        MemberTerminated(
-        //          response.memberId,
-        //          response.actingMember,
-        //          response.eventTime
-        //        )
-        //      )
-        //    )
-        //  case response @ com.improving.app.member.domain.MemberInfoUpdated(_, _, _, _, _) =>
-        //    Some(
-        //      MemberResponse(
-        //        MemberInfoUpdated(
-        //          response.memberId,
-        //          response.memberInfo.map(memberInfoToGatewayMemberInfo),
-        //          response.actingMember,
-        //          response.eventTime
-        //        )
-        //      )
-        //    )
-        //  case _ => None
       }
     else {
       val data = response.asMessage.getMemberStateValue
