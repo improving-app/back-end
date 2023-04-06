@@ -5,7 +5,7 @@ import akka.pattern.StatusReply
 import akka.persistence.testkit.scaladsl.EventSourcedBehaviorTestKit
 import akka.persistence.testkit.scaladsl.EventSourcedBehaviorTestKit.SerializationSettings
 import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
-import com.improving.app.member.domain.Member.{DraftMemberState, MemberCommand, MemberState, RegisteredMemberState, TerminatedMemberState}
+import com.improving.app.member.domain.Member.{DraftMemberState, MemberCommand, MemberState, RegisteredMemberState, TerminatedMemberState, UninitializedMemberState}
 import com.improving.app.member.domain.MemberState.{MEMBER_STATUS_ACTIVE, MEMBER_STATUS_DRAFT, MEMBER_STATUS_SUSPENDED}
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
@@ -32,12 +32,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
    result: EventSourcedBehaviorTestKit.CommandResultWithReply[MemberCommand, MemberEvent, MemberState, StatusReply[MemberResponse]]
   ): Unit = {
     result.hasNoEvents shouldBe true
-    val state = result.stateOfType[DraftMemberState]
-    state.requiredInfo.firstName shouldBe ""
-    state.requiredInfo.contact shouldBe None
-    state.requiredInfo.handle shouldBe ""
-    state.optionalInfo.organizationMembership shouldBe Seq.empty
-    state.meta.createdBy shouldBe None
+    result.state shouldBe UninitializedMemberState()
   }
 
   private def validateFailedActivateMemberInDraftState(
@@ -240,7 +235,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             )
           )
 
-          result.reply.getError.getMessage shouldBe "Member has already been registered."
+          result.reply.getError.getMessage shouldBe "RegisterMember command cannot be used on a draft Member"
         }
       }
 
@@ -253,7 +248,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             )
           )
 
-          result.reply.getError.getMessage shouldBe "A member not registered cannot be activated"
+          result.reply.getError.getMessage shouldBe "ActivateMember command cannot be used on an uninitialized Member"
           validateFailedInitialRegisterMember(result)
         }
 
@@ -378,7 +373,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             )
           )
 
-          result.reply.getError.getMessage shouldBe "Member has not yet been registered."
+          result.reply.getError.getMessage shouldBe "SuspendMember command cannot be used on an uninitialized Member"
         }
       }
 
@@ -391,7 +386,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             )
           )
 
-          result.reply.getError.getMessage shouldBe "Member has not yet been registered."
+          result.reply.getError.getMessage shouldBe "TerminateMember command cannot be used on an uninitialized Member"
         }
       }
 
@@ -404,7 +399,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             )
           )
 
-          result.reply.getError.getMessage shouldBe "A member not registered cannot be edited"
+          result.reply.getError.getMessage shouldBe "EditMemberInfo command cannot be used on an uninitialized Member"
           validateFailedInitialRegisterMember(result)
         }
 
@@ -701,11 +696,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
 
           result.hasNoEvents
 
-          val state = result.stateOfType[DraftMemberState]
-
-          state.requiredInfo shouldBe RequiredDraftInfo()
-          state.optionalInfo shouldBe OptionalDraftInfo()
-          state.meta shouldBe MemberMetaInfo()
+          result.state shouldBe UninitializedMemberState()
         }
 
         "succeed and give the correct info after registering" in {
@@ -762,7 +753,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
               )
             )
 
-            result.reply.getError.getMessage shouldBe "Member has already been registered."
+            result.reply.getError.getMessage shouldBe "RegisterMember command cannot be used on an active Member"
           }
         }
 
@@ -780,7 +771,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
               )
             )
 
-            result.reply.getError.getMessage shouldBe "Member has already been activated"
+            result.reply.getError.getMessage shouldBe "ActivateMember command cannot be used on an active Member"
             result.hasNoEvents
             result.stateOfType[RegisteredMemberState].meta.lastModifiedBy.get.id shouldBe "activatingMember"
           }
@@ -1119,7 +1110,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
               )
             )
 
-            result.reply.getError.getMessage shouldBe "Member has already been registered."
+            result.reply.getError.getMessage shouldBe "RegisterMember command cannot be used on a suspended Member"
           }
         }
 
@@ -1249,7 +1240,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
               )
             )
 
-            result.reply.getError.getMessage shouldBe "Cannot edit info for suspended members"
+            result.reply.getError.getMessage shouldBe "EditMemberInfo command cannot be used on a suspended Member"
           }
         }
 
@@ -1301,7 +1292,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             )
           )
 
-          result.reply.getError.getMessage shouldBe "Terminated members cannot process messages"
+          result.reply.getError.getMessage shouldBe "RegisterMember command cannot be used on a terminated Member"
         }
       }
 
@@ -1317,7 +1308,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             )
           )
 
-          result.reply.getError.getMessage shouldBe "Terminated members cannot process messages"
+          result.reply.getError.getMessage shouldBe "ActivateMember command cannot be used on a terminated Member"
         }
       }
 
@@ -1334,7 +1325,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             )
           )
 
-          result.reply.getError.getMessage shouldBe "Terminated members cannot process messages"
+          result.reply.getError.getMessage shouldBe "SuspendMember command cannot be used on a terminated Member"
         }
       }
 
@@ -1351,7 +1342,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             )
           )
 
-          result.reply.getError.getMessage shouldBe "Terminated members cannot process messages"
+          result.reply.getError.getMessage shouldBe "TerminateMember command cannot be used on a terminated Member"
         }
       }
 
@@ -1368,7 +1359,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             )
           )
 
-          result.reply.getError.getMessage shouldBe "Terminated members cannot process messages"
+          result.reply.getError.getMessage shouldBe "EditMemberInfo command cannot be used on a terminated Member"
         }
       }
 
@@ -1385,7 +1376,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             )
           )
 
-          result.reply.getError.getMessage shouldBe "Terminated members cannot process messages"
+          result.reply.getError.getMessage shouldBe "GetMemberInfo command cannot be used on a terminated Member"
         }
       }
     }
