@@ -11,7 +11,9 @@ import scala.util.{Failure, Success}
 
 class GatewayServerImpl(implicit val sys: ActorSystem[_]) extends MemberGatewayRoutes {
 
-  override val config: Config = ConfigFactory.load("application.conf")
+  override val config: Config = ConfigFactory
+    .load("application.conf")
+    .withFallback(ConfigFactory.defaultApplication())
 
   implicit override val handler: MemberGatewayHandler = new MemberGatewayHandler()
 

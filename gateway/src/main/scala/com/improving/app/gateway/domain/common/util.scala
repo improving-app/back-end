@@ -31,7 +31,9 @@ import java.util.UUID
 object util {
 
   def getHostAndPortForService(serviceName: String): (String, Int) = {
-    val config = ConfigFactory.load("application.conf")
+    val config = ConfigFactory
+      .load("application.conf")
+      .withFallback(ConfigFactory.defaultApplication())
     (
       config.getString(s"services.$serviceName.host"),
       config.getInt(s"services.$serviceName.port")
