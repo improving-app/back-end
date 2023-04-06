@@ -1,9 +1,11 @@
+import Dependencies._
 import akka.grpc.sbt.AkkaGrpcPlugin
 import com.typesafe.sbt.packager.Keys._
 import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
 import com.typesafe.sbt.packager.docker.DockerPlugin
 import sbt.Keys._
 import sbt.{Project, Test, Tests, _}
+import sbtdynver.DynVerPlugin.autoImport.dynverSeparator
 import sbtprotoc.ProtocPlugin.autoImport.PB
 import scalapb.GeneratorOption.{FlatPackage, RetainSourceCodeInfo, SingleLineToProtoString}
 
@@ -12,7 +14,7 @@ import scalapb.GeneratorOption.{FlatPackage, RetainSourceCodeInfo, SingleLineToP
  */
 object V {
   lazy val scala = "2.13.10"
-  lazy val akka = "2.7.0"
+  lazy val akka = "2.8.0"
   lazy val akkaHttp = "10.5.0"
   lazy val akkaManagement = "1.2.0"
   lazy val akkaProjection = "1.3.1"
@@ -30,7 +32,7 @@ object V {
 // C for Configuration functions
 object C {
 
-  val scala3Options = Seq(
+  val scala3Options: Seq[String] = Seq(
     "-release:17",
     "-deprecation",
     "-feature",
@@ -40,11 +42,108 @@ object C {
     "-Werror"
   )
 
-  val javaOptions = Seq(
+  val javaOptions: Seq[String] = Seq(
     "-Xlint:unchecked",
     "-Xlint:deprecation",
     "-parameters" // for Jackson
   )
+
+  def service(componentName: String, port: Int = 8080)(
+      project: Project
+  ): Project = {
+    project
+      .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
+      .configs(IntegrationTest)
+      .configure(Compilation.scala)
+      .configure(Testing.scalaTest)
+      .configure(Packaging.docker)
+      .settings(
+        Defaults.itSettings,
+        Defaults.itSettings,
+        name := componentName,
+        run / fork := true,
+        scalaVersion := V.scala,
+        libraryDependencies ++=
+          utilityDependencies ++ loggingDependencies ++ httpDependencies ++ akkaHttpTestingDependencies
+      )
+  }
+
+  object Compilation {
+
+    def scala(project: Project): Project = {
+      project.settings(
+        run / fork := true,
+        Compile / scalacOptions ++= Seq(
+          "-release:11",
+          "-deprecation",
+          "-feature",
+          "-unchecked",
+          "-Xlog-reflective-calls",
+          "-Xlint"
+        ),
+        Compile / javacOptions ++= Seq(
+          "-Xlint:unchecked",
+          "-Xlint:deprecation",
+          "-parameters" // for Jackson
+        )
+      )
+    }
+
+    def scalapbCodeGen(project: Project): Project = {
+      project.settings(
+        libraryDependencies ++= scalaPbDependencies,
+        Compile / PB.targets := Seq(
+          scalapb.gen(
+            FlatPackage,
+            SingleLineToProtoString,
+            RetainSourceCodeInfo
+          ) -> (Compile / sourceManaged).value / "scalapb",
+          scalapb.validate.gen(
+            FlatPackage,
+            SingleLineToProtoString,
+            RetainSourceCodeInfo
+          ) -> (Compile / sourceManaged).value / "scalapb"
+        ),
+        libraryDependencies += scalaPbCompilerPlugin
+      )
+    }
+  }
+
+  object Testing {
+    def scalaTest(project: Project): Project = {
+      project.settings(
+        Test / parallelExecution := false,
+        Test / testOptions += Tests.Argument("-oDF"),
+        Test / logBuffered := false,
+        libraryDependencies ++= basicTestingDependencies ++ jsonDependencies
+      )
+    }
+  }
+
+  object Packaging {
+
+    def docker(project: Project): Project = {
+      project.settings(
+        dockerBaseImage := "docker.io/library/adoptopenjdk:11-jre-hotspot",
+        dockerUsername := sys.props.get("docker.username"),
+        dockerRepository := sys.props.get("docker.registry"),
+        dockerUpdateLatest := true,
+        dockerExposedPorts ++= Seq(8080),
+        dockerBuildCommand := {
+          if (sys.props("os.arch") != "amd64") {
+            // use buildx with platform to build supported amd64 images on other CPU architectures
+            // this may require that you have first run 'docker buildx create' to set docker buildx up
+            dockerExecCommand.value ++ Seq(
+              "buildx",
+              "build",
+              "--platform=linux/amd64",
+              "--load"
+            ) ++ dockerBuildOptions.value :+ "."
+          } else dockerBuildCommand.value
+        }
+      )
+    }
+  }
 
   def akkaPersistentEntity(artifactName: String, port: Integer)(project: Project): Project = {
     project
@@ -59,6 +158,7 @@ object C {
         scalacOptions := scala3Options,
         Compile / scalacOptions ++= scala3Options,
         Compile / javacOptions ++= javaOptions,
+        Compile / publishLocal := true,
         Test / parallelExecution := false,
         Test / testOptions += Tests.Argument("-oDF"),
         Test / logBuffered := false,
@@ -71,8 +171,8 @@ object C {
           "com.typesafe.akka" %% "akka-actor-testkit-typed" % V.akka % Test,
           "com.typesafe.akka" %% "akka-cluster-tools" % V.akka,
           "com.typesafe.akka" %% "akka-cluster-sharding-typed" % V.akka,
-//          "com.lightbend.akka.discovery" %% "akka-discovery-kubernetes-api" % V.akkaManagement, // not yet necessary
-//          "com.lightbend.akka.management" %% "akka-management-cluster-bootstrap" % V.akkaManagement, // not yet necessary
+          //          "com.lightbend.akka.discovery" %% "akka-discovery-kubernetes-api" % V.akkaManagement, // not yet necessary
+          //          "com.lightbend.akka.management" %% "akka-management-cluster-bootstrap" % V.akkaManagement, // not yet necessary
           "com.typesafe.akka" %% "akka-persistence" % V.akka,
           "com.typesafe.akka" %% "akka-persistence-cassandra" % V.akkaPersistenceCassandra,
           "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0" % "protobuf",
@@ -142,12 +242,7 @@ object C {
 
   def scalapbCodeGen(project: Project): Project = {
     project.settings(
-      libraryDependencies ++= Seq(
-        "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
-        "com.google.protobuf" % "protobuf-java" % V.protobufJava % "protobuf",
-        "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0" % "protobuf",
-        "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0"
-      ),
+      libraryDependencies ++= scalaPbDependencies,
       Compile / PB.targets := Seq(
         scalapb.gen(
           FlatPackage,
