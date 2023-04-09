@@ -1,14 +1,20 @@
 package com.improving.app.organization
 
-import com.typesafe.scalalogging.StrictLogging
+import akka.actor.typed.ActorSystem
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import com.improving.app.common.service.ServiceMain
+import com.improving.app.organization.api.OrganizationServiceHandler
 
-// This class was initially generated based on the .proto definition by Kalix tooling.
-//
-// As long as this file exists it will not be overwritten: you can maintain it yourself,
-// or delete it so it is regenerated as needed.
+import scala.concurrent.Future
 
-object Main extends App with StrictLogging{
+/**
+ * This is the running application for the Organization project.
+ */
+object Main extends ServiceMain {
+  override val projectName = "improving-app-organization"
+  override val port = 8082
+  override def service(system: ActorSystem[Nothing]): HttpRequest => Future[HttpResponse] =
+    OrganizationServiceHandler.withServerReflection(new OrganizationServiceImpl(system))(system)
 
-    logger.info("starting the Organization service")
-
+  run()
 }
