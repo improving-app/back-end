@@ -4,12 +4,22 @@ syntax = "proto3";
 
 package com.improving.app.organization.api;
 
-import "com/improving/app/organization/domain/improving-app-organization-domain.proto";
+import "com/improving/app/organization/domain/organizationRequest.proto";
+import "com/improving/app/organization/domain/organizationData.proto";
+import "com/improving/app/organization/domain/organizationEvents.proto";
 import "scalapb/scalapb.proto";
 
 
 service OrganizationService {
 
   rpc EstablishOrganization (domain.EstablishOrganization) returns (domain.OrganizationEstablished) {}
+
+  rpc ActivateOrganization (domain.ActivateOrganization) returns (domain.OrganizationActivated) {}
+
+  rpc SuspendOrganization (domain.SuspendOrganization) returns (domain.OrganizationSuspended) {}
+
+  rpc TerminateOrganization (domain.TerminateOrganization) returns (domain.OrganizationTerminated) {}
+
+  rpc GetOrganizationInfo (domain.GetOrganizationInfo) returns (domain.OrganizationInfo) {}
 
 }

@@ -1,0 +1,36 @@
+syntax = "proto3";
+package com.improving.app.organization.domain;
+
+import "scalapb/scalapb.proto";
+import "google/protobuf/timestamp.proto";
+
+import "com/improving/app/common/domain/address.proto";
+import "com/improving/app/common/domain/memberId.proto";
+import "com/improving/app/common/domain/tenantId.proto";
+
+enum OrganizationState {
+  UninitializedOrganizationState = 0;
+  DraftOrganizationState = 1;
+  ActiveOrganizationState = 2;
+  SuspendedOrganizationState = 3;
+}
+
+message OrganizationMetaInfo {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  google.protobuf.Timestamp created_on = 1;
+  com.improving.app.common.domain.MemberId created_by = 2;
+  google.protobuf.Timestamp last_updated = 3;
+  com.improving.app.common.domain.MemberId last_updated_by = 4;
+  OrganizationState state = 5;
+}
+
+message OrganizationInfo {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  string name = 1;
+  string shortName = 2;
+  com.improving.app.common.domain.TenantId tenant = 3;
+  bool is_public = 4;
+  com.improving.app.common.domain.Address address = 5;
+  string url = 6;
+  string logo = 7;
+}
