@@ -1,88 +1,9 @@
 package com.improving.app.tenant.domain
 
-import com.improving.app.common.domain._
+import com.improving.app.common.errors.Validation._
+import com.improving.app.common.errors.ValidationError
 
 object Validation {
-  case class ValidationError(message: String) extends Error
-
-  type Validator[T] = T => Option[ValidationError]
-
-  def applyAllValidators[T](validators: Seq[Validator[T]]): Validator[T] =
-    (validatee: T) =>
-      validators.foldLeft[Option[ValidationError]](None)(
-        (maybeAlreadyError: Option[ValidationError], validator) =>
-          maybeAlreadyError.orElse(validator(validatee))
-      )
-
-  def required[T]: (String, Validator[T]) => Validator[Option[T]] = (fieldName, validator) => {
-    opt =>
-      if (opt.isEmpty) {
-        Some(ValidationError(fieldName + " is missing."))
-      } else {
-        validator(opt.get)
-      }
-  }
-
-  def optional[T]: Validator[T] => Validator[Option[T]] = validator => opt => opt.flatMap(validator)
-
-  def skipEmpty(validator: Validation.Validator[String]): Validator[String] = str => {
-    if(str.isEmpty) {
-      None
-    } else {
-      validator(str)
-    }
-  }
-
-  val tenantIdValidator: Validator[TenantId] = tenantId => {
-    if (tenantId.id.isEmpty) {
-      Some(ValidationError("Tenant Id is empty"))
-    } else {
-      None
-    }
-  }
-
-  val memberIdValidator: Validator[MemberId] = memberId => {
-      if (memberId.id.isEmpty) {
-        Some(ValidationError("Member Id is empty"))
-      } else {
-        None
-      }
-  }
-
-  val contactValidator: Validator[Contact] = contact => {
-    if (
-      contact.firstName.isEmpty ||
-        contact.lastName.isEmpty ||
-        contact.emailAddress.forall(_.isEmpty) ||
-        contact.phone.forall(_.isEmpty) ||
-        contact.userName.isEmpty
-    ) {
-      Some(ValidationError("Primary contact info is not complete"))
-    } else {
-      None
-    }
-  }
-
-  val addressValidator: Validator[Address] = address => {
-    val isPostalCodeMissing = address.postalCode.fold(true) {
-      postalCode =>
-        postalCode.postalCodeValue match {
-          case UsPostalCodeImpl(code) => code.isEmpty
-          case CaPostalCodeImpl(code) => code.isEmpty
-        }
-    }
-    if (
-      address.line1.isEmpty ||
-        address.city.isEmpty ||
-        address.stateProvince.isEmpty ||
-        address.country.isEmpty ||
-        isPostalCodeMissing
-    ) {
-      Some(ValidationError("Address information is not complete"))
-    } else {
-      None
-    }
-  }
 
   val organizationsValidator: Validator[TenantOrganizationList] = organizationList => {
     None

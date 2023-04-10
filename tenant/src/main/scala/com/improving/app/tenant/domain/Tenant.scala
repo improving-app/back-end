@@ -8,6 +8,8 @@ import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.MemberId
+import com.improving.app.common.errors.Validation._
+import com.improving.app.common.errors._
 import com.improving.app.tenant.domain.Validation._
 
 import java.time.Instant
@@ -29,8 +31,6 @@ object Tenant {
   private case class ActiveTenant(info: TenantInfo, metaInfo: TenantMetaInfo) extends EstablishedTenantState
 
   private case class SuspendedTenant(info: TenantInfo, metaInfo: TenantMetaInfo, suspensionReason: String) extends EstablishedTenantState
-
-  case class StateError(message: String) extends Error
 
   def apply(persistenceId: PersistenceId): Behavior[TenantCommand] = {
     Behaviors.setup(context =>
