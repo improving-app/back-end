@@ -1,35 +1,366 @@
 package com.improving.app.organization.domain
-// import kalix.scalasdk.eventsourcedentity.EventSourcedEntity
-// import kalix.scalasdk.testkit.EventSourcedResult
+
+import TestData.baseOrganizationInfo
+import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import akka.actor.typed.ActorRef
+import akka.pattern.StatusReply
+import akka.persistence.typed.PersistenceId
+import com.improving.app.common.domain.{MemberId, OrganizationId}
+import com.improving.app.organization.domain.Organization.OrganizationRequestEnvelope
+import com.typesafe.config.{Config, ConfigFactory}
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.wordspec.AnyWordSpecLike
 
-// This class was initially generated based on the .proto definition by Kalix tooling.
-//
-// As long as this file exists it will not be overwritten: you can maintain it yourself,
-// or delete it so it is regenerated as needed.
+import scala.util.Random
 
-class OrganizationSpec extends AnyWordSpec with Matchers {
-  /*  "The Organization" should {
-    "allow being established" in {
-      val testKit = OrganizationTestKit(new Organization(_))
-      val command = EstablishOrganization(
-        orgId = Some(OrganizationId(UUID.randomUUID().toString)),
-        info = Some(OrganizationInfo("test", "T", None))
-      )
-      val result = testKit.establishOrganization(command)
-      result.events.isEmpty shouldBe false
-      result.didEmitEvents shouldBe true
-      result.isError shouldBe false
-      val actualEvent = result.nextEvent[OrganizationEstablished]
-      actualEvent.orgId shouldBe command.orgId
-      actualEvent.info shouldBe command.info
-      actualEvent.timestamp > 0 shouldBe true
-      testKit.currentState shouldBe
-        OrgState(actualEvent.orgId, actualEvent.info, actualEvent.timestamp)
-      result.reply.orgId shouldBe command.orgId
-      result.reply.info shouldBe command.info
-      result.reply.timestamp shouldBe actualEvent.timestamp
+object OrganizationSpec {
+  val config: Config = ConfigFactory.parseString("""
+    akka.persistence.journal.plugin = "akka.persistence.journal.inmem"
+    akka.persistence.journal.inmem.test-serialization = on
+
+    akka.actor.serialization-bindings{
+      "com.improving.app.common.serialize.PBMsgSerializable" = proto
     }
-  }*/
+  """)
+}
+class OrganizationSpec
+    extends ScalaTestWithActorTestKit(OrganizationSpec.config)
+    with AnyWordSpecLike
+    with BeforeAndAfterAll
+    with Matchers {
+  override def afterAll(): Unit = testKit.shutdownTestKit()
+
+  def createTestVariables(): (String, ActorRef[OrganizationRequestEnvelope], TestProbe[StatusReply[OrganizationEvent]]) = {
+    val organizationId = Random.nextString(31)
+    val p = this.testKit.spawn(Organization(PersistenceId.ofUniqueId(organizationId)))
+    val probe = this.testKit.createTestProbe[StatusReply[OrganizationEvent]]()
+    (organizationId, p, probe)
+  }
+
+  def establishOrganization(
+    organizationId: String,
+    p: ActorRef[OrganizationRequestEnvelope],
+    probe: TestProbe[StatusReply[OrganizationEvent]],
+    organizationInfo: OrganizationInfo = baseOrganizationInfo
+  ): StatusReply[OrganizationEvent] = {
+    p ! Organization.OrganizationRequestEnvelope(
+      EstablishOrganization(
+        organizationId = Some(OrganizationId(organizationId)),
+        onBehalfOf = Some(MemberId("establishingUser")),
+        organizationInfo = Some(organizationInfo)
+      ),
+      probe.ref
+    )
+
+    probe.receiveMessage()
+  }
+
+  "A Organization Actor" when {
+    // Should this also error out when other organizations have the same name?
+    "in the Uninitialized State" when {
+      "executing EstablishOrganization command" should {
+        "error for an unauthorized updating user" ignore {
+          val (organizationId, p, probe) = createTestVariables()
+
+          p ! Organization.OrganizationRequestEnvelope(
+            EstablishOrganization(
+              organizationId = Some(OrganizationId(organizationId)),
+              onBehalfOf = Some(MemberId("unauthorizedUser")),
+              organizationInfo = Some(baseOrganizationInfo)
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Organization"
+
+        }
+
+        "succeed for the golden path and return the proper response" in {
+          val (organizationId, p, probe) = createTestVariables()
+
+          p ! Organization.OrganizationRequestEnvelope(
+            EstablishOrganization(
+              organizationId = Some(OrganizationId(organizationId)),
+              onBehalfOf = Some(MemberId("establishingUser")),
+              organizationInfo = Some(baseOrganizationInfo)
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val successVal = response.getValue
+          successVal.asMessage.sealedValue.organizationEstablished.get.organizationId shouldBe Some(OrganizationId(organizationId))
+          successVal.asMessage.sealedValue.organizationEstablished.get.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
+        }
+
+        "error for a organization that is already established" in {
+          val (organizationId, p, probe) = createTestVariables()
+
+          p ! Organization.OrganizationRequestEnvelope(
+            EstablishOrganization(
+              organizationId = Some(OrganizationId(organizationId)),
+              onBehalfOf = Some(MemberId("establishingUser")),
+              organizationInfo = Some(baseOrganizationInfo)
+            ),
+            probe.ref
+          )
+
+          val establishResponse = probe.receiveMessage()
+          assert(establishResponse.isSuccess)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            EstablishOrganization(
+              organizationId = Some(OrganizationId(organizationId)),
+              onBehalfOf = Some(MemberId("establishingUser")),
+              organizationInfo = Some(baseOrganizationInfo)
+            ),
+            probe.ref
+          )
+
+          val response2 = probe.receiveMessage()
+          assert(response2.isError)
+
+          val responseError2 = response2.getError
+          responseError2.getMessage shouldEqual "Message type not supported in draft state"
+        }
+      }
+      "executing any command other than establish" should {
+        "error as not established" in {
+          val (organizationId, p, probe) = createTestVariables()
+
+          val commands = Seq(
+            ActivateOrganization(Some(OrganizationId(organizationId)), Some(MemberId("user"))),
+            SuspendOrganization(Some(OrganizationId(organizationId)),  Some(MemberId("user"))),
+          )
+
+          commands.foreach(command => {
+            p ! Organization.OrganizationRequestEnvelope(command, probe.ref)
+
+            val response = probe.receiveMessage()
+
+            assert(response.isError)
+
+            val responseError = response.getError
+            responseError.getMessage shouldEqual "Organization is not established"
+          })
+        }
+      }
+    }
+
+    "in the Active state" when {
+      "executing ActiveOrganization command" should {
+        "error and return the proper response" in {
+          // Transition to Active state
+          val (organizationId, p, probe) = createTestVariables()
+
+          val establishOrganizationResponse = establishOrganization(organizationId, p, probe)
+          assert(establishOrganizationResponse.isSuccess)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            ActivateOrganization(
+              organizationId = Some(OrganizationId(organizationId)),
+              onBehalfOf = Some(MemberId("activatingUser"))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            ActivateOrganization(
+              organizationId = Some(OrganizationId(organizationId)),
+              onBehalfOf = Some(MemberId("activatingUser"))
+            ),
+            probe.ref
+          )
+
+          val response2 = probe.receiveMessage()
+
+          assert(response2.isError)
+
+          val responseError = response2.getError
+          responseError.getMessage shouldEqual "Message type not supported in active state"
+        }
+      }
+
+      "executing SuspendOrganization command" should {
+        "error for an unauthorized updating user" ignore {
+          val (organizationId, p, probe) = createTestVariables()
+
+          val establishOrganizationResponse = establishOrganization(organizationId, p, probe)
+          assert(establishOrganizationResponse.isSuccess)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            SuspendOrganization(
+              organizationId = Some(OrganizationId(organizationId)),
+              onBehalfOf = Some(MemberId("unauthorizedUser"))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Organization"
+        }
+
+        "succeed and return the proper response" in {
+          // Transition to Active state
+          val (organizationId, p, probe) = createTestVariables()
+
+          val establishOrganizationResponse = establishOrganization(organizationId, p, probe)
+          assert(establishOrganizationResponse.isSuccess)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            SuspendOrganization(
+              organizationId = Some(OrganizationId(organizationId)),
+              onBehalfOf = Some(MemberId("suspendingUser"))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val successVal = response.getValue
+          assert(successVal.asMessage.sealedValue.organizationSuspended.isDefined)
+
+          val organizationSuspended = successVal.asMessage.sealedValue.organizationSuspended.get
+
+          organizationSuspended.organizationId shouldEqual Some(OrganizationId(organizationId))
+
+          assert(organizationSuspended.metaInfo.isDefined)
+
+          val organizationSuspendedMeta = organizationSuspended.metaInfo.get
+
+          organizationSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
+          organizationSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("suspendingUser"))
+        }
+      }
+    }
+
+    "in the Suspended state" when {
+
+      "executing ActivateOrganization command" should {
+        "error for an unauthorized updating user" ignore {
+          val (organizationId, p, probe) = createTestVariables()
+
+          val establishResponse = establishOrganization(organizationId, p, probe)
+          assert(establishResponse.isSuccess)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            SuspendOrganization(
+              organizationId = Some(OrganizationId(organizationId)),
+              onBehalfOf = Some(MemberId("suspendingUser")),
+            ),
+            probe.ref
+          )
+
+          val suspendOrganizationResponse = probe.receiveMessage()
+          assert(suspendOrganizationResponse.isSuccess)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            ActivateOrganization(
+              organizationId = Some(OrganizationId(organizationId)),
+              Some(MemberId("unauthorizedUser"))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Organization"
+        }
+
+        "succeed and return the proper response" in {
+          val (organizationId, p, probe) = createTestVariables()
+
+          val establishResponse = establishOrganization(organizationId, p, probe)
+          assert(establishResponse.isSuccess)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            SuspendOrganization(
+              organizationId = Some(OrganizationId(organizationId)),
+              onBehalfOf = Some(MemberId("suspendingUser")),
+            ),
+            probe.ref
+          )
+
+          val suspendOrganizationResponse = probe.receiveMessage()
+          assert(suspendOrganizationResponse.isSuccess)
+
+            // Change state to active
+          p ! Organization.OrganizationRequestEnvelope(
+            ActivateOrganization(
+              organizationId = Some(OrganizationId(organizationId)),
+              onBehalfOf = Some(MemberId("activatingUser"))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val successVal = response.getValue
+          assert(successVal.asMessage.sealedValue.organizationActivated.isDefined)
+
+          val organizationActivated = successVal.asMessage.sealedValue.organizationActivated.get
+
+          organizationActivated.organizationId shouldEqual Some(OrganizationId(organizationId))
+
+          assert(organizationActivated.metaInfo.isDefined)
+
+          val organizationSuspendedMeta = organizationActivated.metaInfo.get
+
+          organizationSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
+          organizationSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("activatingUser"))
+        }
+      }
+
+      "executing SuspendOrganization command" should {
+        "yield a state error" in {
+          val (organizationId, p, probe) = createTestVariables()
+
+          val establishResponse = establishOrganization(organizationId, p, probe)
+          assert(establishResponse.isSuccess)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            SuspendOrganization(
+              organizationId = Some(OrganizationId(organizationId)),
+              onBehalfOf = Some(MemberId("suspendingUser"))
+            ),
+            probe.ref
+          )
+
+          val suspendOrganizationResponse = probe.receiveMessage()
+          assert(suspendOrganizationResponse.isSuccess)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            SuspendOrganization(
+              organizationId = Some(OrganizationId(organizationId)),
+              onBehalfOf = Some(MemberId("updatingUser1"))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "Message type not supported in suspended state"
+        }
+      }
+    }
+  }
 }
