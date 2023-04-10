@@ -6,6 +6,12 @@ services:
     ports:
       - "9042:9042"
 
+  gateway-service:
+    image: improving-app-gateway:latest
+    ports:
+      - "9000:9000"
+    depends_on: ["scylla-db"]
+
   tenant-service:
     image: improving-app-tenant:latest
     ports:
