@@ -11,6 +11,7 @@ object MemberMessages {
   sealed trait MemberEventResponse
 
   case class RegisterMember(
+      memberId: MemberId,
       memberInfo: MemberInfo,
       actingMember: MemberId
   ) extends MemberCommand

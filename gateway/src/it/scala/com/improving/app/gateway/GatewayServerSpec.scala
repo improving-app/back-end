@@ -29,7 +29,7 @@ import io.circe.generic.auto._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.ScalaFutures
 
-import scala.language.postfixOps
+//import scala.language.postfixOps
 import java.util.UUID
 
 class GatewayServerSpec
@@ -82,7 +82,7 @@ class GatewayServerSpec
 
         val registeringMember = UUID.randomUUID()
 
-        val command = RegisterMember(info, registeringMember)
+        val command = RegisterMember(UUID.randomUUID(), info, registeringMember)
 
         Post("/registerMember", command.asJson.toString()) -> Route.seal(server.routes) -> check {
           status shouldEqual StatusCodes.Success

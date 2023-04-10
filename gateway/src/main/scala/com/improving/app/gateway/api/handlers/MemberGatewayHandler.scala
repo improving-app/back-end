@@ -31,6 +31,7 @@ class MemberGatewayHandler(implicit val system: ActorSystem[_]) {
   def registerMember(in: RegisterMember): Future[MemberRegistered] = memberClient
     .registerMember(
       com.improving.app.member.domain.RegisterMember(
+        Some(com.improving.app.common.domain.MemberId.of(in.memberId.toString)),
         Some(gatewayMemberInfoToMemberInfo(in.memberInfo)),
         Some(com.improving.app.common.domain.MemberId.of(in.actingMember.toString))
       )
