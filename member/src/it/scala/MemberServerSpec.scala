@@ -38,7 +38,6 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
     organizationMembership = Seq(OrganizationId("SomeOrganization")),
     tenant = Some(TenantId("SomeTenant"))
   )
-  val memberInfoWithNumber = memberInfo.withContact(memberInfo.contact.get.withPhone("123-456-7890"))
 
   val editableInfo = EditableInfo(
     contact = Some(Contact(
@@ -191,7 +190,11 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
       response.memberId should equal(Some(MemberId(memberId)))
       validateMember(
         Some(MemberId(memberId)),
-        Some(memberInfoWithNumber),
+        Some(memberInfo.copy(
+          contact = Some(memberInfo.contact.get.copy(
+            phone = Some("123-456-7890")
+          ))
+        )),
         Some(MemberId("ADMIN_1")),
         Some(MemberId("ADMIN_5")),
         MEMBER_STATUS_ACTIVE,
