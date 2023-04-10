@@ -58,6 +58,7 @@ class GatewayServerSpec
   implicit val scheduler: Scheduler = system.scheduler
 
   override def beforeEach(): Unit = server.start()
+  override def afterEach(): Unit = server.sys.terminate()
 
   "In MemberGateway" when {
     "Sending RegisterMember" should {
@@ -84,7 +85,7 @@ class GatewayServerSpec
 
         val command = RegisterMember(info, registeringMember)
 
-        Post("/registerMember", command.asJson.toString()) -> Route.seal(server.routes) -> check {
+        Post("/register", command.asJson.toString()) -> Route.seal(server.routes) -> check {
           status shouldEqual StatusCodes.Success
           responseEntity.toString.asJson.as[MemberEventResponse].map { response =>
             val registered = response.asInstanceOf[MemberRegistered]
