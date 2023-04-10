@@ -1,8 +1,12 @@
 package com.improving.app.gateway.domain
 
+import com.improving.app.gateway.domain.MemberMessages.MemberEventResponse
 import com.improving.app.gateway.domain.common.IdTypes.{MemberId, OrganizationId, TenantId}
 import com.improving.app.gateway.domain.common.Contact
-import io.circe.Encoder
+import io.circe.syntax._
+import io.circe.generic.auto._
+import io.circe.generic.semiauto.deriveEncoder
+import io.circe.{Decoder, Encoder}
 
 import java.time.Instant
 

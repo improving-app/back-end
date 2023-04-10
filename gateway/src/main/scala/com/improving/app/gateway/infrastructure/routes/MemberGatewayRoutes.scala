@@ -9,6 +9,7 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport
 import io.circe.{Decoder, Encoder}
+import io.circe.generic.auto._
 import io.circe.syntax._
 import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 
