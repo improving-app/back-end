@@ -1,6 +1,8 @@
 syntax = "proto3";
 package com.improving.app.organization.domain;
 
+import "com/improving/app/common/domain/organizationId.proto";
+
 
 message Address {
   // maybe put this in a "improving.app.api" package?
@@ -12,22 +14,22 @@ message OrganizationInfo {
   Address address = 3; //required for BaseOrg. Optional for all other organizations.
   bool is_private = 4; //defaults to true
   string url = 5;
-  OrganizationId parent_org =6; //BaseOrganizations do not have a parent. All other organizations must have a parent. The BaseOrganization (only one per organizational structure) is the financially responsible party.
+  common.domain.OrganizationId parent_org =6; //BaseOrganizations do not have a parent. All other organizations must have a parent. The BaseOrganization (only one per organizational structure) is the financially responsible party.
 }
 
 message OrgState {
-  OrganizationId org_id = 1;
+  common.domain.OrganizationId org_id = 1;
   OrganizationInfo info = 2;
   sint64 timestamp = 3;
 }
 
 message EstablishOrganization {
-  domain.OrganizationId org_id = 1;
-  domain.OrganizationInfo info = 2;
+  common.domain.OrganizationId org_id = 1;
+  OrganizationInfo info = 2;
 }
 
 message OrganizationEstablished {
-  domain.OrganizationId org_id = 1;
-  domain.OrganizationInfo info = 2;
+  common.domain.OrganizationId org_id = 1;
+  OrganizationInfo info = 2;
   sint64 timestamp = 3;
 }
