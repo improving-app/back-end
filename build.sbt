@@ -2,7 +2,7 @@ ThisBuild / dynverSeparator := "-"
 
 lazy val backEnd = project
   .in(file("."))
-  .aggregate(commonTypes, gateway)
+  .aggregate(commonTypes, gateway, tenant, organization, member)
 
 // This is for protobuf types defined at 'domain' scope and having cross-service applicability only.
 lazy val commonTypes = project
