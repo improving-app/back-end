@@ -171,6 +171,7 @@ object C {
           "com.typesafe.akka" %% "akka-actor-testkit-typed" % V.akka % Test,
           "com.typesafe.akka" %% "akka-cluster-tools" % V.akka,
           "com.typesafe.akka" %% "akka-cluster-sharding-typed" % V.akka,
+          "com.typesafe.akka" %% "akka-discovery" % V.akka,
           //          "com.lightbend.akka.discovery" %% "akka-discovery-kubernetes-api" % V.akkaManagement, // not yet necessary
           //          "com.lightbend.akka.management" %% "akka-management-cluster-bootstrap" % V.akkaManagement, // not yet necessary
           "com.typesafe.akka" %% "akka-persistence" % V.akka,
@@ -193,7 +194,7 @@ object C {
           "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test",
           "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion % "it, test",
           "org.wvlet.airframe" %% "airframe-ulid" % V.airframeUlidVersion,
-        ),
+        ) ++ akkaHttpTestingDependencies,
         dockerBaseImage := "docker.io/library/eclipse-temurin:17.0.6_10-jre",
         dockerUsername := sys.props.get("docker.username"),
         dockerRepository := sys.props.get("docker.registry"),
