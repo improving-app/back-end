@@ -11,6 +11,7 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.implicits.toFoldableOps
 import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.MemberId
+import com.improving.app.common.errors.{StateError, ValidationError, Error}
 import com.improving.app.member.domain.{MemberState => StateEnum}
 import com.typesafe.scalalogging.StrictLogging
 
@@ -28,8 +29,6 @@ object Member extends StrictLogging {
   private def emptyState(): MemberState = {
     UninitializedMemberState()
   }
-
-  case class StateError(str: String)
 
   sealed trait MemberState
 
@@ -68,15 +67,10 @@ object Member extends StrictLogging {
         }
     }
 
-  /**
-   * State Diagram
-   *
-   * Initial -> Active <-> Inactive <-> Suspended -> Terminated
-   */
   //CommandHandler
   private val commandHandler: (MemberState, MemberCommand) => ReplyEffect[MemberEvent, MemberState] = {
     (state, command) =>
-      val result: Either[StateError, MemberResponse] = state match {
+      val result: Either[Error, MemberResponse] = state match {
         case UninitializedMemberState() =>
           command.request match {
             case registerMemberCommand: RegisterMember => registerMember(registerMemberCommand)
@@ -123,7 +117,7 @@ object Member extends StrictLogging {
       }
 
       result match {
-        case Left(error) => Effect.reply(command.replyTo)(StatusReply.Error(error.str))
+        case Left(error) => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
         case Right(event) =>
           event match {
             case _: MemberData =>
@@ -216,7 +210,7 @@ object Member extends StrictLogging {
 
   private def registerMember(
     registerMemberCommand: RegisterMember
-  ): Either[StateError, MemberResponse] = {
+  ): Either[Error, MemberResponse] = {
     MemberValidation.validateRegisterMember(registerMemberCommand) match {
       case Valid(_) =>
         val now = Some(Timestamp(Instant.now(clock)))
@@ -234,7 +228,7 @@ object Member extends StrictLogging {
         )
         Right(MemberEventResponse(event))
       case Invalid(errors) =>
-        Left(StateError(useCommandValidationError(errors, s"${registerMemberCommand.productPrefix}")))
+        Left(ValidationError(useCommandValidationError(errors, s"${registerMemberCommand.productPrefix}")))
     }
   }
 
@@ -242,7 +236,7 @@ object Member extends StrictLogging {
     info: MemberInfo,
     meta: MemberMetaInfo,
     activateMemberCommand: ActivateMember
-  ): Either[StateError, MemberResponse] = {
+  ): Either[Error, MemberResponse] = {
     MemberValidation.validateActivateMemberCommand(activateMemberCommand) match {
       case Valid(_) =>
         val newMeta = meta.copy(
@@ -263,7 +257,7 @@ object Member extends StrictLogging {
           }
         )
       case Invalid(errors) =>
-        Left(StateError(useCommandValidationError(errors, s"${activateMemberCommand.productPrefix}")))
+        Left(ValidationError(useCommandValidationError(errors, s"${activateMemberCommand.productPrefix}")))
     }
   }
 
@@ -271,7 +265,7 @@ object Member extends StrictLogging {
     info: MemberInfo,
     meta: MemberMetaInfo,
     suspendMemberCommand: SuspendMember,
-  ): Either[StateError, MemberResponse] = {
+  ): Either[Error, MemberResponse] = {
     MemberValidation.validateSuspendMemberCommand(suspendMemberCommand) match {
       case Valid(_) =>
         val newMeta = meta.copy(
@@ -299,7 +293,7 @@ object Member extends StrictLogging {
   private def terminateMember(
     meta: MemberMetaInfo,
     terminateMemberCommand: TerminateMember
-  ): Either[StateError, MemberResponse] = {
+  ): Either[Error, MemberResponse] = {
     MemberValidation.validateTerminateMemberCommand(terminateMemberCommand) match {
       case Valid(_) =>
         val newMeta = meta.copy(
@@ -309,7 +303,7 @@ object Member extends StrictLogging {
         val event = MemberTerminated(terminateMemberCommand.memberId, Some(newMeta))
         Right(MemberEventResponse(event))
       case Invalid(errors) =>
-        Left(StateError(useCommandValidationError(errors, s"${terminateMemberCommand.productPrefix}")))
+        Left(ValidationError(useCommandValidationError(errors, s"${terminateMemberCommand.productPrefix}")))
     }
   }
 
@@ -317,7 +311,7 @@ object Member extends StrictLogging {
     info: MemberInfo,
     meta: MemberMetaInfo,
     editMemberInfoCommand: EditMemberInfo
-  ): Either[StateError, MemberResponse] = {
+  ): Either[Error, MemberResponse] = {
     MemberValidation.validateEditMemberInfo(editMemberInfoCommand) match {
       case Valid(_) =>
         val newInfo = updateInfoFromEditInfo(info, editMemberInfoCommand.memberInfo.get)
@@ -329,7 +323,7 @@ object Member extends StrictLogging {
         val event = MemberInfoEdited(editMemberInfoCommand.memberId, Some(newInfo), Some(newMeta))
         Right(MemberEventResponse(event))
       case Invalid(errors) =>
-        Left(StateError(useCommandValidationError(errors, s"${editMemberInfoCommand.productPrefix}")))
+        Left(ValidationError(useCommandValidationError(errors, s"${editMemberInfoCommand.productPrefix}")))
     }
   }
 
@@ -337,12 +331,12 @@ object Member extends StrictLogging {
     info: MemberInfo,
     meta: MemberMetaInfo,
     getMemberInfoCommand: GetMemberInfo,
-  ): Either[StateError, MemberResponse] = {
+  ): Either[Error, MemberResponse] = {
     MemberValidation.validateGetMemberInfo(getMemberInfoCommand) match {
       case Valid(_) =>
         Right(MemberData(getMemberInfoCommand.memberId, Some(info), Some(meta)))
       case Invalid(errors) =>
-        Left(StateError(useCommandValidationError(errors, s"${getMemberInfoCommand.productPrefix}")))
+        Left(ValidationError(useCommandValidationError(errors, s"${getMemberInfoCommand.productPrefix}")))
     }
   }
 
@@ -366,7 +360,7 @@ object Member extends StrictLogging {
     info: MemberInfo,
     issuingCommand: String,
     createEvent: () => MemberResponse
-  ): Either[StateError, MemberResponse] = {
+  ): Either[Error, MemberResponse] = {
     MemberValidation.validateMemberInfo(info) match {
       case Valid(_) =>
         Right(createEvent())
