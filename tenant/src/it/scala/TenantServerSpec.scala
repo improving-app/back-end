@@ -142,4 +142,41 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
       response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("suspendingUser"))
     }
   }
+
+  it should "properly process GetOrganizations" in {
+    withContainers { containers =>
+      val client = getClient(containers)
+
+      val tenantId = Random.nextString(31)
+
+      val establishedResponse = client.establishTenant(EstablishTenant(
+        tenantId = Some(TenantId(tenantId)),
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(baseTenantInfo.copy(organizations = Some(
+          TenantOrganizationList(
+            Seq(
+              OrganizationId("org1"),
+              OrganizationId("org2")
+            )
+          )
+        )))
+      )).futureValue
+
+      establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
+      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
+
+      val response = client.getOrganizations(GetOrganizations(
+        tenantId = Some(TenantId(tenantId)),
+      )).futureValue
+
+      response.organizations shouldBe Some(
+        TenantOrganizationList(
+          Seq(
+            OrganizationId("org1"),
+            OrganizationId("org2")
+          )
+        )
+      )
+    }
+  }
 }

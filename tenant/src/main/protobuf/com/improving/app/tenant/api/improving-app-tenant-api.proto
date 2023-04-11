@@ -16,4 +16,6 @@ service TenantService {
   rpc ActivateTenant (domain.ActivateTenant) returns (domain.TenantActivated) {}
 
   rpc SuspendTenant (domain.SuspendTenant) returns (domain.TenantSuspended) {}
+
+  rpc GetOrganizations (domain.GetOrganizations) returns (domain.OrganizationData) {}
 }

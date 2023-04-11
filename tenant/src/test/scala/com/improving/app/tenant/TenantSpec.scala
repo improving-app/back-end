@@ -32,19 +32,19 @@ class TenantSpec
     with Matchers {
   override def afterAll(): Unit = testKit.shutdownTestKit()
 
-  def createTestVariables(): (String, ActorRef[TenantCommand], TestProbe[StatusReply[TenantEvent]]) = {
+  def createTestVariables(): (String, ActorRef[TenantCommand], TestProbe[StatusReply[TenantResponse]]) = {
     val tenantId = Random.nextString(31)
     val p = this.testKit.spawn(Tenant(PersistenceId.ofUniqueId(tenantId)))
-    val probe = this.testKit.createTestProbe[StatusReply[TenantEvent]]()
+    val probe = this.testKit.createTestProbe[StatusReply[TenantResponse]]()
     (tenantId, p, probe)
   }
 
   def establishTenant(
     tenantId: String,
     p: ActorRef[TenantCommand],
-    probe: TestProbe[StatusReply[TenantEvent]],
+    probe: TestProbe[StatusReply[TenantResponse]],
     tenantInfo: TenantInfo = baseTenantInfo
-  ): StatusReply[TenantEvent] = {
+  ): StatusReply[TenantResponse] = {
     p ! Tenant.TenantCommand(
       EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
@@ -96,9 +96,9 @@ class TenantSpec
           val response = probe.receiveMessage()
           assert(response.isSuccess)
 
-          val successVal = response.getValue
-          successVal.asMessage.sealedValue.tenantEstablishedValue.get.tenantId shouldBe Some(TenantId(tenantId))
-          successVal.asMessage.sealedValue.tenantEstablishedValue.get.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
+          val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantEstablishedValue
+          successVal.tenantId shouldBe Some(TenantId(tenantId))
+          successVal.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
         }
 
         "error for a tenant that is already established" in {
@@ -130,6 +130,24 @@ class TenantSpec
 
           val responseError2 = response2.getError
           responseError2.getMessage shouldEqual "Tenant is already established"
+        }
+      }
+      "executing GetOrganizations command" should {
+        "succeed but return an empty list" in {
+          val (tenantId, p, probe) = createTestVariables()
+
+          p ! Tenant.TenantCommand(
+            GetOrganizations(
+              tenantId = Some(TenantId(tenantId))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val responseVal = response.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue
+          responseVal.organizations shouldBe Some(TenantOrganizationList())
         }
       }
       "executing any command other than establish" should {
@@ -201,13 +219,10 @@ class TenantSpec
           val response = probe.receiveMessage()
           assert(response.isSuccess)
 
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.infoEditedValue.isDefined)
+          val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          val infoEdited = successVal.asMessage.sealedValue.infoEditedValue.get
-
-          infoEdited.oldInfo shouldBe Some(baseTenantInfo)
-          infoEdited.newInfo shouldBe Some(baseTenantInfo)
+          successVal.oldInfo shouldBe Some(baseTenantInfo)
+          successVal.newInfo shouldBe Some(baseTenantInfo)
         }
 
         "succeed for an edit of all fields and return the proper response" in {
@@ -241,13 +256,10 @@ class TenantSpec
           val response = probe.receiveMessage()
           assert(response.isSuccess)
 
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.infoEditedValue.isDefined)
+          val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          val infoEdited = successVal.asMessage.sealedValue.infoEditedValue.get
-
-          infoEdited.oldInfo shouldBe Some(baseTenantInfo)
-          infoEdited.newInfo shouldBe Some(updatedInfo)
+          successVal.oldInfo shouldBe Some(baseTenantInfo)
+          successVal.newInfo shouldBe Some(updatedInfo)
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -277,13 +289,10 @@ class TenantSpec
           val response = probe.receiveMessage()
           assert(response.isSuccess)
 
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.infoEditedValue.isDefined)
+          val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          val infoEdited = successVal.asMessage.sealedValue.infoEditedValue.get
-
-          infoEdited.oldInfo shouldBe Some(baseTenantInfo)
-          infoEdited.newInfo shouldBe Some(baseTenantInfo.copy(name = newName, organizations = Some(newOrgs)))
+          successVal.oldInfo shouldBe Some(baseTenantInfo)
+          successVal.newInfo shouldBe Some(baseTenantInfo.copy(name = newName, organizations = Some(newOrgs)))
         }
 
         "error for incomplete updating primary contact info" in {
@@ -410,20 +419,56 @@ class TenantSpec
           val response = probe.receiveMessage()
           assert(response.isSuccess)
 
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.tenantSuspendedValue.isDefined)
+          val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantSuspendedValue
 
-          val tenantSuspended = successVal.asMessage.sealedValue.tenantSuspendedValue.get
+          successVal.tenantId shouldEqual Some(TenantId(tenantId))
+          successVal.suspensionReason shouldEqual "reason1"
 
-          tenantSuspended.tenantId shouldEqual Some(TenantId(tenantId))
-          tenantSuspended.suspensionReason shouldEqual "reason1"
+          assert(successVal.metaInfo.isDefined)
 
-          assert(tenantSuspended.metaInfo.isDefined)
-
-          val tenantSuspendedMeta = tenantSuspended.metaInfo.get
+          val tenantSuspendedMeta = successVal.metaInfo.get
 
           tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("suspendingUser"))
+        }
+      }
+
+      "executing GetOrganizations command" should {
+        "succeed and return the proper response" in {
+          val (tenantId, p, probe) = createTestVariables()
+
+          val establishTenantResponse = establishTenant(
+            tenantId,
+            p,
+            probe,
+            baseTenantInfo.copy(organizations = Some(
+              TenantOrganizationList(
+                Seq(
+                  OrganizationId("org1"),
+                  OrganizationId("org2")
+                )
+              )
+            ))
+          )
+          assert(establishTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            GetOrganizations(
+              tenantId = Some(TenantId(tenantId))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val successVal = response.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue
+          successVal.organizations shouldEqual Some(TenantOrganizationList(
+            Seq(
+              OrganizationId("org1"),
+              OrganizationId("org2")
+            )
+          ))
         }
       }
     }
@@ -497,15 +542,12 @@ class TenantSpec
           val response = probe.receiveMessage()
           assert(response.isSuccess)
 
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.infoEditedValue.isDefined)
+          val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          val infoEdited = successVal.asMessage.sealedValue.infoEditedValue.get
-
-          assert(infoEdited.metaInfo.isDefined)
-          assert(infoEdited.oldInfo.isDefined)
-          infoEdited.oldInfo.get shouldEqual baseTenantInfo
-          infoEdited.newInfo.get shouldEqual baseTenantInfo
+          assert(successVal.metaInfo.isDefined)
+          assert(successVal.oldInfo.isDefined)
+          successVal.oldInfo.get shouldEqual baseTenantInfo
+          successVal.newInfo.get shouldEqual baseTenantInfo
         }
 
         "succeed for an edit of all fields and return the proper response" in {
@@ -551,15 +593,12 @@ class TenantSpec
           val response = probe.receiveMessage()
           assert(response.isSuccess)
 
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.infoEditedValue.isDefined)
+          val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          val infoEdited = successVal.asMessage.sealedValue.infoEditedValue.get
-
-          assert(infoEdited.metaInfo.isDefined)
-          assert(infoEdited.oldInfo.isDefined)
-          infoEdited.oldInfo.get shouldEqual baseTenantInfo
-          infoEdited.newInfo.get shouldEqual updatedInfo
+          assert(successVal.metaInfo.isDefined)
+          assert(successVal.oldInfo.isDefined)
+          successVal.oldInfo.get shouldEqual baseTenantInfo
+          successVal.newInfo.get shouldEqual updatedInfo
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -601,15 +640,12 @@ class TenantSpec
           val response = probe.receiveMessage()
           assert(response.isSuccess)
 
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.infoEditedValue.isDefined)
+          val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          val infoEdited = successVal.asMessage.sealedValue.infoEditedValue.get
-
-          assert(infoEdited.metaInfo.isDefined)
-          assert(infoEdited.oldInfo.isDefined)
-          infoEdited.oldInfo.get shouldEqual baseTenantInfo
-          infoEdited.newInfo.get shouldEqual baseTenantInfo.copy(name = newName, organizations = Some(newOrgs))
+          assert(successVal.metaInfo.isDefined)
+          assert(successVal.oldInfo.isDefined)
+          successVal.oldInfo.get shouldEqual baseTenantInfo
+          successVal.newInfo.get shouldEqual baseTenantInfo.copy(name = newName, organizations = Some(newOrgs))
         }
 
         "error for incomplete updating primary contact info" in {
@@ -757,16 +793,13 @@ class TenantSpec
           val response = probe.receiveMessage()
           assert(response.isSuccess)
 
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.tenantActivatedValue.isDefined)
+          val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantActivatedValue
 
-          val tenantActivated = successVal.asMessage.sealedValue.tenantActivatedValue.get
+          successVal.tenantId shouldEqual Some(TenantId(tenantId))
 
-          tenantActivated.tenantId shouldEqual Some(TenantId(tenantId))
+          assert(successVal.metaInfo.isDefined)
 
-          assert(tenantActivated.metaInfo.isDefined)
-
-          val tenantSuspendedMeta = tenantActivated.metaInfo.get
+          val tenantSuspendedMeta = successVal.metaInfo.get
 
           tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("activatingUser"))
@@ -838,20 +871,67 @@ class TenantSpec
           val response = probe.receiveMessage()
           assert(response.isSuccess)
 
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.tenantSuspendedValue.isDefined)
+          val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantSuspendedValue
 
-          val tenantSuspended = successVal.asMessage.sealedValue.tenantSuspendedValue.get
+          successVal.tenantId shouldEqual Some(TenantId(tenantId))
+          successVal.suspensionReason shouldEqual "reason1"
 
-          tenantSuspended.tenantId shouldEqual Some(TenantId(tenantId))
-          tenantSuspended.suspensionReason shouldEqual "reason1"
+          assert(successVal.metaInfo.isDefined)
 
-          assert(tenantSuspended.metaInfo.isDefined)
-
-          val tenantSuspendedMeta = tenantSuspended.metaInfo.get
+          val tenantSuspendedMeta = successVal.metaInfo.get
 
           tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser1"))
+        }
+      }
+
+      "executing GetOrganizations command" should {
+        "succeed and return the proper response" in {
+          val (tenantId, p, probe) = createTestVariables()
+
+          val establishResponse = establishTenant(
+            tenantId,
+            p,
+            probe,
+            baseTenantInfo.copy(organizations = Some(
+              TenantOrganizationList(
+                Seq(
+                  OrganizationId("org1"),
+                  OrganizationId("org2")
+                )
+              )
+            )))
+          assert(establishResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId(tenantId)),
+              suspendingUser = Some(MemberId("suspendingUser")),
+              suspensionReason = "reason"
+            ),
+            probe.ref
+          )
+
+          val suspendTenantResponse = probe.receiveMessage()
+          assert(suspendTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            GetOrganizations(
+              tenantId = Some(TenantId(tenantId))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val successVal = response.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue
+          successVal.organizations shouldEqual Some(TenantOrganizationList(
+            Seq(
+              OrganizationId("org1"),
+              OrganizationId("org2")
+            )
+          ))
         }
       }
     }
