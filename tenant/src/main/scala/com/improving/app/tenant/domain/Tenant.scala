@@ -46,25 +46,25 @@ object Tenant {
   private val commandHandler: (TenantState, TenantCommand) => ReplyEffect[TenantResponse, TenantState] = { (state, command) =>
     val result: Either[Error, TenantResponse] = state match {
       case UninitializedTenant =>
-        command.request.asMessage.sealedValue match {
-          case TenantRequestMessage.SealedValue.EstablishTenantValue(value) => establishTenant(value)
-          case TenantRequestMessage.SealedValue.GetOrganizationValue(value) => getOrganizations(value)
+        command.request match {
+          case x: EstablishTenant => establishTenant(x)
+          case x: GetOrganizations => getOrganizations(x)
           case _ => Left(StateError("Tenant is not established"))
         }
       case establishedState: EstablishedTenantState =>
-        command.request.asMessage.sealedValue match {
-          case TenantRequestMessage.SealedValue.Empty => Left(StateError("Command is not supported"))
-          case TenantRequestMessage.SealedValue.EstablishTenantValue(_) => Left(StateError("Tenant is already established"))
-          case TenantRequestMessage.SealedValue.ActivateTenantValue(value) => activateTenant(establishedState, value)
-          case TenantRequestMessage.SealedValue.SuspendTenantValue(value) => suspendTenant(establishedState, value)
-          case TenantRequestMessage.SealedValue.EditInfoValue(value) => editInfo(establishedState, value)
-          case TenantRequestMessage.SealedValue.GetOrganizationValue(value) => getOrganizations(value, Some(establishedState))
+        command.request match {
+          case _: EstablishTenant => Left(StateError("Tenant is already established"))
+          case x: ActivateTenant => activateTenant(establishedState, x)
+          case x: SuspendTenant => suspendTenant(establishedState, x)
+          case x: EditInfo => editInfo(establishedState, x)
+          case x: GetOrganizations => getOrganizations(x, Some(establishedState))
+          case _ => Left(StateError("Command is not supported"))
         }
     }
     result match {
       case Left(error) => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
       case Right(response) => response match {
-        case _: TenantDataResponse =>Effect.reply(command.replyTo) { StatusReply.Success(response) }
+        case _: TenantDataResponse => Effect.reply(command.replyTo) { StatusReply.Success(response) }
         case _: TenantEventResponse => Effect.persist(response).thenReply(command.replyTo) { _ => StatusReply.Success(response) }
         case _ => Effect.reply(command.replyTo)(StatusReply.Error(s"${response.productPrefix} is not a supported member response"))
       }
