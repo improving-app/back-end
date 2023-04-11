@@ -180,6 +180,7 @@ object C {
           "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0",
           "com.typesafe.akka" %% "akka-persistence-query" % V.akka,
           "com.typesafe.akka" %% "akka-persistence-typed" % V.akka,
+          "com.typesafe.akka" %% "akka-persistence-testkit" % V.akka % Test,
           "com.lightbend.akka" %% "akka-projection-core" % "1.3.1",
           "com.lightbend.akka" %% "akka-projection-eventsourced" % V.akkaProjection,
           "com.typesafe.akka" %% "akka-serialization-jackson" % V.akka,

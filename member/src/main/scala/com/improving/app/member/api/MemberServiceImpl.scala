@@ -6,7 +6,6 @@ import akka.pattern.StatusReply
 import akka.util.Timeout
 import com.improving.app.member.domain.Member.{HasMemberId, MemberCommand, MemberEntityKey}
 import com.improving.app.member.domain._
-import wvlet.airframe.ulid.ULID
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
@@ -53,49 +52,38 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
   }
 
   override def registerMember(in: RegisterMember): Future[MemberRegistered] = {
-    //create a member with a generated Id
-    //TODO check collision - for now ULID assumed to be unique - Entity will reject registerMember if already exists
     handleRequest(
       in,
-      { case StatusReply.Success(MemberEventResponse(response @ MemberRegistered(_, _, _, _, _), _)) =>
+      { case StatusReply.Success(MemberEventResponse(response @ MemberRegistered(_, _, _, _), _)) =>
         response
-      },
-      _ => ULID.newULIDString
+      }
     )
   }
 
   override def activateMember(in: ActivateMember): Future[MemberActivated] =
     handleRequest(
       in,
-      { case StatusReply.Success(MemberEventResponse(response @ MemberActivated(_, _, _, _), _)) => response }
-    )
-
-  override def inactivateMember(
-      in: InactivateMember
-  ): Future[MemberInactivated] =
-    handleRequest(
-      in,
-      { case StatusReply.Success(MemberEventResponse(response @ MemberInactivated(_, _, _, _), _)) => response }
+      { case StatusReply.Success(MemberEventResponse(response @ MemberActivated(_, _, _), _)) => response }
     )
 
   override def suspendMember(in: SuspendMember): Future[MemberSuspended] =
     handleRequest(
       in,
-      { case StatusReply.Success(MemberEventResponse(response @ MemberSuspended(_, _, _, _), _)) => response }
+      { case StatusReply.Success(MemberEventResponse(response @ MemberSuspended(_, _, _), _)) => response }
     )
 
   override def terminateMember(in: TerminateMember): Future[MemberTerminated] =
     handleRequest(
       in,
-      { case StatusReply.Success(MemberEventResponse(response @ MemberTerminated(_, _, _, _), _)) => response }
+      { case StatusReply.Success(MemberEventResponse(response @ MemberTerminated(_, _, _), _)) => response }
     )
 
-  override def updateMemberInfo(
-      in: UpdateMemberInfo
-  ): Future[MemberInfoUpdated] =
+  override def editMemberInfo(
+      in: EditMemberInfo
+  ): Future[MemberInfoEdited] =
     handleRequest(
       in,
-      { case StatusReply.Success(MemberEventResponse(response @ MemberInfoUpdated(_, _, _, _, _), _)) => response }
+      { case StatusReply.Success(MemberEventResponse(response @ MemberInfoEdited(_, _, _, _), _)) => response }
     )
 
   override def getMemberInfo(in: GetMemberInfo): Future[MemberData] =

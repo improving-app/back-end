@@ -5,8 +5,7 @@ import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, Tenan
 import com.improving.app.gateway.domain.MemberMessages.{MemberData, MemberEventResponse, MemberRegistered}
 import com.improving.app.gateway.domain.MemberStatus.{
   ACTIVE_MEMBER_STATUS,
-  INACTIVE_MEMBER_STATUS,
-  INITIAL_MEMBER_STATUS,
+  DRAFT_MEMBER_STATUS,
   SUSPENDED_MEMBER_STATUS,
   TERMINATED_MEMBER_STATUS
 }
@@ -22,7 +21,7 @@ import com.improving.app.gateway.domain.{
   MemberStatus => GatewayMemberStatus,
   NotificationPreference => GatewayNotificationPreference
 }
-import com.improving.app.member.domain.{MemberInfo, MemberMetaInfo, MemberStatus, NotificationPreference}
+import com.improving.app.member.domain.{MemberInfo, MemberMetaInfo, MemberState, NotificationPreference}
 import com.typesafe.config.ConfigFactory
 
 import java.time.Instant
@@ -45,10 +44,10 @@ object util {
     avatarUrl = info.avatarUrl,
     firstName = info.firstName,
     lastName = info.lastName,
-    notificationPreference = gatewayNotificationPreferenceToNotificationPreference(info.notificationPreference),
+    notificationPreference = Some(gatewayNotificationPreferenceToNotificationPreference(info.notificationPreference)),
     notificationOptIn = info.notificationOptIn,
     contact = Some(gatewayContactToContact(info.contact)),
-    organizations = info.organizations.map(id => OrganizationId(id.toString)),
+    organizationMembership = info.organizations.map(id => OrganizationId(id.toString)),
     tenant = Some(TenantId(info.tenant.toString))
   )
 
@@ -60,7 +59,7 @@ object util {
     notificationPreference = notificationPreferenceToGatewayNotificationPreference(info.notificationPreference),
     notificationOptIn = info.notificationOptIn,
     contact = contactToGatewayContact(info.contact.getOrElse(Contact.defaultInstance)),
-    organizations = info.organizations.map(id => UUID.fromString(id.id)),
+    organizations = info.organizationMembership.map(id => UUID.fromString(id.id)),
     tenant = UUID.fromString(info.tenant.getOrElse(TenantId.defaultInstance).id)
   )
 
@@ -80,27 +79,29 @@ object util {
     userName = contact.userName
   )
 
-  private def memberStateToGatewayMemberState(memberStatus: MemberStatus): GatewayMemberStatus =
-    if (memberStatus.isMemberStatusInitial) INITIAL_MEMBER_STATUS
+  private def memberStateToGatewayMemberState(memberStatus: MemberState): GatewayMemberStatus = {
+    if (memberStatus.isMemberStatusDraft) DRAFT_MEMBER_STATUS
     else if (memberStatus.isMemberStatusActive) ACTIVE_MEMBER_STATUS
-    else if (memberStatus.isMemberStatusInactive) INACTIVE_MEMBER_STATUS
     else if (memberStatus.isMemberStatusSuspended) SUSPENDED_MEMBER_STATUS
     else TERMINATED_MEMBER_STATUS
+  }
 
   private def memberMetaToGatewayMemberMeta(info: MemberMetaInfo): GatewayMemberMetaInfo = GatewayMemberMetaInfo(
     createdOn = Instant.ofEpochSecond(info.createdOn.map(_.seconds).getOrElse(0L)),
     createdBy = UUID.fromString(info.createdBy.getOrElse(MemberId.defaultInstance).id),
     lastUpdated = Instant.ofEpochSecond(info.lastModifiedOn.map(_.seconds).getOrElse(0L)),
     lastUpdatedBy = UUID.fromString(info.lastModifiedBy.getOrElse(MemberId.defaultInstance).id),
-    status = memberStateToGatewayMemberState(info.memberState)
+    status = memberStateToGatewayMemberState(info.currentState)
   )
 
   private def notificationPreferenceToGatewayNotificationPreference(
-      notificationPreference: NotificationPreference
-  ): GatewayNotificationPreference = if (notificationPreference.isNotificationPreferenceEmail)
-    EMAIL_NOTIFICATION_PREFERENCE
-  else if (notificationPreference.isNotificationPreferenceSms) SMS_NOTIFICATION_PREFERENCE
-  else APPLICATION_NOTIFICATION_PREFERENCE
+      notificationPreferenceOpt: Option[NotificationPreference]
+  ): GatewayNotificationPreference = notificationPreferenceOpt.fold[GatewayNotificationPreference](APPLICATION_NOTIFICATION_PREFERENCE) (
+    notificationPreference =>
+    if (notificationPreference.isNotificationPreferenceEmail) EMAIL_NOTIFICATION_PREFERENCE
+    else if (notificationPreference.isNotificationPreferenceSms) SMS_NOTIFICATION_PREFERENCE
+    else APPLICATION_NOTIFICATION_PREFERENCE
+  )
 
   private def gatewayNotificationPreferenceToNotificationPreference(
       notificationPreference: GatewayNotificationPreference
@@ -118,12 +119,12 @@ object util {
   ): MemberEventResponse =
     if (response.asMessage.sealedValue.isMemberEventValue)
       response.asMessage.getMemberEventValue.memberEvent match {
-        case response @ com.improving.app.member.domain.MemberRegistered(_, _, _, _, _) =>
+        case response @ com.improving.app.member.domain.MemberRegistered(_, _, _, _) =>
           MemberRegistered(
             UUID.fromString(response.memberId.getOrElse(MemberId.defaultInstance).id),
             memberInfoToGatewayMemberInfo(response.memberInfo.getOrElse(MemberInfo.defaultInstance)),
-            UUID.fromString(response.actingMember.getOrElse(MemberId.defaultInstance).id),
-            response.eventTime.getOrElse(Timestamp.defaultInstance).asJavaInstant
+            UUID.fromString(response.meta.fold(MemberId.defaultInstance.id)(meta => meta.lastModifiedBy.getOrElse(MemberId.defaultInstance).id)),
+            response.meta.fold(Timestamp.defaultInstance)(meta => meta.lastModifiedOn.getOrElse(Timestamp.defaultInstance)).asJavaInstant
           )
       }
     else {

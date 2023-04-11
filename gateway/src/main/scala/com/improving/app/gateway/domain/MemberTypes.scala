@@ -38,11 +38,9 @@ object NotificationPreference {
 
 sealed trait MemberStatus
 object MemberStatus {
-  case object INITIAL_MEMBER_STATUS extends MemberStatus
+  case object DRAFT_MEMBER_STATUS extends MemberStatus
 
   case object ACTIVE_MEMBER_STATUS extends MemberStatus
-
-  case object INACTIVE_MEMBER_STATUS extends MemberStatus
 
   case object SUSPENDED_MEMBER_STATUS extends MemberStatus
 
@@ -50,9 +48,8 @@ object MemberStatus {
 
   implicit val memberStatusEncoder: Encoder[MemberStatus] =
     Encoder[String].contramap {
-      case INITIAL_MEMBER_STATUS    => "INITIAL_MEMBER_STATUS"
+      case DRAFT_MEMBER_STATUS    => "DRAFT_MEMBER_STATUS"
       case ACTIVE_MEMBER_STATUS     => "ACTIVE_MEMBER_STATUS"
-      case INACTIVE_MEMBER_STATUS   => "INACTIVE_MEMBER_STATUS"
       case SUSPENDED_MEMBER_STATUS  => "SUSPENDED_MEMBER_STATUS"
       case TERMINATED_MEMBER_STATUS => "TERMINATED_MEMBER_STATUS"
     }
