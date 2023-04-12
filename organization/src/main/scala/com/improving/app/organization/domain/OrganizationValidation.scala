@@ -4,6 +4,12 @@ import com.improving.app.common.errors.Validation._
 import com.improving.app.common.errors.ValidationError
 
 object OrganizationValidation {
+  val organizationRequestValidator: Validator[OrganizationRequest] =
+    applyAllValidators[OrganizationRequest](Seq(
+      r => required("organization id", organizationIdValidator)(r.organizationId),
+      r => required("on behalf of", memberIdValidator)(r.onBehalfOf)
+    ))
+
   val organizationNameValidator: Validator[String] = name => {
     if (name.isEmpty) {
       Some(ValidationError("name empty"))
