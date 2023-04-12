@@ -223,12 +223,12 @@ object Tenant {
   }
 
   private def getOrganizations(
-                                getOrganizationsCommand: GetOrganizations,
+                                getOrganizationsQuery: GetOrganizations,
                                 stateOpt: Option[Tenant.EstablishedTenantState] = None
                               ): Either[Error, TenantResponse] = {
     val validationResult = applyAllValidators[GetOrganizations](Seq(
       c => required("tenant id", tenantIdValidator)(c.tenantId)
-    ))(getOrganizationsCommand)
+    ))(getOrganizationsQuery)
 
     if (validationResult.isDefined) {
       Left(validationResult.get)
