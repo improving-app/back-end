@@ -75,7 +75,7 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
     )
   }
 
-  override def getOrganizations(in: GetOrganizations): Future[OrganizationData] = {
+  override def getOrganizations(in: GetOrganizations): Future[TenantOrganizationData] = {
     val result = sharding.entityRefFor(Tenant.TypeKey, in.tenantId.get.id)
       .ask(ref => Tenant.TenantCommand(in, ref))
     result.transform(

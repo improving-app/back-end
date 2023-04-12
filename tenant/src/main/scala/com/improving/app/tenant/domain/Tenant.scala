@@ -233,7 +233,7 @@ object Tenant {
     if (validationResult.isDefined) {
       Left(validationResult.get)
     } else {
-      Right(TenantDataResponse(OrganizationData(
+      Right(TenantDataResponse(TenantOrganizationData(
         organizations = stateOpt.fold[Option[TenantOrganizationList]](Some(TenantOrganizationList(Seq.empty))) {
           _.info.organizations
         }

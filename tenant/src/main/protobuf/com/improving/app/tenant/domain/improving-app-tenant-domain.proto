@@ -68,7 +68,7 @@ message GetOrganizations {
   com.improving.app.common.domain.TenantId tenant_id = 1;
 }
 
-message OrganizationData {
+message TenantOrganizationData {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   TenantOrganizationList organizations = 1;
 }
@@ -96,7 +96,7 @@ message TenantEvent {
 
 message TenantData {
   oneof sealed_value {
-    OrganizationData organization_data_value = 1;
+    TenantOrganizationData organization_data_value = 1;
   }
 }
 
