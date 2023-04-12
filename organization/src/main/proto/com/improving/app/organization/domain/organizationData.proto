@@ -27,7 +27,7 @@ message OrganizationMetaInfo {
 message OrganizationInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   string name = 1;
-  string shortName = 2;
+  string short_name = 2;
   com.improving.app.common.domain.TenantId tenant = 3;
   bool is_public = 4;
   com.improving.app.common.domain.Address address = 5;
