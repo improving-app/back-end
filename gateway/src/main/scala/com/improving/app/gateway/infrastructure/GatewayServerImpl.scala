@@ -18,17 +18,15 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_]) extends MemberGatewayR
   implicit override val handler: MemberGatewayHandler = new MemberGatewayHandler()
 
   implicit val dispatcher: ExecutionContextExecutor = sys.dispatchers.lookup(DispatcherSelector.defaultDispatcher())
-  def start(): Unit = {
-    Http()
-      .newServerAt(config.getString("http.interface"), config.getInt("http.port"))
-      .bindFlow(routes)
-      .onComplete {
-        case Success(binding) =>
-          val address = binding.localAddress
-          println(s"Improving.App HTTP Gateway bound to ${address.getHostString}:${address.getPort}")
-        case Failure(ex) =>
-          println(s"Failed to bind HTTP endpoint for Improving.APP Gateway, terminating system: ${ex.getMessage}")
-          sys.terminate()
-      }
-  }
+  def start(): Unit = Http()
+    .newServerAt(config.getString("http.interface"), config.getInt("http.port"))
+    .bindFlow(routes)
+    .onComplete {
+      case Success(binding) =>
+        val address = binding.localAddress
+        println(s"Improving.App HTTP Gateway bound to ${address.getHostString}:${address.getPort}")
+      case Failure(ex) =>
+        println(s"Failed to bind HTTP endpoint for Improving.APP Gateway, terminating system: ${ex.getMessage}")
+        sys.terminate()
+    }
 }

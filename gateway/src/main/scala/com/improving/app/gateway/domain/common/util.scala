@@ -1,13 +1,16 @@
 package com.improving.app.gateway.domain.common
 
-import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
-import com.improving.app.gateway.domain.MemberMessages.{MemberData, MemberEventResponse, MemberRegistered}
+import com.improving.app.gateway.domain.MemberMessages.{
+  ErrorResponse,
+  MemberData,
+  MemberEventResponse,
+  MemberRegistered
+}
 import com.improving.app.gateway.domain.MemberStatus.{
   ACTIVE_MEMBER_STATUS,
   DRAFT_MEMBER_STATUS,
-  SUSPENDED_MEMBER_STATUS,
-  TERMINATED_MEMBER_STATUS
+  SUSPENDED_MEMBER_STATUS
 }
 import com.improving.app.gateway.domain.NotificationPreference.{
   APPLICATION_NOTIFICATION_PREFERENCE,
@@ -82,8 +85,7 @@ object util {
   private def memberStateToGatewayMemberState(memberStatus: MemberState): GatewayMemberStatus = {
     if (memberStatus.isMemberStatusDraft) DRAFT_MEMBER_STATUS
     else if (memberStatus.isMemberStatusActive) ACTIVE_MEMBER_STATUS
-    else if (memberStatus.isMemberStatusSuspended) SUSPENDED_MEMBER_STATUS
-    else TERMINATED_MEMBER_STATUS
+    else SUSPENDED_MEMBER_STATUS
   }
 
   private def memberMetaToGatewayMemberMeta(info: MemberMetaInfo): GatewayMemberMetaInfo = GatewayMemberMetaInfo(
@@ -96,38 +98,38 @@ object util {
 
   private def notificationPreferenceToGatewayNotificationPreference(
       notificationPreferenceOpt: Option[NotificationPreference]
-  ): GatewayNotificationPreference = notificationPreferenceOpt.fold[GatewayNotificationPreference](APPLICATION_NOTIFICATION_PREFERENCE) (
-    notificationPreference =>
-    if (notificationPreference.isNotificationPreferenceEmail) EMAIL_NOTIFICATION_PREFERENCE
-    else if (notificationPreference.isNotificationPreferenceSms) SMS_NOTIFICATION_PREFERENCE
-    else APPLICATION_NOTIFICATION_PREFERENCE
-  )
+  ): GatewayNotificationPreference =
+    notificationPreferenceOpt.fold[GatewayNotificationPreference](APPLICATION_NOTIFICATION_PREFERENCE)(
+      notificationPreference =>
+        if (notificationPreference.isNotificationPreferenceEmail) EMAIL_NOTIFICATION_PREFERENCE
+        else if (notificationPreference.isNotificationPreferenceSms) SMS_NOTIFICATION_PREFERENCE
+        else APPLICATION_NOTIFICATION_PREFERENCE
+    )
 
   private def gatewayNotificationPreferenceToNotificationPreference(
       notificationPreference: GatewayNotificationPreference
   ): NotificationPreference = notificationPreference match {
     case EMAIL_NOTIFICATION_PREFERENCE =>
-      NotificationPreference.fromValue(NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL.value)
+      NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL
     case SMS_NOTIFICATION_PREFERENCE =>
-      NotificationPreference.fromValue(NotificationPreference.NOTIFICATION_PREFERENCE_SMS.value)
+      NotificationPreference.NOTIFICATION_PREFERENCE_SMS
     case APPLICATION_NOTIFICATION_PREFERENCE =>
-      NotificationPreference.fromValue(NotificationPreference.NOTIFICATION_PREFERENCE_APPLICATION.value)
+      NotificationPreference.NOTIFICATION_PREFERENCE_APPLICATION
   }
 
   def memberResponseToGatewayEventResponse(
       response: com.improving.app.member.domain.MemberResponse
   ): MemberEventResponse =
-    if (response.asMessage.sealedValue.isMemberEventValue)
-      response.asMessage.getMemberEventValue.memberEvent match {
-        case response @ com.improving.app.member.domain.MemberRegistered(_, _, _, _) =>
-          MemberRegistered(
-            UUID.fromString(response.memberId.getOrElse(MemberId.defaultInstance).id),
-            memberInfoToGatewayMemberInfo(response.memberInfo.getOrElse(MemberInfo.defaultInstance)),
-            UUID.fromString(response.meta.fold(MemberId.defaultInstance.id)(meta => meta.lastModifiedBy.getOrElse(MemberId.defaultInstance).id)),
-            response.meta.fold(Timestamp.defaultInstance)(meta => meta.lastModifiedOn.getOrElse(Timestamp.defaultInstance)).asJavaInstant
-          )
-      }
-    else {
+    if (response.asMessage.sealedValue.isMemberEventValue) {
+      if (response.asMessage.getMemberEventValue.memberEvent.asMessage.sealedValue.isMemberRegisteredValue) {
+        val registered = response.asMessage.getMemberEventValue.memberEvent.asMessage.getMemberRegisteredValue
+        MemberRegistered(
+          UUID.fromString(registered.memberId.getOrElse(MemberId.defaultInstance).id),
+          memberInfoToGatewayMemberInfo(registered.memberInfo.getOrElse(MemberInfo.defaultInstance)),
+          memberMetaToGatewayMemberMeta(registered.meta.getOrElse(MemberMetaInfo.defaultInstance))
+        )
+      } else ErrorResponse("MemberEventResponse type is not yet implemented")
+    } else {
       val data = response.asMessage.getMemberStateValue
       MemberData(
         UUID.fromString(data.memberId.getOrElse(MemberId.defaultInstance).id),

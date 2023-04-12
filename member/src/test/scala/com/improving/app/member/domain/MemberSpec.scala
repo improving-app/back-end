@@ -5,7 +5,14 @@ import akka.pattern.StatusReply
 import akka.persistence.testkit.scaladsl.EventSourcedBehaviorTestKit
 import akka.persistence.testkit.scaladsl.EventSourcedBehaviorTestKit.SerializationSettings
 import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
-import com.improving.app.member.domain.Member.{DraftMemberState, MemberCommand, MemberState, RegisteredMemberState, TerminatedMemberState, UninitializedMemberState}
+import com.improving.app.member.domain.Member.{
+  DraftMemberState,
+  MemberCommand,
+  MemberState,
+  RegisteredMemberState,
+  TerminatedMemberState,
+  UninitializedMemberState
+}
 import com.improving.app.member.domain.MemberState.{MEMBER_STATUS_ACTIVE, MEMBER_STATUS_DRAFT, MEMBER_STATUS_SUSPENDED}
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
@@ -13,10 +20,10 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import com.improving.app.member.domain.TestData._
 
 class MemberSpec
-extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
-  with AnyWordSpecLike
-  with BeforeAndAfterEach
-  with Matchers {
+    extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
+    with AnyWordSpecLike
+    with BeforeAndAfterEach
+    with Matchers {
   private val eventSourcedTestKit = EventSourcedBehaviorTestKit[MemberCommand, MemberEvent, MemberState](
     system,
     Member("testEntityTypeHint", testMemberIdString),
@@ -29,14 +36,18 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
   }
 
   private def validateFailedInitialRegisterMember(
-   result: EventSourcedBehaviorTestKit.CommandResultWithReply[MemberCommand, MemberEvent, MemberState, StatusReply[MemberResponse]]
+      result: EventSourcedBehaviorTestKit.CommandResultWithReply[MemberCommand, MemberEvent, MemberState, StatusReply[
+        MemberResponse
+      ]]
   ): Unit = {
     result.hasNoEvents shouldBe true
     result.state shouldBe UninitializedMemberState()
   }
 
   private def validateFailedActivateMemberInDraftState(
-    result: EventSourcedBehaviorTestKit.CommandResultWithReply[MemberCommand, MemberEvent, MemberState, StatusReply[MemberResponse]]
+      result: EventSourcedBehaviorTestKit.CommandResultWithReply[MemberCommand, MemberEvent, MemberState, StatusReply[
+        MemberResponse
+      ]]
   ): Unit = {
     result.hasNoEvents
     result.stateOfType[DraftMemberState].meta.currentState shouldBe MEMBER_STATUS_DRAFT
@@ -44,7 +55,9 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
   }
 
   private def validateFailedSuspendMemberInActiveState(
-    result: EventSourcedBehaviorTestKit.CommandResultWithReply[MemberCommand, MemberEvent, MemberState, StatusReply[MemberResponse]]
+      result: EventSourcedBehaviorTestKit.CommandResultWithReply[MemberCommand, MemberEvent, MemberState, StatusReply[
+        MemberResponse
+      ]]
   ): Unit = {
     result.hasNoEvents
     result.stateOfType[RegisteredMemberState].meta.currentState shouldBe MEMBER_STATUS_ACTIVE
@@ -52,7 +65,9 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
   }
 
   private def validateFailedEditMemberInfoInDraftState(
-    result: EventSourcedBehaviorTestKit.CommandResultWithReply[MemberCommand, MemberEvent, MemberState, StatusReply[MemberResponse]]
+      result: EventSourcedBehaviorTestKit.CommandResultWithReply[MemberCommand, MemberEvent, MemberState, StatusReply[
+        MemberResponse
+      ]]
   ): Unit = {
     result.hasNoEvents shouldBe true
     val state = result.stateOfType[DraftMemberState]
@@ -152,7 +167,10 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             )
           )
 
-          assert(result.reply.getError.getMessage.contains("First name cannot contain spaces, numbers or special characters."))
+          assert(
+            result.reply.getError.getMessage
+              .contains("First name cannot contain spaces, numbers or special characters.")
+          )
           validateFailedInitialRegisterMember(result)
         }
 
@@ -192,8 +210,8 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             )
           )
 
-          val memberRegistered = result.reply.getValue.asMessage.sealedValue.memberEventValue.get
-            .memberEvent.asMessage.sealedValue.memberRegisteredValue.get
+          val memberRegistered =
+            result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberRegisteredValue.get
 
           memberRegistered.memberId shouldBe Some(
             MemberId(testMemberIdString)
@@ -215,7 +233,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
           state.requiredInfo.firstName shouldBe "firstName"
           state.requiredInfo.contact shouldBe Some(baseContact)
           state.requiredInfo.handle shouldBe "handle"
-          state.optionalInfo.organizationMembership shouldBe Seq(OrganizationId("org1"))
+          state.optionalInfo.organizationMembership shouldBe baseMemberInfo.organizationMembership
           state.meta.createdBy.get.id shouldBe "registeringMember"
           state.meta.lastModifiedBy.get.id shouldBe "registeringMember"
 
@@ -339,8 +357,8 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             )
           )
 
-          val memberActivated = result.reply.getValue.asMessage.sealedValue.memberEventValue.get
-            .memberEvent.asMessage.sealedValue.memberActivatedValue.get
+          val memberActivated =
+            result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberActivatedValue.get
 
           memberActivated.memberId shouldBe Some(
             MemberId(testMemberIdString)
@@ -358,7 +376,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
           state.info.firstName shouldBe "firstName"
           state.info.contact shouldBe Some(baseContact)
           state.info.handle shouldBe "handle"
-          state.info.organizationMembership shouldBe Seq(OrganizationId("org1"))
+          state.info.organizationMembership shouldBe baseMemberInfo.organizationMembership
           state.meta.createdBy.get.id shouldBe "registeringMember"
           state.meta.lastModifiedBy.get.id shouldBe "activatingMember"
         }
@@ -498,12 +516,16 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
             MemberCommand(
               baseEditMemberInfo.copy(
-                memberInfo = Some(baseEditableInfo.copy(
-                  contact = Some(Contact(
-                    emailAddress = Some(""),
-                    phone = Some("")
-                  ))
-                ))
+                memberInfo = Some(
+                  baseEditableInfo.copy(
+                    contact = Some(
+                      Contact(
+                        emailAddress = Some(""),
+                        phone = Some("")
+                      )
+                    )
+                  )
+                )
               ),
               _
             )
@@ -520,9 +542,11 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
             MemberCommand(
               baseEditMemberInfo.copy(
-                memberInfo = Some(baseEditableInfo.copy(
-                  organizationMembership = Seq(OrganizationId())
-                ))
+                memberInfo = Some(
+                  baseEditableInfo.copy(
+                    organizationMembership = Seq(OrganizationId())
+                  )
+                )
               ),
               _
             )
@@ -537,9 +561,11 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
             MemberCommand(
               baseEditMemberInfo.copy(
-                memberInfo = Some(baseEditableInfo.copy(
-                  tenant = Some(TenantId())
-                ))
+                memberInfo = Some(
+                  baseEditableInfo.copy(
+                    tenant = Some(TenantId())
+                  )
+                )
               ),
               _
             )
@@ -554,29 +580,33 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
             MemberCommand(
               baseEditMemberInfo.copy(
-                memberInfo = Some(baseEditableInfo.copy(
-                  organizationMembership = Seq.empty,
-                  firstName = None,
-                  notificationPreference = None
-                ))
+                memberInfo = Some(
+                  baseEditableInfo.copy(
+                    organizationMembership = Seq.empty,
+                    firstName = None,
+                    notificationPreference = None
+                  )
+                )
               ),
               _
             )
           )
 
-          val memberInfoEdited = result.reply.getValue.asMessage.sealedValue.memberEventValue.get
-            .memberEvent.asMessage.sealedValue.memberInfoEdited.get
+          val memberInfoEdited =
+            result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberInfoEdited.get
 
           memberInfoEdited.memberId shouldBe Some(
             MemberId(testMemberIdString)
           )
-          memberInfoEdited.memberInfo shouldBe Some(baseMemberInfo.copy(
-            handle = "editHandle",
-            avatarUrl = "editAvatarUrl",
-            lastName = "editLastName",
-            contact = Some(editContact),
-            tenant = Some(TenantId("editTenantId"))
-          ))
+          memberInfoEdited.memberInfo shouldBe Some(
+            baseMemberInfo.copy(
+              handle = "editHandle",
+              avatarUrl = "editAvatarUrl",
+              lastName = "editLastName",
+              contact = Some(editContact),
+              tenant = Some(TenantId("editTenantId"))
+            )
+          )
           memberInfoEdited.meta.get.currentState shouldBe MEMBER_STATUS_DRAFT
           memberInfoEdited.meta.get.createdBy shouldBe Some(
             MemberId("registeringMember")
@@ -607,7 +637,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
           state.requiredInfo.lastName shouldBe "editLastName"
           state.requiredInfo.tenant shouldBe Some(TenantId("editTenantId"))
           state.optionalInfo.notificationPreference shouldBe Some(NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL)
-          state.optionalInfo.organizationMembership shouldBe Seq(OrganizationId("org1"))
+          state.optionalInfo.organizationMembership shouldBe baseMemberInfo.organizationMembership
           state.meta.createdBy.get.id shouldBe "registeringMember"
           state.meta.lastModifiedBy.get.id shouldBe "editingMember"
         }
@@ -621,22 +651,24 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             )
           )
 
-          val memberInfoEdited = result.reply.getValue.asMessage.sealedValue.memberEventValue.get
-            .memberEvent.asMessage.sealedValue.memberInfoEdited.get
+          val memberInfoEdited =
+            result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberInfoEdited.get
 
           memberInfoEdited.memberId shouldBe Some(
             MemberId(testMemberIdString)
           )
-          memberInfoEdited.memberInfo shouldBe Some(baseMemberInfo.copy(
-            handle = "editHandle",
-            avatarUrl = "editAvatarUrl",
-            firstName = "editFirstName",
-            lastName = "editLastName",
-            notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
-            contact = Some(editContact),
-            tenant = Some(TenantId("editTenantId")),
-            organizationMembership = baseEditableInfo.organizationMembership
-          ))
+          memberInfoEdited.memberInfo shouldBe Some(
+            baseMemberInfo.copy(
+              handle = "editHandle",
+              avatarUrl = "editAvatarUrl",
+              firstName = "editFirstName",
+              lastName = "editLastName",
+              notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
+              contact = Some(editContact),
+              tenant = Some(TenantId("editTenantId")),
+              organizationMembership = baseEditableInfo.organizationMembership
+            )
+          )
           memberInfoEdited.meta.get.currentState shouldBe MEMBER_STATUS_DRAFT
           memberInfoEdited.meta.get.createdBy shouldBe Some(
             MemberId("registeringMember")
@@ -687,7 +719,6 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
 
           val getMemberInfo = result.reply.getValue.asMessage.sealedValue.memberStateValue.get
 
-
           getMemberInfo.memberId shouldBe Some(
             MemberId(testMemberIdString)
           )
@@ -709,7 +740,6 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
           )
 
           val getMemberInfo = result.reply.getValue.asMessage.sealedValue.memberStateValue.get
-
 
           getMemberInfo.memberId shouldBe Some(
             MemberId(testMemberIdString)
@@ -863,8 +893,8 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
               )
             )
 
-            val memberSuspended = result.reply.getValue.asMessage.sealedValue.memberEventValue.get
-              .memberEvent.asMessage.sealedValue.memberSuspendedValue.get
+            val memberSuspended =
+              result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberSuspendedValue.get
 
             memberSuspended.memberId shouldBe Some(
               MemberId(testMemberIdString)
@@ -882,7 +912,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             state.info.firstName shouldBe "firstName"
             state.info.contact shouldBe Some(baseContact)
             state.info.handle shouldBe "handle"
-            state.info.organizationMembership shouldBe Seq(OrganizationId("org1"))
+            state.info.organizationMembership shouldBe baseMemberInfo.organizationMembership
             state.meta.createdBy.get.id shouldBe "registeringMember"
             state.meta.lastModifiedBy.get.id shouldBe "suspendingMember"
             state.meta.currentState shouldBe MEMBER_STATUS_SUSPENDED
@@ -975,8 +1005,8 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
               )
             )
 
-            val memberTerminated = result.reply.getValue.asMessage.sealedValue.memberEventValue.get
-              .memberEvent.asMessage.sealedValue.memberTerminated.get
+            val memberTerminated =
+              result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberTerminated.get
 
             memberTerminated.memberId shouldBe Some(
               MemberId(testMemberIdString)
@@ -997,7 +1027,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
           }
         }
 
-        "executing EditMemberInfo" should  {
+        "executing EditMemberInfo" should {
           "succeed for completely filled editable info" in {
             eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
             eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseActivateMember, _))
@@ -1009,22 +1039,24 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
               )
             )
 
-            val memberInfoEdited = result.reply.getValue.asMessage.sealedValue.memberEventValue.get
-              .memberEvent.asMessage.sealedValue.memberInfoEdited.get
+            val memberInfoEdited =
+              result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberInfoEdited.get
 
             memberInfoEdited.memberId shouldBe Some(
               MemberId(testMemberIdString)
             )
-            memberInfoEdited.memberInfo shouldBe Some(baseMemberInfo.copy(
-              handle = "editHandle",
-              avatarUrl = "editAvatarUrl",
-              firstName = "editFirstName",
-              lastName = "editLastName",
-              notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
-              contact = Some(editContact),
-              tenant = Some(TenantId("editTenantId")),
-              organizationMembership = baseEditableInfo.organizationMembership
-            ))
+            memberInfoEdited.memberInfo shouldBe Some(
+              baseMemberInfo.copy(
+                handle = "editHandle",
+                avatarUrl = "editAvatarUrl",
+                firstName = "editFirstName",
+                lastName = "editLastName",
+                notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
+                contact = Some(editContact),
+                tenant = Some(TenantId("editTenantId")),
+                organizationMembership = baseEditableInfo.organizationMembership
+              )
+            )
             memberInfoEdited.meta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
             memberInfoEdited.meta.get.createdBy shouldBe Some(
               MemberId("registeringMember")
@@ -1079,7 +1111,6 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
 
             val getMemberInfo = result.reply.getValue.asMessage.sealedValue.memberStateValue.get
 
-
             getMemberInfo.memberId shouldBe Some(
               MemberId(testMemberIdString)
             )
@@ -1129,8 +1160,8 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
               )
             )
 
-            val memberActivated = result.reply.getValue.asMessage.sealedValue.memberEventValue.get
-              .memberEvent.asMessage.sealedValue.memberActivatedValue.get
+            val memberActivated =
+              result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberActivatedValue.get
 
             memberActivated.memberId shouldBe Some(
               MemberId(testMemberIdString)
@@ -1148,7 +1179,7 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             state.info.firstName shouldBe "firstName"
             state.info.contact shouldBe Some(baseContact)
             state.info.handle shouldBe "handle"
-            state.info.organizationMembership shouldBe Seq(OrganizationId("org1"))
+            state.info.organizationMembership shouldBe baseMemberInfo.organizationMembership
             state.meta.createdBy.get.id shouldBe "registeringMember"
             state.meta.lastModifiedBy.get.id shouldBe "activatingMember2"
           }
@@ -1167,8 +1198,8 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
               )
             )
 
-            val memberSuspended = result.reply.getValue.asMessage.sealedValue.memberEventValue.get
-              .memberEvent.asMessage.sealedValue.memberSuspendedValue.get
+            val memberSuspended =
+              result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberSuspendedValue.get
 
             memberSuspended.memberId shouldBe Some(
               MemberId(testMemberIdString)
@@ -1186,10 +1217,11 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             state.info.firstName shouldBe "firstName"
             state.info.contact shouldBe Some(baseContact)
             state.info.handle shouldBe "handle"
-            state.info.organizationMembership shouldBe Seq(OrganizationId("org1"))
+            state.info.organizationMembership shouldBe baseMemberInfo.organizationMembership
             state.meta.createdBy.get.id shouldBe "registeringMember"
             state.meta.lastModifiedBy.get.id shouldBe "suspendingMember"
-            state.meta.currentState shouldBe MEMBER_STATUS_SUSPENDED          }
+            state.meta.currentState shouldBe MEMBER_STATUS_SUSPENDED
+          }
         }
 
         "executing TerminateMember" should {
@@ -1205,8 +1237,8 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
               )
             )
 
-            val memberTerminated = result.reply.getValue.asMessage.sealedValue.memberEventValue.get
-              .memberEvent.asMessage.sealedValue.memberTerminated.get
+            val memberTerminated =
+              result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberTerminated.get
 
             memberTerminated.memberId shouldBe Some(
               MemberId(testMemberIdString)
@@ -1258,7 +1290,6 @@ extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)
             )
 
             val getMemberInfo = result.reply.getValue.asMessage.sealedValue.memberStateValue.get
-
 
             getMemberInfo.memberId shouldBe Some(
               MemberId(testMemberIdString)

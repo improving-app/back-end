@@ -28,17 +28,28 @@ class MemberGatewayHandler(implicit val system: ActorSystem[_]) {
       .withTls(false)
   )
 
-  def registerMember(in: RegisterMember): Future[MemberRegistered] = memberClient
-    .registerMember(
-      com.improving.app.member.domain.RegisterMember(
-        Some(com.improving.app.common.domain.MemberId.of(in.memberId.toString)),
-        Some(gatewayMemberInfoToMemberInfo(in.memberInfo)),
-        Some(com.improving.app.common.domain.MemberId.of(in.actingMember.toString))
+  def registerMember(in: RegisterMember): Future[MemberRegistered] = {
+    println(
+      com.improving.app.member.domain
+        .RegisterMember(
+          Some(com.improving.app.common.domain.MemberId.of(in.memberId.toString)),
+          Some(gatewayMemberInfoToMemberInfo(in.memberInfo)),
+          Some(com.improving.app.common.domain.MemberId.of(in.actingMember.toString))
+        )
+        .toProtoString
+    )
+    memberClient
+      .registerMember(
+        com.improving.app.member.domain.RegisterMember(
+          Some(com.improving.app.common.domain.MemberId.of(in.memberId.toString)),
+          Some(gatewayMemberInfoToMemberInfo(in.memberInfo)),
+          Some(com.improving.app.common.domain.MemberId.of(in.actingMember.toString))
+        )
       )
-    )
-    .map(response =>
-      memberResponseToGatewayEventResponse(
-        MemberEventResponse.of(response)
-      ).asInstanceOf[MemberRegistered]
-    )
+      .map(response =>
+        memberResponseToGatewayEventResponse(
+          MemberEventResponse.of(response)
+        ).asInstanceOf[MemberRegistered]
+      )
+  }
 }

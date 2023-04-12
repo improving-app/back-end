@@ -10,6 +10,8 @@ object MemberMessages {
   sealed trait MemberResponse extends MemberEventResponse
   sealed trait MemberEventResponse
 
+  case class ErrorResponse(msg: String) extends MemberResponse
+
   case class RegisterMember(
       memberId: MemberId,
       memberInfo: MemberInfo,
@@ -19,10 +21,8 @@ object MemberMessages {
   case class MemberRegistered(
       memberId: MemberId,
       memberInfo: MemberInfo,
-      actingMember: MemberId,
-      eventTime: Instant
+      metaInfo: MemberMetaInfo
   ) extends MemberResponse
-
 
   case class MemberData(
       memberId: MemberId,
