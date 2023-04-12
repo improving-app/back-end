@@ -17,7 +17,7 @@ import java.time.Instant
 object Tenant {
   val TypeKey = EntityTypeKey[TenantCommand]("Tenant")
 
-  case class TenantCommand(request: TenantRequest, replyTo: ActorRef[StatusReply[TenantResponse]])
+  case class TenantCommand(request: TenantRequest, replyTo: ActorRef[StatusReply[TenantEnvelope]])
 
   sealed trait TenantState
 
@@ -34,7 +34,7 @@ object Tenant {
 
   def apply(persistenceId: PersistenceId): Behavior[TenantCommand] = {
     Behaviors.setup(context =>
-      EventSourcedBehavior[TenantCommand, TenantResponse, TenantState](
+      EventSourcedBehavior[TenantCommand, TenantEnvelope, TenantState](
         persistenceId = persistenceId,
         emptyState = UninitializedTenant,
         commandHandler = commandHandler,
@@ -43,8 +43,8 @@ object Tenant {
     )
   }
 
-  private val commandHandler: (TenantState, TenantCommand) => ReplyEffect[TenantResponse, TenantState] = { (state, command) =>
-    val result: Either[Error, TenantResponse] = state match {
+  private val commandHandler: (TenantState, TenantCommand) => ReplyEffect[TenantEnvelope, TenantState] = { (state, command) =>
+    val result: Either[Error, TenantEnvelope] = state match {
       case UninitializedTenant =>
         command.request match {
           case x: EstablishTenant => establishTenant(x)
@@ -83,7 +83,7 @@ object Tenant {
     }
   }
 
-  private val eventHandler: (TenantState, TenantResponse) => TenantState = { (state, response) =>
+  private val eventHandler: (TenantState, TenantEnvelope) => TenantState = { (state, response) =>
     response match {
       case event: TenantEventResponse =>
         event.tenantEvent match {
@@ -121,7 +121,7 @@ object Tenant {
     metaInfo.copy(lastUpdatedBy = lastUpdatedByOpt, lastUpdated = Some(Timestamp(Instant.now())))
   }
 
-  private def establishTenant(establishTenant: EstablishTenant): Either[Error, TenantResponse] = {
+  private def establishTenant(establishTenant: EstablishTenant): Either[Error, TenantEnvelope] = {
     val maybeValidationError = applyAllValidators[EstablishTenant](Seq(
       c => required("tenant id", tenantIdValidator)(c.tenantId),
       c => required("activating user", memberIdValidator)(c.establishingUser)
@@ -152,7 +152,7 @@ object Tenant {
   private def activateTenant(
                               state: EstablishedTenantState,
                               activateTenant: ActivateTenant,
-  ): Either[Error, TenantResponse] = {
+  ): Either[Error, TenantEnvelope] = {
     val maybeValidationError = applyAllValidators[ActivateTenant](Seq(
       c => required("tenant id", tenantIdValidator)(c.tenantId),
       c => required("activating user", memberIdValidator)(c.activatingUser)
@@ -172,7 +172,7 @@ object Tenant {
   private def suspendTenant(
                              state: EstablishedTenantState,
                              suspendTenant: SuspendTenant,
-  ): Either[Error, TenantResponse] = {
+  ): Either[Error, TenantEnvelope] = {
     val maybeValidationError = applyAllValidators[SuspendTenant](Seq(
       c => required("tenant id", tenantIdValidator)(c.tenantId),
       c => required("activating user", memberIdValidator)(c.suspendingUser)
@@ -193,7 +193,7 @@ object Tenant {
   private def editInfo(
                         state: Tenant.EstablishedTenantState,
                         editInfoCommand: EditInfo,
-                      ): Either[Error, TenantResponse] = {
+                      ): Either[Error, TenantEnvelope] = {
     val validationResult = applyAllValidators[EditInfo](Seq(
       c => required("tenant id", tenantIdValidator)(c.tenantId),
       c => required("editing user", memberIdValidator)(c.editingUser),
@@ -232,7 +232,7 @@ object Tenant {
   private def getOrganizations(
                                 getOrganizationsQuery: GetOrganizations,
                                 stateOpt: Option[Tenant.EstablishedTenantState] = None
-                              ): Either[Error, TenantResponse] = {
+                              ): Either[Error, TenantEnvelope] = {
     val validationResult = applyAllValidators[GetOrganizations](Seq(
       c => required("tenant id", tenantIdValidator)(c.tenantId)
     ))(getOrganizationsQuery)

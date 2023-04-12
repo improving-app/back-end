@@ -109,7 +109,7 @@ message TenantDataResponse {
   TenantData tenant_data = 1;
 }
 
-message TenantResponse {
+message TenantEnvelope {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   oneof sealed_value {
     TenantEventResponse tenant_event_value = 1;

@@ -32,19 +32,19 @@ class TenantSpec
     with Matchers {
   override def afterAll(): Unit = testKit.shutdownTestKit()
 
-  def createTestVariables(): (String, ActorRef[TenantCommand], TestProbe[StatusReply[TenantResponse]]) = {
+  def createTestVariables(): (String, ActorRef[TenantCommand], TestProbe[StatusReply[TenantEnvelope]]) = {
     val tenantId = Random.nextString(31)
     val p = this.testKit.spawn(Tenant(PersistenceId.ofUniqueId(tenantId)))
-    val probe = this.testKit.createTestProbe[StatusReply[TenantResponse]]()
+    val probe = this.testKit.createTestProbe[StatusReply[TenantEnvelope]]()
     (tenantId, p, probe)
   }
 
   def establishTenant(
     tenantId: String,
     p: ActorRef[TenantCommand],
-    probe: TestProbe[StatusReply[TenantResponse]],
+    probe: TestProbe[StatusReply[TenantEnvelope]],
     tenantInfo: TenantInfo = baseTenantInfo
-  ): StatusReply[TenantResponse] = {
+  ): StatusReply[TenantEnvelope] = {
     p ! Tenant.TenantCommand(
       EstablishTenant(
         tenantId = Some(TenantId(tenantId)),
