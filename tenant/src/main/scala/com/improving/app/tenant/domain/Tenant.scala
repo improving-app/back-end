@@ -52,13 +52,25 @@ object Tenant {
           case _ => Left(StateError("Tenant is not established"))
         }
       case establishedState: EstablishedTenantState =>
-        command.request match {
-          case _: EstablishTenant => Left(StateError("Tenant is already established"))
-          case x: ActivateTenant => activateTenant(establishedState, x)
-          case x: SuspendTenant => suspendTenant(establishedState, x)
-          case x: EditInfo => editInfo(establishedState, x)
-          case x: GetOrganizations => getOrganizations(x, Some(establishedState))
-          case _ => Left(StateError("Command is not supported"))
+        establishedState match {
+          case activeTenantState: ActiveTenant =>
+            command.request match {
+              case _: EstablishTenant => Left(StateError("Tenant is already established"))
+              case _: ActivateTenant => Left(StateError("Active tenants may not transition to the Active state"))
+              case x: SuspendTenant => suspendTenant(establishedState, x)
+              case x: EditInfo => editInfo(establishedState, x)
+              case x: GetOrganizations => getOrganizations(x, Some(activeTenantState))
+              case _ => Left(StateError("Command is not supported"))
+            }
+          case suspendedTenantState: SuspendedTenant =>
+            command.request match {
+              case _: EstablishTenant => Left(StateError("Tenant is already established"))
+              case x: ActivateTenant => activateTenant(establishedState, x)
+              case x: SuspendTenant => suspendTenant(establishedState, x)
+              case x: EditInfo => editInfo(establishedState, x)
+              case x: GetOrganizations => getOrganizations(x, Some(suspendedTenantState))
+              case _ => Left(StateError("Command is not supported"))
+            }
         }
     }
     result match {
@@ -149,16 +161,11 @@ object Tenant {
     if(maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
     } else {
-      state match {
-        case ActiveTenant(_, _) =>
-          Left(StateError("Active tenants may not transition to the Active state"))
-        case SuspendedTenant(_, metaInfo, _) =>
-          val newMetaInfo = updateMetaInfo(metaInfo = metaInfo, lastUpdatedByOpt = activateTenant.activatingUser)
-          Right(TenantEventResponse(TenantActivated(
-            tenantId = activateTenant.tenantId,
-            metaInfo = Some(newMetaInfo)
-          )))
-      }
+      val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = activateTenant.activatingUser)
+      Right(TenantEventResponse(TenantActivated(
+        tenantId = activateTenant.tenantId,
+        metaInfo = Some(newMetaInfo)
+      )))
     }
   }
 
