@@ -42,7 +42,7 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
     val result = sharding.entityRefFor(Tenant.TypeKey, in.tenantId.get.id)
       .ask(ref => Tenant.TenantCommand(in, ref))
     result.transform(
-      result => result.getValue.asMessage.sealedValue.tenantEstablishedValue.get,
+      result => result.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantEstablishedValue,
       exception => exceptionHandler(exception)
     )
   }
@@ -52,7 +52,7 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
       .ask(ref => Tenant.TenantCommand(in, ref))
 
     result.transform(
-      result => result.getValue.asMessage.sealedValue.infoEditedValue.get,
+      result => result.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue,
       exception => exceptionHandler(exception)
     )
   }
@@ -61,7 +61,7 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
     val result = sharding.entityRefFor(Tenant.TypeKey, in.tenantId.get.id)
       .ask(ref => Tenant.TenantCommand(in, ref))
     result.transform(
-      result => result.getValue.asMessage.sealedValue.tenantActivatedValue.get,
+      result => result.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantActivatedValue,
       exception => exceptionHandler(exception)
     )
   }
@@ -70,7 +70,16 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
     val result = sharding.entityRefFor(Tenant.TypeKey, in.tenantId.get.id)
       .ask(ref => Tenant.TenantCommand(in, ref))
     result.transform(
-      result => result.getValue.asMessage.sealedValue.tenantSuspendedValue.get,
+      result => result.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantSuspendedValue,
+      exception => exceptionHandler(exception)
+    )
+  }
+
+  override def getOrganizations(in: GetOrganizations): Future[TenantOrganizationData] = {
+    val result = sharding.entityRefFor(Tenant.TypeKey, in.tenantId.get.id)
+      .ask(ref => Tenant.TenantCommand(in, ref))
+    result.transform(
+      result => result.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue,
       exception => exceptionHandler(exception)
     )
   }
