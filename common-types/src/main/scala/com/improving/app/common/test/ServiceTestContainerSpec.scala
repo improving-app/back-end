@@ -13,7 +13,7 @@ import org.testcontainers.containers.wait.strategy.Wait
 import java.io.File
 
 /**
- * ServiceTestContainerSpec class is the typical pattern for testing services that are gRPC services in a
+ * ServiceTestContainerSpec class is the typical pattern for testing services in a
  * Docker container. The service in question should be present in the docker-compose.yml.
  *
  * When running the test cases that extends this class, it is assumed that the user already has a docker container for
@@ -49,17 +49,17 @@ class ServiceTestContainerSpec(exposedPort: Integer, serviceName: String)
       super.withFixture(test)
   }
 
-  // Implicits for running and testing functions of the gRPC server
+  // Implicits for running and testing functions of the service
   implicit override val patienceConfig: PatienceConfig =
     PatienceConfig(timeout = Span(3, Minutes), interval = Span(10, Millis))
   implicit protected val system: ActorSystem = ActorSystem("testActor")
 
   // The definition of the container to use. The docker-compose file is used to start the service and waits for the appropriate message
-  override val containerDef = DockerComposeContainer.Def(
+  override val containerDef: DockerComposeContainer.Def = DockerComposeContainer.Def(
     new File("../docker-compose.yml"),
     tailChildContainers = true,
     exposedServices = Seq(
-      ExposedService(serviceName, exposedPort, Wait.forLogMessage(s".*gRPC server bound to 0.0.0.0:$exposedPort*.", 1))
+      ExposedService(serviceName, exposedPort, Wait.forLogMessage(s".*service bound to 0.0.0.0:$exposedPort*.", 1))
     )
   )
 

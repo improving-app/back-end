@@ -3,43 +3,50 @@ package com.improving.app.gateway
 import akka.actor.typed
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
 import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.model.headers.Host
 import akka.http.scaladsl.server.Route
-
-import scala.concurrent.duration.DurationInt
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import cats.implicits.toFunctorOps
+import com.dimafeng.testcontainers.scalatest.TestContainerForAll
+import com.dimafeng.testcontainers.GenericContainer
 import com.improving.app.gateway.api.handlers.MemberGatewayHandler
-import com.improving.app.gateway.domain.MemberMessages.{
-  MemberCommand,
-  MemberData,
-  MemberEventResponse,
-  MemberRegistered,
-  MemberResponse,
-  RegisterMember
-}
-import com.improving.app.gateway.domain.common.util.memberInfoToGatewayMemberInfo
+import com.improving.app.gateway.domain.MemberMessages._
+import com.improving.app.gateway.domain.common.util.{getHostAndPortForService, memberInfoToGatewayMemberInfo}
 import com.improving.app.gateway.infrastructure.routes.MemberGatewayRoutes
 import com.improving.app.member.domain.TestData.baseMemberInfo
 import com.typesafe.config.{Config, ConfigFactory}
-import io.circe.{Decoder, Encoder}
-import io.circe.syntax._
 import io.circe.generic.auto._
-import org.scalatest.BeforeAndAfterEach
+import io.circe.syntax._
+import io.circe.{Decoder, Encoder}
+import org.scalatest.Retries.{isRetryable, withRetry}
+import org.scalatest.{BeforeAndAfterEach, Outcome}
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.tagobjects.Retryable
+import org.scalatest.wordspec.AnyWordSpec
+import org.testcontainers.containers.wait.strategy.Wait
 
-import scala.language.postfixOps
 import java.util.UUID
+import scala.concurrent.duration.DurationInt
+import scala.jdk.CollectionConverters._
+import scala.language.postfixOps
 
-class GatewayServerSpec
+class MemberGatewayServerSpec
     extends AnyWordSpec
     with Matchers
     with ScalatestRouteTest
     with ScalaFutures
     with BeforeAndAfterEach
-    with MemberGatewayRoutes {
+    with MemberGatewayRoutes
+    with TestContainerForAll {
+  override def withFixture(test: NoArgTest): Outcome = {
+    if (isRetryable(test))
+      withRetry {
+        super.withFixture(test)
+      }
+    else
+      super.withFixture(test)
+  }
+
   implicit val encodeMemberCommand: Encoder[MemberCommand] = Encoder.instance {
     case response @ RegisterMember(_, _, _) =>
       response.asJson
@@ -62,12 +69,35 @@ class GatewayServerSpec
 
   override val config: Config = ConfigFactory.load("application.conf")
 
-  implicit override val handler: MemberGatewayHandler = new MemberGatewayHandler()
+  private val (serviceHost, servicePort) = getHostAndPortForService("member-service")
 
-  implicit val defaultHostInfo: DefaultHostInfo = DefaultHostInfo(Host.apply("localhost"), securedConnection = false)
+  override lazy val containerDef: GenericContainer.Def[GenericContainer] = GenericContainer.Def(
+    "improving-app-member:latest",
+    exposedPorts = Seq(8081),
+    waitStrategy = Wait.forHttp("/")
+  )
+
+  val container: GenericContainer = containerDef.start()
+
+  implicit override val handler: MemberGatewayHandler = new MemberGatewayHandler()
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    container.container.start()
+  }
+  override def afterAll(): Unit = {
+    super.afterAll()
+    container.container.stop()
+    system.terminate()
+  }
+
   "In MemberGateway" when {
+    "starting up" should {
+      "retrieve port for service" taggedAs Retryable in {
+        assert(container.container.getExposedPorts contains 8081)
+      }
+    }
     "Sending RegisterMember" should {
-      "succeed" in {
+      "succeed" taggedAs Retryable in {
         val info = memberInfoToGatewayMemberInfo(baseMemberInfo)
 
         val memberId = UUID.randomUUID()

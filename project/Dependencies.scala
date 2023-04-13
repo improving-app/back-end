@@ -40,8 +40,11 @@ object Dependencies {
 
   val akkaHttpTestingDependencies: Seq[ModuleID] = Seq(
     "com.typesafe.akka" %% "akka-stream-testkit" % akka % Test,
+    "com.typesafe.akka" %% "akka-stream-testkit" % akka % IntegrationTest,
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttp % Test,
-    "com.typesafe.akka" %% "akka-discovery" % akka % Test
+    "com.typesafe.akka" %% "akka-http-testkit" % akkaHttp % IntegrationTest,
+    "com.typesafe.akka" %% "akka-discovery" % akka % Test,
+    "com.typesafe.akka" %% "akka-discovery" % akka % IntegrationTest
   )
 
   val loggingDependencies: Seq[ModuleID] = Seq(

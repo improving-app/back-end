@@ -27,4 +27,4 @@ lazy val member = project
 lazy val gateway = project
   .in(file("gateway"))
   .configure(C.service("improving-app-gateway", 8090))
-  .dependsOn(commonTypes, member % "compile->compile;test->test")
+  .dependsOn(commonTypes, member % "compile->compile;test->test;it->test")
