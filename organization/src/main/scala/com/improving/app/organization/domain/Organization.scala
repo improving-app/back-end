@@ -44,65 +44,65 @@ object Organization {
     )
   }
 
-  private val commandHandler: (OrganizationState, OrganizationRequestEnvelope) => ReplyEffect[OrganizationEvent, OrganizationState] = { (state, command) =>
+  private val commandHandler: (OrganizationState, OrganizationRequestEnvelope) => ReplyEffect[OrganizationEvent, OrganizationState] = { (state, envelope) =>
     val result: Either[Error, OrganizationEvent] = state match {
       case UninitializedState =>
-        command.request.asMessage.sealedValue match {
-          case OrganizationRequestPBMessage.SealedValue.EstablishOrganization(command) => establishOrganization(command)
-          case OrganizationRequestPBMessage.SealedValue.TerminateOrganization(command) => terminateOrganization(command)
+        envelope.request match {
+          case command: EstablishOrganization => establishOrganization(command)
+          case command: TerminateOrganization => terminateOrganization(command)
           case _ => Left(StateError("Organization is not established"))
         }
       case draftState: DraftState =>
-        command.request.asMessage.sealedValue match {
-          case OrganizationRequestPBMessage.SealedValue.ActivateOrganization(command) => activateOrganization(draftState, command)
-          case OrganizationRequestPBMessage.SealedValue.SuspendOrganization(command) => suspendOrganization(draftState, command)
-          case OrganizationRequestPBMessage.SealedValue.TerminateOrganization(command) => terminateOrganization(command)
+        envelope.request match {
+          case command: ActivateOrganization => activateOrganization(draftState, command)
+          case command: SuspendOrganization => suspendOrganization(draftState, command)
+          case command: TerminateOrganization => terminateOrganization(command)
           case _ => Left(StateError("Message type not supported in draft state"))
         }
       case activeState: ActiveState =>
-        command.request.asMessage.sealedValue match {
-          case OrganizationRequestPBMessage.SealedValue.SuspendOrganization(command) => suspendOrganization(activeState, command)
-          case OrganizationRequestPBMessage.SealedValue.TerminateOrganization(command) => terminateOrganization(command)
+        envelope.request match {
+          case command: SuspendOrganization => suspendOrganization(activeState, command)
+          case command: TerminateOrganization => terminateOrganization(command)
           case _ => Left(StateError("Message type not supported in active state"))
         }
       case suspendedState: SuspendedState =>
-        command.request.asMessage.sealedValue match {
-          case OrganizationRequestPBMessage.SealedValue.ActivateOrganization(command) => activateOrganization(suspendedState, command)
-          case OrganizationRequestPBMessage.SealedValue.TerminateOrganization(command) => terminateOrganization(command)
+        envelope.request match {
+          case command: ActivateOrganization => activateOrganization(suspendedState, command)
+          case command: TerminateOrganization => terminateOrganization(command)
           case _ => Left(StateError("Message type not supported in suspended state"))
         }
     }
     result match {
-      case Left(error) => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
-      case Right(event) => Effect.persist(event).thenReply(command.replyTo) { _ => StatusReply.Success(event) }
+      case Left(error) => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
+      case Right(event) => Effect.persist(event).thenReply(envelope.replyTo) { _ => StatusReply.Success(event) }
     }
   }
 
   private val eventHandler: (OrganizationState, OrganizationEvent) => OrganizationState = { (state, event) =>
-    event.asMessage.sealedValue match {
-      case OrganizationEventMessage.SealedValue.Empty => state
-      case OrganizationEventMessage.SealedValue.OrganizationEstablished(event) =>
+    event match {
+      case OrganizationEvent.Empty => state
+      case event: OrganizationEstablished =>
         state match {
           case UninitializedState => DraftState(info = event.organizationInfo.get, metaInfo = event.metaInfo.get)
           case _: DraftState => state
           case _: ActiveState => state
           case _: SuspendedState => state
         }
-      case OrganizationEventMessage.SealedValue.OrganizationActivated(event) =>
+      case event: OrganizationActivated =>
         state match {
           case x: DraftState => ActiveState(x.info, event.metaInfo.get)
           case _: ActiveState => state
           case x: SuspendedState => ActiveState(x.info, event.metaInfo.get)
           case UninitializedState => UninitializedState
         }
-      case OrganizationEventMessage.SealedValue.OrganizationSuspended(event) =>
+      case event: OrganizationSuspended =>
         state match {
           case x: DraftState => SuspendedState(x.info, event.metaInfo.get)
           case x: ActiveState => SuspendedState(x.info, event.metaInfo.get)
           case x: SuspendedState => SuspendedState(x.info, event.metaInfo.get)
           case UninitializedState => UninitializedState
         }
-      case OrganizationEventMessage.SealedValue.OrganizationTerminated(event) =>
+      case _: OrganizationTerminated =>
         ???
     }
   }
