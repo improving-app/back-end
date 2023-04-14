@@ -1,10 +1,12 @@
 import TestData._
-import akka.grpc.GrpcClientSettings
+import akka.grpc.{GrpcClientSettings, GrpcServiceException}
 import com.improving.app.common.domain._
 import com.improving.app.common.test.ServiceTestContainerSpec
 import com.improving.app.organization.api.{OrganizationService, OrganizationServiceClient}
 import com.improving.app.organization.domain._
+import io.grpc.Status
 
+import scala.concurrent.Future
 import scala.util.Random
 
 class OrganizationServerSpec extends ServiceTestContainerSpec(8082, "organization-service") {
@@ -19,6 +21,80 @@ class OrganizationServerSpec extends ServiceTestContainerSpec(8082, "organizatio
   it should "expose a port for organization-service" in {
     withContainers { containers =>
       validateExposedPort(containers)
+    }
+  }
+
+  it should "gracefully handle bad requests that fail at service level" in {
+    withContainers { containers =>
+      val client = getClient(containers)
+
+      val invalidRequests = Seq(
+        (
+          "EstablishOrganization missing organizationId",
+          client.establishOrganization(EstablishOrganization(
+            organizationId = None,
+            onBehalfOf = Some(MemberId("establishingUser")),
+            organizationInfo = Some(baseOrganizationInfo)
+          ))
+        ),
+        (
+          "EstablishOrganization missing onBehalfOf",
+          client.establishOrganization(EstablishOrganization(
+            organizationId = Some(OrganizationId("boo")),
+            onBehalfOf = None,
+            organizationInfo = Some(baseOrganizationInfo)
+          ))
+        ),
+        (
+          "SuspendOrganization missing OrganizationId",
+          client.suspendOrganization(SuspendOrganization(
+            organizationId = None,
+            onBehalfOf = Some(MemberId("suspendingUser")),
+          ))
+        ),
+        (
+          "ActivateOrganization missing OrganizationId",
+          client.activateOrganization(ActivateOrganization(
+            organizationId = None,
+            onBehalfOf = Some(MemberId("activatingUser")),
+          ))
+        )
+      )
+
+      invalidRequests.foreach({ case (clue: String, responseFuture: Future[_]) =>
+        withClue(clue) {
+          val exception = responseFuture.failed.futureValue
+          exception shouldBe a[GrpcServiceException]
+          val serviceException = exception.asInstanceOf[GrpcServiceException]
+          serviceException.status.getCode shouldBe Status.Code.INVALID_ARGUMENT
+        }
+      })
+    }
+  }
+
+  it should "gracefully handle bad requests that fail at entity level" ignore { // I'm struggling to figure out how to gracefully handle this error
+    withContainers { containers =>
+      val client = getClient(containers)
+
+      val invalidRequests = Seq(
+        (
+          "EstablishOrganization missing OrganizationInfo",
+          client.establishOrganization(EstablishOrganization(
+            organizationId = Some(OrganizationId("boo")),
+            onBehalfOf = Some(MemberId("establishingUser")),
+            organizationInfo = None
+          ))
+        ),
+      )
+
+      invalidRequests.foreach({ case (clue: String, responseFuture: Future[_]) =>
+        withClue(clue) {
+          val exception = responseFuture.failed.futureValue
+          exception shouldBe a[GrpcServiceException]
+          val serviceException = exception.asInstanceOf[GrpcServiceException]
+          serviceException.status.getCode shouldBe Status.Code.INVALID_ARGUMENT
+        }
+      })
     }
   }
 
