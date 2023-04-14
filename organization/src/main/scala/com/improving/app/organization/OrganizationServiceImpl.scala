@@ -23,8 +23,6 @@ class OrganizationServiceImpl(sys: ActorSystem[_]) extends OrganizationService {
 
   val sharding = ClusterSharding(system)
 
-  case class BadRequest(message: String) extends Exception
-
   sharding.init(Entity(Organization.TypeKey)(
     createBehavior = entityContext =>
       Organization(
