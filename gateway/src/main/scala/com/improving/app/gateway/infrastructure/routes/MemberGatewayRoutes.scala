@@ -3,7 +3,15 @@ package com.improving.app.gateway.infrastructure.routes
 import akka.http.scaladsl.server.Directives.{as, complete, entity, logRequestResult, path, pathPrefix, post}
 import akka.http.scaladsl.server.Route
 import com.improving.app.gateway.api.handlers.MemberGatewayHandler
-import com.improving.app.gateway.domain.MemberMessages.{MemberCommand, MemberEventResponse, RegisterMember}
+import com.improving.app.gateway.domain.MemberMessages.{
+  ErrorResponse,
+  MemberCommand,
+  MemberData,
+  MemberEventResponse,
+  MemberRegistered,
+  MemberResponse,
+  RegisterMember
+}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport
@@ -20,7 +28,14 @@ trait MemberGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggi
       Decoder[RegisterMember].widen
     ).reduceLeft(_ or _)
 
-  implicit val encodeMemberResponse: Encoder[MemberEventResponse] = Encoder.instance { _.asJson }
+  implicit val encodeMemberResponse: Encoder[MemberEventResponse] = Encoder.instance {
+    case response: MemberResponse =>
+      response match {
+        case registered @ MemberRegistered(_, _, _) => registered.asJson
+        case error @ ErrorResponse(_)               => error.asJson
+      }
+    case data @ MemberData(_, _, _) => data.asJson
+  }
 
   implicit val handler: MemberGatewayHandler
 

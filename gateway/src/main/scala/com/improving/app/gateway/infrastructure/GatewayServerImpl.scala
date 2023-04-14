@@ -3,6 +3,7 @@ package com.improving.app.gateway.infrastructure
 import akka.actor.typed.{ActorSystem, DispatcherSelector}
 import akka.http.scaladsl.Http
 import com.improving.app.gateway.api.handlers.MemberGatewayHandler
+import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.gateway.infrastructure.routes.MemberGatewayRoutes
 import com.typesafe.config.{Config, ConfigFactory}
 
@@ -15,11 +16,13 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_]) extends MemberGatewayR
     .load("application.conf")
     .withFallback(ConfigFactory.defaultApplication())
 
-  implicit override val handler: MemberGatewayHandler = new MemberGatewayHandler()
+  implicit override val handler: MemberGatewayHandler = new MemberGatewayHandler(
+    getHostAndPortForService("member-service")
+  )
 
   implicit val dispatcher: ExecutionContextExecutor = sys.dispatchers.lookup(DispatcherSelector.defaultDispatcher())
   def start(): Unit = Http()
-    .newServerAt(config.getString("http.interface"), config.getInt("http.port"))
+    .newServerAt(config.getString("akka.http.interface"), config.getInt("akka.http.port"))
     .bindFlow(routes)
     .onComplete {
       case Success(binding) =>

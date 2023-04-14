@@ -6,21 +6,21 @@ import akka.util.Timeout
 import com.improving.app.gateway.domain.MemberMessages._
 import com.improving.app.gateway.domain.common.util.{
   gatewayMemberInfoToMemberInfo,
-  getHostAndPortForService,
   memberResponseToGatewayEventResponse
 }
 import com.improving.app.member.api.MemberServiceClient
 import com.improving.app.member.domain.MemberEventResponse
+import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 
-class MemberGatewayHandler(implicit val system: ActorSystem[_]) {
+class MemberGatewayHandler(hostAndPort: (String, Int))(implicit val system: ActorSystem[_]) extends StrictLogging {
   implicit val ec: ExecutionContext = system.executionContext
   implicit val timeout: Timeout = Timeout(5 minute)
 
-  protected val (clientHost, clientPort) = getHostAndPortForService("member-service")
+  protected val (clientHost, clientPort) = hostAndPort
 
   private val memberClient: MemberServiceClient = MemberServiceClient(
     GrpcClientSettings
@@ -29,7 +29,7 @@ class MemberGatewayHandler(implicit val system: ActorSystem[_]) {
   )
 
   def registerMember(in: RegisterMember): Future[MemberRegistered] = {
-    println(
+    logger.info(
       com.improving.app.member.domain
         .RegisterMember(
           Some(com.improving.app.common.domain.MemberId.of(in.memberId.toString)),

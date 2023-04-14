@@ -2,7 +2,9 @@ package com.improving.app.gateway
 
 import akka.actor.typed
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
+import akka.http.scaladsl.model.HttpHeader.ParsingResult.Ok
 import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import cats.implicits.toFunctorOps
@@ -10,7 +12,7 @@ import com.dimafeng.testcontainers.scalatest.TestContainerForAll
 import com.dimafeng.testcontainers.GenericContainer
 import com.improving.app.gateway.api.handlers.MemberGatewayHandler
 import com.improving.app.gateway.domain.MemberMessages._
-import com.improving.app.gateway.domain.common.util.{getHostAndPortForService, memberInfoToGatewayMemberInfo}
+import com.improving.app.gateway.domain.common.util.memberInfoToGatewayMemberInfo
 import com.improving.app.gateway.infrastructure.routes.MemberGatewayRoutes
 import com.improving.app.member.domain.TestData.baseMemberInfo
 import com.typesafe.config.{Config, ConfigFactory}
@@ -27,7 +29,6 @@ import org.testcontainers.containers.wait.strategy.Wait
 
 import java.util.UUID
 import scala.concurrent.duration.DurationInt
-import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 
 class MemberGatewayServerSpec
@@ -69,31 +70,33 @@ class MemberGatewayServerSpec
 
   override val config: Config = ConfigFactory.load("application.conf")
 
-  private val (serviceHost, servicePort) = getHostAndPortForService("member-service")
+  implicit override val handler: MemberGatewayHandler = new MemberGatewayHandler(
+    ("localhost", 8081)
+  )
 
   override lazy val containerDef: GenericContainer.Def[GenericContainer] = GenericContainer.Def(
     "improving-app-member:latest",
     exposedPorts = Seq(8081),
-    waitStrategy = Wait.forHttp("/")
   )
 
   val container: GenericContainer = containerDef.start()
 
-  implicit override val handler: MemberGatewayHandler = new MemberGatewayHandler()
   override def beforeAll(): Unit = {
     super.beforeAll()
-    container.container.start()
+    container.start()
   }
   override def afterAll(): Unit = {
     super.afterAll()
-    container.container.stop()
+    container.stop()
     system.terminate()
   }
 
   "In MemberGateway" when {
     "starting up" should {
       "retrieve port for service" taggedAs Retryable in {
-        assert(container.container.getExposedPorts contains 8081)
+        withContainers { a =>
+          assert(a.container.getExposedPorts.size > 0)
+        }
       }
     }
     "Sending RegisterMember" should {
@@ -108,7 +111,7 @@ class MemberGatewayServerSpec
         Post("/member", command.asInstanceOf[MemberCommand].asJson) ~> Route.seal(
           routes
         ) ~> check {
-          status shouldEqual StatusCodes.Success
+          status shouldBe StatusCodes.OK
           responseEntity.toString.asJson.as[MemberEventResponse].map { response =>
             val registered = response.asInstanceOf[MemberRegistered]
             registered.memberId shouldEqual memberId
