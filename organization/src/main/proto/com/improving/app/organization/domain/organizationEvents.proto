@@ -1,0 +1,40 @@
+syntax = "proto3";
+package com.improving.app.organization.domain;
+
+import "scalapb/scalapb.proto";
+
+import "com/improving/app/common/domain/organizationId.proto";
+import "com/improving/app/organization/domain/organizationData.proto";
+
+message OrganizationEvent {
+  oneof sealed_value {
+    OrganizationEstablished organization_established = 1;
+    OrganizationActivated organization_activated = 2;
+    OrganizationSuspended organization_suspended = 3;
+    OrganizationTerminated organization_terminated = 4;
+  }
+}
+
+message OrganizationEstablished {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  com.improving.app.organization.domain.OrganizationInfo organization_info = 2;
+  com.improving.app.organization.domain.OrganizationMetaInfo meta_info = 3;
+}
+
+message OrganizationActivated {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  com.improving.app.organization.domain.OrganizationMetaInfo meta_info = 2;
+}
+
+message OrganizationSuspended {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  com.improving.app.organization.domain.OrganizationMetaInfo meta_info = 2;
+}
+
+message OrganizationTerminated {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+}

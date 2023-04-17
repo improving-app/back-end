@@ -1,0 +1,72 @@
+syntax = "proto3";
+package com.improving.app.organization.domain;
+
+import "scalapb/scalapb.proto";
+
+import "com/improving/app/common/domain/organizationId.proto";
+import "com/improving/app/common/domain/memberId.proto";
+import "com/improving/app/organization/domain/organizationData.proto";
+
+option (scalapb.options) = {
+  single_file: true,
+  preamble: [
+    "sealed trait OrganizationRequest {\n",
+    "  val organizationId: Option[com.improving.app.common.domain.OrganizationId]\n"
+    "  val onBehalfOf: Option[com.improving.app.common.domain.MemberId]\n",
+    "}\n",
+    "sealed trait OrganizationCommand extends OrganizationRequest\n",
+    "sealed trait OrganizationQuery extends OrganizationRequest\n"
+  ]
+};
+
+message OrganizationRequestPB {
+  oneof sealed_value {
+    EstablishOrganization establish_organization = 1;
+    ActivateOrganization activate_organization = 2;
+    SuspendOrganization suspend_organization = 3;
+    TerminateOrganization terminate_organization = 4;
+
+    GetOrganizationInfo get_organization_info = 10;
+  }
+}
+
+message EstablishOrganization {
+  option (scalapb.message) = {
+    extends: [ "OrganizationCommand" ]
+  };
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  com.improving.app.organization.domain.OrganizationInfo organization_info = 3;
+}
+
+message ActivateOrganization {
+  option (scalapb.message) = {
+    extends: [ "OrganizationCommand" ]
+  };
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+}
+
+message SuspendOrganization {
+  option (scalapb.message) = {
+    extends: [ "OrganizationCommand" ]
+  };
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+}
+
+message TerminateOrganization {
+  option (scalapb.message) = {
+    extends: [ "OrganizationCommand" ]
+  };
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+}
+
+message GetOrganizationInfo {
+  option (scalapb.message) = {
+    extends: [ "OrganizationQuery" ]
+  };
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+}
