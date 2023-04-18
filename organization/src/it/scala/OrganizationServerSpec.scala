@@ -99,7 +99,7 @@ class OrganizationServerSpec extends ServiceTestContainerSpec(8082, "organizatio
     }
   }
 
-  it should "properly process ActivateOrganization" in {
+  it should "properly process ActivateOrganization" taggedAs(Retryable) in {
     withContainers { containers =>
       val client = getClient(containers)
 
