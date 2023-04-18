@@ -16,7 +16,7 @@ object Validation {
   def required[T]: (String, Validator[T]) => Validator[Option[T]] = (fieldName, validator) => {
     opt =>
       if (opt.isEmpty) {
-        Some(ValidationError(fieldName + " is missing."))
+        Some(ValidationError("No associated " + fieldName))
       } else {
         validator(opt.get)
       }

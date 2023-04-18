@@ -28,6 +28,8 @@ object Tenant {
     val metaInfo: TenantMetaInfo
   }
 
+  private case class TerminatedTenant(metaInfo: TenantMetaInfo) extends TenantState
+
   private case class ActiveTenant(info: TenantInfo, metaInfo: TenantMetaInfo) extends EstablishedTenantState
 
   private case class SuspendedTenant(info: TenantInfo, metaInfo: TenantMetaInfo, suspensionReason: String) extends EstablishedTenantState
@@ -60,6 +62,7 @@ object Tenant {
               case x: SuspendTenant => suspendTenant(establishedState, x)
               case x: EditInfo => editInfo(establishedState, x)
               case x: GetOrganizations => getOrganizations(x, Some(activeTenantState))
+              case x: TerminateTenant => terminateTenant(establishedState, x)
               case _ => Left(StateError("Command is not supported"))
             }
           case suspendedTenantState: SuspendedTenant =>
@@ -69,8 +72,14 @@ object Tenant {
               case x: SuspendTenant => suspendTenant(establishedState, x)
               case x: EditInfo => editInfo(establishedState, x)
               case x: GetOrganizations => getOrganizations(x, Some(suspendedTenantState))
+              case x: TerminateTenant => terminateTenant(establishedState, x)
               case _ => Left(StateError("Command is not supported"))
             }
+        }
+      case _: TerminatedTenant =>
+        command.request match {
+          case x: GetOrganizations => getOrganizations(x)
+          case _ => Left(StateError("Command not allowed in Terminated state"))
         }
     }
     result match {
@@ -92,24 +101,33 @@ object Tenant {
               case UninitializedTenant => ActiveTenant(info = e.tenantInfo.get, metaInfo = e.metaInfo.get)
               case _: ActiveTenant => state
               case _: SuspendedTenant => state
+              case _: TerminatedTenant => state
             }
           case e: TenantActivated =>
             state match {
               case _: ActiveTenant => state // tenant cannot have TenantActivated in Active state
               case x: SuspendedTenant => ActiveTenant(x.info, e.metaInfo.get)
               case UninitializedTenant => UninitializedTenant
+              case _: TerminatedTenant => state
             }
           case e: TenantSuspended =>
             state match {
               case x: ActiveTenant => SuspendedTenant(x.info, e.metaInfo.get, e.suspensionReason)
               case x: SuspendedTenant => SuspendedTenant(x.info, e.metaInfo.get, e.suspensionReason)
               case UninitializedTenant => UninitializedTenant
+              case _: TerminatedTenant => state
             }
           case e: InfoEdited =>
             state match {
               case x: ActiveTenant => x.copy(info = e.getNewInfo, metaInfo = e.getMetaInfo)
               case x: SuspendedTenant => x.copy(info = e.getNewInfo, metaInfo = e.getMetaInfo)
               case UninitializedTenant => UninitializedTenant
+              case _: TerminatedTenant => state
+            }
+          case _: TenantTerminated =>
+            state match {
+              case x: EstablishedTenantState => TerminatedTenant(x.metaInfo)
+              case _ => state
             }
           case _ => state
         }
@@ -244,6 +262,26 @@ object Tenant {
         organizations = stateOpt.fold[Option[TenantOrganizationList]](Some(TenantOrganizationList(Seq.empty))) {
           _.info.organizations
         }
+      )))
+    }
+  }
+
+  private def terminateTenant(
+                             state: EstablishedTenantState,
+                             terminateTenant: TerminateTenant,
+                           ): Either[Error, TenantEnvelope] = {
+    val maybeValidationError = applyAllValidators[TerminateTenant](Seq(
+      c => required("tenant Id", tenantIdValidator)(c.tenantId),
+      c => required("terminating user", memberIdValidator)(c.terminatingUser)
+    ))(terminateTenant)
+
+    if (maybeValidationError.isDefined) {
+      Left(maybeValidationError.get)
+    } else {
+      val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = terminateTenant.terminatingUser)
+      Right(TenantEventResponse(TenantTerminated(
+        tenantId = terminateTenant.tenantId,
+        metaInfo = Some(newMetaInfo)
       )))
     }
   }
