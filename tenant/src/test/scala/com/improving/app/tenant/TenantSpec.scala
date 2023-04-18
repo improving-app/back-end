@@ -57,6 +57,25 @@ class TenantSpec
     probe.receiveMessage()
   }
 
+  def terminateTenant(
+                     tenantId: String,
+                     p: ActorRef[TenantCommand],
+                     probe: TestProbe[StatusReply[TenantEnvelope]]
+                     ): StatusReply[TenantEnvelope] = {
+    val establishResponse = establishTenant(tenantId, p, probe)
+    assert(establishResponse.isSuccess)
+
+    p ! Tenant.TenantCommand(
+      TerminateTenant(
+        tenantId = Some(TenantId(tenantId)),
+        terminatingUser = Some(MemberId("terminatingUser"))
+      ),
+      probe.ref
+    )
+
+    probe.receiveMessage()
+  }
+
   "A Tenant Actor" when {
     // Should this also error out when other tenants have the same name?
     "in the Uninitialized State" when {
@@ -170,6 +189,26 @@ class TenantSpec
             val responseError = response.getError
             responseError.getMessage shouldEqual "Tenant is not established"
           })
+        }
+      }
+
+      "executing TerminateTenant command" should {
+        "error as not established" in {
+          val (tenantId, p, probe) = createTestVariables()
+
+          p ! Tenant.TenantCommand(
+            TerminateTenant(
+              tenantId = Some(TenantId(tenantId)),
+              terminatingUser = Some(MemberId("terminatingUser"))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "Tenant is not established"
         }
       }
     }
@@ -469,6 +508,135 @@ class TenantSpec
               OrganizationId("org2")
             )
           ))
+        }
+      }
+
+      "executing TerminateTenant command" should {
+        "error for an unauthorized terminating user" ignore {
+          val (tenantId, p, probe) = createTestVariables()
+
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            TerminateTenant(
+              tenantId = Some(TenantId(tenantId)),
+              terminatingUser = Some(MemberId("terminatingUser"))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Tenant"
+
+        }
+        "error for no associated tenant ID" in {
+          val (tenantId, p, probe) = createTestVariables()
+
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            TerminateTenant(
+              tenantId = None,
+              terminatingUser = Some(MemberId("terminatingUser"))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "No associated tenant Id"
+        }
+        "error for an empty tenant ID" in {
+          val (tenantId, p, probe) = createTestVariables()
+
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            TerminateTenant(
+              tenantId = Some(TenantId()),
+              terminatingUser = Some(MemberId("terminatingUser"))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "Tenant Id is empty"
+        }
+        "error for no associated terminating user" in {
+          val (tenantId, p, probe) = createTestVariables()
+
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            TerminateTenant(
+              tenantId = Some(TenantId(tenantId)),
+              terminatingUser = None
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "No associated terminating user"
+        }
+        "error for an empty terminating user" in {
+          val (tenantId, p, probe) = createTestVariables()
+
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            TerminateTenant(
+              tenantId = Some(TenantId(tenantId)),
+              terminatingUser = Some(MemberId())
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "Member Id is empty"
+        }
+        "succeed for the golden path" in {
+          val (tenantId, p, probe) = createTestVariables()
+
+          val establishTenantResponse = establishTenant(tenantId, p, probe)
+          assert(establishTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            TerminateTenant(
+              tenantId = Some(TenantId(tenantId)),
+              terminatingUser = Some(MemberId("terminatingUser"))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantTerminatedValue
+          successVal.tenantId.get.id shouldBe tenantId
+
+          val metaInfo = successVal.metaInfo.get
+
+          metaInfo.createdBy.get.id shouldBe "establishingUser"
+          metaInfo.lastUpdatedBy.get.id shouldBe "terminatingUser"
         }
       }
     }
@@ -932,6 +1100,160 @@ class TenantSpec
               OrganizationId("org2")
             )
           ))
+        }
+      }
+
+      "executing TerminateTenant command" should {
+        "succeed for the golden path" in {
+          val (tenantId, p, probe) = createTestVariables()
+
+          val establishResponse = establishTenant(tenantId, p, probe)
+          assert(establishResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId(tenantId)),
+              suspensionReason = "reason",
+              suspendingUser = Some(MemberId("suspendingUser"))
+            ),
+            probe.ref
+          )
+
+          val suspendTenantResponse = probe.receiveMessage()
+          assert(suspendTenantResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            TerminateTenant(
+              tenantId = Some(TenantId(tenantId)),
+              terminatingUser = Some(MemberId("terminatingUser"))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantTerminatedValue
+          successVal.tenantId.get.id shouldBe tenantId
+
+          val metaInfo = successVal.metaInfo.get
+
+          metaInfo.createdBy.get.id shouldBe "establishingUser"
+          metaInfo.lastUpdatedBy.get.id shouldBe "terminatingUser"
+        }
+      }
+    }
+
+    "in the Terminated state" when {
+      "executing EditInfo command" should {
+        "error as an action not permitted" in {
+          val (tenantId, p, probe) = createTestVariables()
+
+          val terminateResponse = terminateTenant(tenantId, p, probe)
+          assert(terminateResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            EditInfo(
+              tenantId = Some(TenantId(tenantId)),
+              editingUser = Some(MemberId("editingUser")),
+              infoToUpdate = Some(baseTenantInfo)
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          response.getError.getMessage shouldEqual "Command not allowed in Terminated state"
+        }
+      }
+
+      "executing ActiveTenant command" should {
+        "error as an action not permitted" in {
+          val (tenantId, p, probe) = createTestVariables()
+
+          val terminateResponse = terminateTenant(tenantId, p, probe)
+          assert(terminateResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            ActivateTenant(
+              tenantId = Some(TenantId(tenantId)),
+              activatingUser = Some(MemberId("activatingUser"))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          response.getError.getMessage shouldEqual "Command not allowed in Terminated state"
+        }
+      }
+
+      "executing SuspendTenant command" should {
+        "error as an action not permitted" in {
+          val (tenantId, p, probe) = createTestVariables()
+
+          val terminateResponse = terminateTenant(tenantId, p, probe)
+          assert(terminateResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            SuspendTenant(
+              tenantId = Some(TenantId(tenantId)),
+              suspensionReason = "reason",
+              suspendingUser = Some(MemberId("suspendingUser"))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          response.getError.getMessage shouldEqual "Command not allowed in Terminated state"
+        }
+      }
+
+      "executing GetOrganizations command" should {
+        "succeed but return an empty list" in {
+          val (tenantId, p, probe) = createTestVariables()
+
+          val terminateResponse = terminateTenant(tenantId, p, probe)
+          assert(terminateResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            GetOrganizations(
+              tenantId = Some(TenantId(tenantId))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val responseVal = response.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue
+          responseVal.organizations shouldBe Some(TenantOrganizationList())
+        }
+      }
+
+      "executing TerminateTenant command" should {
+        "error as an action not permitted" in {
+          val (tenantId, p, probe) = createTestVariables()
+
+          val terminateResponse = terminateTenant(tenantId, p, probe)
+          assert(terminateResponse.isSuccess)
+
+          p ! Tenant.TenantCommand(
+            TerminateTenant(
+              tenantId = Some(TenantId(tenantId)),
+              terminatingUser = Some(MemberId("terminatingUser"))
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          response.getError.getMessage shouldEqual "Command not allowed in Terminated state"
         }
       }
     }

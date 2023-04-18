@@ -179,4 +179,28 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
       )
     }
   }
+
+  it should "properly process TerminateTenant" in {
+    withContainers { containers =>
+      val client = getClient(containers)
+
+      val tenantId = Random.nextString(31)
+
+      val establishedResponse = client.establishTenant(EstablishTenant(
+        tenantId = Some(TenantId(tenantId)),
+        establishingUser = Some(MemberId("establishingUser")),
+        tenantInfo = Some(baseTenantInfo)
+      )).futureValue
+
+      establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
+      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
+
+      val response = client.terminateTenant(TerminateTenant(
+        tenantId = Some(TenantId(tenantId)),
+        terminatingUser = Some(MemberId("terminatingUser"))
+      )).futureValue
+      response.tenantId.get.id shouldBe tenantId
+      response.metaInfo.get.lastUpdatedBy.get.id shouldBe "terminatingUser"
+    }
+  }
 }

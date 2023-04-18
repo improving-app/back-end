@@ -63,6 +63,17 @@ message InfoEdited {
   TenantInfo new_info = 4;
 }
 
+message TerminateTenant {
+  com.improving.app.common.domain.TenantId tenant_id = 1;
+  com.improving.app.common.domain.MemberId terminating_user = 2;
+}
+
+message TenantTerminated {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  com.improving.app.common.domain.TenantId tenant_id = 1;
+  TenantMetaInfo meta_info = 2;
+}
+
 message GetOrganizations {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   com.improving.app.common.domain.TenantId tenant_id = 1;
@@ -81,6 +92,7 @@ message TenantRequest {
     SuspendTenant suspend_tenant_value = 3;
     EditInfo edit_info_value = 4;
     GetOrganizations get_organization_value = 5;
+    TerminateTenant terminate_tenant_value = 6;
   }
 }
 
@@ -91,6 +103,7 @@ message TenantEvent {
     TenantActivated tenant_activated_value = 2;
     TenantSuspended tenant_suspended_value = 3;
     InfoEdited info_edited_value = 4;
+    TenantTerminated tenant_terminated_value = 5;
   }
 }
 
