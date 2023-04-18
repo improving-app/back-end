@@ -5,7 +5,7 @@
  grpcurl -plaintext localhost:8081 list
 
 //RegisterMember
-grpcurl -plaintext -d '{"member_id": {"id": "memberId"}, "memberInfo":{"handle":"test", "avatarUrl": "N/A", "firstName":"Shail", "lastName": "Verma", "contact" : {"firstName": "firstName", "lastName": "lastName", "phone": "111-222-1234", "emailAddress": "test@example.com", "userName":"ShailUser"}, "notificationPreference": "NOTIFICATION_PREFERENCE_EMAIL", "notificationOptIn": true, "organizationMembership": [{"id":"ORGANIZATION_IMPROVING"}], "tenant": {"id":"TENANT_IMPROVING"}}, "registeringMember":{"id":"ADMIN"} }' localhost:8081 com.improving.app.member.api.MemberService.RegisterMember
+grpcurl -plaintext -d '{"member_id": {"id": "memberId"}, "memberInfo":{"handle":"test", "avatarUrl": "N/A", "firstName":"Shail", "lastName": "Verma", "contact" : {"firstName": "firstName", "lastName": "lastName", "phone": "111-222-1234", "emailAddress": "test@example.com", "userName":"ShailUser"}, "notificationPreference": "NOTIFICATION_PREFERENCE_EMAIL", "notificationOptIn": true, "organization_membership": [{"id":"ORGANIZATION_IMPROVING"}], "tenant": {"id":"TENANT_IMPROVING"}}, "registeringMember":{"id":"ADMIN"} }' localhost:8081 com.improving.app.member.api.MemberService.RegisterMember
 
 //GetMemberInfo
 grpcurl -plaintext -d '{"member_id":{"id": "memberId"} }' localhost:8081 com.improving.app.member.api.MemberService.GetMemberInfo
@@ -14,7 +14,7 @@ grpcurl -plaintext -d '{"member_id":{"id": "memberId"} }' localhost:8081 com.imp
 grpcurl -plaintext -d '{"memberId":{"id": "memberId"}, "activatingMember":{"id":"ADMIN"} }' localhost:8081 com.improving.app.member.api.MemberService.ActivateMember
 
 //UpdateMemberInfo
-grpcurl -plaintext -d '{ "memberId":{"id": "memberId"}, "memberInfo":{ "handle":"test", "avatarUrl": "N/A", "firstName":"Shail", "lastName": "Verma", "contact": { "first_name": "Shail", "last_name": "Verma", "email_address": "text@example.com", "phone": "123-456-7890", "user_name": "test"}, "notificationPreference": "NOTIFICATION_PREFERENCE_SMS", "organizationMembership": [{"id":"ORGANIZATION_IMPROVING"}]}, "editing_member":{"id":"ADMIN"} }' localhost:8081 com.improving.app.member.api.MemberService.UpdateMemberInfo
+grpcurl -plaintext -d '{ "memberId":{"id": "memberId"}, "memberInfo":{ "handle":"test", "avatarUrl": "N/A", "firstName":"Shail", "lastName": "Verma", "contact": { "first_name": "Shail", "last_name": "Verma", "email_address": "text@example.com", "phone": "123-456-7890", "user_name": "test"}, "notificationPreference": "NOTIFICATION_PREFERENCE_SMS", "organization_membership": [{"id":"ORGANIZATION_IMPROVING"}]}, "editing_member":{"id":"ADMIN"} }' localhost:8081 com.improving.app.member.api.MemberService.UpdateMemberInfo
 
 //SuspendMember
 grpcurl -plaintext -d '{"memberId":{"id": "memberId"}, "suspendingMember":{"id":"ADMIN"} }' localhost:8081 com.improving.app.member.api.MemberService.SuspendMember

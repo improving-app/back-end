@@ -5,19 +5,12 @@ import akka.pattern.StatusReply
 import akka.persistence.testkit.scaladsl.EventSourcedBehaviorTestKit
 import akka.persistence.testkit.scaladsl.EventSourcedBehaviorTestKit.SerializationSettings
 import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
-import com.improving.app.member.domain.Member.{
-  DraftMemberState,
-  MemberCommand,
-  MemberState,
-  RegisteredMemberState,
-  TerminatedMemberState,
-  UninitializedMemberState
-}
+import com.improving.app.member.domain.Member.{DraftMemberState, MemberCommand, MemberState, RegisteredMemberState, TerminatedMemberState, UninitializedMemberState}
 import com.improving.app.member.domain.MemberState.{MEMBER_STATUS_ACTIVE, MEMBER_STATUS_DRAFT, MEMBER_STATUS_SUSPENDED}
+import com.improving.app.member.domain.TestData._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import com.improving.app.member.domain.TestData._
 
 class MemberSpec
     extends ScalaTestWithActorTestKit(EventSourcedBehaviorTestKit.config)

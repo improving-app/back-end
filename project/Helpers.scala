@@ -64,8 +64,10 @@ object C {
         scalaVersion := V.scala,
         scalacOptions := scala3Options,
         Compile / scalacOptions ++= scala3Options,
+        IntegrationTest / fork := true,
         libraryDependencies ++=
-          utilityDependencies ++ loggingDependencies ++ httpDependencies ++ akkaHttpTestingDependencies,
+          utilityDependencies ++ loggingDependencies ++ httpDependencies ++ akkaHttpTestingDependencies ++ jsonDependencies,
+        libraryDependencies += "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test",
         dockerSettings(port)
       )
   }

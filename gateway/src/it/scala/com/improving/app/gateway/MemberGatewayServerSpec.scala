@@ -2,23 +2,19 @@ package com.improving.app.gateway
 
 import akka.actor.typed
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
-import akka.http.scaladsl.model.HttpHeader.ParsingResult.Ok
+import akka.grpc.GrpcClientSettings
 import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.Directives.pathPrefix
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
-import cats.implicits.toFunctorOps
+import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.dimafeng.testcontainers.scalatest.TestContainerForAll
-import com.dimafeng.testcontainers.GenericContainer
+import com.dimafeng.testcontainers.{DockerComposeContainer, ExposedService, GenericContainer}
+import com.improving.app.common.domain.MemberId
 import com.improving.app.gateway.api.handlers.MemberGatewayHandler
-import com.improving.app.gateway.domain.MemberMessages._
 import com.improving.app.gateway.domain.common.util.memberInfoToGatewayMemberInfo
-import com.improving.app.gateway.infrastructure.routes.MemberGatewayRoutes
+import com.improving.app.gateway.domain.{MemberInfo, MemberRegistered, NotificationPreference, RegisterMember}
 import com.improving.app.member.domain.TestData.baseMemberInfo
+import com.improving.app.gateway.infrastructure.routes.MemberGatewayRoutes
 import com.typesafe.config.{Config, ConfigFactory}
-import io.circe.generic.auto._
-import io.circe.syntax._
-import io.circe.{Decoder, Encoder}
 import org.scalatest.Retries.{isRetryable, withRetry}
 import org.scalatest.{BeforeAndAfterEach, Outcome}
 import org.scalatest.concurrent.ScalaFutures
@@ -27,8 +23,8 @@ import org.scalatest.tagobjects.Retryable
 import org.scalatest.wordspec.AnyWordSpec
 import org.testcontainers.containers.wait.strategy.Wait
 
+import java.io.File
 import java.util.UUID
-import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 class MemberGatewayServerSpec
@@ -39,84 +35,84 @@ class MemberGatewayServerSpec
     with BeforeAndAfterEach
     with MemberGatewayRoutes
     with TestContainerForAll {
-  override def withFixture(test: NoArgTest): Outcome = {
-    if (isRetryable(test))
-      withRetry {
-        super.withFixture(test)
-      }
-    else
-      super.withFixture(test)
-  }
-
-  implicit val encodeMemberCommand: Encoder[MemberCommand] = Encoder.instance {
-    case response @ RegisterMember(_, _, _) =>
-      response.asJson
-  }
-
-  implicit val decodeMemberResponse: Decoder[MemberResponse] =
-    List[Decoder[MemberResponse]](
-      Decoder[MemberRegistered].widen
-    ).reduceLeft(_ or _)
-
-  implicit val decodeMemberEventResponse: Decoder[MemberEventResponse] =
-    List[Decoder[MemberEventResponse]](
-      Decoder[MemberResponse].widen,
-      Decoder[MemberData].widen
-    ).reduceLeft(_ or _)
-
-  implicit val timeout: RouteTestTimeout = RouteTestTimeout(10.seconds)
 
   implicit val typedSystem: typed.ActorSystem[Nothing] = system.toTyped
 
   override val config: Config = ConfigFactory.load("application.conf")
 
-  implicit override val handler: MemberGatewayHandler = new MemberGatewayHandler(
-    ("localhost", 8081)
+  override val containerDef: DockerComposeContainer.Def = DockerComposeContainer.Def(
+    new File("src/test/resources/member-compose.yml"),
+    tailChildContainers = true,
+    exposedServices = Seq(
+      ExposedService("member-service", 8081, Wait.forLogMessage(s".*gRPC server bound to 0.0.0.0:8081*.", 1))
+    )
   )
 
-  override lazy val containerDef: GenericContainer.Def[GenericContainer] = GenericContainer.Def(
-    "improving-app-member:latest",
-    exposedPorts = Seq(8081),
-  )
-
-  val container: GenericContainer = containerDef.start()
-
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    container.start()
+  def getContainerHostPort(containers: Containers): (String, Integer) = {
+    val host = containers.container.getServiceHost("member-service", 8081)
+    val port = containers.container.getServicePort("member-service", 8081)
+    (host, port)
   }
+
+  private def getClient(containers: Containers): GrpcClientSettings = {
+    val (host, port) = getContainerHostPort(containers)
+    GrpcClientSettings.connectToServiceAt(host, port)(system).withTls(false)
+  }
+
+  def validateExposedPort(a: Containers): Unit = {
+    assert(a.container.getServicePort("member-service", 8081) > 0)
+  }
+
   override def afterAll(): Unit = {
     super.afterAll()
-    container.stop()
     system.terminate()
   }
 
   "In MemberGateway" when {
     "starting up" should {
-      "retrieve port for service" taggedAs Retryable in {
-        withContainers { a =>
-          assert(a.container.getExposedPorts.size > 0)
+      "retrieve port for service" in {
+        withContainers { container =>
+          validateExposedPort(container)
         }
       }
     }
     "Sending RegisterMember" should {
-      "succeed" taggedAs Retryable in {
-        val info = memberInfoToGatewayMemberInfo(baseMemberInfo)
+      "succeed" in {
+        withContainers { container =>
+          val handler: MemberGatewayHandler =
+            new MemberGatewayHandler(grpcClientSettingsOpt = Some(getClient(container)))
 
-        val memberId = UUID.randomUUID()
-        val registeringMember = UUID.randomUUID()
+          val memberId = UUID.randomUUID().toString
+          val registeringMember = UUID.randomUUID().toString
 
-        val command = RegisterMember(memberId, info, registeringMember)
+          val info = baseMemberInfo
 
-        Post("/member", command.asInstanceOf[MemberCommand].asJson) ~> Route.seal(
-          routes
-        ) ~> check {
-          status shouldBe StatusCodes.OK
-          responseEntity.toString.asJson.as[MemberEventResponse].map { response =>
-            val registered = response.asInstanceOf[MemberRegistered]
-            registered.memberId shouldEqual memberId
-            registered.memberInfo shouldEqual info
-            registered.metaInfo.createdBy shouldEqual registeringMember
+          val command = RegisterMember(
+            Some(MemberId.of(memberId)),
+            Some(
+              MemberInfo(
+                info.handle,
+                info.avatarUrl,
+                info.firstName,
+                info.lastName,
+                info.notificationPreference
+                  .map(pref => NotificationPreference.fromValue(pref.value)),
+                info.notificationOptIn,
+                info.contact,
+                info.organizationMembership,
+                info.tenant
+              )
+            ),
+            Some(MemberId.of(registeringMember))
+          )
+          Post("/member", command.toProtoString) ~> Route.seal(
+            routes(handler)
+          ) ~> check {
+            status shouldBe StatusCodes.OK
+            val response = MemberRegistered.fromAscii(responseAs[String])
+            response.memberId.getOrElse(MemberId.defaultInstance).id shouldEqual memberId
+            response.memberInfo.getOrElse(MemberInfo.defaultInstance) shouldEqual memberInfoToGatewayMemberInfo(info)
+            response.meta.map(_.createdBy.getOrElse(MemberId.defaultInstance).id shouldEqual registeringMember)
           }
         }
       }

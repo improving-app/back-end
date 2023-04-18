@@ -77,7 +77,8 @@ object Dependencies {
     "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % jsoniterScala,
     "io.circe" %% "circe-core" % circe,
     "io.circe" %% "circe-generic" % circe,
-    "io.circe" %% "circe-parser" % circe
+    "io.circe" %% "circe-parser" % circe,
+    "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.0"
   )
 
   val integrationTestDependencies: Seq[ModuleID] = Seq(
@@ -102,7 +103,7 @@ object Dependencies {
     "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf",
     "com.google.protobuf" % "protobuf-java" % "3.22.2" % "protobuf",
     "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0" % "protobuf",
-    "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0"
+    "com.thesamet.scalapb.common-protos" %% "proto-google-common-protos-scalapb_0.11" % "2.9.6-0",
   )
 
   val scalaPbValidationDependencies: Seq[ModuleID] = Seq(
