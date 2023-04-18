@@ -5,6 +5,7 @@ import com.improving.app.common.test.ServiceTestContainerSpec
 import com.improving.app.organization.api.{OrganizationService, OrganizationServiceClient}
 import com.improving.app.organization.domain._
 import io.grpc.Status
+import org.scalatest.tagobjects.Retryable
 
 import scala.concurrent.Future
 import scala.util.Random
@@ -24,7 +25,7 @@ class OrganizationServerSpec extends ServiceTestContainerSpec(8082, "organizatio
     }
   }
 
-  it should "gracefully handle bad requests that fail at service level" in {
+  it should "gracefully handle bad requests that fail at service level" taggedAs(Retryable) in {
     withContainers { containers =>
       val client = getClient(containers)
 
