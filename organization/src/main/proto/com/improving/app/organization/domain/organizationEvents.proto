@@ -12,6 +12,7 @@ message OrganizationEvent {
     OrganizationActivated organization_activated = 2;
     OrganizationSuspended organization_suspended = 3;
     OrganizationTerminated organization_terminated = 4;
+    OrganizationInfoEdited organization_info_edited = 5;
   }
 }
 
@@ -37,4 +38,12 @@ message OrganizationSuspended {
 message OrganizationTerminated {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   com.improving.app.common.domain.OrganizationId organization_id = 1;
+}
+
+message OrganizationInfoEdited {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  OrganizationMetaInfo meta_info = 2;
+  OrganizationInfo old_info = 3;
+  OrganizationInfo new_info = 4;
 }

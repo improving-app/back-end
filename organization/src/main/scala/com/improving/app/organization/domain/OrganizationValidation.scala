@@ -18,13 +18,19 @@ object OrganizationValidation {
     }
   }
 
-  val completeOrganizationInfoValidator: Validator[OrganizationInfo] =
+  val inactiveStateOrganizationInfoValidator: Validator[OrganizationInfo] =
     applyAllValidators[OrganizationInfo](Seq(
       orgInfo => organizationNameValidator(orgInfo.name),
       orgInfo => organizationNameValidator(orgInfo.shortName),
       orgInfo => required("tenant", tenantIdValidator)(orgInfo.tenant),
-      orgInfo => required("address", addressValidator)(orgInfo.address),
+      orgInfo => optional(addressValidator)(orgInfo.address),
       orgInfo => urlValidator(orgInfo.url),
       orgInfo => urlValidator(orgInfo.logo)
+    ))
+
+  val activeStateOrganizationInfoValidator: Validator[OrganizationInfo] =
+    applyAllValidators[OrganizationInfo](Seq(
+      inactiveStateOrganizationInfoValidator,
+      orgInfo => required("address", addressValidator)(orgInfo.address),
     ))
 }

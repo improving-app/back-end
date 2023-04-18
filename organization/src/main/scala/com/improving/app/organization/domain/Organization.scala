@@ -27,11 +27,14 @@ object Organization {
     val info: OrganizationInfo
     val metaInfo: OrganizationMetaInfo
   }
-  private case class DraftState(info: OrganizationInfo, metaInfo: OrganizationMetaInfo) extends EstablishedState
+
+  private sealed trait InactiveState extends EstablishedState
+
+  private case class DraftState(info: OrganizationInfo, metaInfo: OrganizationMetaInfo) extends InactiveState
 
   private case class ActiveState(info: OrganizationInfo, metaInfo: OrganizationMetaInfo) extends EstablishedState
 
-  private case class SuspendedState(info: OrganizationInfo, metaInfo: OrganizationMetaInfo) extends EstablishedState
+  private case class SuspendedState(info: OrganizationInfo, metaInfo: OrganizationMetaInfo) extends InactiveState
 
   def apply(persistenceId: PersistenceId): Behavior[OrganizationRequestEnvelope] = {
     Behaviors.setup(context =>
@@ -57,18 +60,21 @@ object Organization {
           case command: ActivateOrganization => activateOrganization(draftState, command)
           case command: SuspendOrganization => suspendOrganization(draftState, command)
           case command: TerminateOrganization => terminateOrganization(command)
+          case command: EditOrganizationInfo => editOrganizationInfo(draftState, command)
           case _ => Left(StateError("Message type not supported in draft state"))
         }
       case activeState: ActiveState =>
         envelope.request match {
           case command: SuspendOrganization => suspendOrganization(activeState, command)
           case command: TerminateOrganization => terminateOrganization(command)
+          case command: EditOrganizationInfo => editOrganizationInfo(activeState, command)
           case _ => Left(StateError("Message type not supported in active state"))
         }
       case suspendedState: SuspendedState =>
         envelope.request match {
           case command: ActivateOrganization => activateOrganization(suspendedState, command)
           case command: TerminateOrganization => terminateOrganization(command)
+          case command: EditOrganizationInfo => editOrganizationInfo(suspendedState, command)
           case _ => Left(StateError("Message type not supported in suspended state"))
         }
     }
@@ -104,6 +110,13 @@ object Organization {
         }
       case _: OrganizationTerminated =>
         ???
+      case event: OrganizationInfoEdited =>
+        state match {
+          case _: DraftState => DraftState(event.getNewInfo, event.getMetaInfo)
+          case _: ActiveState => ActiveState(event.getNewInfo, event.getMetaInfo)
+          case _: SuspendedState => SuspendedState(event.getNewInfo, event.getMetaInfo)
+          case UninitializedState => UninitializedState
+        }
     }
   }
 
@@ -119,7 +132,7 @@ object Organization {
     if(maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
     } else {
-      val maybeOrganizationInfoError = required("organization info", completeOrganizationInfoValidator)(establishOrganization.organizationInfo)
+      val maybeOrganizationInfoError = required("organization info", inactiveStateOrganizationInfoValidator)(establishOrganization.organizationInfo)
       if (maybeOrganizationInfoError.isDefined) {
         Left(maybeOrganizationInfoError.get)
       } else {
@@ -140,33 +153,13 @@ object Organization {
   }
 
   private def activateOrganization(
-                                    state: DraftState,
+                                    state: InactiveState,
                                     activateOrganization: ActivateOrganization,
                                   ): Either[Error, OrganizationEvent] = {
-    val maybeValidationError = applyAllValidators[ActivateOrganization](Seq(
+    val maybeValidationError: Option[ValidationError] = applyAllValidators[ActivateOrganization](Seq(
       c => required("organization id", organizationIdValidator)(c.organizationId),
       c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
-    ))(activateOrganization)
-
-    if (maybeValidationError.isDefined) {
-      Left(maybeValidationError.get)
-    } else {
-      val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = activateOrganization.onBehalfOf)
-      Right(OrganizationActivated(
-        organizationId = activateOrganization.organizationId,
-        metaInfo = Some(newMetaInfo)
-      ))
-    }
-  }
-
-  private def activateOrganization(
-                                    state: SuspendedState,
-                                    activateOrganization: ActivateOrganization,
-                            ): Either[Error, OrganizationEvent] = {
-    val maybeValidationError = applyAllValidators[ActivateOrganization](Seq(
-      c => required("organization id", organizationIdValidator)(c.organizationId),
-      c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
-    ))(activateOrganization)
+    ))(activateOrganization).orElse(activeStateOrganizationInfoValidator(state.info))
 
     if (maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
@@ -203,4 +196,45 @@ object Organization {
     Right(OrganizationTerminated())
   }
 
+  private def editOrganizationInfo(
+                                    state: EstablishedState,
+                                    command: EditOrganizationInfo
+                                  ): Either[Error, OrganizationInfoEdited] = {
+    val maybeValidationError = applyAllValidators[EditOrganizationInfo](Seq(
+      command => required("organization id", organizationIdValidator)(command.organizationId),
+      command => required("on behalf of", memberIdValidator)(command.onBehalfOf),
+    ))(command)
+    if(maybeValidationError.isDefined) {
+      Left(maybeValidationError.get)
+    } else {
+      val fieldsToUpdate = command.getOrganizationInfo
+
+      var updatedInfo = state.info
+      fieldsToUpdate.name.foreach(newName => updatedInfo = updatedInfo.copy(name = newName))
+      fieldsToUpdate.shortName.foreach(newShortName => updatedInfo = updatedInfo.copy(shortName = newShortName))
+      fieldsToUpdate.isPublic.foreach(newIsPublic => updatedInfo = updatedInfo.copy(isPublic = newIsPublic))
+      fieldsToUpdate.address.foreach(newAddress => updatedInfo = updatedInfo.copy(address = Some(newAddress)))
+      fieldsToUpdate.url.foreach(newUrl => updatedInfo = updatedInfo.copy(url = newUrl))
+      fieldsToUpdate.logo.foreach(newLogo => updatedInfo = updatedInfo.copy(logo = newLogo))
+
+      val updatedInfoValidator = state match {
+        case _: ActiveState => activeStateOrganizationInfoValidator
+        case _: InactiveState => inactiveStateOrganizationInfoValidator
+      }
+
+      val maybeNewInfoInvalid = updatedInfoValidator(updatedInfo)
+      if(maybeNewInfoInvalid.isDefined) {
+        Left(maybeNewInfoInvalid.get)
+      } else {
+        val updatedMetaInfo = updateMetaInfo(state.metaInfo, command.onBehalfOf)
+
+        Right(OrganizationInfoEdited(
+          organizationId = command.organizationId,
+          metaInfo = Some(updatedMetaInfo),
+          oldInfo = Some(state.info),
+          newInfo = Some(updatedInfo)
+        ))
+      }
+    }
+  }
 }

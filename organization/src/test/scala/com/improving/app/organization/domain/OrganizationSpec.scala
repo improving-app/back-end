@@ -1,6 +1,6 @@
 package com.improving.app.organization.domain
 
-import TestData.baseOrganizationInfo
+import TestData.{baseAddress, baseOrganizationInfo}
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import akka.pattern.StatusReply
@@ -245,6 +245,151 @@ class OrganizationSpec
           organizationSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
           organizationSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("suspendingUser"))
         }
+      }
+
+      "executing EditOrganizationInfo command" should {
+        "error for an unauthorized updating user" ignore {
+          // Transition to Active state
+          val (organizationId, p, probe) = createTestVariables()
+
+          val establishOrganizationResponse = establishOrganization(organizationId, p, probe)
+          assert(establishOrganizationResponse.isSuccess)
+
+          // Test command in question
+          p ! Organization.OrganizationRequestEnvelope(
+            EditOrganizationInfo(
+              Some(OrganizationId(organizationId)),
+              Some(MemberId("unauthorizedUser")),
+              Some(EditableOrganizationInfo()),
+            ),
+            probe.ref
+          )
+          val response2 = probe.receiveMessage()
+
+          assert(response2.isError)
+
+          val responseError = response2.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Organization"
+        }
+
+        "succeed for an empty edit and return the proper response" in {
+          // Transition to Active state
+          val (organizationId, p, probe) = createTestVariables()
+
+          val establishOrganizationResponse = establishOrganization(organizationId, p, probe)
+          assert(establishOrganizationResponse.isSuccess)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            EditOrganizationInfo(
+              Some(OrganizationId(organizationId)),
+              Some(MemberId("someUser")),
+              Some(EditableOrganizationInfo()),
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
+
+          successVal.oldInfo shouldBe Some(baseOrganizationInfo)
+          successVal.newInfo shouldBe Some(baseOrganizationInfo)
+        }
+
+        "succeed for an edit of all fields and return the proper response" in {
+          // Transition to Active state
+          val (organizationId, p, probe) = createTestVariables()
+
+          val establishOrganizationResponse = establishOrganization(organizationId, p, probe)
+          assert(establishOrganizationResponse.isSuccess)
+
+          val newAddress = baseAddress.copy(city = "Timbuktu")
+          val newName = "A new name"
+
+          val updateInfo = EditableOrganizationInfo(
+            name = Some(newName),
+            address = Some(newAddress),
+          )
+
+          p ! Organization.OrganizationRequestEnvelope(
+            EditOrganizationInfo(
+              Some(OrganizationId(organizationId)),
+              Some(MemberId("someUser")),
+              Some(updateInfo),
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
+
+          val updatedInfo = baseOrganizationInfo.copy(name = newName, address = Some(newAddress))
+
+          successVal.oldInfo shouldBe Some(baseOrganizationInfo)
+          successVal.newInfo shouldBe Some(updatedInfo)
+        }
+
+        "succeed for a partial edit and return the proper response" in {
+          // Transition to Active state
+          val (organizationId, p, probe) = createTestVariables()
+
+          val establishOrganizationResponse = establishOrganization(organizationId, p, probe)
+          assert(establishOrganizationResponse.isSuccess)
+
+          val newName = "A new name"
+
+          val updatedInfo = EditableOrganizationInfo(
+            name = Some(newName)
+          )
+
+          p ! Organization.OrganizationRequestEnvelope(
+            EditOrganizationInfo(
+              Some(OrganizationId(organizationId)),
+              Some(MemberId("someUser")),
+              Some(updatedInfo),
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
+
+          successVal.oldInfo shouldBe Some(baseOrganizationInfo)
+          successVal.newInfo shouldBe Some(baseOrganizationInfo.copy(name = newName))
+        }
+
+        "error for an incomplete address" in {
+          // Transition to Active state
+          val (organizationId, p, probe) = createTestVariables()
+
+          val establishOrganizationResponse = establishOrganization(organizationId, p, probe)
+          assert(establishOrganizationResponse.isSuccess)
+
+          val badAddress = baseAddress.copy(city = "")
+
+          val updateInfo = EditableOrganizationInfo(address = Some(badAddress))
+
+          p ! Organization.OrganizationRequestEnvelope(
+            EditOrganizationInfo(
+              Some(OrganizationId(organizationId)),
+              Some(MemberId("updatingUser")),
+              Some(updateInfo)
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isError)
+
+          val responseError = response.getError
+          responseError.getMessage shouldEqual "Address information is not complete"
+        }
+
       }
     }
 
