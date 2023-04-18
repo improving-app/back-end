@@ -16,3 +16,7 @@ grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "editing_user": {"id": 
 -- Get Organizations
 grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}}' localhost:8080 com.improving.app.tenant.api.TenantService/GetOrganizations
 
+-- Terminate Tenant
+grpcurl -plaintext -d '{"tenant_id": {"id": "tenantId"}, "terminating_user": {"id": "terminatingUser"}}' localhost:8080 com.improving.app.tenant.api.TenantService/TerminateTenant
+
+
