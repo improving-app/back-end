@@ -3,15 +3,7 @@ package com.improving.app.gateway.api.handlers
 import akka.actor.typed.ActorSystem
 import akka.grpc.GrpcClientSettings
 import akka.util.Timeout
-import com.improving.app.common.domain.MemberId
-import com.improving.app.gateway.domain.{
-  MemberMetaInfo,
-  MemberRegistered,
-  MemberStates,
-  MemberInfo => GatewayMemberInfo,
-  NotificationPreference => GatewayNotificationPreference,
-  RegisterMember => GatewayRegisterMember
-}
+import com.improving.app.gateway.domain.{MemberRegistered, RegisterMember => GatewayRegisterMember}
 import com.improving.app.gateway.domain.common.util.{
   gatewayMemberInfoToMemberInfo,
   getHostAndPortForService,
@@ -19,7 +11,7 @@ import com.improving.app.gateway.domain.common.util.{
   memberMetaToGatewayMemberMeta
 }
 import com.improving.app.member.api.MemberServiceClient
-import com.improving.app.member.domain.{MemberInfo, NotificationPreference, RegisterMember}
+import com.improving.app.member.domain.RegisterMember
 import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.duration.DurationInt

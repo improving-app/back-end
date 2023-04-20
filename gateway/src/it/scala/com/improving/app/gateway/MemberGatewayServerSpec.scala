@@ -7,7 +7,7 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.dimafeng.testcontainers.scalatest.TestContainerForAll
-import com.dimafeng.testcontainers.{DockerComposeContainer, ExposedService, GenericContainer}
+import com.dimafeng.testcontainers.{DockerComposeContainer, ExposedService}
 import com.improving.app.common.domain.MemberId
 import com.improving.app.gateway.api.handlers.MemberGatewayHandler
 import com.improving.app.gateway.domain.common.util.memberInfoToGatewayMemberInfo
@@ -15,11 +15,9 @@ import com.improving.app.gateway.domain.{MemberInfo, MemberRegistered, Notificat
 import com.improving.app.member.domain.TestData.baseMemberInfo
 import com.improving.app.gateway.infrastructure.routes.MemberGatewayRoutes
 import com.typesafe.config.{Config, ConfigFactory}
-import org.scalatest.Retries.{isRetryable, withRetry}
-import org.scalatest.{BeforeAndAfterEach, Outcome}
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.tagobjects.Retryable
 import org.scalatest.wordspec.AnyWordSpec
 import org.testcontainers.containers.wait.strategy.Wait
 

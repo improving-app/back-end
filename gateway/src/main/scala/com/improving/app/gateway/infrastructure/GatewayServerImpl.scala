@@ -7,7 +7,8 @@ import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.gateway.infrastructure.routes.MemberGatewayRoutes
 import com.typesafe.config.{Config, ConfigFactory}
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success}
 
 class GatewayServerImpl(implicit val sys: ActorSystem[_]) extends MemberGatewayRoutes {

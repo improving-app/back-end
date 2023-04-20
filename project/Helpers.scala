@@ -1,3 +1,4 @@
+import C.{dockerSettings, Compilation, Packaging, Testing}
 import Dependencies._
 import akka.grpc.sbt.AkkaGrpcPlugin
 import com.typesafe.sbt.packager.Keys._
@@ -53,7 +54,7 @@ object C {
   ): Project = {
     project
       .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
-      .configs(IntegrationTest)
+      .configs(IntegrationTest.extend(Test))
       .configure(Compilation.scala)
       .configure(Testing.scalaTest)
       .configure(Packaging.docker)
@@ -67,8 +68,32 @@ object C {
         IntegrationTest / fork := true,
         libraryDependencies ++=
           utilityDependencies ++ loggingDependencies ++ httpDependencies ++ akkaHttpTestingDependencies ++ jsonDependencies,
-        libraryDependencies += "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test",
         dockerSettings(port)
+      )
+  }
+
+  def itService(componentName: String)(
+      project: Project
+  ): Project = {
+    project
+      .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
+      .configs(IntegrationTest)
+      .configure(Compilation.scala)
+      .configure(Testing.scalaTest)
+      .settings(
+        Defaults.itSettings,
+        name := componentName,
+        run / fork := true,
+        scalaVersion := V.scala,
+        scalacOptions := scala3Options,
+        IntegrationTest / fork := true,
+        Compile / scalacOptions ++= scala3Options,
+        libraryDependencies ++=
+          utilityDependencies ++ loggingDependencies ++ httpDependencies ++ akkaHttpTestingDependencies ++ jsonDependencies,
+        libraryDependencies ++= Seq(
+          "com.typesafe.akka" %% "akka-actor-typed" % V.akka,
+          "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test"
+        )
       )
   }
 
@@ -236,6 +261,7 @@ object C {
         licenses := Seq(("Apache 2", url("https://www.apache.org/licenses/LICENSE-2.0"))),
         scalaVersion := V.scala,
         scalacOptions := scala3Options,
+        exportJars := true,
         Compile / scalacOptions ++= scala3Options,
         Test / logBuffered := false,
         run / fork := false,

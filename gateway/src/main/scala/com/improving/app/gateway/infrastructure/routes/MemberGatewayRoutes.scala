@@ -8,7 +8,6 @@ import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport
 import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import com.improving.app.gateway.domain.{RegisterMember => GatewayRegisterMember}
-import scalapb.json4s.JsonFormat
 
 trait MemberGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLogging {
 

@@ -59,7 +59,7 @@ class ServiceTestContainerSpec(exposedPort: Integer, serviceName: String)
     new File("../docker-compose.yml"),
     tailChildContainers = true,
     exposedServices = Seq(
-      ExposedService(serviceName, exposedPort, Wait.forLogMessage(s".*service bound to 0.0.0.0:$exposedPort*.", 1))
+      ExposedService(serviceName, exposedPort, Wait.forLogMessage(s".*gRPC server bound to 0.0.0.0:$exposedPort*.", 1))
     )
   )
 

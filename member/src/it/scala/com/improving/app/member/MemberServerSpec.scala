@@ -1,24 +1,30 @@
+package com.improving.app.member
+
 import akka.grpc.GrpcClientSettings
+import com.dimafeng.testcontainers.DockerComposeContainer
 import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
-import com.improving.app.member.domain.MemberState._
-import com.improving.app.member.domain.NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL
-import org.scalatest.Inside.inside
-import com.improving.app.member.domain._
 import com.improving.app.common.test.ServiceTestContainerSpec
 import com.improving.app.member.api.{MemberService, MemberServiceClient}
-import com.improving.app.member.domain.GetMemberInfo
+import com.improving.app.member.domain.MemberState._
+import com.improving.app.member.domain.NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL
+import com.improving.app.member.domain._
 import org.scalatest.Assertion
+import org.scalatest.Inside.inside
 import org.scalatest.tagobjects.Retryable
 
 import scala.util.Random
 
-class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") {
+class MemberServerSpec(
+    containerDefParam: DockerComposeContainer.Def = new ServiceTestContainerSpec(8081, "member-service").containerDef
+) extends ServiceTestContainerSpec(8081, "member-service") {
 
   private def getClient(containers: Containers): MemberService = {
     val (host, port) = getContainerHostPort(containers)
     val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
     MemberServiceClient(clientSettings)
   }
+
+  override val containerDef: DockerComposeContainer.Def = containerDefParam
 
   val memberInfo: MemberInfo = MemberInfo(
     handle = "SomeHandle",
