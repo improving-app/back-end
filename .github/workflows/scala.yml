@@ -34,7 +34,7 @@ jobs:
         run: |
           docker pull scylladb/scylla
           sbt docker:stage && sbt docker:publishLocal
-          sbt "project allServices; IntegrationTest/test"
+          sbt "project it; IntegrationTest/test"
 
       - name: Cleanup Before Caching
         shell: bash
