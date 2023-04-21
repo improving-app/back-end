@@ -39,7 +39,7 @@ class MemberGatewayServerSpec
   override val config: Config = ConfigFactory.load("application.conf")
 
   override val containerDef: DockerComposeContainer.Def = DockerComposeContainer.Def(
-    new File("src/test/resources/member-compose.yml"),
+    new File("../docker-compose.yml"),
     tailChildContainers = true,
     exposedServices = Seq(
       ExposedService("member-service", 8081, Wait.forLogMessage(s".*gRPC server bound to 0.0.0.0:8081*.", 1))

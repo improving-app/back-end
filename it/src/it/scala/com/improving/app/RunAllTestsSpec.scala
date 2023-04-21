@@ -1,19 +1,17 @@
 package com.improving.app
 
-import akka.actor.ActorSystem
-import com.dimafeng.testcontainers.scalatest.TestContainerForAll
-import com.dimafeng.testcontainers.{Container, DockerComposeContainer, ExposedService, ForAllTestContainer}
+import com.dimafeng.testcontainers.{DockerComposeContainer, ExposedService}
 import com.improving.app.gateway.MemberGatewayServerSpec
 import com.improving.app.member.MemberServerSpec
 import com.improving.app.organization.OrganizationServerSpec
 import com.improving.app.tenant.TenantServerSpec
-import org.scalatest.{ParallelTestExecution, Suite}
+import org.scalatest.Suite
 import org.scalatest.flatspec.AnyFlatSpec
 import org.testcontainers.containers.wait.strategy.Wait
 
 import java.io.File
 
-class RunAllTestsSpec extends AnyFlatSpec with ParallelTestExecution { self =>
+class RunAllTestsSpec extends AnyFlatSpec { self =>
 
   val containerDef: DockerComposeContainer.Def = DockerComposeContainer.Def(
     new File("../docker-compose.yml"),
@@ -25,12 +23,16 @@ class RunAllTestsSpec extends AnyFlatSpec with ParallelTestExecution { self =>
     )
   )
 
-  containerDef.start()
-
   override def nestedSuites: collection.immutable.IndexedSeq[Suite] = Vector(
-    new TenantServerSpec(containerDef),
-    new MemberServerSpec(containerDef),
-    new OrganizationServerSpec(containerDef),
+    new TenantServerSpec {
+      override val containerDef: DockerComposeContainer.Def = self.containerDef
+    },
+    new MemberServerSpec {
+      override val containerDef: DockerComposeContainer.Def = self.containerDef
+    },
+    new OrganizationServerSpec {
+      override val containerDef: DockerComposeContainer.Def = self.containerDef
+    },
     new MemberGatewayServerSpec {
       override val containerDef: DockerComposeContainer.Def = self.containerDef
     }

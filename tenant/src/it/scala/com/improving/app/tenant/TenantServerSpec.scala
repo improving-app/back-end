@@ -11,16 +11,13 @@ import org.scalatest.tagobjects.Retryable
 
 import scala.util.Random
 
-class TenantServerSpec(
-    containerDefParam: DockerComposeContainer.Def = new ServiceTestContainerSpec(8080, "tenant-service").containerDef
-) extends ServiceTestContainerSpec(8080, "tenant-service") {
+class TenantServerSpec
+    extends ServiceTestContainerSpec(8080, "tenant-service") {
   private def getClient(containers: Containers): TenantService = {
     val (host, port) = getContainerHostPort(containers)
     val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
     TenantServiceClient(clientSettings)
   }
-
-  override val containerDef: DockerComposeContainer.Def = containerDefParam
 
   behavior.of("TestServer in a test container")
 

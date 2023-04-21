@@ -13,19 +13,14 @@ import org.scalatest.tagobjects.Retryable
 import scala.concurrent.Future
 import scala.util.Random
 
-class OrganizationServerSpec(
-    containerDefParam: DockerComposeContainer.Def =
-      new ServiceTestContainerSpec(8082, "organization-service").containerDef
-) extends ServiceTestContainerSpec(8082, "organization-service") {
+class OrganizationServerSpec extends ServiceTestContainerSpec(8082, "organization-service") {
   private def getClient(containers: Containers): OrganizationService = {
     val (host, port) = getContainerHostPort(containers)
     val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
     OrganizationServiceClient(clientSettings)
   }
 
-  override val containerDef: DockerComposeContainer.Def = containerDefParam
-
-  behavior.of("TestServer in a test container")
+  behavior of "TestServer in a test container"
 
   it should "expose a port for organization-service" in {
     withContainers { containers =>

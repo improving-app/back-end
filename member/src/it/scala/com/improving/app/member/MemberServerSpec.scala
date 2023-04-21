@@ -14,17 +14,13 @@ import org.scalatest.tagobjects.Retryable
 
 import scala.util.Random
 
-class MemberServerSpec(
-    containerDefParam: DockerComposeContainer.Def = new ServiceTestContainerSpec(8081, "member-service").containerDef
-) extends ServiceTestContainerSpec(8081, "member-service") {
+class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") {
 
   private def getClient(containers: Containers): MemberService = {
     val (host, port) = getContainerHostPort(containers)
     val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
     MemberServiceClient(clientSettings)
   }
-
-  override val containerDef: DockerComposeContainer.Def = containerDefParam
 
   val memberInfo: MemberInfo = MemberInfo(
     handle = "SomeHandle",

@@ -26,11 +26,11 @@ import java.io.File
  * @param serviceName The serviceName is a String that should match the port exposed in docker-compose.yml
  */
 class ServiceTestContainerSpec(exposedPort: Integer, serviceName: String)
-  extends AnyFlatSpec
+    extends AnyFlatSpec
     with TestContainerForAll
     with Matchers
     with ScalaFutures
-    with Retries{
+    with Retries {
 
   /**
    * The function that allows the test to be retryable. The method's functionality becomes apparent in CI testing when the first test
