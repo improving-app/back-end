@@ -62,7 +62,6 @@ class MemberGatewayServerSpec
   }
 
   override def afterAll(): Unit = {
-    super.afterAll()
     system.terminate()
   }
 

@@ -22,6 +22,10 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
     MemberServiceClient(clientSettings)
   }
 
+  override def afterAll(): Unit = {
+    system.terminate()
+  }
+
   val memberInfo: MemberInfo = MemberInfo(
     handle = "SomeHandle",
     firstName = "FirstName",

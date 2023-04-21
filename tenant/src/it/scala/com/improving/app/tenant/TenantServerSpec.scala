@@ -11,14 +11,16 @@ import org.scalatest.tagobjects.Retryable
 
 import scala.util.Random
 
-class TenantServerSpec
-    extends ServiceTestContainerSpec(8080, "tenant-service") {
+class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") {
   private def getClient(containers: Containers): TenantService = {
     val (host, port) = getContainerHostPort(containers)
     val clientSettings: GrpcClientSettings = GrpcClientSettings.connectToServiceAt(host, port).withTls(false)
     TenantServiceClient(clientSettings)
   }
 
+  override def afterAll(): Unit = {
+    system.terminate()
+  }
   behavior.of("TestServer in a test container")
 
   it should "expose a port for tenant-service" in {

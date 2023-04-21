@@ -22,6 +22,9 @@ class OrganizationServerSpec extends ServiceTestContainerSpec(8082, "organizatio
 
   behavior of "TestServer in a test container"
 
+  override def afterAll(): Unit = {
+    system.terminate()
+  }
   it should "expose a port for organization-service" in {
     withContainers { containers =>
       validateExposedPort(containers)
