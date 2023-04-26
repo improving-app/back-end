@@ -25,6 +25,7 @@ message OrganizationRequestPB {
     ActivateOrganization activate_organization = 2;
     SuspendOrganization suspend_organization = 3;
     TerminateOrganization terminate_organization = 4;
+    EditOrganizationInfo edit_organization_info = 5;
 
     GetOrganizationInfo get_organization_info = 10;
   }
@@ -61,6 +62,15 @@ message TerminateOrganization {
   };
   com.improving.app.common.domain.OrganizationId organization_id = 1;
   com.improving.app.common.domain.MemberId on_behalf_of = 2;
+}
+
+message EditOrganizationInfo {
+  option (scalapb.message) = {
+    extends: [ "OrganizationCommand" ]
+  };
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  com.improving.app.organization.domain.EditableOrganizationInfo organization_info = 3;
 }
 
 message GetOrganizationInfo {
