@@ -3,8 +3,7 @@ package com.improving.app.organization.domain;
 
 import "scalapb/scalapb.proto";
 
-import "com/improving/app/common/domain/organizationId.proto";
-import "com/improving/app/common/domain/memberId.proto";
+import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/organization/domain/organizationData.proto";
 
 option (scalapb.options) = {

@@ -1,0 +1,35 @@
+syntax = "proto3";
+package com.improving.app.store.domain;
+
+import "com/improving/app/common/domain/ids.proto";
+import "scalapb/scalapb.proto";
+import "google/protobuf/timestamp.proto";
+
+enum StoreStates {
+  STORE_STATES_UNINITIALIZED = 0;
+  STORE_STATES_DRAFT = 1;
+  STORE_STATES_READY = 2;
+  STORE_STATES_OPEN = 3;
+  STORE_STATES_CLOSED = 4;
+  STORE_STATES_DELETED = 5;
+}
+
+message StoreMetaInfo {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  google.protobuf.Timestamp created_on = 1;
+  com.improving.app.common.domain.MemberId created_by = 2;
+  google.protobuf.Timestamp last_updated = 3;
+  com.improving.app.common.domain.MemberId last_updated_by = 4;
+  StoreStates state = 5;
+}
+
+message StoreInfo {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  string name = 1;
+  string description = 2;
+  //repeated sku products = 3;
+  //EventID event = 4;
+  //VenueId venue = 5;
+  //LocationId location = 6;
+  common.domain.OrganizationId sponsoring_org = 7;
+}

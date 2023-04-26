@@ -1,13 +1,10 @@
 syntax = "proto3";
 
 package com.improving.app.tenant.domain;
-import "scalapb/scalapb.proto";
-import "com/improving/app/common/domain/address.proto";
-import "com/improving/app/common/domain/tenantId.proto";
-import "com/improving/app/common/domain/memberId.proto";
-import "com/improving/app/common/domain/organizationId.proto";
-import "com/improving/app/tenant/domain/tenantTypeDefinitions.proto";
 
+import "com/improving/app/tenant/domain/tenantTypeDefinitions.proto";
+import "scalapb/scalapb.proto";
+import "com/improving/app/common/domain/ids.proto";
 option (scalapb.options) = {
   no_default_values_in_constructor: true
 };

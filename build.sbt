@@ -24,6 +24,11 @@ lazy val member = project
   .configure(C.akkaPersistentEntity("improving-app-member", 8081))
   .dependsOn(commonTypes)
 
+lazy val store = project
+  .in(file("store"))
+  .configure(C.akkaPersistentEntity("improving-app-store", 8083))
+  .dependsOn(commonTypes)
+
 lazy val gateway = project
   .in(file("gateway"))
   .configure(C.service("improving-app-gateway", 8090))
