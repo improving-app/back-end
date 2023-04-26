@@ -3,7 +3,6 @@ package com.improving.app.gateway.infrastructure
 import akka.actor.typed.{ActorSystem, DispatcherSelector}
 import akka.http.scaladsl.Http
 import com.improving.app.gateway.api.handlers.MemberGatewayHandler
-import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.gateway.infrastructure.routes.MemberGatewayRoutes
 import com.typesafe.config.{Config, ConfigFactory}
 
