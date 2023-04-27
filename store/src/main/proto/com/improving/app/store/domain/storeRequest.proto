@@ -9,7 +9,7 @@ option (scalapb.options) = {
   single_file: true,
   preamble: [
     "sealed trait StoreRequest {\n",
-    "  val storeId: Option[com.improving.app.common.domain.Store]\n"
+    "  val storeId: Option[com.improving.app.common.domain.StoreId]\n"
     "  val onBehalfOf: Option[com.improving.app.common.domain.MemberId]\n",
     "}\n",
     "sealed trait StoreCommand extends StoreRequest\n",

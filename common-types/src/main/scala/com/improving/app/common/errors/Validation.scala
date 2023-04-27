@@ -1,6 +1,6 @@
 package com.improving.app.common.errors
 
-import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, MemberId, OrganizationId, TenantId, UsPostalCodeImpl}
+import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, MemberId, OrganizationId, StoreId, TenantId, UsPostalCodeImpl}
 
 object Validation {
 
@@ -55,6 +55,14 @@ object Validation {
   val organizationIdValidator: Validator[OrganizationId] = organizationId => {
     if (organizationId.id.isEmpty) {
       Some(ValidationError("Organization Id is empty"))
+    } else {
+      None
+    }
+  }
+
+  val storeIdValidator: Validator[StoreId] = storeId => {
+    if (storeId.id.isEmpty) {
+      Some(ValidationError("Store Id is empty"))
     } else {
       None
     }
