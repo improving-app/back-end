@@ -5,6 +5,10 @@ import com.improving.app.common.errors.Validation._
 import com.improving.app.common.errors.ValidationError
 
 object StoreValidation {
+  val doNothingValidator: Validator[Any] = applyAllValidators[Any](
+    Seq(_ => None)
+  )
+
   val storeRequestValidator: Validator[StoreRequest] =
     applyAllValidators[StoreRequest](
       Seq(
@@ -46,7 +50,7 @@ object StoreValidation {
       )
     )
 
-  val activeStateStoreInfoValidator: Validator[StoreInfo] =
+  val createdStateStoreInfoValidator: Validator[StoreInfo] =
     applyAllValidators[StoreInfo](
       Seq(
         inactiveStateStoreInfoValidator,
