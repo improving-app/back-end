@@ -33,3 +33,14 @@ message StoreInfo {
   //LocationId location = 6;
   common.domain.OrganizationId sponsoring_org = 7;
 }
+
+message EditableStoreInfo {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  optional string name = 1;
+  optional string description = 2;
+  //optional repeated sku products = 3;
+  //optional EventID event = 4;
+  //optional VenueId venue = 5;
+  //optional LocationId location = 6;
+  optional common.domain.OrganizationId sponsoring_org = 7;
+}

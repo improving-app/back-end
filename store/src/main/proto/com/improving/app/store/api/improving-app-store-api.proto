@@ -6,7 +6,6 @@ package com.improving.app.store.api;
 
 import "com/improving/app/store/domain/storeEvents.proto";
 import "com/improving/app/store/domain/storeRequest.proto";
-import "scalapb/scalapb.proto";
 
 
 service StoreService {
