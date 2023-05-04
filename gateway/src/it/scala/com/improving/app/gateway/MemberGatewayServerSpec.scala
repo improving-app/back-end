@@ -2,7 +2,7 @@ package com.improving.app.gateway
 
 import akka.actor.typed
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
-import akka.grpc.GrpcClientSettings
+import akka.grpc.{GrpcClientSettings, GrpcServiceException}
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
@@ -12,8 +12,8 @@ import com.improving.app.common.domain.MemberId
 import com.improving.app.gateway.api.handlers.MemberGatewayHandler
 import com.improving.app.gateway.domain.common.util.memberInfoToGatewayMemberInfo
 import com.improving.app.gateway.domain.{MemberInfo, MemberRegistered, NotificationPreference, RegisterMember}
-import com.improving.app.member.domain.TestData.baseMemberInfo
 import com.improving.app.gateway.infrastructure.routes.MemberGatewayRoutes
+import com.improving.app.member.domain.TestData.baseMemberInfo
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.ScalaFutures
@@ -74,7 +74,7 @@ class MemberGatewayServerSpec
       }
     }
     "Sending RegisterMember" should {
-      "succeed" in {
+      "succeed on golden path" in {
         withContainers { container =>
           val handler: MemberGatewayHandler =
             new MemberGatewayHandler(grpcClientSettingsOpt = Some(getClient(container)))
@@ -110,6 +110,76 @@ class MemberGatewayServerSpec
             response.memberId.getOrElse(MemberId.defaultInstance).id shouldEqual memberId
             response.memberInfo.getOrElse(MemberInfo.defaultInstance) shouldEqual memberInfoToGatewayMemberInfo(info)
             response.meta.map(_.createdBy.getOrElse(MemberId.defaultInstance).id shouldEqual registeringMember)
+          }
+        }
+      }
+
+      "fail with incomplete MemberId" in {
+        withContainers { container =>
+          val handler: MemberGatewayHandler =
+            new MemberGatewayHandler(grpcClientSettingsOpt = Some(getClient(container)))
+
+          val registeringMember = UUID.randomUUID().toString
+
+          val info = baseMemberInfo
+
+          val command = RegisterMember(
+            None,
+            Some(
+              MemberInfo(
+                info.handle,
+                info.avatarUrl,
+                info.firstName,
+                info.lastName,
+                info.notificationPreference
+                  .map(pref => NotificationPreference.fromValue(pref.value)),
+                info.notificationOptIn,
+                info.contact,
+                info.organizationMembership,
+                info.tenant
+              )
+            ),
+            Some(MemberId.of(registeringMember))
+          )
+          Post("/member", command.toProtoString) ~> Route.seal(
+            routes(handler)
+          ) ~> check {
+            status shouldBe StatusCodes.BadRequest
+          }
+        }
+      }
+
+      "fail with incomplete MemberInfo" in {
+        withContainers { container =>
+          val handler: MemberGatewayHandler =
+            new MemberGatewayHandler(grpcClientSettingsOpt = Some(getClient(container)))
+
+          val registeringMember = UUID.randomUUID().toString
+
+          val info = baseMemberInfo
+
+          val command = RegisterMember(
+            Some(MemberId("boo")),
+            Some(
+              MemberInfo(
+                info.handle,
+                info.avatarUrl,
+                "",
+                info.lastName,
+                info.notificationPreference
+                  .map(pref => NotificationPreference.fromValue(pref.value)),
+                info.notificationOptIn,
+                info.contact,
+                info.organizationMembership,
+                info.tenant
+              )
+            ),
+            Some(MemberId.of(registeringMember))
+          )
+          Post("/member", command.toProtoString) ~> Route.seal(
+            routes(handler)
+          ) ~> check {
+            status shouldBe StatusCodes.BadRequest
           }
         }
       }
