@@ -20,7 +20,6 @@ For running the services that are event sourced, it needs a database for persist
 
 Present in each subproject is a `sample-requests.txt`. One example is on `./tenant/src/main/resources/sample-requests.txt`.
 This shows working examples of grpcurl requests on a running server. Simply run the request on a command line and it should respond appropriately.
-Integration tests must be run locally for now because there is as yet nbo solution using TestContainers in multiple suites with the same container.
 
 ## To deploy to kubernetes:
 
