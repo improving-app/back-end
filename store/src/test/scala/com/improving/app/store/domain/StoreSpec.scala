@@ -11,8 +11,6 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import scalapb.GeneratedMessage
-import scalapb.lenses.Updatable
 
 import scala.util.Random
 
@@ -1136,7 +1134,7 @@ class StoreSpec
       "executing commands" should {
         "error on all commands" in new ReadiedSpec {
           terminateStore(storeId, p, probe)
-          val commands: Seq[(GeneratedMessage with StoreRequestPB.NonEmpty with Updatable[_$1] with StoreCommand) forSome {type _$1 >: DeleteStore with CloseStore with OpenStore with TerminateStore with EditStoreInfo with MakeStoreReady <: (GeneratedMessage with StoreRequestPB.NonEmpty with Updatable[_$1] with StoreCommand) forSome {type _$1 >: DeleteStore with CloseStore with OpenStore with TerminateStore with EditStoreInfo with MakeStoreReady}}] = Seq(
+          val commands = Seq(
             MakeStoreReady(Some(storeId), Some(MemberId("user"))),
             OpenStore(Some(storeId), Some(MemberId("user"))),
             CloseStore(Some(storeId), Some(MemberId("user"))),
