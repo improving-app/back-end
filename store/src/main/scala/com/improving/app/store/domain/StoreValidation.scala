@@ -41,19 +41,20 @@ object StoreValidation {
     }
   }
 
-  val inactiveStateStoreInfoValidator: Validator[StoreInfo] =
-    applyAllValidators[StoreInfo](
+  val draftTransitionStoreInfoValidator: Validator[EditableStoreInfo] =
+    applyAllValidators[EditableStoreInfo](
       Seq(
-        storeInfo => storeNameValidator(storeInfo.name),
-        storeInfo => storeDescriptionValidator(storeInfo.description),
-        storeInfo => optional(storeSponsoringOrgValidator)(storeInfo.sponsoringOrg)
+        storeInfo => required("name", storeNameValidator)(storeInfo.name),
+        storeInfo => required("description", storeDescriptionValidator)(storeInfo.description),
+        storeInfo => required("sponsoring org", storeSponsoringOrgValidator)(storeInfo.sponsoringOrg)
       )
     )
 
   val createdStateStoreInfoValidator: Validator[StoreInfo] =
     applyAllValidators[StoreInfo](
       Seq(
-        inactiveStateStoreInfoValidator,
+        storeInfo => storeNameValidator(storeInfo.name),
+        storeInfo => storeDescriptionValidator(storeInfo.description),
         storeInfo => required("sponsoring org", storeSponsoringOrgValidator)(storeInfo.sponsoringOrg)
       )
     )

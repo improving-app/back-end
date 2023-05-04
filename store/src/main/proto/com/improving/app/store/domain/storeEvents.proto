@@ -22,7 +22,7 @@ message StoreEvent {
 message StoreCreated {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   common.domain.StoreId store_id = 1;
-  StoreInfo info = 2;
+  EditableStoreInfo info = 2;
   StoreMetaInfo meta_info = 3;
 }
 

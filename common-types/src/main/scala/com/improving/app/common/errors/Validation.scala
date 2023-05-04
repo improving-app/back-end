@@ -1,6 +1,15 @@
 package com.improving.app.common.errors
 
-import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, MemberId, OrganizationId, StoreId, TenantId, UsPostalCodeImpl}
+import com.improving.app.common.domain.{
+  Address,
+  CaPostalCodeImpl,
+  Contact,
+  MemberId,
+  OrganizationId,
+  StoreId,
+  TenantId,
+  UsPostalCodeImpl
+}
 
 object Validation {
 
@@ -8,9 +17,8 @@ object Validation {
 
   def applyAllValidators[T](validators: Seq[Validator[T]]): Validator[T] =
     (validatee: T) =>
-      validators.foldLeft[Option[ValidationError]](None)(
-        (maybeAlreadyError: Option[ValidationError], validator) =>
-          maybeAlreadyError.orElse(validator(validatee))
+      validators.foldLeft[Option[ValidationError]](None)((maybeAlreadyError: Option[ValidationError], validator) =>
+        maybeAlreadyError.orElse(validator(validatee))
       )
 
   def required[T]: (String, Validator[T]) => Validator[Option[T]] = (fieldName, validator) => {
@@ -25,7 +33,7 @@ object Validation {
   def optional[T]: Validator[T] => Validator[Option[T]] = validator => opt => opt.flatMap(validator)
 
   def skipEmpty(validator: Validation.Validator[String]): Validator[String] = str => {
-    if(str.isEmpty) {
+    if (str.isEmpty) {
       None
     } else {
       validator(str)
@@ -71,10 +79,10 @@ object Validation {
   val contactValidator: Validator[Contact] = contact => {
     if (
       contact.firstName.isEmpty ||
-        contact.lastName.isEmpty ||
-        contact.emailAddress.forall(_.isEmpty) ||
-        contact.phone.forall(_.isEmpty) ||
-        contact.userName.isEmpty
+      contact.lastName.isEmpty ||
+      contact.emailAddress.forall(_.isEmpty) ||
+      contact.phone.forall(_.isEmpty) ||
+      contact.userName.isEmpty
     ) {
       Some(ValidationError("Primary contact info is not complete"))
     } else {
@@ -83,19 +91,18 @@ object Validation {
   }
 
   val addressValidator: Validator[Address] = address => {
-    val isPostalCodeMissing = address.postalCode.fold(true) {
-      postalCode =>
-        postalCode.postalCodeValue match {
-          case UsPostalCodeImpl(code) => code.isEmpty
-          case CaPostalCodeImpl(code) => code.isEmpty
-        }
+    val isPostalCodeMissing = address.postalCode.fold(true) { postalCode =>
+      postalCode.postalCodeValue match {
+        case UsPostalCodeImpl(code) => code.isEmpty
+        case CaPostalCodeImpl(code) => code.isEmpty
+      }
     }
     if (
       address.line1.isEmpty ||
-        address.city.isEmpty ||
-        address.stateProvince.isEmpty ||
-        address.country.isEmpty ||
-        isPostalCodeMissing
+      address.city.isEmpty ||
+      address.stateProvince.isEmpty ||
+      address.country.isEmpty ||
+      isPostalCodeMissing
     ) {
       Some(ValidationError("Address information is not complete"))
     } else {

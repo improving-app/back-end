@@ -12,9 +12,10 @@ import com.improving.app.common.errors.Validation._
 import com.improving.app.common.errors._
 import com.improving.app.store.domain.StoreValidation.{
   createdStateStoreInfoValidator,
-  doNothingValidator,
-  inactiveStateStoreInfoValidator,
-  storeNameValidator
+  draftTransitionStoreInfoValidator,
+  storeDescriptionValidator,
+  storeNameValidator,
+  storeSponsoringOrgValidator
 }
 
 import java.time.Instant
@@ -29,16 +30,19 @@ object Store {
   sealed private trait EmptyState extends StoreState
   private case object UninitializedState extends EmptyState
   sealed private trait InitializedState extends StoreState {
-    val info: StoreInfo
     val metaInfo: StoreMetaInfo
   }
 
-  sealed private trait CreatedState extends InitializedState
+  sealed private trait CreatedState extends InitializedState {
+    val info: StoreInfo
+  }
 
   sealed private trait InactiveState extends InitializedState
   sealed private trait DeletableState extends InitializedState
 
-  private case class DraftState(info: StoreInfo, metaInfo: StoreMetaInfo) extends InactiveState with DeletableState
+  private case class DraftState(info: Option[EditableStoreInfo], metaInfo: StoreMetaInfo)
+      extends InactiveState
+      with DeletableState
   private case class ReadyState(info: StoreInfo, metaInfo: StoreMetaInfo) extends CreatedState
   private case class OpenState(info: StoreInfo, metaInfo: StoreMetaInfo) extends CreatedState
   private case class ClosedState(info: StoreInfo, metaInfo: StoreMetaInfo) extends CreatedState with DeletableState
@@ -114,12 +118,12 @@ object Store {
       case StoreEvent.Empty => state
       case event: StoreCreated =>
         state match {
-          case _: EmptyState => DraftState(info = event.getInfo, metaInfo = event.getMetaInfo)
+          case _: EmptyState => DraftState(info = event.info, metaInfo = event.getMetaInfo)
           case x: StoreState => x
         }
       case event: StoreIsReady =>
         state match {
-          case x: DraftState => ReadyState(x.info, event.getMetaInfo)
+          case _: DraftState => ReadyState(event.getInfo, event.getMetaInfo)
           case x: StoreState => x
         }
       case event: StoreOpened =>
@@ -136,7 +140,7 @@ object Store {
         }
       case event: StoreDeleted =>
         state match {
-          case x: DraftState  => DeletedState(x.info, event.getMetaInfo)
+          case _: DraftState  => DeletedState(event.getInfo, event.getMetaInfo)
           case x: ClosedState => DeletedState(x.info, event.getMetaInfo)
           case x: StoreState  => x
         }
@@ -147,7 +151,26 @@ object Store {
         }
       case event: StoreInfoEdited =>
         state match {
-          case _: DraftState  => DraftState(event.getInfo, event.getMetaInfo)
+          case _: DraftState =>
+            val nameValidationError = applyAllValidators[StoreInfoEdited](
+              Seq(event => storeNameValidator(event.info.map(_.name).getOrElse("")))
+            )(event)
+            val descriptionValidationError = applyAllValidators[StoreInfoEdited](
+              Seq(event => storeDescriptionValidator(event.info.map(_.description).getOrElse("")))
+            )(event)
+            val sponsoringOrgValidationError = applyAllValidators[StoreInfoEdited](
+              Seq(event => required("sponsoring org", storeSponsoringOrgValidator)(event.info.flatMap(_.sponsoringOrg)))
+            )(event)
+            DraftState(
+              event.info.map(i =>
+                EditableStoreInfo(
+                  if (nameValidationError.isDefined) None else Some(i.name),
+                  if (descriptionValidationError.isDefined) None else Some(i.description),
+                  if (sponsoringOrgValidationError.isDefined) None else event.info.flatMap(_.sponsoringOrg),
+                )
+              ),
+              event.getMetaInfo
+            )
           case _: ReadyState  => ReadyState(event.getInfo, event.getMetaInfo)
           case _: OpenState   => OpenState(event.getInfo, event.getMetaInfo)
           case _: ClosedState => ClosedState(event.getInfo, event.getMetaInfo)
@@ -170,37 +193,35 @@ object Store {
     if (maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
     } else {
-      val maybeStoreInfoError =
-        required("organization info", inactiveStateStoreInfoValidator)(command.info)
-      if (maybeStoreInfoError.isDefined) {
-        Left(maybeStoreInfoError.get)
-      } else {
-        val newMetaInfo = StoreMetaInfo(
-          createdOn = Some(Timestamp(Instant.now())),
-          createdBy = Some(command.getOnBehalfOf)
-        )
+      val newMetaInfo = StoreMetaInfo(
+        createdOn = Some(Timestamp(Instant.now())),
+        createdBy = Some(command.getOnBehalfOf)
+      )
 
-        Right(
-          StoreCreated(
-            storeId = command.storeId,
-            info = command.info,
-            metaInfo = Some(newMetaInfo),
-          )
+      Right(
+        StoreCreated(
+          storeId = command.storeId,
+          info = command.info,
+          metaInfo = Some(newMetaInfo),
         )
-      }
+      )
     }
   }
 
   private def makeStoreReady(
-      state: InactiveState,
+      state: DraftState,
       command: MakeStoreReady
   ): Either[Error, StoreEvent] = {
+    val draftInfo = state.info.getOrElse(EditableStoreInfo.defaultInstance)
+
     val maybeValidationError: Option[ValidationError] = applyAllValidators[MakeStoreReady](
       Seq(
         c => required("store id", storeIdValidator)(c.storeId),
         c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
       )
-    )(command).orElse(createdStateStoreInfoValidator(state.info))
+    )(command).orElse(
+      draftTransitionStoreInfoValidator(draftInfo)
+    )
 
     if (maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
@@ -223,7 +244,7 @@ object Store {
         c => required("store id", storeIdValidator)(c.storeId),
         c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
       )
-    )(command).orElse(createdStateStoreInfoValidator(state.info))
+    )(command)
 
     if (maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
@@ -247,7 +268,7 @@ object Store {
         c => required("store id", storeIdValidator)(c.storeId),
         c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
       )
-    )(command).orElse(createdStateStoreInfoValidator(state.info))
+    )(command)
 
     if (maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
@@ -272,19 +293,38 @@ object Store {
         c => required("store id", storeIdValidator)(c.storeId),
         c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
       )
-    )(command).orElse(createdStateStoreInfoValidator(state.info))
+    )(command)
 
     if (maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
     } else {
       val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = command.onBehalfOf)
-      Right(
-        StoreDeleted(
-          storeId = command.storeId,
-          info = Some(state.info),
-          metaInfo = Some(newMetaInfo)
+      val info: Either[ValidationError, StoreInfo] = state match {
+        case x: DraftState =>
+          val draftInfo = x.info.getOrElse(EditableStoreInfo.defaultInstance)
+          val newInfo =
+            StoreInfo(draftInfo.getName, draftInfo.getDescription, draftInfo.sponsoringOrg)
+          val maybeInfoValidationError: Option[ValidationError] = createdStateStoreInfoValidator(newInfo)
+          if (maybeInfoValidationError.isDefined) {
+            Left(maybeValidationError.get)
+          } else {
+            Right(newInfo)
+          }
+        case x: ClosedState => Right(x.info)
+      }
+
+      if (info.isLeft) {
+        Left(info.left.getOrElse(ValidationError.apply("Unknown validation error")))
+      } else {
+
+        Right(
+          StoreDeleted(
+            storeId = command.storeId,
+            info = Some(info.getOrElse(StoreInfo.defaultInstance)),
+            metaInfo = Some(newMetaInfo)
+          )
         )
-      )
+      }
     }
   }
 
@@ -316,32 +356,36 @@ object Store {
     val maybeValidationError = applyAllValidators[EditStoreInfo](
       Seq(
         command => required("store id", storeIdValidator)(command.storeId),
-        command => required("store info exists", doNothingValidator)(command.newInfo),
         command => required("on behalf of", memberIdValidator)(command.onBehalfOf),
       )
     )(command)
     if (maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
     } else {
-      val fieldsToUpdate = command.newInfo.get
-
-      val updatedInfo = StoreInfo(
-        name = fieldsToUpdate.name.getOrElse(state.info.name),
-        description = fieldsToUpdate.description.getOrElse(state.info.description),
-        sponsoringOrg = Some(
-          fieldsToUpdate.sponsoringOrg.getOrElse(state.info.sponsoringOrg.getOrElse(OrganizationId.defaultInstance))
-        )
-      )
-
-      val updatedInfoValidator = state match {
-        case _: CreatedState  => createdStateStoreInfoValidator
-        case _: InactiveState => inactiveStateStoreInfoValidator
+      val stateInfo: Either[ValidationError, StoreInfo] = state match {
+        case x: DraftState =>
+          val draftInfo = x.info.getOrElse(EditableStoreInfo.defaultInstance)
+          Right(StoreInfo(draftInfo.getName, draftInfo.getDescription, draftInfo.sponsoringOrg))
+        case x: CreatedState => Right(x.info)
+        case _               => Left(ValidationError.apply("Editing is not allowed in this state"))
       }
 
-      val maybeNewInfoInvalid = updatedInfoValidator(updatedInfo)
-      if (maybeNewInfoInvalid.isDefined) {
-        Left(maybeNewInfoInvalid.get)
+      if (stateInfo.isLeft) {
+        Left(stateInfo.left.getOrElse(ValidationError.apply("Unknown validation error")))
       } else {
+        val validStateInfo = stateInfo.getOrElse(StoreInfo.defaultInstance)
+        val fieldsToUpdate = command.newInfo.get
+
+        val updatedInfo = StoreInfo(
+          name = fieldsToUpdate.name.getOrElse(validStateInfo.name),
+          description = fieldsToUpdate.description.getOrElse(validStateInfo.description),
+          sponsoringOrg = Some(
+            fieldsToUpdate.sponsoringOrg.getOrElse(
+              validStateInfo.sponsoringOrg.getOrElse(OrganizationId.defaultInstance)
+            )
+          )
+        )
+
         val updatedMetaInfo = updateMetaInfo(state.metaInfo, command.onBehalfOf)
 
         Right(

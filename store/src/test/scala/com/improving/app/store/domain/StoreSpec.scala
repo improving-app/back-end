@@ -6,24 +6,13 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import com.improving.app.common.domain.{MemberId, OrganizationId, StoreId}
 import com.improving.app.store.domain.Store.StoreRequestEnvelope
-import com.improving.app.store.domain.StoreRequestPBMessage.SealedValue.EditOrganizationInfo
-import com.improving.app.store.domain.StoreSpec.config
 import com.improving.app.store.domain.TestData.baseStoreInfo
-import com.improving.app.store.domain.{
-  CloseStore,
-  CreateStore,
-  DeleteStore,
-  MakeStoreReady,
-  OpenStore,
-  Store,
-  StoreEvent,
-  StoreInfo,
-  TerminateStore
-}
 import com.typesafe.config.{Config, ConfigFactory}
-import org.scalatest.{stats, BeforeAndAfterAll}
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+import scalapb.GeneratedMessage
+import scalapb.lenses.Updatable
 
 import scala.util.Random
 
@@ -57,6 +46,12 @@ class StoreSpec
     val response: StatusReply[StoreEvent] = createStore(storeId, p, probe)
   }
 
+  trait CreatedNoInfoSpec {
+    val (storeId, p, probe) = createTestVariables()
+
+    val response: StatusReply[StoreEvent] = createStore(storeId, p, probe, storeInfo = None)
+  }
+
   trait ReadiedSpec {
     val (storeId, p, probe) = createTestVariables()
 
@@ -75,14 +70,16 @@ class StoreSpec
       storeId: StoreId,
       p: ActorRef[StoreRequestEnvelope],
       probe: TestProbe[StatusReply[StoreEvent]],
-      storeInfo: StoreInfo = baseStoreInfo,
+      storeInfo: Option[EditableStoreInfo] = Some(
+        EditableStoreInfo(Some(baseStoreInfo.name), Some(baseStoreInfo.description), baseStoreInfo.sponsoringOrg)
+      ),
       checkSuccess: Boolean = true
   ): StatusReply[StoreEvent] = {
     p ! Store.StoreRequestEnvelope(
       CreateStore(
         storeId = Some(storeId),
         onBehalfOf = Some(MemberId("creatingUser")),
-        info = Some(storeInfo)
+        info = storeInfo
       ),
       probe.ref
     )
@@ -265,6 +262,7 @@ class StoreSpec
           responseError2.getMessage shouldEqual "Message type not supported in draft state"
         }
       }
+
       "executing any command other than create" should {
         "error as not created" in {
           val (storeId, p, probe) = createTestVariables()
@@ -395,6 +393,48 @@ class StoreSpec
 
           val responseError: Throwable = response2.getError
           responseError.getMessage shouldEqual "User is not authorized to make Store ready"
+        }
+
+        "error on incomplete info" in new CreatedNoInfoSpec {
+          val response2: StatusReply[StoreEvent] = readyStore(storeId, p, probe, checkSuccess = false)
+
+          val responseError: Throwable = response2.getError
+          responseError.getMessage shouldEqual "No associated name"
+
+          editStoreInfo(storeId, p, probe, EditableStoreInfo(name = Some(baseStoreInfo.name)))
+
+          val response3: StatusReply[StoreEvent] = readyStore(storeId, p, probe, checkSuccess = false)
+
+          val responseError2: Throwable = response3.getError
+          responseError2.getMessage shouldEqual "No associated description"
+
+          editStoreInfo(
+            storeId,
+            p,
+            probe,
+            EditableStoreInfo(name = None, description = Some(baseStoreInfo.description))
+          )
+
+          val response4: StatusReply[StoreEvent] = readyStore(storeId, p, probe, checkSuccess = false)
+
+          val responseError3: Throwable = response4.getError
+          responseError3.getMessage shouldEqual "No associated sponsoring org"
+
+          editStoreInfo(
+            storeId,
+            p,
+            probe,
+            EditableStoreInfo(
+              name = Some(""),
+              description = None,
+              sponsoringOrg = Some(OrganizationId("sponsoringOrg"))
+            )
+          )
+
+          val response5: StatusReply[StoreEvent] = readyStore(storeId, p, probe, checkSuccess = false)
+
+          val responseError4: Throwable = response5.getError
+          responseError4.getMessage shouldEqual "No associated name"
         }
 
         "succeed and return the proper response" in new ReadiedSpec {
@@ -1096,7 +1136,7 @@ class StoreSpec
       "executing commands" should {
         "error on all commands" in new ReadiedSpec {
           terminateStore(storeId, p, probe)
-          val commands = Seq(
+          val commands: Seq[(GeneratedMessage with StoreRequestPB.NonEmpty with Updatable[_$1] with StoreCommand) forSome {type _$1 >: DeleteStore with CloseStore with OpenStore with TerminateStore with EditStoreInfo with MakeStoreReady <: (GeneratedMessage with StoreRequestPB.NonEmpty with Updatable[_$1] with StoreCommand) forSome {type _$1 >: DeleteStore with CloseStore with OpenStore with TerminateStore with EditStoreInfo with MakeStoreReady}}] = Seq(
             MakeStoreReady(Some(storeId), Some(MemberId("user"))),
             OpenStore(Some(storeId), Some(MemberId("user"))),
             CloseStore(Some(storeId), Some(MemberId("user"))),
