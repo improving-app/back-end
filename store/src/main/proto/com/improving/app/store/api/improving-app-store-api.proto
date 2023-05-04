@@ -4,6 +4,7 @@ syntax = "proto3";
 
 package com.improving.app.store.api;
 
+import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/store/domain/storeEvents.proto";
 import "com/improving/app/store/domain/storeRequest.proto";
 

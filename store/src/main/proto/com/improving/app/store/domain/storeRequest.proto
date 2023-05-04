@@ -91,6 +91,10 @@ message EditStoreInfo {
   EditableStoreInfo new_info = 3;
 }
 
+message GetStoreInfo {
+  common.domain.StoreId store_id = 1;
+}
+
 //message AddProductsToStore {
 //  option (scalapb.message) = {
 //    extends: [ "StoreCommand" ]

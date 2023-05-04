@@ -62,7 +62,7 @@ object Store {
         case e: EmptyState =>
           envelope.request match {
             case command: CreateStore => createStore(command)
-            case _                    => Left(StateError("Store is not established"))
+            case _                    => Left(StateError("Message type not supported in empty state"))
           }
         case draftState: DraftState =>
           envelope.request match {
@@ -78,6 +78,7 @@ object Store {
             case command: CloseStore     => closeStore(readyState, command)
             case command: TerminateStore => terminateStore(readyState, command)
             case command: EditStoreInfo  => editStoreInfo(readyState, command)
+            case _: DeleteStore          => Left(StateError("Store must be closed before deleting"))
             case _                       => Left(StateError("Message type not supported in ready state"))
           }
         case openState: OpenState =>
@@ -85,6 +86,7 @@ object Store {
             case command: CloseStore     => closeStore(openState, command)
             case command: TerminateStore => terminateStore(openState, command)
             case command: EditStoreInfo  => editStoreInfo(openState, command)
+            case _: DeleteStore          => Left(StateError("Store must be closed before deleting"))
             case _                       => Left(StateError("Message type not supported in open state"))
           }
         case closedState: ClosedState =>
