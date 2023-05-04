@@ -18,21 +18,21 @@ object Validation {
   }
 
   val completeTenantInfoValidator: Validator[TenantInfo] = tenantInfo => {
-    applyAllValidators[TenantInfo](Seq(
+    applyAllValidators[TenantInfo](
       ti => tenantNameValidator(ti.name),
       ti => required("primary contact", contactValidator)(ti.primaryContact),
       ti => required("address", addressValidator)(ti.address),
       ti => required("organizations", organizationsValidator)(ti.organizations)
-    ))(tenantInfo)
+    )(tenantInfo)
   }
 
   val partialTenantInfoValidator: Validator[TenantInfo] = tenantInfo => {
-    applyAllValidators[TenantInfo](Seq(
+    applyAllValidators[TenantInfo](
       ti => skipEmpty(tenantNameValidator)(ti.name),
       ti => optional(contactValidator)(ti.primaryContact),
       ti => optional(addressValidator)(ti.address),
       ti => optional(organizationsValidator)(ti.organizations)
-    ))(tenantInfo)
+    )(tenantInfo)
   }
 
 }

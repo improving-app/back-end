@@ -125,10 +125,10 @@ object Organization {
   }
 
   private def establishOrganization(establishOrganization: EstablishOrganization): Either[Error, OrganizationEvent] = {
-    val maybeValidationError = applyAllValidators[EstablishOrganization](Seq(
+    val maybeValidationError = applyAllValidators[EstablishOrganization](
       c => required("organization id", organizationIdValidator)(c.organizationId),
       c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
-    ))(establishOrganization)
+    )(establishOrganization)
     if(maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
     } else {
@@ -156,10 +156,10 @@ object Organization {
                                     state: InactiveState,
                                     activateOrganization: ActivateOrganization,
                                   ): Either[Error, OrganizationEvent] = {
-    val maybeValidationError: Option[ValidationError] = applyAllValidators[ActivateOrganization](Seq(
+    val maybeValidationError: Option[ValidationError] = applyAllValidators[ActivateOrganization](
       c => required("organization id", organizationIdValidator)(c.organizationId),
       c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
-    ))(activateOrganization).orElse(activeStateOrganizationInfoValidator(state.info))
+    )(activateOrganization).orElse(activeStateOrganizationInfoValidator(state.info))
 
     if (maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
@@ -176,10 +176,10 @@ object Organization {
                                    state: EstablishedState,
                                    suspendOrganization: SuspendOrganization,
                            ): Either[Error, OrganizationEvent] = {
-    val maybeValidationError = applyAllValidators[SuspendOrganization](Seq(
+    val maybeValidationError = applyAllValidators[SuspendOrganization](
       c => required("organization id", organizationIdValidator)(c.organizationId),
       c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
-    ))(suspendOrganization)
+    )(suspendOrganization)
 
     if (maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
@@ -200,10 +200,10 @@ object Organization {
                                     state: EstablishedState,
                                     command: EditOrganizationInfo
                                   ): Either[Error, OrganizationInfoEdited] = {
-    val maybeValidationError = applyAllValidators[EditOrganizationInfo](Seq(
+    val maybeValidationError = applyAllValidators[EditOrganizationInfo](
       command => required("organization id", organizationIdValidator)(command.organizationId),
       command => required("on behalf of", memberIdValidator)(command.onBehalfOf),
-    ))(command)
+    )(command)
     if(maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
     } else {
