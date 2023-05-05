@@ -166,7 +166,7 @@ object Store {
                 EditableStoreInfo(
                   if (nameValidationError.isDefined) None else Some(i.name),
                   if (descriptionValidationError.isDefined) None else Some(i.description),
-                  if (sponsoringOrgValidationError.isDefined) None else event.info.flatMap(_.sponsoringOrg),
+                  if (sponsoringOrgValidationError.isDefined) None else i.sponsoringOrg,
                 )
               ),
               event.getMetaInfo
