@@ -3,9 +3,7 @@ syntax =  "proto3";
 package com.improving.app.gateway.domain;
 
 import "com/improving/app/common/domain/address.proto";
-import "com/improving/app/common/domain/organizationId.proto";
-import "com/improving/app/common/domain/tenantId.proto";
-import "com/improving/app/common/domain/memberId.proto";
+import "com/improving/app/common/domain/ids.proto";
 import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
 
