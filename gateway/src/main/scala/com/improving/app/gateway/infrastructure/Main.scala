@@ -9,9 +9,8 @@ import com.typesafe.scalalogging.StrictLogging
  */
 object Main extends App with StrictLogging {
 
-  implicit val system: ActorSystem[Nothing] = ActorSystem(Behaviors.empty, "MemberGateway-ActorSystem")
-  private val server: GatewayServerImpl = new GatewayServerImpl()
-  def run(): Unit = server.start()
+  implicit lazy val system: ActorSystem[Nothing] = ActorSystem(Behaviors.empty, "MemberGateway-ActorSystem")
+  lazy val server: GatewayServerImpl = new GatewayServerImpl()
 
-  run()
+  server.start()
 }

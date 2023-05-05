@@ -2,10 +2,12 @@ package com.improving.app.member.domain
 
 import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
 
-object TestData {
-  val testMemberIdString = "memberId"
+import java.util.UUID
 
-  val baseContact = Contact(
+object TestData {
+  val testMemberIdString: String = UUID.randomUUID().toString
+
+  val baseContact: Contact = Contact(
     firstName = "firstName",
     lastName = "lastName",
     emailAddress = Some("email@email.com"),
@@ -13,7 +15,7 @@ object TestData {
     userName = "userName"
   )
 
-  val editContact = Contact(
+  val editContact: Contact = Contact(
     firstName = "editFirstName",
     lastName = "editLastName",
     emailAddress = Some("editEmail@email.com"),
@@ -21,7 +23,7 @@ object TestData {
     userName = "editUserName"
   )
 
-  val baseMemberInfo = MemberInfo(
+  val baseMemberInfo: MemberInfo = MemberInfo(
     handle = "handle",
     avatarUrl = "avatarUrl",
     firstName = "firstName",
@@ -29,11 +31,11 @@ object TestData {
     notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL),
     notificationOptIn = true,
     contact = Some(baseContact),
-    organizationMembership = Seq(OrganizationId("org1")),
-    tenant = Some(TenantId("tenantId"))
+    organizationMembership = Seq(OrganizationId(UUID.randomUUID().toString)),
+    tenant = Some(TenantId(UUID.randomUUID().toString))
   )
 
-  val baseEditableInfo = EditableInfo(
+  val baseEditableInfo: EditableInfo = EditableInfo(
     handle = Some("editHandle"),
     avatarUrl = Some("editAvatarUrl"),
     firstName = Some("editFirstName"),
@@ -44,7 +46,7 @@ object TestData {
     tenant = Some(TenantId("editTenantId"))
   )
 
-  val baseRegisterMember = RegisterMember(
+  val baseRegisterMember: RegisterMember = RegisterMember(
     memberId = Some(
       MemberId(testMemberIdString)
     ),
@@ -54,7 +56,7 @@ object TestData {
     )
   )
 
-  val baseActivateMember = ActivateMember(
+  val baseActivateMember: ActivateMember = ActivateMember(
     memberId = Some(
       MemberId(testMemberIdString)
     ),
@@ -63,7 +65,7 @@ object TestData {
     )
   )
 
-  val baseSuspendMember = SuspendMember(
+  val baseSuspendMember: SuspendMember = SuspendMember(
     memberId = Some(
       MemberId(testMemberIdString)
     ),
@@ -72,7 +74,7 @@ object TestData {
     )
   )
 
-  val baseTerminateMember = TerminateMember(
+  val baseTerminateMember: TerminateMember = TerminateMember(
     memberId = Some(
       MemberId(testMemberIdString)
     ),
@@ -81,7 +83,7 @@ object TestData {
     )
   )
 
-  val baseEditMemberInfo = EditMemberInfo(
+  val baseEditMemberInfo: EditMemberInfo = EditMemberInfo(
     memberId = Some(
       MemberId(testMemberIdString)
     ),
@@ -91,7 +93,7 @@ object TestData {
     )
   )
 
-  val baseGetMemberInfo = GetMemberInfo(
+  val baseGetMemberInfo: GetMemberInfo = GetMemberInfo(
     memberId = Some(
       MemberId(testMemberIdString)
     )
