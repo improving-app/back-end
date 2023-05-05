@@ -15,7 +15,7 @@ object Validation {
 
   type Validator[T] = T => Option[ValidationError]
 
-  def applyAllValidators[T](validators: Seq[Validator[T]]): Validator[T] =
+  def applyAllValidators[T](validators: Validator[T]*): Validator[T] =
     (validatee: T) =>
       validators.foldLeft[Option[ValidationError]](None)((maybeAlreadyError: Option[ValidationError], validator) =>
         maybeAlreadyError.orElse(validator(validatee))
