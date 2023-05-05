@@ -63,7 +63,7 @@ object Store {
   private val commandHandler: (StoreState, StoreRequestEnvelope) => ReplyEffect[StoreEvent, StoreState] = {
     (state, envelope) =>
       val result: Either[Error, StoreEvent] = state match {
-        case e: EmptyState =>
+        case _: EmptyState =>
           envelope.request match {
             case command: CreateStore => createStore(command)
             case _                    => Left(StateError("Message type not supported in empty state"))
@@ -118,7 +118,12 @@ object Store {
       case StoreEvent.Empty => state
       case event: StoreCreated =>
         state match {
-          case _: EmptyState => DraftState(info = event.info, metaInfo = event.getMetaInfo)
+          case s: EmptyState =>
+            s match {
+              case t: TerminatedState => t
+              case _ =>
+                DraftState(info = event.info, metaInfo = event.getMetaInfo)
+            }
           case x: StoreState => x
         }
       case event: StoreIsReady =>
@@ -226,6 +231,7 @@ object Store {
       Right(
         StoreIsReady(
           storeId = command.storeId,
+          info = state.info.map(i => StoreInfo(i.getName, i.getDescription, i.sponsoringOrg)),
           metaInfo = Some(newMetaInfo)
         )
       )

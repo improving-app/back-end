@@ -5,16 +5,12 @@ import com.improving.app.common.errors.Validation._
 import com.improving.app.common.errors.ValidationError
 
 object StoreValidation {
-  val doNothingValidator: Validator[Any] = applyAllValidators[Any](
-    Seq(_ => None)
-  )
+  val doNothingValidator: Validator[Any] = applyAllValidators[Any](_ => None)
 
   val storeRequestValidator: Validator[StoreRequest] =
     applyAllValidators[StoreRequest](
-      Seq(
-        r => required("store id", storeIdValidator)(r.storeId),
-        r => required("on behalf of", memberIdValidator)(r.onBehalfOf)
-      )
+      r => required("store id", storeIdValidator)(r.storeId),
+      r => required("on behalf of", memberIdValidator)(r.onBehalfOf)
     )
 
   val storeNameValidator: Validator[String] = name => {
@@ -43,19 +39,15 @@ object StoreValidation {
 
   val draftTransitionStoreInfoValidator: Validator[EditableStoreInfo] =
     applyAllValidators[EditableStoreInfo](
-      Seq(
-        storeInfo => required("name", storeNameValidator)(storeInfo.name),
-        storeInfo => required("description", storeDescriptionValidator)(storeInfo.description),
-        storeInfo => required("sponsoring org", storeSponsoringOrgValidator)(storeInfo.sponsoringOrg)
-      )
+      storeInfo => required("name", storeNameValidator)(storeInfo.name),
+      storeInfo => required("description", storeDescriptionValidator)(storeInfo.description),
+      storeInfo => required("sponsoring org", storeSponsoringOrgValidator)(storeInfo.sponsoringOrg)
     )
 
   val createdStateStoreInfoValidator: Validator[StoreInfo] =
     applyAllValidators[StoreInfo](
-      Seq(
-        storeInfo => storeNameValidator(storeInfo.name),
-        storeInfo => storeDescriptionValidator(storeInfo.description),
-        storeInfo => required("sponsoring org", storeSponsoringOrgValidator)(storeInfo.sponsoringOrg)
-      )
+      storeInfo => storeNameValidator(storeInfo.name),
+      storeInfo => storeDescriptionValidator(storeInfo.description),
+      storeInfo => required("sponsoring org", storeSponsoringOrgValidator)(storeInfo.sponsoringOrg)
     )
 }

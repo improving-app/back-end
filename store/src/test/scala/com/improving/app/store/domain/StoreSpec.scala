@@ -8,7 +8,7 @@ import com.improving.app.common.domain.{MemberId, OrganizationId, StoreId}
 import com.improving.app.store.domain.Store.StoreRequestEnvelope
 import com.improving.app.store.domain.TestData.baseStoreInfo
 import com.typesafe.config.{Config, ConfigFactory}
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{stats, BeforeAndAfterAll}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
@@ -1161,16 +1161,16 @@ class StoreSpec
       }
 
       "executing EditStoreInfo command" should {
-        "error on attempted edit" in new ReadiedSpec with NewInfoForEditSpec {
+        "error on attempted edit" in new CreatedNoInfoSpec {
+          terminateStore(storeId, p, probe)
           val updatedInfo: EditableStoreInfo = EditableStoreInfo(
-            name = newName
+            name = Some(baseStoreInfo.name)
           )
 
-          val response2: StatusReply[StoreEvent] = editStoreInfo(storeId, p, probe, updatedInfo)
+          val response2: StatusReply[StoreEvent] = editStoreInfo(storeId, p, probe, updatedInfo, checkSuccess = false)
 
-          val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
-
-          successVal.info shouldEqual Some(baseStoreInfo.copy(name = updatedInfo.name.get))
+          val responseError: Throwable = response2.getError
+          responseError.getMessage shouldEqual "Message type not supported in empty state"
         }
       }
     }
