@@ -5,10 +5,10 @@ import com.improving.app.common.errors.ValidationError
 
 object OrganizationValidation {
   val organizationRequestValidator: Validator[OrganizationRequest] =
-    applyAllValidators[OrganizationRequest](Seq(
+    applyAllValidators[OrganizationRequest](
       r => required("organization id", organizationIdValidator)(r.organizationId),
       r => required("on behalf of", memberIdValidator)(r.onBehalfOf)
-    ))
+    )
 
   val organizationNameValidator: Validator[String] = name => {
     if (name.isEmpty) {
@@ -19,18 +19,18 @@ object OrganizationValidation {
   }
 
   val inactiveStateOrganizationInfoValidator: Validator[OrganizationInfo] =
-    applyAllValidators[OrganizationInfo](Seq(
+    applyAllValidators[OrganizationInfo](
       orgInfo => organizationNameValidator(orgInfo.name),
       orgInfo => organizationNameValidator(orgInfo.shortName),
       orgInfo => required("tenant", tenantIdValidator)(orgInfo.tenant),
       orgInfo => optional(addressValidator)(orgInfo.address),
       orgInfo => urlValidator(orgInfo.url),
       orgInfo => urlValidator(orgInfo.logo)
-    ))
+    )
 
   val activeStateOrganizationInfoValidator: Validator[OrganizationInfo] =
-    applyAllValidators[OrganizationInfo](Seq(
+    applyAllValidators[OrganizationInfo](
       inactiveStateOrganizationInfoValidator,
       orgInfo => required("address", addressValidator)(orgInfo.address),
-    ))
+    )
 }
