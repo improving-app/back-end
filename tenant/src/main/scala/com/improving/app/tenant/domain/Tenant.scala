@@ -140,10 +140,10 @@ object Tenant {
   }
 
   private def establishTenant(establishTenant: EstablishTenant): Either[Error, TenantEnvelope] = {
-    val maybeValidationError = applyAllValidators[EstablishTenant](Seq(
+    val maybeValidationError = applyAllValidators[EstablishTenant](
       c => required("tenant id", tenantIdValidator)(c.tenantId),
       c => required("activating user", memberIdValidator)(c.establishingUser)
-    ))(establishTenant)
+    )(establishTenant)
     if(maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
     } else {
@@ -171,10 +171,10 @@ object Tenant {
                               state: EstablishedTenantState,
                               activateTenant: ActivateTenant,
   ): Either[Error, TenantEnvelope] = {
-    val maybeValidationError = applyAllValidators[ActivateTenant](Seq(
+    val maybeValidationError = applyAllValidators[ActivateTenant](
       c => required("tenant id", tenantIdValidator)(c.tenantId),
       c => required("activating user", memberIdValidator)(c.activatingUser)
-    ))(activateTenant)
+    )(activateTenant)
 
     if(maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
@@ -191,10 +191,10 @@ object Tenant {
                              state: EstablishedTenantState,
                              suspendTenant: SuspendTenant,
   ): Either[Error, TenantEnvelope] = {
-    val maybeValidationError = applyAllValidators[SuspendTenant](Seq(
+    val maybeValidationError = applyAllValidators[SuspendTenant](
       c => required("tenant id", tenantIdValidator)(c.tenantId),
       c => required("activating user", memberIdValidator)(c.suspendingUser)
-    ))(suspendTenant)
+    )(suspendTenant)
 
     if (maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
@@ -212,11 +212,11 @@ object Tenant {
                         state: Tenant.EstablishedTenantState,
                         editInfoCommand: EditInfo,
                       ): Either[Error, TenantEnvelope] = {
-    val validationResult = applyAllValidators[EditInfo](Seq(
+    val validationResult = applyAllValidators[EditInfo](
       c => required("tenant id", tenantIdValidator)(c.tenantId),
       c => required("editing user", memberIdValidator)(c.editingUser),
       c => required("tenant info", partialTenantInfoValidator)(c.infoToUpdate)
-    ))(editInfoCommand)
+    )(editInfoCommand)
 
     if(validationResult.isDefined) {
       Left(validationResult.get)
@@ -251,9 +251,9 @@ object Tenant {
                                 getOrganizationsQuery: GetOrganizations,
                                 stateOpt: Option[Tenant.EstablishedTenantState] = None
                               ): Either[Error, TenantEnvelope] = {
-    val validationResult = applyAllValidators[GetOrganizations](Seq(
+    val validationResult = applyAllValidators[GetOrganizations](
       c => required("tenant id", tenantIdValidator)(c.tenantId)
-    ))(getOrganizationsQuery)
+    )(getOrganizationsQuery)
 
     if (validationResult.isDefined) {
       Left(validationResult.get)
@@ -270,10 +270,10 @@ object Tenant {
                              state: EstablishedTenantState,
                              terminateTenant: TerminateTenant,
                            ): Either[Error, TenantEnvelope] = {
-    val maybeValidationError = applyAllValidators[TerminateTenant](Seq(
+    val maybeValidationError = applyAllValidators[TerminateTenant](
       c => required("tenant Id", tenantIdValidator)(c.tenantId),
       c => required("terminating user", memberIdValidator)(c.terminatingUser)
-    ))(terminateTenant)
+    )(terminateTenant)
 
     if (maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
