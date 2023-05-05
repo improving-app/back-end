@@ -3,7 +3,7 @@ package com.improving.app.common.test
 import akka.actor.ActorSystem
 import com.dimafeng.testcontainers.{DockerComposeContainer, ExposedService}
 import com.dimafeng.testcontainers.scalatest.TestContainerForAll
-import org.scalatest.{Outcome, Retries}
+import org.scalatest.{BeforeAndAfterAll, Outcome, Retries}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -13,7 +13,7 @@ import org.testcontainers.containers.wait.strategy.Wait
 import java.io.File
 
 /**
- * ServiceTestContainerSpec class is the typical pattern for testing services that are gRPC services in a
+ * ServiceTestContainerSpec class is the typical pattern for testing services in a
  * Docker container. The service in question should be present in the docker-compose.yml.
  *
  * When running the test cases that extends this class, it is assumed that the user already has a docker container for
@@ -26,11 +26,12 @@ import java.io.File
  * @param serviceName The serviceName is a String that should match the port exposed in docker-compose.yml
  */
 class ServiceTestContainerSpec(exposedPort: Integer, serviceName: String)
-  extends AnyFlatSpec
+    extends AnyFlatSpec
     with TestContainerForAll
     with Matchers
     with ScalaFutures
-    with Retries{
+    with Retries
+    with BeforeAndAfterAll {
 
   /**
    * The function that allows the test to be retryable. The method's functionality becomes apparent in CI testing when the first test
@@ -49,13 +50,13 @@ class ServiceTestContainerSpec(exposedPort: Integer, serviceName: String)
       super.withFixture(test)
   }
 
-  // Implicits for running and testing functions of the gRPC server
+  // Implicits for running and testing functions of the service
   implicit override val patienceConfig: PatienceConfig =
     PatienceConfig(timeout = Span(3, Minutes), interval = Span(10, Millis))
   implicit protected val system: ActorSystem = ActorSystem("testActor")
 
   // The definition of the container to use. The docker-compose file is used to start the service and waits for the appropriate message
-  override val containerDef = DockerComposeContainer.Def(
+  override val containerDef: DockerComposeContainer.Def = DockerComposeContainer.Def(
     new File("../docker-compose.yml"),
     tailChildContainers = true,
     exposedServices = Seq(

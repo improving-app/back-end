@@ -5,7 +5,7 @@ import akka.actor.typed.ActorRef
 import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import com.improving.app.common.domain.{MemberId, OrganizationId, TenantId}
-import com.improving.app.tenant.TestData._
+import com.improving.app.tenant.TestData.{baseAddress, baseContact, baseTenantInfo}
 import com.improving.app.tenant.domain.Tenant.TenantCommand
 import com.improving.app.tenant.domain._
 import com.typesafe.config.{Config, ConfigFactory}
@@ -40,10 +40,10 @@ class TenantSpec
   }
 
   def establishTenant(
-    tenantId: String,
-    p: ActorRef[TenantCommand],
-    probe: TestProbe[StatusReply[TenantEnvelope]],
-    tenantInfo: TenantInfo = baseTenantInfo
+      tenantId: String,
+      p: ActorRef[TenantCommand],
+      probe: TestProbe[StatusReply[TenantEnvelope]],
+      tenantInfo: TenantInfo = baseTenantInfo
   ): StatusReply[TenantEnvelope] = {
     p ! Tenant.TenantCommand(
       EstablishTenant(
@@ -58,10 +58,10 @@ class TenantSpec
   }
 
   def terminateTenant(
-                     tenantId: String,
-                     p: ActorRef[TenantCommand],
-                     probe: TestProbe[StatusReply[TenantEnvelope]]
-                     ): StatusReply[TenantEnvelope] = {
+      tenantId: String,
+      p: ActorRef[TenantCommand],
+      probe: TestProbe[StatusReply[TenantEnvelope]]
+  ): StatusReply[TenantEnvelope] = {
     val establishResponse = establishTenant(tenantId, p, probe)
     assert(establishResponse.isSuccess)
 
@@ -115,7 +115,8 @@ class TenantSpec
           val response = probe.receiveMessage()
           assert(response.isSuccess)
 
-          val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantEstablishedValue
+          val successVal =
+            response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantEstablishedValue
           successVal.tenantId shouldBe Some(TenantId(tenantId))
           successVal.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
         }
@@ -480,14 +481,16 @@ class TenantSpec
             tenantId,
             p,
             probe,
-            baseTenantInfo.copy(organizations = Some(
-              TenantOrganizationList(
-                Seq(
-                  OrganizationId("org1"),
-                  OrganizationId("org2")
+            baseTenantInfo.copy(organizations =
+              Some(
+                TenantOrganizationList(
+                  Seq(
+                    OrganizationId("org1"),
+                    OrganizationId("org2")
+                  )
                 )
               )
-            ))
+            )
           )
           assert(establishTenantResponse.isSuccess)
 
@@ -502,12 +505,14 @@ class TenantSpec
           assert(response.isSuccess)
 
           val successVal = response.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue
-          successVal.organizations shouldEqual Some(TenantOrganizationList(
-            Seq(
-              OrganizationId("org1"),
-              OrganizationId("org2")
+          successVal.organizations shouldEqual Some(
+            TenantOrganizationList(
+              Seq(
+                OrganizationId("org1"),
+                OrganizationId("org2")
+              )
             )
-          ))
+          )
         }
       }
 
@@ -630,7 +635,8 @@ class TenantSpec
           val response = probe.receiveMessage()
           assert(response.isSuccess)
 
-          val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantTerminatedValue
+          val successVal =
+            response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantTerminatedValue
           successVal.tenantId.get.id shouldBe tenantId
 
           val metaInfo = successVal.metaInfo.get
@@ -949,7 +955,7 @@ class TenantSpec
           val suspendTenantResponse = probe.receiveMessage()
           assert(suspendTenantResponse.isSuccess)
 
-            // Change state to active
+          // Change state to active
           p ! Tenant.TenantCommand(
             ActivateTenant(
               tenantId = Some(TenantId(tenantId)),
@@ -1061,14 +1067,17 @@ class TenantSpec
             tenantId,
             p,
             probe,
-            baseTenantInfo.copy(organizations = Some(
-              TenantOrganizationList(
-                Seq(
-                  OrganizationId("org1"),
-                  OrganizationId("org2")
+            baseTenantInfo.copy(organizations =
+              Some(
+                TenantOrganizationList(
+                  Seq(
+                    OrganizationId("org1"),
+                    OrganizationId("org2")
+                  )
                 )
               )
-            )))
+            )
+          )
           assert(establishResponse.isSuccess)
 
           p ! Tenant.TenantCommand(
@@ -1094,12 +1103,14 @@ class TenantSpec
           assert(response.isSuccess)
 
           val successVal = response.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue
-          successVal.organizations shouldEqual Some(TenantOrganizationList(
-            Seq(
-              OrganizationId("org1"),
-              OrganizationId("org2")
+          successVal.organizations shouldEqual Some(
+            TenantOrganizationList(
+              Seq(
+                OrganizationId("org1"),
+                OrganizationId("org2")
+              )
             )
-          ))
+          )
         }
       }
 
@@ -1133,7 +1144,8 @@ class TenantSpec
           val response = probe.receiveMessage()
           assert(response.isSuccess)
 
-          val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantTerminatedValue
+          val successVal =
+            response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantTerminatedValue
           successVal.tenantId.get.id shouldBe tenantId
 
           val metaInfo = successVal.metaInfo.get

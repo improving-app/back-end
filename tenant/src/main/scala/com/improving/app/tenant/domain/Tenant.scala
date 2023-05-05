@@ -15,7 +15,7 @@ import com.improving.app.tenant.domain.Validation._
 import java.time.Instant
 
 object Tenant {
-  val TypeKey = EntityTypeKey[TenantCommand]("Tenant")
+  val TypeKey: EntityTypeKey[TenantCommand] = EntityTypeKey[TenantCommand]("Tenant")
 
   case class TenantCommand(request: TenantRequest, replyTo: ActorRef[StatusReply[TenantEnvelope]])
 
@@ -23,7 +23,7 @@ object Tenant {
 
   private case object UninitializedTenant extends TenantState
 
-  private sealed trait EstablishedTenantState extends TenantState {
+  sealed private trait EstablishedTenantState extends TenantState {
     val info: TenantInfo
     val metaInfo: TenantMetaInfo
   }
@@ -32,7 +32,8 @@ object Tenant {
 
   private case class ActiveTenant(info: TenantInfo, metaInfo: TenantMetaInfo) extends EstablishedTenantState
 
-  private case class SuspendedTenant(info: TenantInfo, metaInfo: TenantMetaInfo, suspensionReason: String) extends EstablishedTenantState
+  private case class SuspendedTenant(info: TenantInfo, metaInfo: TenantMetaInfo, suspensionReason: String)
+      extends EstablishedTenantState
 
   def apply(persistenceId: PersistenceId): Behavior[TenantCommand] = {
     Behaviors.setup(context =>
@@ -45,51 +46,57 @@ object Tenant {
     )
   }
 
-  private val commandHandler: (TenantState, TenantCommand) => ReplyEffect[TenantEnvelope, TenantState] = { (state, command) =>
-    val result: Either[Error, TenantEnvelope] = state match {
-      case UninitializedTenant =>
-        command.request match {
-          case x: EstablishTenant => establishTenant(x)
-          case x: GetOrganizations => getOrganizations(x)
-          case _ => Left(StateError("Tenant is not established"))
-        }
-      case establishedState: EstablishedTenantState =>
-        establishedState match {
-          case activeTenantState: ActiveTenant =>
-            command.request match {
-              case _: EstablishTenant => Left(StateError("Tenant is already established"))
-              case _: ActivateTenant => Left(StateError("Active tenants may not transition to the Active state"))
-              case x: SuspendTenant => suspendTenant(establishedState, x)
-              case x: EditInfo => editInfo(establishedState, x)
-              case x: GetOrganizations => getOrganizations(x, Some(activeTenantState))
-              case x: TerminateTenant => terminateTenant(establishedState, x)
-              case _ => Left(StateError("Command is not supported"))
-            }
-          case suspendedTenantState: SuspendedTenant =>
-            command.request match {
-              case _: EstablishTenant => Left(StateError("Tenant is already established"))
-              case x: ActivateTenant => activateTenant(establishedState, x)
-              case x: SuspendTenant => suspendTenant(establishedState, x)
-              case x: EditInfo => editInfo(establishedState, x)
-              case x: GetOrganizations => getOrganizations(x, Some(suspendedTenantState))
-              case x: TerminateTenant => terminateTenant(establishedState, x)
-              case _ => Left(StateError("Command is not supported"))
-            }
-        }
-      case _: TerminatedTenant =>
-        command.request match {
-          case x: GetOrganizations => getOrganizations(x)
-          case _ => Left(StateError("Command not allowed in Terminated state"))
-        }
-    }
-    result match {
-      case Left(error) => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
-      case Right(response) => response match {
-        case _: TenantDataResponse => Effect.reply(command.replyTo) { StatusReply.Success(response) }
-        case _: TenantEventResponse => Effect.persist(response).thenReply(command.replyTo) { _ => StatusReply.Success(response) }
-        case _ => Effect.reply(command.replyTo)(StatusReply.Error(s"${response.productPrefix} is not a supported member response"))
+  private val commandHandler: (TenantState, TenantCommand) => ReplyEffect[TenantEnvelope, TenantState] = {
+    (state, command) =>
+      val result: Either[Error, TenantEnvelope] = state match {
+        case UninitializedTenant =>
+          command.request match {
+            case x: EstablishTenant  => establishTenant(x)
+            case x: GetOrganizations => getOrganizations(x)
+            case _                   => Left(StateError("Tenant is not established"))
+          }
+        case establishedState: EstablishedTenantState =>
+          establishedState match {
+            case activeTenantState: ActiveTenant =>
+              command.request match {
+                case _: EstablishTenant  => Left(StateError("Tenant is already established"))
+                case _: ActivateTenant   => Left(StateError("Active tenants may not transition to the Active state"))
+                case x: SuspendTenant    => suspendTenant(establishedState, x)
+                case x: EditInfo         => editInfo(establishedState, x)
+                case x: GetOrganizations => getOrganizations(x, Some(activeTenantState))
+                case x: TerminateTenant  => terminateTenant(establishedState, x)
+                case _                   => Left(StateError("Command is not supported"))
+              }
+            case suspendedTenantState: SuspendedTenant =>
+              command.request match {
+                case _: EstablishTenant  => Left(StateError("Tenant is already established"))
+                case x: ActivateTenant   => activateTenant(establishedState, x)
+                case x: SuspendTenant    => suspendTenant(establishedState, x)
+                case x: EditInfo         => editInfo(establishedState, x)
+                case x: GetOrganizations => getOrganizations(x, Some(suspendedTenantState))
+                case x: TerminateTenant  => terminateTenant(establishedState, x)
+                case _                   => Left(StateError("Command is not supported"))
+              }
+          }
+        case _: TerminatedTenant =>
+          command.request match {
+            case x: GetOrganizations => getOrganizations(x)
+            case _                   => Left(StateError("Command not allowed in Terminated state"))
+          }
       }
-    }
+      result match {
+        case Left(error) => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
+        case Right(response) =>
+          response match {
+            case _: TenantDataResponse => Effect.reply(command.replyTo) { StatusReply.Success(response) }
+            case _: TenantEventResponse =>
+              Effect.persist(response).thenReply(command.replyTo) { _ => StatusReply.Success(response) }
+            case _ =>
+              Effect.reply(command.replyTo)(
+                StatusReply.Error(s"${response.productPrefix} is not a supported member response")
+              )
+          }
+      }
   }
 
   private val eventHandler: (TenantState, TenantEnvelope) => TenantState = { (state, response) =>
@@ -99,35 +106,35 @@ object Tenant {
           case e: TenantEstablished =>
             state match {
               case UninitializedTenant => ActiveTenant(info = e.tenantInfo.get, metaInfo = e.metaInfo.get)
-              case _: ActiveTenant => state
-              case _: SuspendedTenant => state
+              case _: ActiveTenant     => state
+              case _: SuspendedTenant  => state
               case _: TerminatedTenant => state
             }
           case e: TenantActivated =>
             state match {
-              case _: ActiveTenant => state // tenant cannot have TenantActivated in Active state
-              case x: SuspendedTenant => ActiveTenant(x.info, e.metaInfo.get)
+              case _: ActiveTenant     => state // tenant cannot have TenantActivated in Active state
+              case x: SuspendedTenant  => ActiveTenant(x.info, e.metaInfo.get)
               case UninitializedTenant => UninitializedTenant
               case _: TerminatedTenant => state
             }
           case e: TenantSuspended =>
             state match {
-              case x: ActiveTenant => SuspendedTenant(x.info, e.metaInfo.get, e.suspensionReason)
-              case x: SuspendedTenant => SuspendedTenant(x.info, e.metaInfo.get, e.suspensionReason)
+              case x: ActiveTenant     => SuspendedTenant(x.info, e.metaInfo.get, e.suspensionReason)
+              case x: SuspendedTenant  => SuspendedTenant(x.info, e.metaInfo.get, e.suspensionReason)
               case UninitializedTenant => UninitializedTenant
               case _: TerminatedTenant => state
             }
           case e: InfoEdited =>
             state match {
-              case x: ActiveTenant => x.copy(info = e.getNewInfo, metaInfo = e.getMetaInfo)
-              case x: SuspendedTenant => x.copy(info = e.getNewInfo, metaInfo = e.getMetaInfo)
+              case x: ActiveTenant     => x.copy(info = e.getNewInfo, metaInfo = e.getMetaInfo)
+              case x: SuspendedTenant  => x.copy(info = e.getNewInfo, metaInfo = e.getMetaInfo)
               case UninitializedTenant => UninitializedTenant
               case _: TerminatedTenant => state
             }
           case _: TenantTerminated =>
             state match {
               case x: EstablishedTenantState => TerminatedTenant(x.metaInfo)
-              case _ => state
+              case _                         => state
             }
           case _ => state
         }
@@ -158,38 +165,46 @@ object Tenant {
           createdOn = Some(Timestamp(Instant.now()))
         )
 
-        Right(TenantEventResponse(TenantEstablished(
-          tenantId = establishTenant.tenantId,
-          metaInfo = Some(newMetaInfo),
-          tenantInfo = Some(tenantInfo)
-        )))
+        Right(
+          TenantEventResponse(
+            TenantEstablished(
+              tenantId = establishTenant.tenantId,
+              metaInfo = Some(newMetaInfo),
+              tenantInfo = Some(tenantInfo)
+            )
+          )
+        )
       }
     }
   }
 
   private def activateTenant(
-                              state: EstablishedTenantState,
-                              activateTenant: ActivateTenant,
+      state: EstablishedTenantState,
+      activateTenant: ActivateTenant,
   ): Either[Error, TenantEnvelope] = {
     val maybeValidationError = applyAllValidators[ActivateTenant](
       c => required("tenant id", tenantIdValidator)(c.tenantId),
       c => required("activating user", memberIdValidator)(c.activatingUser)
     )(activateTenant)
 
-    if(maybeValidationError.isDefined) {
+    if (maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
     } else {
       val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = activateTenant.activatingUser)
-      Right(TenantEventResponse(TenantActivated(
-        tenantId = activateTenant.tenantId,
-        metaInfo = Some(newMetaInfo)
-      )))
+      Right(
+        TenantEventResponse(
+          TenantActivated(
+            tenantId = activateTenant.tenantId,
+            metaInfo = Some(newMetaInfo)
+          )
+        )
+      )
     }
   }
 
   private def suspendTenant(
-                             state: EstablishedTenantState,
-                             suspendTenant: SuspendTenant,
+      state: EstablishedTenantState,
+      suspendTenant: SuspendTenant,
   ): Either[Error, TenantEnvelope] = {
     val maybeValidationError = applyAllValidators[SuspendTenant](
       c => required("tenant id", tenantIdValidator)(c.tenantId),
@@ -200,11 +215,15 @@ object Tenant {
       Left(maybeValidationError.get)
     } else {
       val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = suspendTenant.suspendingUser)
-      Right(TenantEventResponse(TenantSuspended(
-        tenantId = suspendTenant.tenantId,
-        metaInfo = Some(newMetaInfo),
-        suspensionReason = suspendTenant.suspensionReason
-      )))
+      Right(
+        TenantEventResponse(
+          TenantSuspended(
+            tenantId = suspendTenant.tenantId,
+            metaInfo = Some(newMetaInfo),
+            suspensionReason = suspendTenant.suspensionReason
+          )
+        )
+      )
     }
   }
 
@@ -218,32 +237,36 @@ object Tenant {
       c => required("tenant info", partialTenantInfoValidator)(c.infoToUpdate)
     )(editInfoCommand)
 
-    if(validationResult.isDefined) {
+    if (validationResult.isDefined) {
       Left(validationResult.get)
     } else {
-        val infoToUpdate = editInfoCommand.getInfoToUpdate
-        var updatedInfo = state.info
-        if (infoToUpdate.name.nonEmpty) {
-          updatedInfo = updatedInfo.copy(name = infoToUpdate.name)
-        }
-        if (infoToUpdate.address.isDefined) {
-          updatedInfo = updatedInfo.copy(address = infoToUpdate.address)
-        }
-        if (infoToUpdate.primaryContact.isDefined) {
-          updatedInfo = updatedInfo.copy(primaryContact = infoToUpdate.primaryContact)
-        }
-        if (infoToUpdate.organizations.isDefined) {
-          updatedInfo = updatedInfo.copy(organizations = infoToUpdate.organizations)
-        }
+      val infoToUpdate = editInfoCommand.getInfoToUpdate
+      var updatedInfo = state.info
+      if (infoToUpdate.name.nonEmpty) {
+        updatedInfo = updatedInfo.copy(name = infoToUpdate.name)
+      }
+      if (infoToUpdate.address.isDefined) {
+        updatedInfo = updatedInfo.copy(address = infoToUpdate.address)
+      }
+      if (infoToUpdate.primaryContact.isDefined) {
+        updatedInfo = updatedInfo.copy(primaryContact = infoToUpdate.primaryContact)
+      }
+      if (infoToUpdate.organizations.isDefined) {
+        updatedInfo = updatedInfo.copy(organizations = infoToUpdate.organizations)
+      }
 
-        val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = editInfoCommand.editingUser)
+      val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = editInfoCommand.editingUser)
 
-        Right(TenantEventResponse(InfoEdited(
-          tenantId = editInfoCommand.tenantId,
-          metaInfo = Some(newMetaInfo),
-          oldInfo = Some(state.info),
-          newInfo = Some(updatedInfo)
-        )))
+      Right(
+        TenantEventResponse(
+          InfoEdited(
+            tenantId = editInfoCommand.tenantId,
+            metaInfo = Some(newMetaInfo),
+            oldInfo = Some(state.info),
+            newInfo = Some(updatedInfo)
+          )
+        )
+      )
     }
   }
 
@@ -258,11 +281,15 @@ object Tenant {
     if (validationResult.isDefined) {
       Left(validationResult.get)
     } else {
-      Right(TenantDataResponse(TenantOrganizationData(
-        organizations = stateOpt.fold[Option[TenantOrganizationList]](Some(TenantOrganizationList(Seq.empty))) {
-          _.info.organizations
-        }
-      )))
+      Right(
+        TenantDataResponse(
+          TenantOrganizationData(
+            organizations = stateOpt.fold[Option[TenantOrganizationList]](Some(TenantOrganizationList(Seq.empty))) {
+              _.info.organizations
+            }
+          )
+        )
+      )
     }
   }
 
@@ -279,10 +306,14 @@ object Tenant {
       Left(maybeValidationError.get)
     } else {
       val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = terminateTenant.terminatingUser)
-      Right(TenantEventResponse(TenantTerminated(
-        tenantId = terminateTenant.tenantId,
-        metaInfo = Some(newMetaInfo)
-      )))
+      Right(
+        TenantEventResponse(
+          TenantTerminated(
+            tenantId = terminateTenant.tenantId,
+            metaInfo = Some(newMetaInfo)
+          )
+        )
+      )
     }
   }
 }

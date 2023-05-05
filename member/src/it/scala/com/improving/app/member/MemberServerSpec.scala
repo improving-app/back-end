@@ -1,12 +1,15 @@
+package com.improving.app.member
+
 import akka.grpc.GrpcClientSettings
+import com.dimafeng.testcontainers.DockerComposeContainer
 import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
-import com.improving.app.member.domain.MemberState._
-import com.improving.app.member.domain.NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL
-import org.scalatest.Inside.inside
-import com.improving.app.member.domain._
 import com.improving.app.common.test.ServiceTestContainerSpec
 import com.improving.app.member.api.{MemberService, MemberServiceClient}
-import com.improving.app.member.domain.GetMemberInfo
+import com.improving.app.member.domain.MemberState._
+import com.improving.app.member.domain.NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL
+import com.improving.app.member.domain._
+import org.scalatest.Assertion
+import org.scalatest.Inside.inside
 import org.scalatest.tagobjects.Retryable
 
 import scala.util.Random
@@ -19,9 +22,12 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
     MemberServiceClient(clientSettings)
   }
 
-  val memberInfo = MemberInfo(
+  override def afterAll(): Unit = {
+    system.terminate()
+  }
+
+  val memberInfo: MemberInfo = MemberInfo(
     handle = "SomeHandle",
-    avatarUrl = "",
     firstName = "FirstName",
     lastName = "LastName",
     notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL),
@@ -39,34 +45,36 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
     tenant = Some(TenantId("SomeTenant"))
   )
 
-  val editableInfo = EditableInfo(
-    contact = Some(Contact(
-      firstName = memberInfo.firstName,
-      lastName = memberInfo.lastName,
-      emailAddress = memberInfo.contact.get.emailAddress,
-      phone = Some("123-456-7890"),
-      userName = memberInfo.contact.get.userName
-    ))
+  val editableInfo: EditableInfo = EditableInfo(
+    contact = Some(
+      Contact(
+        firstName = memberInfo.firstName,
+        lastName = memberInfo.lastName,
+        emailAddress = memberInfo.contact.get.emailAddress,
+        phone = Some("123-456-7890"),
+        userName = memberInfo.contact.get.userName
+      )
+    )
   )
 
   def validateMember(
-                      memberId: Option[MemberId],
-                      memberInfo: Option[MemberInfo],
-                      createdBy: Option[MemberId],
-                      lastUpdatedBy: Option[MemberId],
-                      memberStatus: MemberState,
-                      client: MemberService
-                    ) = {
+      memberId: Option[MemberId],
+      memberInfo: Option[MemberInfo],
+      createdBy: Option[MemberId],
+      lastUpdatedBy: Option[MemberId],
+      memberStatus: MemberState,
+      client: MemberService
+  ): Assertion = {
     val response = client.getMemberInfo(GetMemberInfo(memberId)).futureValue
     response.memberId should equal(memberId)
     response.memberInfo should equal(memberInfo)
     response.memberMetaInfo should matchPattern {
       case Some(MemberMetaInfo(_, createdByMem, _, lastUpMem, memberSt, _))
-        if createdByMem == createdBy && lastUpMem == lastUpdatedBy && memberSt == memberStatus =>
+          if createdByMem == createdBy && lastUpMem == lastUpdatedBy && memberSt == memberStatus =>
     }
   }
 
-  behavior of "MemberServer in a test container"
+  behavior.of("MemberServer in a test container")
 
   it should s"expose a port for member-service" in {
     withContainers { containers =>
@@ -74,12 +82,16 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
     }
   }
 
-  it should "handle grpc calls for Get Member Info without Register" taggedAs(Retryable) in {
+  it should "handle grpc calls for Get Member Info without Register" taggedAs Retryable in {
     withContainers { containers =>
       val memberId = Random.nextString(31)
-      val response = getClient(containers).getMemberInfo(GetMemberInfo(
-        Some(MemberId(memberId))
-      )).futureValue
+      val response = getClient(containers)
+        .getMemberInfo(
+          GetMemberInfo(
+            Some(MemberId(memberId))
+          )
+        )
+        .futureValue
 
       response.memberId should equal(Some(MemberId(memberId)))
       response.memberInfo should equal(None)
@@ -91,27 +103,31 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
     withContainers { containers =>
       val client = getClient(containers)
       val memberId = Random.nextString(31)
-      val response = client.registerMember(RegisterMember(
-        Some(MemberId(memberId)),
-        Some(memberInfo),
-        Some(MemberId("ADMIN_1"))
-      )).futureValue
+      val response = client
+        .registerMember(
+          RegisterMember(
+            Some(MemberId(memberId)),
+            Some(memberInfo),
+            Some(MemberId("ADMIN_1"))
+          )
+        )
+        .futureValue
 
       inside(response.memberInfo) {
         case Some(
-        MemberInfo(
-        handle,
-        avatarUrl,
-        firstName,
-        lastName,
-        notificationPreference,
-        notificationOptIn,
-        contact,
-        orgs,
-        tenant,
-        _
-        )
-        ) =>
+              MemberInfo(
+                handle,
+                avatarUrl,
+                firstName,
+                lastName,
+                notificationPreference,
+                notificationOptIn,
+                contact,
+                orgs,
+                tenant,
+                _
+              )
+            ) =>
           handle should equal("SomeHandle")
           avatarUrl should equal("")
           firstName should equal("FirstName")
@@ -144,12 +160,17 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
     withContainers { containers =>
       val client = getClient(containers)
       val memberId = Random.nextString(31)
-      client.registerMember(RegisterMember(
-        Some(MemberId(memberId)),
-        Some(memberInfo),
-        Some(MemberId("ADMIN_1"))
-      )).futureValue
-      val response = client.activateMember(ActivateMember(Some(MemberId(memberId)), Some(MemberId("ADMIN_2")))).futureValue
+      client
+        .registerMember(
+          RegisterMember(
+            Some(MemberId(memberId)),
+            Some(memberInfo),
+            Some(MemberId("ADMIN_1"))
+          )
+        )
+        .futureValue
+      val response =
+        client.activateMember(ActivateMember(Some(MemberId(memberId)), Some(MemberId("ADMIN_2")))).futureValue
       response.memberId.get.id should equal(memberId)
 
       validateMember(
@@ -168,13 +189,18 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
       val client = getClient(containers)
       val memberId = Random.nextString(31)
 
-      client.registerMember(RegisterMember(
-        Some(MemberId(memberId)),
-        Some(memberInfo),
-        Some(MemberId("ADMIN_1"))
-      )).futureValue
+      client
+        .registerMember(
+          RegisterMember(
+            Some(MemberId(memberId)),
+            Some(memberInfo),
+            Some(MemberId("ADMIN_1"))
+          )
+        )
+        .futureValue
 
-      val response2 = client.activateMember(ActivateMember(Some(MemberId(memberId)), Some(MemberId("ADMIN_2")))).futureValue
+      val response2 =
+        client.activateMember(ActivateMember(Some(MemberId(memberId)), Some(MemberId("ADMIN_2")))).futureValue
       response2.memberId should equal(Some(MemberId(memberId)))
 
       val response =
@@ -190,11 +216,15 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
       response.memberId should equal(Some(MemberId(memberId)))
       validateMember(
         Some(MemberId(memberId)),
-        Some(memberInfo.copy(
-          contact = Some(memberInfo.contact.get.copy(
-            phone = Some("123-456-7890")
-          ))
-        )),
+        Some(
+          memberInfo.copy(
+            contact = Some(
+              memberInfo.contact.get.copy(
+                phone = Some("123-456-7890")
+              )
+            )
+          )
+        ),
         Some(MemberId("ADMIN_1")),
         Some(MemberId("ADMIN_5")),
         MEMBER_STATUS_ACTIVE,
@@ -204,15 +234,19 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
   }
 
   it should "handle grpc calls for Suspend Member" in {
-    withContainers {containers =>
+    withContainers { containers =>
       val client = getClient(containers)
 
       val memberId = Random.nextString(31)
-      client.registerMember(RegisterMember(
-        Some(MemberId(memberId)),
-        Some(memberInfo),
-        Some(MemberId("ADMIN_1"))
-      )).futureValue
+      client
+        .registerMember(
+          RegisterMember(
+            Some(MemberId(memberId)),
+            Some(memberInfo),
+            Some(MemberId("ADMIN_1"))
+          )
+        )
+        .futureValue
 
       client.activateMember(ActivateMember(Some(MemberId(memberId)), Some(MemberId("ADMIN_2")))).futureValue
       val response =
@@ -230,16 +264,20 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
   }
 
   it should "handle grpc calls for Terminate Member" in {
-    withContainers {containers =>
+    withContainers { containers =>
       val client = getClient(containers)
 
       val memberId = Random.nextString(31)
 
-      client.registerMember(RegisterMember(
-        Some(MemberId(memberId)),
-        Some(memberInfo),
-        Some(MemberId("ADMIN_1"))
-      )).futureValue
+      client
+        .registerMember(
+          RegisterMember(
+            Some(MemberId(memberId)),
+            Some(memberInfo),
+            Some(MemberId("ADMIN_1"))
+          )
+        )
+        .futureValue
 
       client.activateMember(ActivateMember(Some(MemberId(memberId)), Some(MemberId("ADMIN_2")))).futureValue
 
