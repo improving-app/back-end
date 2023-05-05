@@ -152,14 +152,14 @@ object Store {
       case event: StoreInfoEdited =>
         state match {
           case _: DraftState =>
-            val nameValidationError = applyAllValidators[StoreInfoEdited](
-              Seq(event => storeNameValidator(event.info.map(_.name).getOrElse("")))
+            val nameValidationError = applyAllValidators[StoreInfoEdited](event =>
+              storeNameValidator(event.info.map(_.name).getOrElse(""))
             )(event)
-            val descriptionValidationError = applyAllValidators[StoreInfoEdited](
-              Seq(event => storeDescriptionValidator(event.info.map(_.description).getOrElse("")))
+            val descriptionValidationError = applyAllValidators[StoreInfoEdited](event =>
+              storeDescriptionValidator(event.info.map(_.description).getOrElse(""))
             )(event)
-            val sponsoringOrgValidationError = applyAllValidators[StoreInfoEdited](
-              Seq(event => required("sponsoring org", storeSponsoringOrgValidator)(event.info.flatMap(_.sponsoringOrg)))
+            val sponsoringOrgValidationError = applyAllValidators[StoreInfoEdited](event =>
+              required("sponsoring org", storeSponsoringOrgValidator)(event.info.flatMap(_.sponsoringOrg))
             )(event)
             DraftState(
               event.info.map(i =>
@@ -185,10 +185,8 @@ object Store {
 
   private def createStore(command: CreateStore): Either[Error, StoreEvent] = {
     val maybeValidationError = applyAllValidators[CreateStore](
-      Seq(
-        c => required("store id", storeIdValidator)(c.storeId),
-        c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
-      )
+      c => required("store id", storeIdValidator)(c.storeId),
+      c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
     )(command)
     if (maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
@@ -215,10 +213,8 @@ object Store {
     val draftInfo = state.info.getOrElse(EditableStoreInfo.defaultInstance)
 
     val maybeValidationError: Option[ValidationError] = applyAllValidators[MakeStoreReady](
-      Seq(
-        c => required("store id", storeIdValidator)(c.storeId),
-        c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
-      )
+      c => required("store id", storeIdValidator)(c.storeId),
+      c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
     )(command).orElse(
       draftTransitionStoreInfoValidator(draftInfo)
     )
@@ -240,10 +236,8 @@ object Store {
       command: OpenStore
   ): Either[Error, StoreEvent] = {
     val maybeValidationError: Option[ValidationError] = applyAllValidators[OpenStore](
-      Seq(
-        c => required("store id", storeIdValidator)(c.storeId),
-        c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
-      )
+      c => required("store id", storeIdValidator)(c.storeId),
+      c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
     )(command)
 
     if (maybeValidationError.isDefined) {
@@ -264,10 +258,8 @@ object Store {
       command: CloseStore
   ): Either[Error, StoreEvent] = {
     val maybeValidationError: Option[ValidationError] = applyAllValidators[CloseStore](
-      Seq(
-        c => required("store id", storeIdValidator)(c.storeId),
-        c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
-      )
+      c => required("store id", storeIdValidator)(c.storeId),
+      c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
     )(command)
 
     if (maybeValidationError.isDefined) {
@@ -289,10 +281,8 @@ object Store {
       command: DeleteStore
   ): Either[Error, StoreEvent] = {
     val maybeValidationError: Option[ValidationError] = applyAllValidators[DeleteStore](
-      Seq(
-        c => required("store id", storeIdValidator)(c.storeId),
-        c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
-      )
+      c => required("store id", storeIdValidator)(c.storeId),
+      c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
     )(command)
 
     if (maybeValidationError.isDefined) {
@@ -330,10 +320,8 @@ object Store {
 
   private def terminateStore(state: InitializedState, terminate: TerminateStore): Either[Error, StoreEvent] = {
     val maybeValidationError: Option[ValidationError] = applyAllValidators[TerminateStore](
-      Seq(
-        c => required("store id", storeIdValidator)(c.storeId),
-        c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
-      )
+      c => required("store id", storeIdValidator)(c.storeId),
+      c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
     )(terminate)
 
     if (maybeValidationError.isDefined) {
@@ -354,10 +342,8 @@ object Store {
       command: EditStoreInfo
   ): Either[Error, StoreInfoEdited] = {
     val maybeValidationError = applyAllValidators[EditStoreInfo](
-      Seq(
-        command => required("store id", storeIdValidator)(command.storeId),
-        command => required("on behalf of", memberIdValidator)(command.onBehalfOf),
-      )
+      command => required("store id", storeIdValidator)(command.storeId),
+      command => required("on behalf of", memberIdValidator)(command.onBehalfOf),
     )(command)
     if (maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
