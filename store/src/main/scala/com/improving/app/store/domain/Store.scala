@@ -7,15 +7,12 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import com.google.protobuf.timestamp.Timestamp
-import com.improving.app.common.domain.{MemberId, OrganizationId}
+import com.improving.app.common.domain.MemberId
 import com.improving.app.common.errors.Validation._
 import com.improving.app.common.errors._
 import com.improving.app.store.domain.StoreValidation.{
   createdStateStoreInfoValidator,
   draftTransitionStoreInfoValidator,
-  storeDescriptionValidator,
-  storeNameValidator,
-  storeSponsoringOrgValidator
 }
 
 import java.time.Instant
@@ -156,29 +153,10 @@ object Store {
         }
       case event: StoreInfoEdited =>
         state match {
-          case _: DraftState =>
-            val nameValidationError = applyAllValidators[StoreInfoEdited](event =>
-              storeNameValidator(event.info.map(_.name).getOrElse(""))
-            )(event)
-            val descriptionValidationError = applyAllValidators[StoreInfoEdited](event =>
-              storeDescriptionValidator(event.info.map(_.description).getOrElse(""))
-            )(event)
-            val sponsoringOrgValidationError = applyAllValidators[StoreInfoEdited](event =>
-              required("sponsoring org", storeSponsoringOrgValidator)(event.info.flatMap(_.sponsoringOrg))
-            )(event)
-            DraftState(
-              event.info.map(i =>
-                EditableStoreInfo(
-                  if (nameValidationError.isDefined) None else Some(i.name),
-                  if (descriptionValidationError.isDefined) None else Some(i.description),
-                  if (sponsoringOrgValidationError.isDefined) None else i.sponsoringOrg,
-                )
-              ),
-              event.getMetaInfo
-            )
-          case _: ReadyState  => ReadyState(event.getInfo, event.getMetaInfo)
-          case _: OpenState   => OpenState(event.getInfo, event.getMetaInfo)
-          case _: ClosedState => ClosedState(event.getInfo, event.getMetaInfo)
+          case _: DraftState  => DraftState(Some(event.getInfo.getEditableInfo), event.getMetaInfo)
+          case _: ReadyState  => ReadyState(event.getInfo.getInfo, event.getMetaInfo)
+          case _: OpenState   => OpenState(event.getInfo.getInfo, event.getMetaInfo)
+          case _: ClosedState => ClosedState(event.getInfo.getInfo, event.getMetaInfo)
           case x: StoreState  => x
         }
     }
@@ -354,27 +332,32 @@ object Store {
     if (maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
     } else {
-      val stateInfo: Either[ValidationError, StoreInfo] = state match {
+      val stateInfo: Either[ValidationError, Either[StoreInfo, EditableStoreInfo]] = state match {
         case x: DraftState =>
           val draftInfo = x.info.getOrElse(EditableStoreInfo.defaultInstance)
-          Right(StoreInfo(draftInfo.getName, draftInfo.getDescription, draftInfo.sponsoringOrg))
-        case x: CreatedState => Right(x.info)
+          Right(Right(draftInfo))
+        case x: CreatedState => Right(Left(x.info))
         case _               => Left(ValidationError.apply("Editing is not allowed in this state"))
       }
 
       stateInfo match {
         case Left(err) => Left(err)
-        case Right(stateInfo) =>
+        case Right(Left(stateInfo)) =>
           val fieldsToUpdate = command.newInfo.get
 
           val updatedInfo = StoreInfo(
-            name = fieldsToUpdate.name.getOrElse(stateInfo.name),
-            description = fieldsToUpdate.description.getOrElse(stateInfo.description),
-            sponsoringOrg = Some(
-              fieldsToUpdate.sponsoringOrg.getOrElse(
-                stateInfo.sponsoringOrg.getOrElse(OrganizationId.defaultInstance)
-              )
-            )
+            name = fieldsToUpdate.name match {
+              case None    => stateInfo.name
+              case Some(v) => v
+            },
+            description = fieldsToUpdate.description match {
+              case None    => stateInfo.description
+              case Some(v) => v
+            },
+            sponsoringOrg = fieldsToUpdate.sponsoringOrg match {
+              case None    => stateInfo.sponsoringOrg
+              case Some(v) => Some(v)
+            }
           )
 
           val updatedMetaInfo = updateMetaInfo(state.metaInfo, command.onBehalfOf)
@@ -382,7 +365,35 @@ object Store {
           Right(
             StoreInfoEdited(
               storeId = command.storeId,
-              info = Some(updatedInfo),
+              info = Some(StoreOrEditableInfo(StoreOrEditableInfo.InfoOrEditable.Info(updatedInfo))),
+              metaInfo = Some(updatedMetaInfo)
+            )
+          )
+
+        case Right(Right(editableInfo)) =>
+          val fieldsToUpdate = command.newInfo.get
+
+          val updatedInfo = EditableStoreInfo(
+            name = fieldsToUpdate.name match {
+              case None    => editableInfo.name
+              case Some(v) => Some(v)
+            },
+            description = fieldsToUpdate.description match {
+              case None    => editableInfo.description
+              case Some(v) => Some(v)
+            },
+            sponsoringOrg = fieldsToUpdate.sponsoringOrg match {
+              case None    => editableInfo.sponsoringOrg
+              case Some(v) => Some(v)
+            }
+          )
+
+          val updatedMetaInfo = updateMetaInfo(state.metaInfo, command.onBehalfOf)
+
+          Right(
+            StoreInfoEdited(
+              storeId = command.storeId,
+              info = Some(StoreOrEditableInfo(StoreOrEditableInfo.InfoOrEditable.EditableInfo(updatedInfo))),
               metaInfo = Some(updatedMetaInfo)
             )
           )
