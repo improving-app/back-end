@@ -362,31 +362,30 @@ object Store {
         case _               => Left(ValidationError.apply("Editing is not allowed in this state"))
       }
 
-      if (stateInfo.isLeft) {
-        Left(stateInfo.left.getOrElse(ValidationError.apply("Unknown validation error")))
-      } else {
-        val validStateInfo = stateInfo.getOrElse(StoreInfo.defaultInstance)
-        val fieldsToUpdate = command.newInfo.get
+      stateInfo match {
+        case Left(err) => Left(err)
+        case Right(stateInfo) =>
+          val fieldsToUpdate = command.newInfo.get
 
-        val updatedInfo = StoreInfo(
-          name = fieldsToUpdate.name.getOrElse(validStateInfo.name),
-          description = fieldsToUpdate.description.getOrElse(validStateInfo.description),
-          sponsoringOrg = Some(
-            fieldsToUpdate.sponsoringOrg.getOrElse(
-              validStateInfo.sponsoringOrg.getOrElse(OrganizationId.defaultInstance)
+          val updatedInfo = StoreInfo(
+            name = fieldsToUpdate.name.getOrElse(stateInfo.name),
+            description = fieldsToUpdate.description.getOrElse(stateInfo.description),
+            sponsoringOrg = Some(
+              fieldsToUpdate.sponsoringOrg.getOrElse(
+                stateInfo.sponsoringOrg.getOrElse(OrganizationId.defaultInstance)
+              )
             )
           )
-        )
 
-        val updatedMetaInfo = updateMetaInfo(state.metaInfo, command.onBehalfOf)
+          val updatedMetaInfo = updateMetaInfo(state.metaInfo, command.onBehalfOf)
 
-        Right(
-          StoreInfoEdited(
-            storeId = command.storeId,
-            info = Some(updatedInfo),
-            metaInfo = Some(updatedMetaInfo)
+          Right(
+            StoreInfoEdited(
+              storeId = command.storeId,
+              info = Some(updatedInfo),
+              metaInfo = Some(updatedMetaInfo)
+            )
           )
-        )
       }
     }
   }
