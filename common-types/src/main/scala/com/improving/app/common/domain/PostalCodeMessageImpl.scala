@@ -11,23 +11,20 @@ sealed trait PostalCodeImpl
 case class UsPostalCodeImpl(code: String) extends PostalCodeImpl
 case class CaPostalCodeImpl(code: String) extends PostalCodeImpl
 
-
 case class PostalCodeMessageImpl(postalCodeValue: PostalCodeImpl)
 
 object PostalCodeMessageImpl {
-  implicit val tm = TypeMapper[PostalCode, PostalCodeMessageImpl] {
-    postalCodeProto: PostalCode =>
-      postalCodeProto.postalCodeValue match {
-        case PostalCodeValue.Empty => PostalCodeMessageImpl(CaPostalCodeImpl(""))
-        case PostalCodeValue.CaPostalCodeMessage(value) => PostalCodeMessageImpl(CaPostalCodeImpl(value))
-        case PostalCodeValue.UsPostalCodeMessage(value) => PostalCodeMessageImpl(UsPostalCodeImpl(value))
-      }
-  } {
-    postalCodeMessageScala: PostalCodeMessageImpl =>
-      postalCodeMessageScala.postalCodeValue match {
-        case CaPostalCodeImpl(code) => PostalCode(postalCodeValue = PostalCodeValue.CaPostalCodeMessage(code))
-        case UsPostalCodeImpl(code) => PostalCode(postalCodeValue = PostalCodeValue.UsPostalCodeMessage(code))
-        case _ => PostalCode(postalCodeValue = PostalCodeValue.CaPostalCodeMessage(""))
-      }
+  implicit val tm: TypeMapper[PostalCode, PostalCodeMessageImpl] = TypeMapper[PostalCode, PostalCodeMessageImpl] { postalCodeProto: PostalCode =>
+    postalCodeProto.postalCodeValue match {
+      case PostalCodeValue.Empty                      => PostalCodeMessageImpl(CaPostalCodeImpl(""))
+      case PostalCodeValue.CaPostalCodeMessage(value) => PostalCodeMessageImpl(CaPostalCodeImpl(value))
+      case PostalCodeValue.UsPostalCodeMessage(value) => PostalCodeMessageImpl(UsPostalCodeImpl(value))
+    }
+  } { postalCodeMessageScala: PostalCodeMessageImpl =>
+    postalCodeMessageScala.postalCodeValue match {
+      case CaPostalCodeImpl(code) => PostalCode(postalCodeValue = PostalCodeValue.CaPostalCodeMessage(code))
+      case UsPostalCodeImpl(code) => PostalCode(postalCodeValue = PostalCodeValue.UsPostalCodeMessage(code))
+      case _                      => PostalCode(postalCodeValue = PostalCodeValue.CaPostalCodeMessage(""))
+    }
   }
 }

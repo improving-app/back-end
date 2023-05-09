@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package com.improving.app.common.domain;
+
+import "scalapb/scalapb.proto";
+
+message TenantId {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    string id = 1;
+}
+
+message OrganizationId {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    string id = 1;
+}
+
+message MemberId {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    string id = 1;
+}
+
+message StoreId {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    string id = 1;
+}

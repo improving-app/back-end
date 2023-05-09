@@ -1,0 +1,115 @@
+syntax = "proto3";
+package com.improving.app.store.domain;
+
+import "com/improving/app/common/domain/ids.proto";
+import "com/improving/app/store/domain/storeData.proto";
+import "scalapb/scalapb.proto";
+
+option (scalapb.options) = {
+  single_file: true,
+  preamble: [
+    "sealed trait StoreRequest {\n",
+    "  val storeId: Option[com.improving.app.common.domain.StoreId]\n"
+    "  val onBehalfOf: Option[com.improving.app.common.domain.MemberId]\n",
+    "}\n",
+    "sealed trait StoreCommand extends StoreRequest\n",
+    "sealed trait StoreQuery extends StoreRequest\n"
+  ]
+};
+
+message StoreRequestPB {
+  oneof sealed_value {
+    CreateStore establish_organization = 1;
+    MakeStoreReady suspend_organization = 2;
+    DeleteStore terminate_organization = 3;
+    OpenStore edit_organization_info = 4;
+    CloseStore close_store = 5;
+    TerminateStore get_organization_info = 6;
+    EditStoreInfo edit_store_info = 7;
+   // AddProductsToStore add_products_to_store = 8;
+   // RemoveProductsFromStore remove_products_from_store = 9;
+  }
+}
+
+message CreateStore {
+  option (scalapb.message) = {
+    extends: [ "StoreCommand" ]
+  };
+  common.domain.StoreId store_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  EditableStoreInfo info = 3;
+}
+
+message MakeStoreReady {
+  option (scalapb.message) = {
+    extends: [ "StoreCommand" ]
+  };
+  common.domain.StoreId store_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  StoreInfo info = 3;
+}
+
+message DeleteStore {
+  option (scalapb.message) = {
+    extends: [ "StoreCommand" ]
+  };
+  common.domain.StoreId store_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+}
+
+message OpenStore {
+  option (scalapb.message) = {
+    extends: [ "StoreCommand" ]
+  };
+  common.domain.StoreId store_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+}
+
+message CloseStore {
+  option (scalapb.message) = {
+    extends: [ "StoreCommand" ]
+  };
+  common.domain.StoreId store_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+}
+
+message TerminateStore {
+  option (scalapb.message) = {
+    extends: [ "StoreCommand" ]
+  };
+  common.domain.StoreId store_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+}
+
+
+message EditStoreInfo {
+  option (scalapb.message) = {
+    extends: [ "StoreCommand" ]
+  };
+  common.domain.StoreId store_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  EditableStoreInfo new_info = 3;
+}
+
+message GetStoreInfo {
+  common.domain.StoreId store_id = 1;
+}
+
+//message AddProductsToStore {
+//  option (scalapb.message) = {
+//    extends: [ "StoreCommand" ]
+//  };
+//  com.improving.app.common.domain.StoreId store_id = 1;
+//  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+//  //repeated Sku skus = 3;
+//}
+//
+//message RemoveProductsFromStore {
+//  option (scalapb.message) = {
+//    extends: [ "StoreCommand" ]
+//  };
+//  common.domain.StoreId store_id = 1;
+//  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+//  //repeated Sku skus = 3;
+//}
+//

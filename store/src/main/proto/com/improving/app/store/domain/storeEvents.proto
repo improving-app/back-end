@@ -1,0 +1,91 @@
+syntax = "proto3";
+package com.improving.app.store.domain;
+
+import "com/improving/app/common/domain/ids.proto";
+import "com/improving/app/store/domain/storeData.proto";
+import "scalapb/scalapb.proto";
+
+message StoreEvent {
+  oneof sealed_value {
+    StoreCreated store_created = 1;
+    StoreIsReady store_is_ready = 2;
+    StoreDeleted store_deleted = 3;
+    StoreOpened store_opened = 4;
+    StoreClosed store_closed = 5;
+    StoreTerminated store_terminated = 6;
+    StoreInfoEdited store_info_edited = 7;
+    //ProductsAddedToStore products_added_to_store = 8;
+    //ProductsRemovedFromStore products_removed_from_store = 9;
+  }
+}
+
+message StoreCreated {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  common.domain.StoreId store_id = 1;
+  EditableStoreInfo info = 2;
+  StoreMetaInfo meta_info = 3;
+}
+
+message StoreIsReady {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  common.domain.StoreId store_id = 1;
+  StoreInfo info = 2;
+  StoreMetaInfo meta_info = 3;
+}
+
+message StoreDeleted {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  common.domain.StoreId store_id = 1;
+  StoreInfo info = 2;
+  StoreMetaInfo meta_info = 3;
+}
+
+message StoreOpened {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  common.domain.StoreId store_id = 1;
+  StoreInfo info = 2;
+  StoreMetaInfo meta_info = 3;
+}
+
+message StoreClosed {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  common.domain.StoreId store_id = 1;
+  StoreInfo info = 2;
+  StoreMetaInfo meta_info = 3;
+}
+
+message StoreTerminated {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  common.domain.StoreId store_id = 1;
+  StoreInfo info = 2;
+  StoreMetaInfo meta_info = 3;
+}
+
+message StoreInfoEdited {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  common.domain.StoreId store_id = 1;
+  StoreOrEditableInfo info = 2;
+  StoreMetaInfo meta_info = 3;
+}
+
+message StoreOrEditableInfo {
+  oneof InfoOrEditable {
+    StoreInfo info = 1;
+    EditableStoreInfo editable_info = 2;
+  }
+}
+
+//message ProductsAddedToStore {
+//  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+//  common.domain.StoreId store_id = 1;
+//  StoreInfo info = 2;
+//  StoreMetaInfo meta_info = 3;
+//}
+//
+//message ProductsRemovedFromStore {
+//  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+//  common.domain.StoreId store_id = 1;
+//  StoreInfo info = 2;
+//  StoreMetaInfo meta_info = 3;
+//}
+//

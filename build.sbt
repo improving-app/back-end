@@ -2,7 +2,7 @@ ThisBuild / dynverSeparator := "-"
 
 lazy val allServices = project
   .in(file("."))
-  .aggregate(gateway, tenant, organization, member)
+  .aggregate(gateway, tenant, organization, member, store)
 
 // This is for protobuf types defined at 'domain' scope and having cross-service applicability only.
 lazy val commonTypes = project
@@ -22,6 +22,11 @@ lazy val organization = project
 lazy val member = project
   .in(file("member"))
   .configure(C.akkaPersistentEntity("improving-app-member", 8081))
+  .dependsOn(commonTypes)
+
+lazy val store = project
+  .in(file("store"))
+  .configure(C.akkaPersistentEntity("improving-app-store", 8083))
   .dependsOn(commonTypes)
 
 lazy val gateway = project
