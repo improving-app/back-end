@@ -4,33 +4,40 @@ package com.improving.app.tenant.domain;
 import "scalapb/scalapb.proto";
 import "google/protobuf/timestamp.proto";
 import "com/improving/app/common/domain/address.proto";
-import "com/improving/app/common/domain/tenantId.proto";
-import "com/improving/app/common/domain/memberId.proto";
-import "com/improving/app/common/domain/organizationId.proto";
+import "com/improving/app/common/domain/ids.proto";
+import "validate/validate.proto";
 
 enum TenantState {
-  Active = 0;
-  Suspended = 1;
+  TENANT_STATE_ACTIVE = 0;
+  TENANT_STATE_SUSPENDED = 1;
 }
 
 message TenantOrganizationList {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  repeated com.improving.app.common.domain.OrganizationId value = 1;
+  repeated com.improving.app.common.domain.OrganizationId value = 1 [(validate.rules).repeated.ignore_empty = true];
 }
 
 message TenantInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  string name = 1;
-  com.improving.app.common.domain.Contact primaryContact = 2;
-  com.improving.app.common.domain.Address address = 3;
-  TenantOrganizationList organizations = 4;
+  string name = 1 [(validate.rules).string.ignore_empty = true];
+  com.improving.app.common.domain.Contact primary_contact = 2 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.Address address = 3 [(validate.rules).message.required = true];
+  TenantOrganizationList organizations = 4 [(validate.rules).message.required = true];
+}
+
+message EditableTenantInfo {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  optional string name = 1 [(validate.rules).string.ignore_empty = true];
+  optional com.improving.app.common.domain.Contact primary_contact = 2;
+  optional com.improving.app.common.domain.Address address = 3;
+  optional TenantOrganizationList organizations = 4;
 }
 
 message TenantMetaInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  google.protobuf.Timestamp createdOn = 1;
-  com.improving.app.common.domain.MemberId createdBy = 2;
-  google.protobuf.Timestamp lastUpdated = 3;
-  com.improving.app.common.domain.MemberId lastUpdatedBy = 4;
-  TenantState state = 5;
+  google.protobuf.Timestamp created_on = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId created_by = 2 [(validate.rules).message.required = true];
+  google.protobuf.Timestamp last_updated = 3 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId last_updated_by = 4 [(validate.rules).message.required = true];
+  TenantState state = 5 [(validate.rules).string.ignore_empty = true];
 }
