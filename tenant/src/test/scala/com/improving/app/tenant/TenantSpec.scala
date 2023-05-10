@@ -175,7 +175,7 @@ class TenantSpec
           val (tenantId, p, probe) = createTestVariables()
 
           val commands = Seq(
-            EditInfo(Some(TenantId(tenantId)), Some(MemberId("user")), Some(TenantInfo())),
+            EditInfo(Some(TenantId(tenantId)), Some(MemberId("user")), Some(EditableTenantInfo())),
             ActivateTenant(Some(TenantId(tenantId)), Some(MemberId("user"))),
             SuspendTenant(Some(TenantId(tenantId)), "just feel like it", Some(MemberId("user"))),
           )
@@ -228,7 +228,7 @@ class TenantSpec
             EditInfo(
               Some(TenantId(tenantId)),
               Some(MemberId("unauthorizedUser")),
-              Some(TenantInfo()),
+              Some(EditableTenantInfo()),
             ),
             probe.ref
           )
@@ -251,7 +251,7 @@ class TenantSpec
             EditInfo(
               Some(TenantId(tenantId)),
               Some(MemberId("someUser")),
-              Some(TenantInfo()),
+              Some(EditableTenantInfo()),
             ),
             probe.ref
           )
@@ -277,8 +277,8 @@ class TenantSpec
           val newName = "A new name"
           val newOrgs = TenantOrganizationList(Seq(OrganizationId("a"), OrganizationId("b")))
 
-          val updatedInfo = TenantInfo(
-            name = newName,
+          val updatedInfo = EditableTenantInfo(
+            name = Some(newName),
             primaryContact = Some(newContact),
             address = Some(newAddress),
             organizations = Some(newOrgs)
@@ -299,7 +299,12 @@ class TenantSpec
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
           successVal.oldInfo shouldBe Some(baseTenantInfo)
-          successVal.newInfo shouldBe Some(updatedInfo)
+          successVal.newInfo shouldBe Some(TenantInfo(
+            updatedInfo.getName,
+            updatedInfo.primaryContact,
+            updatedInfo.address,
+            updatedInfo.organizations
+          ))
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -312,8 +317,8 @@ class TenantSpec
           val newName = "A new name"
           val newOrgs = TenantOrganizationList(Seq(OrganizationId("a"), OrganizationId("b")))
 
-          val updatedInfo = TenantInfo(
-            name = newName,
+          val updatedInfo = EditableTenantInfo(
+            name = Some(newName),
             organizations = Some(newOrgs)
           )
 
@@ -344,7 +349,7 @@ class TenantSpec
 
           val badContact = baseContact.copy(emailAddress = None)
 
-          val updateInfo = TenantInfo(primaryContact = Some(badContact))
+          val updateInfo = EditableTenantInfo(primaryContact = Some(badContact))
 
           p ! Tenant.TenantCommand(
             EditInfo(
@@ -372,7 +377,7 @@ class TenantSpec
 
           val badAddress = baseAddress.copy(city = "")
 
-          val updateInfo = TenantInfo(address = Some(badAddress))
+          val updateInfo = EditableTenantInfo(address = Some(badAddress))
 
           p ! Tenant.TenantCommand(
             EditInfo(
@@ -674,7 +679,7 @@ class TenantSpec
             EditInfo(
               Some(TenantId(tenantId)),
               Some(MemberId("unauthorizedUser")),
-              Some(TenantInfo()),
+              Some(EditableTenantInfo()),
             ),
             probe.ref
           )
@@ -708,7 +713,7 @@ class TenantSpec
             EditInfo(
               Some(TenantId(tenantId)),
               Some(MemberId("someUser")),
-              Some(TenantInfo()),
+              Some(EditableTenantInfo()),
             ),
             probe.ref
           )
@@ -748,8 +753,8 @@ class TenantSpec
           val newName = "A new name"
           val newOrgs = TenantOrganizationList(Seq(OrganizationId("a"), OrganizationId("b")))
 
-          val updatedInfo = TenantInfo(
-            name = newName,
+          val updatedInfo = EditableTenantInfo(
+            name = Some(newName),
             primaryContact = Some(newContact),
             address = Some(newAddress),
             organizations = Some(newOrgs)
@@ -772,7 +777,12 @@ class TenantSpec
           assert(successVal.metaInfo.isDefined)
           assert(successVal.oldInfo.isDefined)
           successVal.oldInfo.get shouldEqual baseTenantInfo
-          successVal.newInfo.get shouldEqual updatedInfo
+          successVal.newInfo.get shouldEqual TenantInfo(
+            updatedInfo.getName,
+            updatedInfo.primaryContact,
+            updatedInfo.address,
+            updatedInfo.organizations
+          )
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -797,8 +807,8 @@ class TenantSpec
           val newName = "A new name"
           val newOrgs = TenantOrganizationList(Seq(OrganizationId("a"), OrganizationId("b")))
 
-          val updatedInfo = TenantInfo(
-            name = newName,
+          val updatedInfo = EditableTenantInfo(
+            name = Some(newName),
             organizations = Some(newOrgs)
           )
 
@@ -843,7 +853,7 @@ class TenantSpec
 
           val badContact = baseContact.copy(emailAddress = None)
 
-          val updateInfo = TenantInfo(primaryContact = Some(badContact))
+          val updateInfo = EditableTenantInfo(primaryContact = Some(badContact))
 
           p ! Tenant.TenantCommand(
             EditInfo(
@@ -883,7 +893,7 @@ class TenantSpec
 
           val badAddress = baseAddress.copy(city = "")
 
-          val updateInfo = TenantInfo(address = Some(badAddress))
+          val updateInfo = EditableTenantInfo(address = Some(badAddress))
 
           p ! Tenant.TenantCommand(
             EditInfo(
@@ -1168,7 +1178,14 @@ class TenantSpec
             EditInfo(
               tenantId = Some(TenantId(tenantId)),
               editingUser = Some(MemberId("editingUser")),
-              infoToUpdate = Some(baseTenantInfo)
+              infoToUpdate = Some(
+                EditableTenantInfo(
+                  Some(baseTenantInfo.name),
+                  Some(baseContact),
+                  Some(baseAddress),
+                  baseTenantInfo.organizations
+                )
+              )
             ),
             probe.ref
           )

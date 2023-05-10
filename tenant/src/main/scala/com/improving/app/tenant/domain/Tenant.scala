@@ -151,7 +151,7 @@ object Tenant {
       c => required("tenant id", tenantIdValidator)(c.tenantId),
       c => required("activating user", memberIdValidator)(c.establishingUser)
     )(establishTenant)
-    if(maybeValidationError.isDefined) {
+    if (maybeValidationError.isDefined) {
       Left(maybeValidationError.get)
     } else {
       val maybeTenantInfoError = required("tenant info", completeTenantInfoValidator)(establishTenant.tenantInfo)
@@ -228,13 +228,13 @@ object Tenant {
   }
 
   private def editInfo(
-                        state: Tenant.EstablishedTenantState,
-                        editInfoCommand: EditInfo,
-                      ): Either[Error, TenantEnvelope] = {
+      state: Tenant.EstablishedTenantState,
+      editInfoCommand: EditInfo,
+  ): Either[Error, TenantEnvelope] = {
     val validationResult = applyAllValidators[EditInfo](
       c => required("tenant id", tenantIdValidator)(c.tenantId),
       c => required("editing user", memberIdValidator)(c.editingUser),
-      c => required("tenant info", partialTenantInfoValidator)(c.infoToUpdate)
+      c => required("tenant info", editableTenantInfoValidator)(c.infoToUpdate)
     )(editInfoCommand)
 
     if (validationResult.isDefined) {
@@ -243,7 +243,7 @@ object Tenant {
       val infoToUpdate = editInfoCommand.getInfoToUpdate
       var updatedInfo = state.info
       if (infoToUpdate.name.nonEmpty) {
-        updatedInfo = updatedInfo.copy(name = infoToUpdate.name)
+        updatedInfo = updatedInfo.copy(name = infoToUpdate.getName)
       }
       if (infoToUpdate.address.isDefined) {
         updatedInfo = updatedInfo.copy(address = infoToUpdate.address)
@@ -271,11 +271,11 @@ object Tenant {
   }
 
   private def getOrganizations(
-                                getOrganizationsQuery: GetOrganizations,
-                                stateOpt: Option[Tenant.EstablishedTenantState] = None
-                              ): Either[Error, TenantEnvelope] = {
-    val validationResult = applyAllValidators[GetOrganizations](
-      c => required("tenant id", tenantIdValidator)(c.tenantId)
+      getOrganizationsQuery: GetOrganizations,
+      stateOpt: Option[Tenant.EstablishedTenantState] = None
+  ): Either[Error, TenantEnvelope] = {
+    val validationResult = applyAllValidators[GetOrganizations](c =>
+      required("tenant id", tenantIdValidator)(c.tenantId)
     )(getOrganizationsQuery)
 
     if (validationResult.isDefined) {
@@ -294,9 +294,9 @@ object Tenant {
   }
 
   private def terminateTenant(
-                             state: EstablishedTenantState,
-                             terminateTenant: TerminateTenant,
-                           ): Either[Error, TenantEnvelope] = {
+      state: EstablishedTenantState,
+      terminateTenant: TerminateTenant,
+  ): Either[Error, TenantEnvelope] = {
     val maybeValidationError = applyAllValidators[TerminateTenant](
       c => required("tenant Id", tenantIdValidator)(c.tenantId),
       c => required("terminating user", memberIdValidator)(c.terminatingUser)

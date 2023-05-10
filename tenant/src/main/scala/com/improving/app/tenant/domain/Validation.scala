@@ -10,7 +10,7 @@ object Validation {
   }
 
   val tenantNameValidator: Validator[String] = name => {
-    if(name.isEmpty) {
+    if (name.isEmpty) {
       Some(ValidationError("name empty"))
     } else {
       None
@@ -26,9 +26,9 @@ object Validation {
     )(tenantInfo)
   }
 
-  val partialTenantInfoValidator: Validator[TenantInfo] = tenantInfo => {
-    applyAllValidators[TenantInfo](
-      ti => skipEmpty(tenantNameValidator)(ti.name),
+  val editableTenantInfoValidator: Validator[EditableTenantInfo] = tenantInfo => {
+    applyAllValidators[EditableTenantInfo](
+      ti => skipEmpty(tenantNameValidator)(ti.getName),
       ti => optional(contactValidator)(ti.primaryContact),
       ti => optional(addressValidator)(ti.address),
       ti => optional(organizationsValidator)(ti.organizations)
