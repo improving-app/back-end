@@ -1,6 +1,7 @@
 import C.{dockerSettings, Compilation, Packaging, Testing}
 import Dependencies._
 import akka.grpc.sbt.AkkaGrpcPlugin
+import akka.grpc.sbt.AkkaGrpcPlugin.autoImport.akkaGrpcCodeGeneratorSettings
 import com.typesafe.sbt.packager.Keys._
 import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
 import com.typesafe.sbt.packager.docker.DockerPlugin
@@ -177,6 +178,8 @@ object C {
         run / fork := true,
         Global / cancelable := false, // ctrl-c
         Defaults.itSettings,
+        Compile / PB.targets += scalapb.validate
+          .gen(FlatPackage) -> (Compile / akkaGrpcCodeGeneratorSettings / target).value,
         libraryDependencies ++= Seq(
           "com.typesafe.akka" %% "akka-actor-typed" % V.akka,
           "com.typesafe.akka" %% "akka-actor-testkit-typed" % V.akka % Test,
@@ -206,7 +209,9 @@ object C {
           "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test",
           "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion % "it, test",
           "org.wvlet.airframe" %% "airframe-ulid" % V.airframeUlidVersion,
-        ) ++ akkaHttpTestingDependencies ++ scalaPbDependencies ++ scalaPbValidationDependencies,
+        ) ++ akkaHttpTestingDependencies ++ scalaPbDependencies ++ scalaPbValidationDependencies ++ Seq(
+          scalaPbCompilerPlugin
+        ),
         dockerSettings(port),
       )
   }

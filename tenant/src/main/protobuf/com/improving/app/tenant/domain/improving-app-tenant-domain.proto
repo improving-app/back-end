@@ -2,11 +2,16 @@ syntax = "proto3";
 
 package com.improving.app.tenant.domain;
 import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
 import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/tenant/domain/tenantTypeDefinitions.proto";
 import "validate/validate.proto";
 
 option (scalapb.options) = {
+  scope: FILE
+  [scalapb.validate.file] {
+        validate_at_construction: true
+  }
   no_default_values_in_constructor: true
 };
 
