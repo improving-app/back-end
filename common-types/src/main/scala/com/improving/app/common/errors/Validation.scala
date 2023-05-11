@@ -69,7 +69,7 @@ object Validation {
   }
 
   val storeIdValidator: Validator[StoreId] = storeId => {
-    if (storeId.isEmpty) {
+    if (storeId.id.isEmpty) {
       Some(ValidationError("Store Id is empty"))
     } else {
       None
