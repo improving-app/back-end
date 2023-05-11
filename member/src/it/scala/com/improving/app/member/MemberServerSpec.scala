@@ -150,7 +150,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
         Some(memberInfo),
         Some(MemberId("ADMIN_1")),
         Some(MemberId("ADMIN_1")),
-        MEMBER_STATUS_DRAFT,
+        MEMBER_STATE_DRAFT,
         client
       )
     }
@@ -178,7 +178,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
         Some(memberInfo),
         Some(MemberId("ADMIN_1")),
         Some(MemberId("ADMIN_2")),
-        MEMBER_STATUS_ACTIVE,
+        MEMBER_STATE_ACTIVE,
         client
       )
     }
@@ -227,7 +227,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
         ),
         Some(MemberId("ADMIN_1")),
         Some(MemberId("ADMIN_5")),
-        MEMBER_STATUS_ACTIVE,
+        MEMBER_STATE_ACTIVE,
         client
       )
     }
@@ -257,7 +257,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
         Some(memberInfo),
         Some(MemberId("ADMIN_1")),
         Some(MemberId("ADMIN_4")),
-        MEMBER_STATUS_SUSPENDED,
+        MEMBER_STATE_SUSPENDED,
         client
       )
     }

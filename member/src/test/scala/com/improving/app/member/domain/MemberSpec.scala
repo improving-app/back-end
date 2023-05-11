@@ -13,7 +13,7 @@ import com.improving.app.member.domain.Member.{
   TerminatedMemberState,
   UninitializedMemberState
 }
-import com.improving.app.member.domain.MemberState.{MEMBER_STATUS_ACTIVE, MEMBER_STATUS_DRAFT, MEMBER_STATUS_SUSPENDED}
+import com.improving.app.member.domain.MemberState.{MEMBER_STATE_ACTIVE, MEMBER_STATE_DRAFT, MEMBER_STATE_SUSPENDED}
 import com.improving.app.member.domain.TestData._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
@@ -50,7 +50,7 @@ class MemberSpec
       ]]
   ): Unit = {
     result.hasNoEvents
-    result.stateOfType[DraftMemberState].meta.currentState shouldBe MEMBER_STATUS_DRAFT
+    result.stateOfType[DraftMemberState].meta.currentState shouldBe MEMBER_STATE_DRAFT
     result.stateOfType[DraftMemberState].meta.lastModifiedBy.get.id shouldBe "registeringMember"
   }
 
@@ -60,7 +60,7 @@ class MemberSpec
       ]]
   ): Unit = {
     result.hasNoEvents
-    result.stateOfType[RegisteredMemberState].meta.currentState shouldBe MEMBER_STATUS_ACTIVE
+    result.stateOfType[RegisteredMemberState].meta.currentState shouldBe MEMBER_STATE_ACTIVE
     result.stateOfType[RegisteredMemberState].meta.lastModifiedBy.get.id shouldBe "activatingMember"
   }
 
@@ -98,65 +98,6 @@ class MemberSpec
           result.reply.getError.getMessage shouldBe "User is not authorized to modify Member"
         }
 
-        "error for empty memberId" in {
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseRegisterMember.copy(
-                memberId = None
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("No member ID associated"))
-          validateFailedInitialRegisterMember(result)
-        }
-
-        "error for memberId with empty string" in {
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseRegisterMember.copy(
-                memberId = Some(MemberId())
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("Member ID is empty"))
-          validateFailedInitialRegisterMember(result)
-        }
-
-        "error for empty MemberInfo" in {
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseRegisterMember.copy(
-                memberInfo = None
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("No member info associated"))
-          validateFailedInitialRegisterMember(result)
-        }
-
-        "error for incomplete MemberInfo" in {
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseRegisterMember.copy(
-                memberInfo = Some(MemberInfo())
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("First name is empty"))
-          assert(result.reply.getError.getMessage.contains("Last name is empty"))
-          assert(result.reply.getError.getMessage.contains("No contact information associated"))
-          assert(result.reply.getError.getMessage.contains("No or Invalid tenant associated"))
-          validateFailedInitialRegisterMember(result)
-        }
-
         "error for invalid MemberInfo" in {
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
             MemberCommand(
@@ -171,34 +112,6 @@ class MemberSpec
             result.reply.getError.getMessage
               .contains("First name cannot contain spaces, numbers or special characters.")
           )
-          validateFailedInitialRegisterMember(result)
-        }
-
-        "error for empty registeringMember" in {
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseRegisterMember.copy(
-                registeringMember = None
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("No member ID associated"))
-          validateFailedInitialRegisterMember(result)
-        }
-
-        "error for registeringMember with empty string" in {
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseRegisterMember.copy(
-                registeringMember = Some(MemberId())
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("Member ID is empty"))
           validateFailedInitialRegisterMember(result)
         }
 
@@ -217,7 +130,7 @@ class MemberSpec
             MemberId(testMemberIdString)
           )
           memberRegistered.memberInfo shouldBe Some(baseMemberInfo)
-          memberRegistered.meta.get.currentState shouldBe MEMBER_STATUS_DRAFT
+          memberRegistered.meta.get.currentState shouldBe MEMBER_STATE_DRAFT
           memberRegistered.meta.get.createdBy shouldBe Some(
             MemberId("registeringMember")
           )
@@ -225,7 +138,7 @@ class MemberSpec
           val event = result.eventOfType[MemberRegistered]
           event.memberId.get.id shouldBe testMemberIdString
           event.memberInfo.get shouldBe baseMemberInfo
-          event.meta.get.currentState shouldBe MEMBER_STATUS_DRAFT
+          event.meta.get.currentState shouldBe MEMBER_STATE_DRAFT
           event.meta.get.createdBy.get.id shouldBe "registeringMember"
 
           val state = result.stateOfType[DraftMemberState]
@@ -283,70 +196,6 @@ class MemberSpec
           result.reply.getError.getMessage shouldBe "User is not authorized to modify Member"
         }
 
-        "error for empty memberId" in {
-          eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseActivateMember.copy(
-                memberId = None
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("No member ID associated"))
-          validateFailedActivateMemberInDraftState(result)
-        }
-
-        "error for memberId with empty string" in {
-          eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseActivateMember.copy(
-                memberId = Some(MemberId())
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("Member ID is empty"))
-          validateFailedActivateMemberInDraftState(result)
-        }
-
-        "error for empty activatingMember" in {
-          eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseActivateMember.copy(
-                activatingMember = None
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("No member ID associated"))
-          validateFailedActivateMemberInDraftState(result)
-        }
-
-        "error for activatingMember with empty string" in {
-          eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseActivateMember.copy(
-                activatingMember = Some(MemberId())
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("Member ID is empty"))
-          validateFailedActivateMemberInDraftState(result)
-        }
-
         "succeed for golden path" in {
           eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
 
@@ -363,12 +212,12 @@ class MemberSpec
           memberActivated.memberId shouldBe Some(
             MemberId(testMemberIdString)
           )
-          memberActivated.meta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
+          memberActivated.meta.get.currentState shouldBe MEMBER_STATE_ACTIVE
           memberActivated.meta.get.lastModifiedBy.get.id shouldBe "activatingMember"
 
           val event = result.eventOfType[MemberActivated]
           event.memberId.get.id shouldBe testMemberIdString
-          event.meta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
+          event.meta.get.currentState shouldBe MEMBER_STATE_ACTIVE
           event.meta.get.lastModifiedBy.get.id shouldBe "activatingMember"
 
           val state = result.stateOfType[RegisteredMemberState]
@@ -436,145 +285,6 @@ class MemberSpec
           validateFailedEditMemberInfoInDraftState(result)
         }
 
-        "error for empty memberId" in {
-          eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseEditMemberInfo.copy(
-                memberId = None
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("No member ID associated"))
-          validateFailedEditMemberInfoInDraftState(result)
-        }
-
-        "error for memberId with empty string" in {
-          eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseEditMemberInfo.copy(
-                memberId = Some(MemberId())
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("Member ID is empty"))
-          validateFailedEditMemberInfoInDraftState(result)
-        }
-
-        "error for empty editingMember" in {
-          eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseEditMemberInfo.copy(
-                editingMember = None
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("No member ID associated"))
-          validateFailedEditMemberInfoInDraftState(result)
-        }
-
-        "error for editingMember with empty string" in {
-          eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseEditMemberInfo.copy(
-                editingMember = Some(MemberId())
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("Member ID is empty"))
-          validateFailedEditMemberInfoInDraftState(result)
-        }
-
-        "error for empty memberInfo" in {
-          eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseEditMemberInfo.copy(
-                memberInfo = None
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("No editable info associated"))
-          validateFailedEditMemberInfoInDraftState(result)
-        }
-
-        "error for filled Contact to not have complete information" in {
-          eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseEditMemberInfo.copy(
-                memberInfo = Some(
-                  baseEditableInfo.copy(
-                    contact = Some(
-                      Contact(
-                        emailAddress = Some(""),
-                        phone = Some("")
-                      )
-                    )
-                  )
-                )
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("First name is empty"))
-          assert(result.reply.getError.getMessage.contains("Last name is empty"))
-          assert(result.reply.getError.getMessage.contains("Missing or invalid phone number"))
-          validateFailedEditMemberInfoInDraftState(result)
-        }
-
-        "error for filled organizations to have empty string" in {
-          eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseEditMemberInfo.copy(
-                memberInfo = Some(
-                  baseEditableInfo.copy(
-                    organizationMembership = Seq(OrganizationId())
-                  )
-                )
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("Empty organization id found"))
-          validateFailedEditMemberInfoInDraftState(result)
-        }
-
-        "error for filled tenant to have empty string" in {
-          eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseEditMemberInfo.copy(
-                memberInfo = Some(
-                  baseEditableInfo.copy(
-                    tenant = Some(TenantId())
-                  )
-                )
-              ),
-              _
-            )
-          )
-
-          assert(result.reply.getError.getMessage.contains("Tenant Id is empty"))
-          validateFailedEditMemberInfoInDraftState(result)
-        }
-
         "succeed for valid editable info" in {
           eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
@@ -607,7 +317,7 @@ class MemberSpec
               tenant = Some(TenantId("editTenantId"))
             )
           )
-          memberInfoEdited.meta.get.currentState shouldBe MEMBER_STATUS_DRAFT
+          memberInfoEdited.meta.get.currentState shouldBe MEMBER_STATE_DRAFT
           memberInfoEdited.meta.get.createdBy shouldBe Some(
             MemberId("registeringMember")
           )
@@ -624,7 +334,7 @@ class MemberSpec
             contact = Some(editContact),
             tenant = Some(TenantId("editTenantId"))
           )
-          event.meta.get.currentState shouldBe MEMBER_STATUS_DRAFT
+          event.meta.get.currentState shouldBe MEMBER_STATE_DRAFT
           event.meta.get.createdBy.get.id shouldBe "registeringMember"
           event.meta.get.lastModifiedBy.get.id shouldBe "editingMember"
 
@@ -669,7 +379,7 @@ class MemberSpec
               organizationMembership = baseEditableInfo.organizationMembership
             )
           )
-          memberInfoEdited.meta.get.currentState shouldBe MEMBER_STATUS_DRAFT
+          memberInfoEdited.meta.get.currentState shouldBe MEMBER_STATE_DRAFT
           memberInfoEdited.meta.get.createdBy shouldBe Some(
             MemberId("registeringMember")
           )
@@ -689,7 +399,7 @@ class MemberSpec
             tenant = Some(TenantId("editTenantId")),
             organizationMembership = baseEditableInfo.organizationMembership
           )
-          event.meta.get.currentState shouldBe MEMBER_STATUS_DRAFT
+          event.meta.get.currentState shouldBe MEMBER_STATE_DRAFT
           event.meta.get.createdBy.get.id shouldBe "registeringMember"
           event.meta.get.lastModifiedBy.get.id shouldBe "editingMember"
 
@@ -822,66 +532,6 @@ class MemberSpec
             result.reply.getError.getMessage shouldBe "User is not authorized to modify Member"
           }
 
-          "error for empty memberId" in {
-            eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-            eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseActivateMember, _))
-
-            val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-              MemberCommand(
-                baseSuspendMember.copy(memberId = None),
-                _
-              )
-            )
-
-            assert(result.reply.getError.getMessage.contains("No member ID associated"))
-            validateFailedSuspendMemberInActiveState(result)
-          }
-
-          "error for memberId with empty string" in {
-            eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-            eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseActivateMember, _))
-
-            val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-              MemberCommand(
-                baseSuspendMember.copy(memberId = Some(MemberId())),
-                _
-              )
-            )
-
-            assert(result.reply.getError.getMessage.contains("Member ID is empty"))
-            validateFailedSuspendMemberInActiveState(result)
-          }
-
-          "error for empty suspendingMember" in {
-            eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-            eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseActivateMember, _))
-
-            val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-              MemberCommand(
-                baseSuspendMember.copy(suspendingMember = None),
-                _
-              )
-            )
-
-            assert(result.reply.getError.getMessage.contains("No member ID associated"))
-            validateFailedSuspendMemberInActiveState(result)
-          }
-
-          "error for activating Member with empty string" in {
-            eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-            eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseActivateMember, _))
-
-            val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-              MemberCommand(
-                baseSuspendMember.copy(suspendingMember = Some(MemberId())),
-                _
-              )
-            )
-
-            assert(result.reply.getError.getMessage.contains("Member ID is empty"))
-            validateFailedSuspendMemberInActiveState(result)
-          }
-
           "succeed for golden path" in {
             eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
             eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseActivateMember, _))
@@ -899,12 +549,12 @@ class MemberSpec
             memberSuspended.memberId shouldBe Some(
               MemberId(testMemberIdString)
             )
-            memberSuspended.meta.get.currentState shouldBe MEMBER_STATUS_SUSPENDED
+            memberSuspended.meta.get.currentState shouldBe MEMBER_STATE_SUSPENDED
             memberSuspended.meta.get.lastModifiedBy.get.id shouldBe "suspendingMember"
 
             val event = result.eventOfType[MemberSuspended]
             event.memberId.get.id shouldBe testMemberIdString
-            event.meta.get.currentState shouldBe MEMBER_STATUS_SUSPENDED
+            event.meta.get.currentState shouldBe MEMBER_STATE_SUSPENDED
             event.meta.get.lastModifiedBy.get.id shouldBe "suspendingMember"
 
             val state = result.stateOfType[RegisteredMemberState]
@@ -915,7 +565,7 @@ class MemberSpec
             state.info.organizationMembership shouldBe baseMemberInfo.organizationMembership
             state.meta.createdBy.get.id shouldBe "registeringMember"
             state.meta.lastModifiedBy.get.id shouldBe "suspendingMember"
-            state.meta.currentState shouldBe MEMBER_STATUS_SUSPENDED
+            state.meta.currentState shouldBe MEMBER_STATE_SUSPENDED
           }
         }
 
@@ -932,66 +582,6 @@ class MemberSpec
             )
 
             result.reply.getError.getMessage shouldBe "User is not authorized to modify Member"
-          }
-
-          "error for empty memberId" in {
-            eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-            eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseActivateMember, _))
-
-            val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-              MemberCommand(
-                baseTerminateMember.copy(memberId = None),
-                _
-              )
-            )
-
-            assert(result.reply.getError.getMessage.contains("No member ID associated"))
-            validateFailedSuspendMemberInActiveState(result)
-          }
-
-          "error for memberId with empty string" in {
-            eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-            eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseActivateMember, _))
-
-            val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-              MemberCommand(
-                baseTerminateMember.copy(memberId = Some(MemberId())),
-                _
-              )
-            )
-
-            assert(result.reply.getError.getMessage.contains("Member ID is empty"))
-            validateFailedSuspendMemberInActiveState(result)
-          }
-
-          "error for empty suspendingMember" in {
-            eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-            eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseActivateMember, _))
-
-            val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-              MemberCommand(
-                baseTerminateMember.copy(terminatingMember = None),
-                _
-              )
-            )
-
-            assert(result.reply.getError.getMessage.contains("No member ID associated"))
-            validateFailedSuspendMemberInActiveState(result)
-          }
-
-          "error for activating Member with empty string" in {
-            eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseRegisterMember, _))
-            eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](MemberCommand(baseActivateMember, _))
-
-            val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-              MemberCommand(
-                baseTerminateMember.copy(terminatingMember = Some(MemberId())),
-                _
-              )
-            )
-
-            assert(result.reply.getError.getMessage.contains("Member ID is empty"))
-            validateFailedSuspendMemberInActiveState(result)
           }
 
           "succeed for golden path" in {
@@ -1011,19 +601,19 @@ class MemberSpec
             memberTerminated.memberId shouldBe Some(
               MemberId(testMemberIdString)
             )
-            memberTerminated.lastMeta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
+            memberTerminated.lastMeta.get.currentState shouldBe MEMBER_STATE_ACTIVE
             memberTerminated.lastMeta.get.lastModifiedBy.get.id shouldBe "terminatingMember"
 
             val event = result.eventOfType[MemberTerminated]
             event.memberId.get.id shouldBe testMemberIdString
-            event.lastMeta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
+            event.lastMeta.get.currentState shouldBe MEMBER_STATE_ACTIVE
             event.lastMeta.get.lastModifiedBy.get.id shouldBe "terminatingMember"
 
             val state = result.stateOfType[TerminatedMemberState]
 
             state.lastMeta.createdBy.get.id shouldBe "registeringMember"
             state.lastMeta.lastModifiedBy.get.id shouldBe "terminatingMember"
-            state.lastMeta.currentState shouldBe MEMBER_STATUS_ACTIVE
+            state.lastMeta.currentState shouldBe MEMBER_STATE_ACTIVE
           }
         }
 
@@ -1057,7 +647,7 @@ class MemberSpec
                 organizationMembership = baseEditableInfo.organizationMembership
               )
             )
-            memberInfoEdited.meta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
+            memberInfoEdited.meta.get.currentState shouldBe MEMBER_STATE_ACTIVE
             memberInfoEdited.meta.get.createdBy shouldBe Some(
               MemberId("registeringMember")
             )
@@ -1077,7 +667,7 @@ class MemberSpec
               tenant = Some(TenantId("editTenantId")),
               organizationMembership = baseEditableInfo.organizationMembership
             )
-            event.meta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
+            event.meta.get.currentState shouldBe MEMBER_STATE_ACTIVE
             event.meta.get.createdBy.get.id shouldBe "registeringMember"
             event.meta.get.lastModifiedBy.get.id shouldBe "editingMember"
 
@@ -1093,7 +683,7 @@ class MemberSpec
             state.info.organizationMembership shouldBe Seq(OrganizationId("editOrg1"))
             state.meta.createdBy.get.id shouldBe "registeringMember"
             state.meta.lastModifiedBy.get.id shouldBe "editingMember"
-            state.meta.currentState shouldBe MEMBER_STATUS_ACTIVE
+            state.meta.currentState shouldBe MEMBER_STATE_ACTIVE
           }
         }
 
@@ -1166,12 +756,12 @@ class MemberSpec
             memberActivated.memberId shouldBe Some(
               MemberId(testMemberIdString)
             )
-            memberActivated.meta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
+            memberActivated.meta.get.currentState shouldBe MEMBER_STATE_ACTIVE
             memberActivated.meta.get.lastModifiedBy.get.id shouldBe "activatingMember2"
 
             val event = result.eventOfType[MemberActivated]
             event.memberId.get.id shouldBe testMemberIdString
-            event.meta.get.currentState shouldBe MEMBER_STATUS_ACTIVE
+            event.meta.get.currentState shouldBe MEMBER_STATE_ACTIVE
             event.meta.get.lastModifiedBy.get.id shouldBe "activatingMember2"
 
             val state = result.stateOfType[RegisteredMemberState]
@@ -1204,12 +794,12 @@ class MemberSpec
             memberSuspended.memberId shouldBe Some(
               MemberId(testMemberIdString)
             )
-            memberSuspended.meta.get.currentState shouldBe MEMBER_STATUS_SUSPENDED
+            memberSuspended.meta.get.currentState shouldBe MEMBER_STATE_SUSPENDED
             memberSuspended.meta.get.lastModifiedBy.get.id shouldBe "suspendingMember"
 
             val event = result.eventOfType[MemberSuspended]
             event.memberId.get.id shouldBe testMemberIdString
-            event.meta.get.currentState shouldBe MEMBER_STATUS_SUSPENDED
+            event.meta.get.currentState shouldBe MEMBER_STATE_SUSPENDED
             event.meta.get.lastModifiedBy.get.id shouldBe "suspendingMember"
 
             val state = result.stateOfType[RegisteredMemberState]
@@ -1220,7 +810,7 @@ class MemberSpec
             state.info.organizationMembership shouldBe baseMemberInfo.organizationMembership
             state.meta.createdBy.get.id shouldBe "registeringMember"
             state.meta.lastModifiedBy.get.id shouldBe "suspendingMember"
-            state.meta.currentState shouldBe MEMBER_STATUS_SUSPENDED
+            state.meta.currentState shouldBe MEMBER_STATE_SUSPENDED
           }
         }
 
@@ -1243,19 +833,19 @@ class MemberSpec
             memberTerminated.memberId shouldBe Some(
               MemberId(testMemberIdString)
             )
-            memberTerminated.lastMeta.get.currentState shouldBe MEMBER_STATUS_SUSPENDED
+            memberTerminated.lastMeta.get.currentState shouldBe MEMBER_STATE_SUSPENDED
             memberTerminated.lastMeta.get.lastModifiedBy.get.id shouldBe "terminatingMember"
 
             val event = result.eventOfType[MemberTerminated]
             event.memberId.get.id shouldBe testMemberIdString
-            event.lastMeta.get.currentState shouldBe MEMBER_STATUS_SUSPENDED
+            event.lastMeta.get.currentState shouldBe MEMBER_STATE_SUSPENDED
             event.lastMeta.get.lastModifiedBy.get.id shouldBe "terminatingMember"
 
             val state = result.stateOfType[TerminatedMemberState]
 
             state.lastMeta.createdBy.get.id shouldBe "registeringMember"
             state.lastMeta.lastModifiedBy.get.id shouldBe "terminatingMember"
-            state.lastMeta.currentState shouldBe MEMBER_STATUS_SUSPENDED
+            state.lastMeta.currentState shouldBe MEMBER_STATE_SUSPENDED
           }
         }
 
