@@ -42,7 +42,7 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
 
   override def establishTenant(in: EstablishTenant): Future[TenantEstablished] = {
     val result = sharding
-      .entityRefFor(Tenant.TypeKey, in.tenantId.get.id)
+      .entityRefFor(Tenant.TypeKey, in.tenantId.id)
       .ask(ref => Tenant.TenantCommand(in, ref))
     result.transform(
       result => result.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantEstablishedValue,
@@ -52,7 +52,7 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
 
   override def editInfo(in: EditInfo): Future[InfoEdited] = {
     val result = sharding
-      .entityRefFor(Tenant.TypeKey, in.tenantId.get.id)
+      .entityRefFor(Tenant.TypeKey, in.tenantId.id)
       .ask(ref => Tenant.TenantCommand(in, ref))
 
     result.transform(
@@ -63,7 +63,7 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
 
   override def activateTenant(in: ActivateTenant): Future[TenantActivated] = {
     val result = sharding
-      .entityRefFor(Tenant.TypeKey, in.tenantId.get.id)
+      .entityRefFor(Tenant.TypeKey, in.tenantId.id)
       .ask(ref => Tenant.TenantCommand(in, ref))
     result.transform(
       result => result.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantActivatedValue,
@@ -73,7 +73,7 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
 
   override def suspendTenant(in: SuspendTenant): Future[TenantSuspended] = {
     val result = sharding
-      .entityRefFor(Tenant.TypeKey, in.tenantId.get.id)
+      .entityRefFor(Tenant.TypeKey, in.tenantId.id)
       .ask(ref => Tenant.TenantCommand(in, ref))
     result.transform(
       result => result.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantSuspendedValue,
@@ -83,7 +83,7 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
 
   override def terminateTenant(in: TerminateTenant): Future[TenantTerminated] = {
     val result = sharding
-      .entityRefFor(Tenant.TypeKey, in.tenantId.get.id)
+      .entityRefFor(Tenant.TypeKey, in.tenantId.id)
       .ask(ref => Tenant.TenantCommand(in, ref))
     result.transform(
       result => result.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantTerminatedValue,
@@ -93,7 +93,7 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
 
   override def getOrganizations(in: GetOrganizations): Future[TenantOrganizationData] = {
     val result = sharding
-      .entityRefFor(Tenant.TypeKey, in.tenantId.get.id)
+      .entityRefFor(Tenant.TypeKey, in.tenantId.id)
       .ask(ref => Tenant.TenantCommand(in, ref))
     result.transform(
       result => result.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue,
