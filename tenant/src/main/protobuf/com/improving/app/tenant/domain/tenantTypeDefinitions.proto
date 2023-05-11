@@ -10,9 +10,19 @@ import "validate/validate.proto";
 
 option (scalapb.options) = {
   scope: FILE
-  [scalapb.validate.file] {
-    validate_at_construction: true
-  }
+[scalapb.validate.file] {
+        validate_at_construction: true
+}
+        field_transformations: [
+        {
+                when: {options: {[validate.rules] {message: {required: true}}}}
+                set: {
+                [scalapb.field] {
+                required: true
+        }
+        }
+        }
+]
 };
 
 enum TenantState {
@@ -22,12 +32,12 @@ enum TenantState {
 
 message TenantOrganizationList {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  repeated com.improving.app.common.domain.OrganizationId value = 1 [(validate.rules).repeated.ignore_empty = true];
+  repeated com.improving.app.common.domain.OrganizationId value = 1 [(validate.rules).repeated.ignore_empty = false];
 }
 
 message TenantInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  string name = 1 [(validate.rules).string.ignore_empty = true];
+  string name = 1 [(validate.rules).string.min_len = 1];
   com.improving.app.common.domain.Contact primary_contact = 2 [(validate.rules).message.required = true];
   com.improving.app.common.domain.Address address = 3 [(validate.rules).message.required = true];
   TenantOrganizationList organizations = 4 [(validate.rules).message.required = true];
@@ -35,9 +45,9 @@ message TenantInfo {
 
 message EditableTenantInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  optional string name = 1 [(validate.rules).string.ignore_empty = true];
-  optional com.improving.app.common.domain.Contact primary_contact = 2;
-  optional com.improving.app.common.domain.Address address = 3;
+  optional string name = 1 [(validate.rules).string.min_len = 1];
+  optional com.improving.app.common.domain.EditableContact primary_contact = 2;
+  optional com.improving.app.common.domain.EditableAddress address = 3;
   optional TenantOrganizationList organizations = 4;
 }
 
@@ -47,5 +57,5 @@ message TenantMetaInfo {
   com.improving.app.common.domain.MemberId created_by = 2 [(validate.rules).message.required = true];
   google.protobuf.Timestamp last_updated = 3 [(validate.rules).message.required = true];
   com.improving.app.common.domain.MemberId last_updated_by = 4 [(validate.rules).message.required = true];
-  TenantState state = 5 [(validate.rules).string.ignore_empty = true];
+  TenantState state = 5 [(validate.rules).string.ignore_empty = false];
 }

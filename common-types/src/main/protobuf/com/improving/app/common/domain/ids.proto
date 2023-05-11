@@ -15,15 +15,15 @@ option (scalapb.options) = {
 
 message TenantId {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  string id = 1 [(validate.rules).string.ignore_empty = true];
+  string id = 1 [(validate.rules).string.min_len = 1];
 }
 
 message OrganizationId {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  string id = 1 [(validate.rules).string.ignore_empty = true];
+  string id = 1 [(validate.rules).string.min_len = 1];
 }
 
 message MemberId {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  string id = 1 [(validate.rules).string.ignore_empty = true];
+  string id = 1 [(validate.rules).string.min_len = 1];
 }

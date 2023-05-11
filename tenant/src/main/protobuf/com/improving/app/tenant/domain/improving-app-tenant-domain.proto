@@ -10,9 +10,18 @@ import "validate/validate.proto";
 option (scalapb.options) = {
   scope: FILE
   [scalapb.validate.file] {
-        validate_at_construction: true
+    validate_at_construction: true
   }
-  no_default_values_in_constructor: true
+  field_transformations: [
+    {
+      when: {options: {[validate.rules] {message: {required: true}}}}
+      set: {
+        [scalapb.field] {
+          required: true
+        }
+      }
+    }
+  ]
 };
 
 message EstablishTenant {
@@ -112,7 +121,7 @@ message TenantEvent {
 
 message TenantData {
   oneof sealed_value {
-    TenantOrganizationData organization_data_value = 1 [(validate.rules).message.required = true];
+    TenantOrganizationData organization_data_value = 1;
   }
 }
 
