@@ -5,8 +5,7 @@ import "scalapb/scalapb.proto";
 import "google/protobuf/timestamp.proto";
 
 import "com/improving/app/common/domain/address.proto";
-import "com/improving/app/common/domain/memberId.proto";
-import "com/improving/app/common/domain/tenantId.proto";
+import "com/improving/app/common/domain/ids.proto";
 
 enum OrganizationState {
   UninitializedOrganizationState = 0;

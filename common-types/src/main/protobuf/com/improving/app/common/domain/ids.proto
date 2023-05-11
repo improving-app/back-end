@@ -27,3 +27,8 @@ message MemberId {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   string id = 1 [(validate.rules).string.min_len = 1];
 }
+
+message StoreId {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    string id = 1 [(validate.rules).string.min_len = 1];
+}

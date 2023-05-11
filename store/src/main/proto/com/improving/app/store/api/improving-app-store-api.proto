@@ -1,0 +1,31 @@
+// This is the public API offered by the shopping cart entity.
+
+syntax = "proto3";
+
+package com.improving.app.store.api;
+
+import "com/improving/app/common/domain/ids.proto";
+import "com/improving/app/store/domain/storeEvents.proto";
+import "com/improving/app/store/domain/storeRequest.proto";
+
+
+service StoreService {
+
+   rpc CreateStore (domain.CreateStore) returns (domain.StoreCreated) {}
+
+   rpc MakeStoreReady (domain.MakeStoreReady) returns (domain.StoreIsReady) {}
+
+   rpc DeleteStore (domain.DeleteStore) returns (domain.StoreDeleted) {}
+
+   rpc OpenStore (domain.OpenStore) returns (domain.StoreOpened) {}
+
+   rpc CloseStore (domain.CloseStore) returns (domain.StoreClosed) {}
+
+   rpc TerminateStore (domain.TerminateStore) returns (domain.StoreTerminated) {}
+
+   rpc EditStoreInfo (domain.EditStoreInfo) returns (domain.StoreInfoEdited) {}
+
+  //rpc AddProductsToStore (domain.AddProductsToStore) returns (domain.ProductsAddedToStore) {}
+
+  //rpc RemoveProductsFromStore (domain.RemoveProductsFromStore) returns (domain.ProductsRemovedFromStore) {}
+}

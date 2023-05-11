@@ -6,6 +6,7 @@ import com.improving.app.common.domain.{
   Contact,
   MemberId,
   OrganizationId,
+  StoreId,
   TenantId,
   UsPostalCodeImpl
 }
@@ -62,6 +63,14 @@ object Validation {
   val organizationIdValidator: Validator[OrganizationId] = organizationId => {
     if (organizationId.id.isEmpty) {
       Some(ValidationError("Organization Id is empty"))
+    } else {
+      None
+    }
+  }
+
+  val storeIdValidator: Validator[StoreId] = storeId => {
+    if (storeId.isEmpty) {
+      Some(ValidationError("Store Id is empty"))
     } else {
       None
     }
