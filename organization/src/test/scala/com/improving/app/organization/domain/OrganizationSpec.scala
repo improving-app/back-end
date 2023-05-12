@@ -47,9 +47,9 @@ class OrganizationSpec
   ): Unit = {
     p ! Organization.OrganizationRequestEnvelope(
       EstablishOrganization(
-        organizationId = Some(OrganizationId(organizationId)),
-        onBehalfOf = Some(MemberId("establishingUser")),
-        organizationInfo = Some(organizationInfo)
+        organizationId = OrganizationId(organizationId),
+        onBehalfOf = MemberId("establishingUser"),
+        organizationInfo = organizationInfo
       ),
       probe.ref
     )
@@ -65,8 +65,8 @@ class OrganizationSpec
   ) = {
     p ! Organization.OrganizationRequestEnvelope(
       SuspendOrganization(
-        organizationId = Some(OrganizationId(organizationId)),
-        onBehalfOf = Some(MemberId("suspendingUser")),
+        organizationId = OrganizationId(organizationId),
+        onBehalfOf = MemberId("suspendingUser"),
       ),
       probe.ref
     )
@@ -82,8 +82,8 @@ class OrganizationSpec
   ) = {
     p ! Organization.OrganizationRequestEnvelope(
       ActivateOrganization(
-        organizationId = Some(OrganizationId(organizationId)),
-        onBehalfOf = Some(MemberId("activatingUser"))
+        organizationId = OrganizationId(organizationId),
+        onBehalfOf = MemberId("activatingUser")
       ),
       probe.ref
     )
@@ -101,9 +101,9 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             EstablishOrganization(
-              organizationId = Some(OrganizationId(organizationId)),
-              onBehalfOf = Some(MemberId("unauthorizedUser")),
-              organizationInfo = Some(baseOrganizationInfo)
+              organizationId = OrganizationId(organizationId),
+              onBehalfOf = MemberId("unauthorizedUser"),
+              organizationInfo = baseOrganizationInfo
             ),
             probe.ref
           )
@@ -121,9 +121,9 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             EstablishOrganization(
-              organizationId = Some(OrganizationId(organizationId)),
-              onBehalfOf = Some(MemberId("establishingUser")),
-              organizationInfo = Some(baseOrganizationInfo)
+              organizationId = OrganizationId(organizationId),
+              onBehalfOf = MemberId("establishingUser"),
+              organizationInfo = baseOrganizationInfo
             ),
             probe.ref
           )
@@ -132,12 +132,14 @@ class OrganizationSpec
           assert(response.isSuccess)
 
           val successVal = response.getValue
-          successVal.asMessage.sealedValue.organizationEstablished.get.organizationId shouldBe Some(
-            OrganizationId(organizationId)
+          successVal.asMessage.sealedValue.organizationEstablished.get.organizationId shouldBe OrganizationId(
+            organizationId
           )
-          successVal.asMessage.sealedValue.organizationEstablished.get.metaInfo.get.createdBy shouldBe Some(
-            MemberId("establishingUser")
+
+          successVal.asMessage.sealedValue.organizationEstablished.get.metaInfo.createdBy shouldBe MemberId(
+            "establishingUser"
           )
+
         }
 
         "error for a organization that is already established" in {
@@ -145,9 +147,9 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             EstablishOrganization(
-              organizationId = Some(OrganizationId(organizationId)),
-              onBehalfOf = Some(MemberId("establishingUser")),
-              organizationInfo = Some(baseOrganizationInfo)
+              organizationId = OrganizationId(organizationId),
+              onBehalfOf = MemberId("establishingUser"),
+              organizationInfo = baseOrganizationInfo
             ),
             probe.ref
           )
@@ -157,9 +159,9 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             EstablishOrganization(
-              organizationId = Some(OrganizationId(organizationId)),
-              onBehalfOf = Some(MemberId("establishingUser")),
-              organizationInfo = Some(baseOrganizationInfo)
+              organizationId = OrganizationId(organizationId),
+              onBehalfOf = MemberId("establishingUser"),
+              organizationInfo = baseOrganizationInfo
             ),
             probe.ref
           )
@@ -176,13 +178,17 @@ class OrganizationSpec
           val (organizationId, p, probe) = createTestVariables()
 
           val commands: Seq[OrganizationRequestPB] = Seq(
-            ActivateOrganization(Some(OrganizationId(organizationId)), Some(MemberId("user"))),
-            SuspendOrganization(Some(OrganizationId(organizationId)),  Some(MemberId("user"))),
-            EditOrganizationInfo(Some(OrganizationId(organizationId)), Some(MemberId("user")), Some(EditableOrganizationInfo())),
-            AddMembersToOrganization(Some(OrganizationId(organizationId)), Some(MemberId("user")), Seq()),
-            AddOwnersToOrganization(Some(OrganizationId(organizationId)), Some(MemberId("user")), Seq()),
-            RemoveMembersFromOrganization(Some(OrganizationId(organizationId)), Some(MemberId("user")), Seq()),
-            RemoveOwnersFromOrganization(Some(OrganizationId(organizationId)), Some(MemberId("user")), Seq()),
+            ActivateOrganization(OrganizationId(organizationId), MemberId("user")),
+            SuspendOrganization(OrganizationId(organizationId), MemberId("user")),
+            EditOrganizationInfo(
+              OrganizationId(organizationId),
+              MemberId("user"),
+              EditableOrganizationInfo()
+            ),
+            AddMembersToOrganization(OrganizationId(organizationId), MemberId("user"), Seq(MemberId("member"))),
+            AddOwnersToOrganization(OrganizationId(organizationId), MemberId("user"), Seq(MemberId("owner"))),
+            RemoveMembersFromOrganization(OrganizationId(organizationId), MemberId("user"), Seq(MemberId("member"))),
+            RemoveOwnersFromOrganization(OrganizationId(organizationId), MemberId("user"), Seq(MemberId("owner"))),
           )
 
           commands.foreach(command => {
@@ -209,9 +215,9 @@ class OrganizationSpec
           // Test command in question
           p ! Organization.OrganizationRequestEnvelope(
             EditOrganizationInfo(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("unauthorizedUser")),
-              Some(EditableOrganizationInfo()),
+              OrganizationId(organizationId),
+              MemberId("unauthorizedUser"),
+              EditableOrganizationInfo(),
             ),
             probe.ref
           )
@@ -230,9 +236,9 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             EditOrganizationInfo(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("someUser")),
-              Some(EditableOrganizationInfo()),
+              OrganizationId(organizationId),
+              MemberId("someUser"),
+              EditableOrganizationInfo(),
             ),
             probe.ref
           )
@@ -242,8 +248,8 @@ class OrganizationSpec
 
           val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-          successVal.oldInfo shouldBe Some(baseOrganizationInfo)
-          successVal.newInfo shouldBe Some(baseOrganizationInfo)
+          successVal.oldInfo shouldBe baseOrganizationInfo
+          successVal.newInfo shouldBe baseOrganizationInfo
         }
 
         "succeed for an edit of all fields and return the proper response" in {
@@ -261,9 +267,9 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             EditOrganizationInfo(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("someUser")),
-              Some(updateInfo),
+              OrganizationId(organizationId),
+              MemberId("someUser"),
+              updateInfo,
             ),
             probe.ref
           )
@@ -275,8 +281,8 @@ class OrganizationSpec
 
           val updatedInfo = baseOrganizationInfo.copy(name = newName, address = Some(newAddress))
 
-          successVal.oldInfo shouldBe Some(baseOrganizationInfo)
-          successVal.newInfo shouldBe Some(updatedInfo)
+          successVal.oldInfo shouldBe baseOrganizationInfo
+          successVal.newInfo shouldBe updatedInfo
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -292,9 +298,9 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             EditOrganizationInfo(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("someUser")),
-              Some(updatedInfo),
+              OrganizationId(organizationId),
+              MemberId("someUser"),
+              updatedInfo,
             ),
             probe.ref
           )
@@ -304,8 +310,8 @@ class OrganizationSpec
 
           val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-          successVal.oldInfo shouldBe Some(baseOrganizationInfo)
-          successVal.newInfo shouldBe Some(baseOrganizationInfo.copy(name = newName))
+          successVal.oldInfo shouldBe baseOrganizationInfo
+          successVal.newInfo shouldBe baseOrganizationInfo.copy(name = newName)
         }
       }
 
@@ -323,8 +329,8 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             AddOwnersToOrganization(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("updatingUser")),
+              OrganizationId(organizationId),
+              MemberId("updatingUser"),
               ownersToAdd
             ),
             probe.ref
@@ -344,8 +350,8 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             AddOwnersToOrganization(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("updatingUser")),
+              OrganizationId(organizationId),
+              MemberId("updatingUser"),
               nextOwnersToAdd
             ),
             probe.ref
@@ -356,24 +362,6 @@ class OrganizationSpec
 
           val event2 = response2.getValue.asInstanceOf[OwnersAddedToOrganization]
           event2.ownersAdded shouldEqual Seq(MemberId("owner4"))
-        }
-
-        "fail if there are no owners to add" in {
-          val (organizationId, p, probe) = createTestVariables()
-
-          establishOrganization(organizationId, p, probe)
-
-          p ! Organization.OrganizationRequestEnvelope(
-            AddOwnersToOrganization(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("updatingUser")),
-              Seq()
-            ),
-            probe.ref
-          )
-
-          val response1 = probe.receiveMessage()
-          assert(response1.isError)
         }
       }
 
@@ -391,8 +379,8 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             AddOwnersToOrganization(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("updatingUser")),
+              OrganizationId(organizationId),
+              MemberId("updatingUser"),
               ownersToAdd
             ),
             probe.ref
@@ -412,8 +400,8 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             RemoveOwnersFromOrganization(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("updatingUser")),
+              OrganizationId(organizationId),
+              MemberId("updatingUser"),
               ownersToRemove
             ),
             probe.ref
@@ -425,26 +413,7 @@ class OrganizationSpec
           val event2 = response2.getValue.asInstanceOf[OwnersRemovedFromOrganization]
           event2.ownersRemoved shouldEqual Seq(MemberId("owner2"), MemberId("owner3"))
         }
-
-        "fail if there are no owners to remove" in {
-          val (organizationId, p, probe) = createTestVariables()
-
-          establishOrganization(organizationId, p, probe)
-
-          p ! Organization.OrganizationRequestEnvelope(
-            RemoveOwnersFromOrganization(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("updatingUser")),
-              Seq()
-            ),
-            probe.ref
-          )
-
-          val response1 = probe.receiveMessage()
-          assert(response1.isError)
-        }
       }
-
 
       "executing the AddMembersToOrganization command" should {
         "succeed for the golden path" in {
@@ -460,8 +429,8 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             AddMembersToOrganization(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("updatingUser")),
+              OrganizationId(organizationId),
+              MemberId("updatingUser"),
               membersToAdd
             ),
             probe.ref
@@ -481,8 +450,8 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             AddMembersToOrganization(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("updatingUser")),
+              OrganizationId(organizationId),
+              MemberId("updatingUser"),
               nextMembersToAdd
             ),
             probe.ref
@@ -493,24 +462,6 @@ class OrganizationSpec
 
           val event2 = response2.getValue.asInstanceOf[MembersAddedToOrganization]
           event2.membersAdded shouldEqual Seq(MemberId("member4"))
-        }
-
-        "fail if there are no members to add" in {
-          val (organizationId, p, probe) = createTestVariables()
-
-          establishOrganization(organizationId, p, probe)
-
-          p ! Organization.OrganizationRequestEnvelope(
-            AddMembersToOrganization(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("updatingUser")),
-              Seq()
-            ),
-            probe.ref
-          )
-
-          val response1 = probe.receiveMessage()
-          assert(response1.isError)
         }
       }
     }
@@ -529,8 +480,8 @@ class OrganizationSpec
 
         p ! Organization.OrganizationRequestEnvelope(
           AddMembersToOrganization(
-            Some(OrganizationId(organizationId)),
-            Some(MemberId("updatingUser")),
+            OrganizationId(organizationId),
+            MemberId("updatingUser"),
             membersToAdd
           ),
           probe.ref
@@ -550,8 +501,8 @@ class OrganizationSpec
 
         p ! Organization.OrganizationRequestEnvelope(
           RemoveMembersFromOrganization(
-            Some(OrganizationId(organizationId)),
-            Some(MemberId("updatingUser")),
+            OrganizationId(organizationId),
+            MemberId("updatingUser"),
             membersToRemove
           ),
           probe.ref
@@ -563,26 +514,7 @@ class OrganizationSpec
         val event2 = response2.getValue.asInstanceOf[MembersRemovedFromOrganization]
         event2.membersRemoved shouldEqual Seq(MemberId("member2"), MemberId("member3"))
       }
-
-      "fail if there are no owners to remove" in {
-        val (organizationId, p, probe) = createTestVariables()
-
-        establishOrganization(organizationId, p, probe)
-
-        p ! Organization.OrganizationRequestEnvelope(
-          RemoveOwnersFromOrganization(
-            Some(OrganizationId(organizationId)),
-            Some(MemberId("updatingUser")),
-            Seq()
-          ),
-          probe.ref
-        )
-
-        val response1 = probe.receiveMessage()
-        assert(response1.isError)
-      }
     }
-
 
     "in the Active state" when {
       "executing ActivateOrganization command" should {
@@ -594,8 +526,8 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             ActivateOrganization(
-              organizationId = Some(OrganizationId(organizationId)),
-              onBehalfOf = Some(MemberId("activatingUser"))
+              organizationId = OrganizationId(organizationId),
+              onBehalfOf = MemberId("activatingUser")
             ),
             probe.ref
           )
@@ -618,8 +550,8 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             SuspendOrganization(
-              organizationId = Some(OrganizationId(organizationId)),
-              onBehalfOf = Some(MemberId("unauthorizedUser"))
+              organizationId = OrganizationId(organizationId),
+              onBehalfOf = MemberId("unauthorizedUser")
             ),
             probe.ref
           )
@@ -639,8 +571,8 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             SuspendOrganization(
-              organizationId = Some(OrganizationId(organizationId)),
-              onBehalfOf = Some(MemberId("suspendingUser"))
+              organizationId = OrganizationId(organizationId),
+              onBehalfOf = MemberId("suspendingUser")
             ),
             probe.ref
           )
@@ -653,14 +585,12 @@ class OrganizationSpec
 
           val organizationSuspended = successVal.asMessage.sealedValue.organizationSuspended.get
 
-          organizationSuspended.organizationId shouldEqual Some(OrganizationId(organizationId))
+          organizationSuspended.organizationId shouldEqual OrganizationId(organizationId)
 
-          assert(organizationSuspended.metaInfo.isDefined)
+          val organizationSuspendedMeta = organizationSuspended.metaInfo
 
-          val organizationSuspendedMeta = organizationSuspended.metaInfo.get
-
-          organizationSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
-          organizationSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("suspendingUser"))
+          organizationSuspendedMeta.createdBy shouldEqual MemberId("establishingUser")
+          organizationSuspendedMeta.lastUpdatedBy shouldEqual MemberId("suspendingUser")
         }
       }
 
@@ -674,9 +604,9 @@ class OrganizationSpec
           // Test command in question
           p ! Organization.OrganizationRequestEnvelope(
             EditOrganizationInfo(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("unauthorizedUser")),
-              Some(EditableOrganizationInfo()),
+              OrganizationId(organizationId),
+              MemberId("unauthorizedUser"),
+              EditableOrganizationInfo(),
             ),
             probe.ref
           )
@@ -696,9 +626,9 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             EditOrganizationInfo(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("someUser")),
-              Some(EditableOrganizationInfo()),
+              OrganizationId(organizationId),
+              MemberId("someUser"),
+              EditableOrganizationInfo(),
             ),
             probe.ref
           )
@@ -708,8 +638,8 @@ class OrganizationSpec
 
           val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-          successVal.oldInfo shouldBe Some(baseOrganizationInfo)
-          successVal.newInfo shouldBe Some(baseOrganizationInfo)
+          successVal.oldInfo shouldBe baseOrganizationInfo
+          successVal.newInfo shouldBe baseOrganizationInfo
         }
 
         "succeed for an edit of all fields and return the proper response" in {
@@ -728,9 +658,9 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             EditOrganizationInfo(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("someUser")),
-              Some(updateInfo),
+              OrganizationId(organizationId),
+              MemberId("someUser"),
+              updateInfo,
             ),
             probe.ref
           )
@@ -742,8 +672,8 @@ class OrganizationSpec
 
           val updatedInfo = baseOrganizationInfo.copy(name = newName, address = Some(newAddress))
 
-          successVal.oldInfo shouldBe Some(baseOrganizationInfo)
-          successVal.newInfo shouldBe Some(updatedInfo)
+          successVal.oldInfo shouldBe baseOrganizationInfo
+          successVal.newInfo shouldBe updatedInfo
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -760,9 +690,9 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             EditOrganizationInfo(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("someUser")),
-              Some(updatedInfo),
+              OrganizationId(organizationId),
+              MemberId("someUser"),
+              updatedInfo,
             ),
             probe.ref
           )
@@ -772,8 +702,8 @@ class OrganizationSpec
 
           val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-          successVal.oldInfo shouldBe Some(baseOrganizationInfo)
-          successVal.newInfo shouldBe Some(baseOrganizationInfo.copy(name = newName))
+          successVal.oldInfo shouldBe baseOrganizationInfo
+          successVal.newInfo shouldBe baseOrganizationInfo.copy(name = newName)
         }
       }
     }
@@ -789,8 +719,8 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             ActivateOrganization(
-              organizationId = Some(OrganizationId(organizationId)),
-              Some(MemberId("unauthorizedUser"))
+              organizationId = OrganizationId(organizationId),
+              MemberId("unauthorizedUser")
             ),
             probe.ref
           )
@@ -810,8 +740,8 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             ActivateOrganization(
-              organizationId = Some(OrganizationId(organizationId)),
-              onBehalfOf = Some(MemberId("activatingUser"))
+              organizationId = OrganizationId(organizationId),
+              onBehalfOf = MemberId("activatingUser")
             ),
             probe.ref
           )
@@ -824,14 +754,12 @@ class OrganizationSpec
 
           val organizationActivated = successVal.asMessage.sealedValue.organizationActivated.get
 
-          organizationActivated.organizationId shouldEqual Some(OrganizationId(organizationId))
+          organizationActivated.organizationId shouldEqual OrganizationId(organizationId)
 
-          assert(organizationActivated.metaInfo.isDefined)
+          val organizationSuspendedMeta = organizationActivated.metaInfo
 
-          val organizationSuspendedMeta = organizationActivated.metaInfo.get
-
-          organizationSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
-          organizationSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("activatingUser"))
+          organizationSuspendedMeta.createdBy shouldEqual MemberId("establishingUser")
+          organizationSuspendedMeta.lastUpdatedBy shouldEqual MemberId("activatingUser")
         }
       }
 
@@ -844,8 +772,8 @@ class OrganizationSpec
 
           p ! Organization.OrganizationRequestEnvelope(
             SuspendOrganization(
-              organizationId = Some(OrganizationId(organizationId)),
-              onBehalfOf = Some(MemberId("updatingUser1"))
+              organizationId = OrganizationId(organizationId),
+              onBehalfOf = MemberId("updatingUser1")
             ),
             probe.ref
           )
@@ -868,9 +796,9 @@ class OrganizationSpec
         // Test command in question
         p ! Organization.OrganizationRequestEnvelope(
           EditOrganizationInfo(
-            Some(OrganizationId(organizationId)),
-            Some(MemberId("unauthorizedUser")),
-            Some(EditableOrganizationInfo()),
+            OrganizationId(organizationId),
+            MemberId("unauthorizedUser"),
+            EditableOrganizationInfo(),
           ),
           probe.ref
         )
@@ -891,9 +819,9 @@ class OrganizationSpec
 
         p ! Organization.OrganizationRequestEnvelope(
           EditOrganizationInfo(
-            Some(OrganizationId(organizationId)),
-            Some(MemberId("someUser")),
-            Some(EditableOrganizationInfo()),
+            OrganizationId(organizationId),
+            MemberId("someUser"),
+            EditableOrganizationInfo(),
           ),
           probe.ref
         )
@@ -903,8 +831,8 @@ class OrganizationSpec
 
         val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-        successVal.oldInfo shouldBe Some(baseOrganizationInfo)
-        successVal.newInfo shouldBe Some(baseOrganizationInfo)
+        successVal.oldInfo shouldBe baseOrganizationInfo
+        successVal.newInfo shouldBe baseOrganizationInfo
       }
 
       "succeed for an edit of all fields and return the proper response" in {
@@ -924,9 +852,9 @@ class OrganizationSpec
 
         p ! Organization.OrganizationRequestEnvelope(
           EditOrganizationInfo(
-            Some(OrganizationId(organizationId)),
-            Some(MemberId("someUser")),
-            Some(updateInfo),
+            OrganizationId(organizationId),
+            MemberId("someUser"),
+            updateInfo,
           ),
           probe.ref
         )
@@ -938,8 +866,8 @@ class OrganizationSpec
 
         val updatedInfo = baseOrganizationInfo.copy(name = newName, address = Some(newAddress))
 
-        successVal.oldInfo shouldBe Some(baseOrganizationInfo)
-        successVal.newInfo shouldBe Some(updatedInfo)
+        successVal.oldInfo shouldBe baseOrganizationInfo
+        successVal.newInfo shouldBe updatedInfo
       }
 
       "succeed for a partial edit and return the proper response" in {
@@ -957,9 +885,9 @@ class OrganizationSpec
 
         p ! Organization.OrganizationRequestEnvelope(
           EditOrganizationInfo(
-            Some(OrganizationId(organizationId)),
-            Some(MemberId("someUser")),
-            Some(updatedInfo),
+            OrganizationId(organizationId),
+            MemberId("someUser"),
+            updatedInfo,
           ),
           probe.ref
         )
@@ -969,8 +897,8 @@ class OrganizationSpec
 
         val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-        successVal.oldInfo shouldBe Some(baseOrganizationInfo)
-        successVal.newInfo shouldBe Some(baseOrganizationInfo.copy(name = newName))
+        successVal.oldInfo shouldBe baseOrganizationInfo
+        successVal.newInfo shouldBe baseOrganizationInfo.copy(name = newName)
       }
     }
   }

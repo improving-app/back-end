@@ -3,7 +3,7 @@ package com.improving.app.organization.domain
 import com.improving.app.common.domain.{Address, CaPostalCodeImpl, PostalCodeMessageImpl, TenantId}
 
 object TestData {
-  val baseAddress = Address(
+  val baseAddress: Address = Address(
     line1 = "line1",
     line2 = Some("line2"),
     city = "city",
@@ -12,13 +12,13 @@ object TestData {
     postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
   )
 
-  val baseOrganizationInfo = OrganizationInfo(
+  val baseOrganizationInfo: OrganizationInfo = OrganizationInfo(
     name = "Organization Name",
-    shortName = "Org",
-    tenant = Some(TenantId("tenant")),
+    shortName = Some("Org"),
+    tenant = TenantId("tenant"),
     isPublic = false,
     address = Some(baseAddress),
-    url = "",
-    logo = "",
+    url = None,
+    logo = None,
   )
 }
