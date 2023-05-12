@@ -5,10 +5,6 @@ import akka.actor.typed.ActorRef
 import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import com.improving.app.common.domain.{
-  Address,
-  AddressValidator,
-  Contact,
-  EditableAddressValidator,
   MemberId,
   OrganizationId,
   TenantId
