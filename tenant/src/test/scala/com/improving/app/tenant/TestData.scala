@@ -29,22 +29,25 @@ object TestData {
 
   def infoFromEditableInfo(editable: EditableTenantInfo): TenantInfo = TenantInfo(
     name = editable.getName,
-    primaryContact = Contact(
-      firstName = editable.getPrimaryContact.getFirstName,
-      lastName = editable.getPrimaryContact.getLastName,
-      emailAddress = editable.getPrimaryContact.emailAddress,
-      phone = editable.getPrimaryContact.phone,
-      userName = editable.getPrimaryContact.getUserName
-    ),
-    address = Address(
-      line1 = editable.getAddress.getLine1,
-      line2 = editable.getAddress.line2,
-      city = editable.getAddress.getCity,
-      stateProvince = editable.getAddress.getStateProvince,
-      country = editable.getAddress.getCountry,
-      postalCode = editable.getAddress.postalCode
-    ),
+    primaryContact = contactFromEditableContact(editable.getPrimaryContact),
+    address = addressFromEditableAddress(editable.getAddress),
     organizations = editable.getOrganizations
+  )
+
+  def addressFromEditableAddress(editable: EditableAddress): Address = Address(
+    line1 = editable.getLine1,
+    line2 = editable.line2,
+    city = editable.getCity,
+    stateProvince = editable.getStateProvince,
+    country = editable.getCountry,
+    postalCode = editable.postalCode
+  )
+  def contactFromEditableContact(editable: EditableContact): Contact = Contact(
+    firstName = editable.getFirstName,
+    lastName = editable.getLastName,
+    emailAddress = editable.emailAddress,
+    phone = editable.phone,
+    userName = editable.getUserName
   )
 
   val baseTenantInfo: TenantInfo = infoFromEditableInfo(

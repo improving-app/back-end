@@ -7,17 +7,10 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import com.google.protobuf.timestamp.Timestamp
-import com.improving.app.common.domain.{
-  Address,
-  Contact,
-  EditableAddress,
-  EditableContact,
-  MemberId,
-  OrganizationId,
-  PostalCodeMessageImpl
-}
+import com.improving.app.common.domain.{Address, Contact, EditableAddress, EditableContact, MemberId, OrganizationId, PostalCodeMessageImpl}
 import com.improving.app.common.errors._
 import com.improving.app.common.service.util.{doForSameIfHas, doIfHas}
+import com.improving.app.tenant.domain.util.infoFromEditableInfo
 
 import java.time.Instant
 
@@ -214,38 +207,7 @@ object Tenant {
   ): Either[Error, TenantEnvelope] = {
     val infoToUpdate = editInfoCommand.infoToUpdate
     val stateInfo = state.info
-    val newInfo = stateInfo
-      .copy(
-        name = doForSameIfHas[String](infoToUpdate.name, stateInfo.name),
-        address = doIfHas[EditableAddress, Address](
-          infoToUpdate.address,
-          stateInfo.address,
-          v =>
-            Address(
-              line1 = doForSameIfHas[String](v.line1, stateInfo.address.line1),
-              line2 = Some(doForSameIfHas[String](v.line2, stateInfo.address.getLine2)),
-              city = doForSameIfHas[String](v.city, stateInfo.address.city),
-              stateProvince = doForSameIfHas[String](v.stateProvince, stateInfo.address.stateProvince),
-              country = doForSameIfHas[String](v.country, stateInfo.address.country),
-              postalCode = Some(doForSameIfHas[PostalCodeMessageImpl](v.postalCode, stateInfo.address.getPostalCode))
-            )
-        ),
-        primaryContact = doIfHas[EditableContact, Contact](
-          infoToUpdate.primaryContact,
-          stateInfo.primaryContact,
-          v =>
-            Contact(
-              firstName = doForSameIfHas[String](infoToUpdate.primaryContact.flatMap(_.firstName), v.getFirstName),
-              lastName = doForSameIfHas[String](infoToUpdate.primaryContact.flatMap(_.lastName), v.getLastName),
-              emailAddress =
-                Some(doForSameIfHas[String](infoToUpdate.primaryContact.flatMap(_.emailAddress), v.getEmailAddress)),
-              phone = Some(doForSameIfHas[String](infoToUpdate.primaryContact.flatMap(_.phone), v.getPhone)),
-              userName = doForSameIfHas[String](infoToUpdate.primaryContact.flatMap(_.userName), v.getUserName),
-            )
-        ),
-        organizations =
-          if (infoToUpdate.organizations.isDefined) infoToUpdate.getOrganizations else stateInfo.organizations
-      )
+    val newInfo = infoFromEditableInfo(infoToUpdate, stateInfo)
 
     val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedBy = editInfoCommand.editingUser)
 
