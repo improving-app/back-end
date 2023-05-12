@@ -15,8 +15,8 @@ object TestData {
 
   val baseOrganizationInfo: OrganizationInfo = OrganizationInfo(
     name = "Organization Name",
-    shortName = "OrgName",
-    tenant = Some(TenantId("tenant")),
+    shortName = Some("OrgName"),
+    tenant = TenantId("tenant"),
     address = Some(baseAddress),
   )
 }
