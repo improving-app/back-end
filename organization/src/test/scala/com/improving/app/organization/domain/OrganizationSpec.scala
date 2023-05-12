@@ -31,7 +31,8 @@ class OrganizationSpec
     with Matchers {
   override def afterAll(): Unit = testKit.shutdownTestKit()
 
-  def createTestVariables(): (String, ActorRef[OrganizationRequestEnvelope], TestProbe[StatusReply[OrganizationEvent]]) = {
+  def createTestVariables()
+      : (String, ActorRef[OrganizationRequestEnvelope], TestProbe[StatusReply[OrganizationEvent]]) = {
     val organizationId = Random.nextString(31)
     val p = this.testKit.spawn(Organization(PersistenceId.ofUniqueId(organizationId)))
     val probe = this.testKit.createTestProbe[StatusReply[OrganizationEvent]]()
@@ -39,10 +40,10 @@ class OrganizationSpec
   }
 
   def establishOrganization(
-    organizationId: String,
-    p: ActorRef[OrganizationRequestEnvelope],
-    probe: TestProbe[StatusReply[OrganizationEvent]],
-    organizationInfo: OrganizationInfo = baseOrganizationInfo
+      organizationId: String,
+      p: ActorRef[OrganizationRequestEnvelope],
+      probe: TestProbe[StatusReply[OrganizationEvent]],
+      organizationInfo: OrganizationInfo = baseOrganizationInfo
   ): Unit = {
     p ! Organization.OrganizationRequestEnvelope(
       EstablishOrganization(
@@ -57,7 +58,11 @@ class OrganizationSpec
     assert(response.isSuccess)
   }
 
-  private def suspendOrganization(organizationId: String, p: ActorRef[OrganizationRequestEnvelope], probe: TestProbe[StatusReply[OrganizationEvent]]) = {
+  private def suspendOrganization(
+      organizationId: String,
+      p: ActorRef[OrganizationRequestEnvelope],
+      probe: TestProbe[StatusReply[OrganizationEvent]]
+  ) = {
     p ! Organization.OrganizationRequestEnvelope(
       SuspendOrganization(
         organizationId = Some(OrganizationId(organizationId)),
@@ -70,7 +75,11 @@ class OrganizationSpec
     assert(suspendOrganizationResponse.isSuccess)
   }
 
-  private def activateOrganization(organizationId: String, p: ActorRef[OrganizationRequestEnvelope], probe: TestProbe[StatusReply[OrganizationEvent]]) = {
+  private def activateOrganization(
+      organizationId: String,
+      p: ActorRef[OrganizationRequestEnvelope],
+      probe: TestProbe[StatusReply[OrganizationEvent]]
+  ) = {
     p ! Organization.OrganizationRequestEnvelope(
       ActivateOrganization(
         organizationId = Some(OrganizationId(organizationId)),
@@ -123,8 +132,12 @@ class OrganizationSpec
           assert(response.isSuccess)
 
           val successVal = response.getValue
-          successVal.asMessage.sealedValue.organizationEstablished.get.organizationId shouldBe Some(OrganizationId(organizationId))
-          successVal.asMessage.sealedValue.organizationEstablished.get.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
+          successVal.asMessage.sealedValue.organizationEstablished.get.organizationId shouldBe Some(
+            OrganizationId(organizationId)
+          )
+          successVal.asMessage.sealedValue.organizationEstablished.get.metaInfo.get.createdBy shouldBe Some(
+            MemberId("establishingUser")
+          )
         }
 
         "error for a organization that is already established" in {
@@ -293,31 +306,6 @@ class OrganizationSpec
 
           successVal.oldInfo shouldBe Some(baseOrganizationInfo)
           successVal.newInfo shouldBe Some(baseOrganizationInfo.copy(name = newName))
-        }
-
-        "error for an incomplete address" in {
-          val (organizationId, p, probe) = createTestVariables()
-
-          establishOrganization(organizationId, p, probe)
-
-          val badAddress = baseAddress.copy(city = "")
-
-          val updateInfo = EditableOrganizationInfo(address = Some(badAddress))
-
-          p ! Organization.OrganizationRequestEnvelope(
-            EditOrganizationInfo(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("updatingUser")),
-              Some(updateInfo)
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "Address information is not complete"
         }
       }
 
@@ -787,35 +775,7 @@ class OrganizationSpec
           successVal.oldInfo shouldBe Some(baseOrganizationInfo)
           successVal.newInfo shouldBe Some(baseOrganizationInfo.copy(name = newName))
         }
-
-        "error for an incomplete address" in {
-          // Transition to Active state
-          val (organizationId, p, probe) = createTestVariables()
-
-          establishOrganization(organizationId, p, probe)
-          activateOrganization(organizationId, p, probe)
-
-          val badAddress = baseAddress.copy(city = "")
-
-          val updateInfo = EditableOrganizationInfo(address = Some(badAddress))
-
-          p ! Organization.OrganizationRequestEnvelope(
-            EditOrganizationInfo(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("updatingUser")),
-              Some(updateInfo)
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "Address information is not complete"
-        }
       }
-
     }
 
     "in the Suspended state" when {
@@ -1011,33 +971,6 @@ class OrganizationSpec
 
         successVal.oldInfo shouldBe Some(baseOrganizationInfo)
         successVal.newInfo shouldBe Some(baseOrganizationInfo.copy(name = newName))
-      }
-
-      "error for an incomplete address" in {
-        // Transition to Active state
-        val (organizationId, p, probe) = createTestVariables()
-
-        establishOrganization(organizationId, p, probe)
-        suspendOrganization(organizationId, p, probe)
-
-        val badAddress = baseAddress.copy(city = "")
-
-        val updateInfo = EditableOrganizationInfo(address = Some(badAddress))
-
-        p ! Organization.OrganizationRequestEnvelope(
-          EditOrganizationInfo(
-            Some(OrganizationId(organizationId)),
-            Some(MemberId("updatingUser")),
-            Some(updateInfo)
-          ),
-          probe.ref
-        )
-
-        val response = probe.receiveMessage()
-        assert(response.isError)
-
-        val responseError = response.getError
-        responseError.getMessage shouldEqual "Address information is not complete"
       }
     }
   }

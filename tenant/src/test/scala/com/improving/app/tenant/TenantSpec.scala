@@ -4,8 +4,12 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
-import com.improving.app.common.domain.{MemberId, OrganizationId, TenantId}
-import com.improving.app.tenant.TestData.{baseAddress, baseContact, baseTenantInfo}
+import com.improving.app.common.domain.{
+  MemberId,
+  OrganizationId,
+  TenantId
+}
+import com.improving.app.tenant.TestData.{baseAddress, baseContact, baseTenantInfo, infoFromEditableInfo}
 import com.improving.app.tenant.domain.Tenant.TenantCommand
 import com.improving.app.tenant.domain._
 import com.typesafe.config.{Config, ConfigFactory}
@@ -47,8 +51,8 @@ class TenantSpec
   ): StatusReply[TenantEnvelope] = {
     p ! Tenant.TenantCommand(
       EstablishTenant(
-        tenantId = Some(TenantId(tenantId)),
-        establishingUser = Some(MemberId("establishingUser")),
+        tenantId = TenantId(tenantId),
+        establishingUser = MemberId("establishingUser"),
         tenantInfo = Some(tenantInfo)
       ),
       probe.ref
@@ -67,8 +71,8 @@ class TenantSpec
 
     p ! Tenant.TenantCommand(
       TerminateTenant(
-        tenantId = Some(TenantId(tenantId)),
-        terminatingUser = Some(MemberId("terminatingUser"))
+        tenantId = TenantId(tenantId),
+        terminatingUser = MemberId("terminatingUser")
       ),
       probe.ref
     )
@@ -85,8 +89,8 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             EstablishTenant(
-              tenantId = Some(TenantId(tenantId)),
-              establishingUser = Some(MemberId("unauthorizedUser")),
+              tenantId = TenantId(tenantId),
+              establishingUser = MemberId("unauthorizedUser"),
               tenantInfo = Some(baseTenantInfo)
             ),
             probe.ref
@@ -105,8 +109,8 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             EstablishTenant(
-              tenantId = Some(TenantId(tenantId)),
-              establishingUser = Some(MemberId("establishingUser")),
+              tenantId = TenantId(tenantId),
+              establishingUser = MemberId("establishingUser"),
               tenantInfo = Some(baseTenantInfo)
             ),
             probe.ref
@@ -117,8 +121,8 @@ class TenantSpec
 
           val successVal =
             response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantEstablishedValue
-          successVal.tenantId shouldBe Some(TenantId(tenantId))
-          successVal.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
+          successVal.tenantId shouldBe TenantId(tenantId)
+          successVal.metaInfo.createdBy shouldBe MemberId("establishingUser")
         }
 
         "error for a tenant that is already established" in {
@@ -126,8 +130,8 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             EstablishTenant(
-              tenantId = Some(TenantId(tenantId)),
-              establishingUser = Some(MemberId("establishingUser")),
+              tenantId = TenantId(tenantId),
+              establishingUser = MemberId("establishingUser"),
               tenantInfo = Some(baseTenantInfo)
             ),
             probe.ref
@@ -138,8 +142,8 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             EstablishTenant(
-              tenantId = Some(TenantId(tenantId)),
-              establishingUser = Some(MemberId("establishingUser")),
+              tenantId = TenantId(tenantId),
+              establishingUser = MemberId("establishingUser"),
               tenantInfo = Some(baseTenantInfo)
             ),
             probe.ref
@@ -158,7 +162,7 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             GetOrganizations(
-              tenantId = Some(TenantId(tenantId))
+              tenantId = TenantId(tenantId)
             ),
             probe.ref
           )
@@ -167,7 +171,7 @@ class TenantSpec
           assert(response.isSuccess)
 
           val responseVal = response.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue
-          responseVal.organizations shouldBe Some(TenantOrganizationList())
+          responseVal.organizations shouldBe TenantOrganizationList()
         }
       }
       "executing any command other than establish" should {
@@ -175,9 +179,9 @@ class TenantSpec
           val (tenantId, p, probe) = createTestVariables()
 
           val commands = Seq(
-            EditInfo(Some(TenantId(tenantId)), Some(MemberId("user")), Some(TenantInfo())),
-            ActivateTenant(Some(TenantId(tenantId)), Some(MemberId("user"))),
-            SuspendTenant(Some(TenantId(tenantId)), "just feel like it", Some(MemberId("user"))),
+            EditInfo(TenantId(tenantId), MemberId("user"), EditableTenantInfo()),
+            ActivateTenant(TenantId(tenantId), MemberId("user")),
+            SuspendTenant(TenantId(tenantId), "just feel like it", MemberId("user")),
           )
 
           commands.foreach(command => {
@@ -199,8 +203,8 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             TerminateTenant(
-              tenantId = Some(TenantId(tenantId)),
-              terminatingUser = Some(MemberId("terminatingUser"))
+              tenantId = TenantId(tenantId),
+              terminatingUser = MemberId("terminatingUser")
             ),
             probe.ref
           )
@@ -226,9 +230,9 @@ class TenantSpec
           // Test command in question
           p ! Tenant.TenantCommand(
             EditInfo(
-              Some(TenantId(tenantId)),
-              Some(MemberId("unauthorizedUser")),
-              Some(TenantInfo()),
+              TenantId(tenantId),
+              MemberId("unauthorizedUser"),
+              EditableTenantInfo(),
             ),
             probe.ref
           )
@@ -249,9 +253,9 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             EditInfo(
-              Some(TenantId(tenantId)),
-              Some(MemberId("someUser")),
-              Some(TenantInfo()),
+              TenantId(tenantId),
+              MemberId("someUser"),
+              EditableTenantInfo(),
             ),
             probe.ref
           )
@@ -261,8 +265,8 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo shouldBe Some(baseTenantInfo)
-          successVal.newInfo shouldBe Some(baseTenantInfo)
+          successVal.oldInfo shouldBe baseTenantInfo
+          successVal.newInfo shouldBe baseTenantInfo
         }
 
         "succeed for an edit of all fields and return the proper response" in {
@@ -272,13 +276,13 @@ class TenantSpec
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
 
-          val newContact = baseContact.copy(firstName = "Bob")
-          val newAddress = baseAddress.copy(city = "Timbuktu")
+          val newContact = baseContact.copy(firstName = Some("Bob"))
+          val newAddress = baseAddress.copy(city = Some("Timbuktu"))
           val newName = "A new name"
           val newOrgs = TenantOrganizationList(Seq(OrganizationId("a"), OrganizationId("b")))
 
-          val updatedInfo = TenantInfo(
-            name = newName,
+          val updatedInfo = EditableTenantInfo(
+            name = Some(newName),
             primaryContact = Some(newContact),
             address = Some(newAddress),
             organizations = Some(newOrgs)
@@ -286,9 +290,9 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             EditInfo(
-              Some(TenantId(tenantId)),
-              Some(MemberId("someUser")),
-              Some(updatedInfo),
+              TenantId(tenantId),
+              MemberId("someUser"),
+              updatedInfo,
             ),
             probe.ref
           )
@@ -298,8 +302,8 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo shouldBe Some(baseTenantInfo)
-          successVal.newInfo shouldBe Some(updatedInfo)
+          successVal.oldInfo shouldBe baseTenantInfo
+          successVal.newInfo shouldBe infoFromEditableInfo(updatedInfo)
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -312,16 +316,16 @@ class TenantSpec
           val newName = "A new name"
           val newOrgs = TenantOrganizationList(Seq(OrganizationId("a"), OrganizationId("b")))
 
-          val updatedInfo = TenantInfo(
-            name = newName,
+          val updatedInfo = EditableTenantInfo(
+            name = Some(newName),
             organizations = Some(newOrgs)
           )
 
           p ! Tenant.TenantCommand(
             EditInfo(
-              Some(TenantId(tenantId)),
-              Some(MemberId("someUser")),
-              Some(updatedInfo),
+              TenantId(tenantId),
+              MemberId("someUser"),
+              updatedInfo,
             ),
             probe.ref
           )
@@ -331,65 +335,9 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo shouldBe Some(baseTenantInfo)
-          successVal.newInfo shouldBe Some(baseTenantInfo.copy(name = newName, organizations = Some(newOrgs)))
+          successVal.oldInfo shouldBe baseTenantInfo
+          successVal.newInfo shouldBe baseTenantInfo.copy(name = newName, organizations = newOrgs)
         }
-
-        "error for incomplete updating primary contact info" in {
-          // Transition to Active state
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishTenantResponse = establishTenant(tenantId, p, probe)
-          assert(establishTenantResponse.isSuccess)
-
-          val badContact = baseContact.copy(emailAddress = None)
-
-          val updateInfo = TenantInfo(primaryContact = Some(badContact))
-
-          p ! Tenant.TenantCommand(
-            EditInfo(
-              Some(TenantId(tenantId)),
-              Some(MemberId("updatingUser")),
-              Some(updateInfo)
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "Primary contact info is not complete"
-        }
-
-        "error for an incomplete address" in {
-          // Transition to Active state
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishTenantResponse = establishTenant(tenantId, p, probe)
-          assert(establishTenantResponse.isSuccess)
-
-          val badAddress = baseAddress.copy(city = "")
-
-          val updateInfo = TenantInfo(address = Some(badAddress))
-
-          p ! Tenant.TenantCommand(
-            EditInfo(
-              Some(TenantId(tenantId)),
-              Some(MemberId("updatingUser")),
-              Some(updateInfo)
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "Address information is not complete"
-        }
-
       }
 
       "executing ActiveTenant command" should {
@@ -402,8 +350,8 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             ActivateTenant(
-              tenantId = Some(TenantId(tenantId)),
-              activatingUser = Some(MemberId("activatingUser"))
+              tenantId = TenantId(tenantId),
+              activatingUser = MemberId("activatingUser")
             ),
             probe.ref
           )
@@ -426,9 +374,9 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
+              tenantId = TenantId(tenantId),
               suspensionReason = "reason",
-              suspendingUser = Some(MemberId("unauthorizedUser"))
+              suspendingUser = MemberId("unauthorizedUser")
             ),
             probe.ref
           )
@@ -449,9 +397,9 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
+              tenantId = TenantId(tenantId),
               suspensionReason = "reason1",
-              suspendingUser = Some(MemberId("suspendingUser"))
+              suspendingUser = MemberId("suspendingUser")
             ),
             probe.ref
           )
@@ -461,15 +409,13 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantSuspendedValue
 
-          successVal.tenantId shouldEqual Some(TenantId(tenantId))
+          successVal.tenantId shouldEqual TenantId(tenantId)
           successVal.suspensionReason shouldEqual "reason1"
 
-          assert(successVal.metaInfo.isDefined)
+          val tenantSuspendedMeta = successVal.metaInfo
 
-          val tenantSuspendedMeta = successVal.metaInfo.get
-
-          tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
-          tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("suspendingUser"))
+          tenantSuspendedMeta.createdBy shouldEqual MemberId("establishingUser")
+          tenantSuspendedMeta.lastUpdatedBy shouldEqual MemberId("suspendingUser")
         }
       }
 
@@ -482,12 +428,10 @@ class TenantSpec
             p,
             probe,
             baseTenantInfo.copy(organizations =
-              Some(
-                TenantOrganizationList(
-                  Seq(
-                    OrganizationId("org1"),
-                    OrganizationId("org2")
-                  )
+              TenantOrganizationList(
+                Seq(
+                  OrganizationId("org1"),
+                  OrganizationId("org2")
                 )
               )
             )
@@ -496,7 +440,7 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             GetOrganizations(
-              tenantId = Some(TenantId(tenantId))
+              tenantId = TenantId(tenantId)
             ),
             probe.ref
           )
@@ -505,12 +449,10 @@ class TenantSpec
           assert(response.isSuccess)
 
           val successVal = response.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue
-          successVal.organizations shouldEqual Some(
-            TenantOrganizationList(
-              Seq(
-                OrganizationId("org1"),
-                OrganizationId("org2")
-              )
+          successVal.organizations shouldEqual TenantOrganizationList(
+            Seq(
+              OrganizationId("org1"),
+              OrganizationId("org2")
             )
           )
         }
@@ -525,8 +467,8 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             TerminateTenant(
-              tenantId = Some(TenantId(tenantId)),
-              terminatingUser = Some(MemberId("terminatingUser"))
+              tenantId = TenantId(tenantId),
+              terminatingUser = MemberId("terminatingUser")
             ),
             probe.ref
           )
@@ -538,86 +480,6 @@ class TenantSpec
           responseError.getMessage shouldEqual "User is not authorized to modify Tenant"
 
         }
-        "error for no associated tenant ID" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishTenantResponse = establishTenant(tenantId, p, probe)
-          assert(establishTenantResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            TerminateTenant(
-              tenantId = None,
-              terminatingUser = Some(MemberId("terminatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "No associated tenant Id"
-        }
-        "error for an empty tenant ID" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishTenantResponse = establishTenant(tenantId, p, probe)
-          assert(establishTenantResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            TerminateTenant(
-              tenantId = Some(TenantId()),
-              terminatingUser = Some(MemberId("terminatingUser"))
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "Tenant Id is empty"
-        }
-        "error for no associated terminating user" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishTenantResponse = establishTenant(tenantId, p, probe)
-          assert(establishTenantResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            TerminateTenant(
-              tenantId = Some(TenantId(tenantId)),
-              terminatingUser = None
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "No associated terminating user"
-        }
-        "error for an empty terminating user" in {
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishTenantResponse = establishTenant(tenantId, p, probe)
-          assert(establishTenantResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            TerminateTenant(
-              tenantId = Some(TenantId(tenantId)),
-              terminatingUser = Some(MemberId())
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "Member Id is empty"
-        }
         "succeed for the golden path" in {
           val (tenantId, p, probe) = createTestVariables()
 
@@ -626,8 +488,8 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             TerminateTenant(
-              tenantId = Some(TenantId(tenantId)),
-              terminatingUser = Some(MemberId("terminatingUser"))
+              tenantId = TenantId(tenantId),
+              terminatingUser = MemberId("terminatingUser")
             ),
             probe.ref
           )
@@ -637,12 +499,12 @@ class TenantSpec
 
           val successVal =
             response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantTerminatedValue
-          successVal.tenantId.get.id shouldBe tenantId
+          successVal.tenantId.id shouldBe tenantId
 
-          val metaInfo = successVal.metaInfo.get
+          val metaInfo = successVal.metaInfo
 
-          metaInfo.createdBy.get.id shouldBe "establishingUser"
-          metaInfo.lastUpdatedBy.get.id shouldBe "terminatingUser"
+          metaInfo.createdBy.id shouldBe "establishingUser"
+          metaInfo.lastUpdatedBy.id shouldBe "terminatingUser"
         }
       }
     }
@@ -659,9 +521,9 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
+              tenantId = TenantId(tenantId),
               suspensionReason = "reason1",
-              suspendingUser = Some(MemberId("suspendingUser"))
+              suspendingUser = MemberId("suspendingUser")
             ),
             probe.ref
           )
@@ -672,9 +534,9 @@ class TenantSpec
           // Test command in question
           p ! Tenant.TenantCommand(
             EditInfo(
-              Some(TenantId(tenantId)),
-              Some(MemberId("unauthorizedUser")),
-              Some(TenantInfo()),
+              TenantId(tenantId),
+              MemberId("unauthorizedUser"),
+              EditableTenantInfo(),
             ),
             probe.ref
           )
@@ -694,9 +556,9 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
+              tenantId = TenantId(tenantId),
               suspensionReason = "reason1",
-              suspendingUser = Some(MemberId("suspendingUser"))
+              suspendingUser = MemberId("suspendingUser")
             ),
             probe.ref
           )
@@ -706,9 +568,9 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             EditInfo(
-              Some(TenantId(tenantId)),
-              Some(MemberId("someUser")),
-              Some(TenantInfo()),
+              TenantId(tenantId),
+              MemberId("someUser"),
+              EditableTenantInfo(),
             ),
             probe.ref
           )
@@ -718,10 +580,8 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          assert(successVal.metaInfo.isDefined)
-          assert(successVal.oldInfo.isDefined)
-          successVal.oldInfo.get shouldEqual baseTenantInfo
-          successVal.newInfo.get shouldEqual baseTenantInfo
+          successVal.oldInfo shouldEqual baseTenantInfo
+          successVal.newInfo shouldEqual baseTenantInfo
         }
 
         "succeed for an edit of all fields and return the proper response" in {
@@ -733,9 +593,9 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
+              tenantId = TenantId(tenantId),
               suspensionReason = "reason1",
-              suspendingUser = Some(MemberId("suspendingUser"))
+              suspendingUser = MemberId("suspendingUser")
             ),
             probe.ref
           )
@@ -743,13 +603,13 @@ class TenantSpec
           val suspendResponse = probe.receiveMessage()
           assert(suspendResponse.isSuccess)
 
-          val newContact = baseContact.copy(firstName = "Bob")
-          val newAddress = baseAddress.copy(city = "Timbuktu")
+          val newContact = baseContact.copy(firstName = Some("Bob"))
+          val newAddress = baseAddress.copy(city = Some("Timbuktu"))
           val newName = "A new name"
           val newOrgs = TenantOrganizationList(Seq(OrganizationId("a"), OrganizationId("b")))
 
-          val updatedInfo = TenantInfo(
-            name = newName,
+          val updatedInfo = EditableTenantInfo(
+            name = Some(newName),
             primaryContact = Some(newContact),
             address = Some(newAddress),
             organizations = Some(newOrgs)
@@ -757,9 +617,9 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             EditInfo(
-              Some(TenantId(tenantId)),
-              Some(MemberId("someUser")),
-              Some(updatedInfo),
+              TenantId(tenantId),
+              MemberId("someUser"),
+              updatedInfo,
             ),
             probe.ref
           )
@@ -769,10 +629,8 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          assert(successVal.metaInfo.isDefined)
-          assert(successVal.oldInfo.isDefined)
-          successVal.oldInfo.get shouldEqual baseTenantInfo
-          successVal.newInfo.get shouldEqual updatedInfo
+          successVal.oldInfo shouldEqual baseTenantInfo
+          successVal.newInfo shouldEqual infoFromEditableInfo(updatedInfo)
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -784,9 +642,9 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
+              tenantId = TenantId(tenantId),
               suspensionReason = "reason1",
-              suspendingUser = Some(MemberId("suspendingUser"))
+              suspendingUser = MemberId("suspendingUser")
             ),
             probe.ref
           )
@@ -797,16 +655,16 @@ class TenantSpec
           val newName = "A new name"
           val newOrgs = TenantOrganizationList(Seq(OrganizationId("a"), OrganizationId("b")))
 
-          val updatedInfo = TenantInfo(
-            name = newName,
+          val updatedInfo = EditableTenantInfo(
+            name = Some(newName),
             organizations = Some(newOrgs)
           )
 
           p ! Tenant.TenantCommand(
             EditInfo(
-              Some(TenantId(tenantId)),
-              Some(MemberId("someUser")),
-              Some(updatedInfo),
+              TenantId(tenantId),
+              MemberId("someUser"),
+              updatedInfo,
             ),
             probe.ref
           )
@@ -816,91 +674,9 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          assert(successVal.metaInfo.isDefined)
-          assert(successVal.oldInfo.isDefined)
-          successVal.oldInfo.get shouldEqual baseTenantInfo
-          successVal.newInfo.get shouldEqual baseTenantInfo.copy(name = newName, organizations = Some(newOrgs))
+          successVal.oldInfo shouldEqual baseTenantInfo
+          successVal.newInfo shouldEqual baseTenantInfo.copy(name = newName, organizations = newOrgs)
         }
-
-        "error for incomplete updating primary contact info" in {
-          // Transition to Active state
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishTenantResponse = establishTenant(tenantId, p, probe)
-          assert(establishTenantResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
-              suspensionReason = "reason1",
-              suspendingUser = Some(MemberId("suspendingUser"))
-            ),
-            probe.ref
-          )
-
-          val suspendResponse = probe.receiveMessage()
-          assert(suspendResponse.isSuccess)
-
-          val badContact = baseContact.copy(emailAddress = None)
-
-          val updateInfo = TenantInfo(primaryContact = Some(badContact))
-
-          p ! Tenant.TenantCommand(
-            EditInfo(
-              Some(TenantId(tenantId)),
-              Some(MemberId("updatingUser")),
-              Some(updateInfo)
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "Primary contact info is not complete"
-        }
-
-        "error for an incomplete address" in {
-          // Transition to Active state
-          val (tenantId, p, probe) = createTestVariables()
-
-          val establishTenantResponse = establishTenant(tenantId, p, probe)
-          assert(establishTenantResponse.isSuccess)
-
-          p ! Tenant.TenantCommand(
-            SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
-              suspensionReason = "reason1",
-              suspendingUser = Some(MemberId("suspendingUser"))
-            ),
-            probe.ref
-          )
-
-          val suspendResponse = probe.receiveMessage()
-          assert(suspendResponse.isSuccess)
-
-          val badAddress = baseAddress.copy(city = "")
-
-          val updateInfo = TenantInfo(address = Some(badAddress))
-
-          p ! Tenant.TenantCommand(
-            EditInfo(
-              Some(TenantId(tenantId)),
-              Some(MemberId("updatingUser")),
-              Some(updateInfo)
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isError)
-
-          val responseError = response.getError
-          responseError.getMessage shouldEqual "Address information is not complete"
-        }
-
       }
 
       "executing ActiveTenant command" should {
@@ -912,8 +688,8 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("suspendingUser")),
+              tenantId = TenantId(tenantId),
+              suspendingUser = MemberId("suspendingUser"),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -924,8 +700,8 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             ActivateTenant(
-              tenantId = Some(TenantId(tenantId)),
-              Some(MemberId("unauthorizedUser"))
+              tenantId = TenantId(tenantId),
+              MemberId("unauthorizedUser")
             ),
             probe.ref
           )
@@ -945,8 +721,8 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("suspendingUser")),
+              tenantId = TenantId(tenantId),
+              suspendingUser = MemberId("suspendingUser"),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -958,8 +734,8 @@ class TenantSpec
           // Change state to active
           p ! Tenant.TenantCommand(
             ActivateTenant(
-              tenantId = Some(TenantId(tenantId)),
-              activatingUser = Some(MemberId("activatingUser"))
+              tenantId = TenantId(tenantId),
+              activatingUser = MemberId("activatingUser")
             ),
             probe.ref
           )
@@ -969,14 +745,12 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantActivatedValue
 
-          successVal.tenantId shouldEqual Some(TenantId(tenantId))
+          successVal.tenantId shouldEqual TenantId(tenantId)
 
-          assert(successVal.metaInfo.isDefined)
+          val tenantSuspendedMeta = successVal.metaInfo
 
-          val tenantSuspendedMeta = successVal.metaInfo.get
-
-          tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
-          tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("activatingUser"))
+          tenantSuspendedMeta.createdBy shouldEqual MemberId("establishingUser")
+          tenantSuspendedMeta.lastUpdatedBy shouldEqual MemberId("activatingUser")
         }
       }
 
@@ -989,8 +763,8 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("suspendingUser")),
+              tenantId = TenantId(tenantId),
+              suspendingUser = MemberId("suspendingUser"),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -1001,9 +775,9 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
+              tenantId = TenantId(tenantId),
               suspensionReason = "reason",
-              Some(MemberId("someUser"))
+              MemberId("someUser")
             ),
             probe.ref
           )
@@ -1023,9 +797,9 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
+              tenantId = TenantId(tenantId),
               suspensionReason = "reason",
-              suspendingUser = Some(MemberId("suspendingUser"))
+              suspendingUser = MemberId("suspendingUser")
             ),
             probe.ref
           )
@@ -1035,9 +809,9 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
+              tenantId = TenantId(tenantId),
               suspensionReason = "reason1",
-              suspendingUser = Some(MemberId("updatingUser1"))
+              suspendingUser = MemberId("updatingUser1")
             ),
             probe.ref
           )
@@ -1047,15 +821,13 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantSuspendedValue
 
-          successVal.tenantId shouldEqual Some(TenantId(tenantId))
+          successVal.tenantId shouldEqual TenantId(tenantId)
           successVal.suspensionReason shouldEqual "reason1"
 
-          assert(successVal.metaInfo.isDefined)
+          val tenantSuspendedMeta = successVal.metaInfo
 
-          val tenantSuspendedMeta = successVal.metaInfo.get
-
-          tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
-          tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser1"))
+          tenantSuspendedMeta.createdBy shouldEqual MemberId("establishingUser")
+          tenantSuspendedMeta.lastUpdatedBy shouldEqual MemberId("updatingUser1")
         }
       }
 
@@ -1068,12 +840,10 @@ class TenantSpec
             p,
             probe,
             baseTenantInfo.copy(organizations =
-              Some(
-                TenantOrganizationList(
-                  Seq(
-                    OrganizationId("org1"),
-                    OrganizationId("org2")
-                  )
+              TenantOrganizationList(
+                Seq(
+                  OrganizationId("org1"),
+                  OrganizationId("org2")
                 )
               )
             )
@@ -1082,8 +852,8 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
-              suspendingUser = Some(MemberId("suspendingUser")),
+              tenantId = TenantId(tenantId),
+              suspendingUser = MemberId("suspendingUser"),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -1094,7 +864,7 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             GetOrganizations(
-              tenantId = Some(TenantId(tenantId))
+              tenantId = TenantId(tenantId)
             ),
             probe.ref
           )
@@ -1103,14 +873,13 @@ class TenantSpec
           assert(response.isSuccess)
 
           val successVal = response.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue
-          successVal.organizations shouldEqual Some(
+          successVal.organizations shouldEqual
             TenantOrganizationList(
               Seq(
                 OrganizationId("org1"),
                 OrganizationId("org2")
               )
             )
-          )
         }
       }
 
@@ -1123,9 +892,9 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
+              tenantId = TenantId(tenantId),
               suspensionReason = "reason",
-              suspendingUser = Some(MemberId("suspendingUser"))
+              suspendingUser = MemberId("suspendingUser")
             ),
             probe.ref
           )
@@ -1135,8 +904,8 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             TerminateTenant(
-              tenantId = Some(TenantId(tenantId)),
-              terminatingUser = Some(MemberId("terminatingUser"))
+              tenantId = TenantId(tenantId),
+              terminatingUser = MemberId("terminatingUser")
             ),
             probe.ref
           )
@@ -1146,12 +915,12 @@ class TenantSpec
 
           val successVal =
             response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantTerminatedValue
-          successVal.tenantId.get.id shouldBe tenantId
+          successVal.tenantId.id shouldBe tenantId
 
-          val metaInfo = successVal.metaInfo.get
+          val metaInfo = successVal.metaInfo
 
-          metaInfo.createdBy.get.id shouldBe "establishingUser"
-          metaInfo.lastUpdatedBy.get.id shouldBe "terminatingUser"
+          metaInfo.createdBy.id shouldBe "establishingUser"
+          metaInfo.lastUpdatedBy.id shouldBe "terminatingUser"
         }
       }
     }
@@ -1166,9 +935,14 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             EditInfo(
-              tenantId = Some(TenantId(tenantId)),
-              editingUser = Some(MemberId("editingUser")),
-              infoToUpdate = Some(baseTenantInfo)
+              tenantId = TenantId(tenantId),
+              editingUser = MemberId("editingUser"),
+              infoToUpdate = EditableTenantInfo(
+                Some(baseTenantInfo.name),
+                Some(baseContact),
+                Some(baseAddress),
+                Some(baseTenantInfo.organizations)
+              )
             ),
             probe.ref
           )
@@ -1189,8 +963,8 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             ActivateTenant(
-              tenantId = Some(TenantId(tenantId)),
-              activatingUser = Some(MemberId("activatingUser"))
+              tenantId = TenantId(tenantId),
+              activatingUser = MemberId("activatingUser")
             ),
             probe.ref
           )
@@ -1211,9 +985,9 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             SuspendTenant(
-              tenantId = Some(TenantId(tenantId)),
+              tenantId = TenantId(tenantId),
               suspensionReason = "reason",
-              suspendingUser = Some(MemberId("suspendingUser"))
+              suspendingUser = MemberId("suspendingUser")
             ),
             probe.ref
           )
@@ -1234,7 +1008,7 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             GetOrganizations(
-              tenantId = Some(TenantId(tenantId))
+              tenantId = TenantId(tenantId)
             ),
             probe.ref
           )
@@ -1243,7 +1017,7 @@ class TenantSpec
           assert(response.isSuccess)
 
           val responseVal = response.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue
-          responseVal.organizations shouldBe Some(TenantOrganizationList())
+          responseVal.organizations shouldBe TenantOrganizationList()
         }
       }
 
@@ -1256,8 +1030,8 @@ class TenantSpec
 
           p ! Tenant.TenantCommand(
             TerminateTenant(
-              tenantId = Some(TenantId(tenantId)),
-              terminatingUser = Some(MemberId("terminatingUser"))
+              tenantId = TenantId(tenantId),
+              terminatingUser = MemberId("terminatingUser")
             ),
             probe.ref
           )

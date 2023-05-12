@@ -18,9 +18,9 @@ enum NotificationPreference {
 
 enum MemberState {
   option (scalapb.enum_options).extends = "com.improving.app.common.serialize.PBEnumSerializable";
-  MEMBER_STATUS_DRAFT = 0;
-  MEMBER_STATUS_ACTIVE = 1;
-  MEMBER_STATUS_SUSPENDED = 2;
+  MEMBER_STATE_DRAFT = 0;
+  MEMBER_STATE_ACTIVE = 1;
+  MEMBER_STATE_SUSPENDED = 2;
 }
 
 message MemberInfo {
@@ -32,7 +32,7 @@ message MemberInfo {
   optional NotificationPreference notification_preference = 5;
   bool notification_opt_in = 6;
   common.domain.Contact contact = 7;
-  repeated common.domain.OrganizationId organizationMembership = 8;
+  repeated common.domain.OrganizationId organization_membership = 8;
   common.domain.TenantId tenant = 9;
 }
 
@@ -49,7 +49,7 @@ message RequiredDraftInfo {
 message OptionalDraftInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   optional NotificationPreference notification_preference = 1;
-  repeated common.domain.OrganizationId organizationMembership = 2;
+  repeated common.domain.OrganizationId organization_membership = 2;
 }
 
 message MemberMap {
@@ -75,7 +75,7 @@ message EditableInfo {
   optional string last_name = 4;
   optional NotificationPreference notification_preference = 5;
   common.domain.Contact contact = 6;
-  repeated common.domain.OrganizationId organizationMembership = 7;
+  repeated common.domain.OrganizationId organization_membership = 7;
   common.domain.TenantId tenant = 8;
 }
 

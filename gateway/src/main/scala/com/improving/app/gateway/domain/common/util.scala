@@ -48,8 +48,8 @@ object util {
   )
 
   private def memberStateToGatewayMemberState(memberStatus: MemberState): GatewayMemberStates = {
-    if (memberStatus.isMemberStatusDraft) GatewayMemberStates.MEMBER_STATES_DRAFT
-    else if (memberStatus.isMemberStatusActive) GatewayMemberStates.MEMBER_STATES_ACTIVE
+    if (memberStatus.isMemberStateDraft) GatewayMemberStates.MEMBER_STATES_DRAFT
+    else if (memberStatus.isMemberStateActive) GatewayMemberStates.MEMBER_STATES_ACTIVE
     else GatewayMemberStates.MEMBER_STATES_SUSPENDED
   }
 

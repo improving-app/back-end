@@ -2,36 +2,63 @@ syntax = "proto3";
 
 package com.improving.app.common.domain;
 import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
+import "validate/validate.proto";
 
+option (scalapb.options) = {
+  scope: FILE
+  [scalapb.validate.file] {
+    validate_at_construction: true
+  }
+};
 
 // Either a USA or Canadian postal code
 message PostalCode {
   option (scalapb.message).type = "com.improving.app.common.domain.PostalCodeMessageImpl";
   oneof postal_code_value {
     // A USA postal code
-    string ca_postal_code_message = 1;
+    string ca_postal_code_message = 1 [(validate.rules).string.min_len = 1];
     // A Canadian postal code
-    string us_postal_code_message = 2;
+    string us_postal_code_message = 2 [(validate.rules).string.min_len = 1];
   }
 }
 
 // A generalized north american postal address
 message Address {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  string line1 = 1;
-  string line2 = 2;
-  string city = 3;
-  string state_province = 4;
-  string country = 5;
-  PostalCode postal_code = 6;
+  string line1 = 1 [(validate.rules).string.min_len = 1];
+  optional string line2 = 2 [(validate.rules).string.min_len = 1];
+  string city = 3 [(validate.rules).string.min_len = 1];
+  string state_province = 4 [(validate.rules).string.min_len = 1];
+  string country = 5 [(validate.rules).string.min_len = 1];
+  PostalCode postal_code = 6 [(validate.rules).message.required = true];
+}
+
+message EditableAddress {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  optional string line1 = 1 [(validate.rules).string.min_len = 1];
+  optional string line2 = 2 [(validate.rules).string.min_len = 1];
+  optional string city = 3 [(validate.rules).string.min_len = 1];
+  optional string state_province = 4 [(validate.rules).string.min_len = 1];
+  optional string country = 5 [(validate.rules).string.min_len = 1];
+  optional PostalCode postal_code = 6 [(validate.rules).message.required = false];
 }
 
 // Contact information for an individual
 message Contact {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  string first_name = 1;
-  string last_name = 2;
-  optional string email_address = 3;
-  optional string phone = 4;
-  string user_name = 5;
+  string first_name = 1 [(validate.rules).string.min_len = 1];
+  string last_name = 2 [(validate.rules).string.min_len = 1];
+  optional string email_address = 3 [(validate.rules).string.min_len = 1];
+  optional string phone = 4 [(validate.rules).string.min_len = 1];
+  string user_name = 5 [(validate.rules).string.min_len = 1];
+}
+
+message EditableContact {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  optional string first_name = 1 [(validate.rules).string.min_len = 1];
+  optional string last_name = 2 [(validate.rules).string.min_len = 1];
+  optional string email_address = 3 [(validate.rules).string.min_len = 1];
+  optional string phone = 4 [(validate.rules).string.min_len = 1];
+  optional string user_name = 5 [(validate.rules).string.min_len = 1];
 }

@@ -1,10 +1,11 @@
 import C.{dockerSettings, Compilation, Packaging, Testing}
 import Dependencies._
 import akka.grpc.sbt.AkkaGrpcPlugin
+import akka.grpc.sbt.AkkaGrpcPlugin.autoImport.akkaGrpcCodeGeneratorSettings
 import com.typesafe.sbt.packager.Keys._
 import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
 import com.typesafe.sbt.packager.docker.DockerPlugin
-import sbt.Keys._
+import sbt.Keys.{libraryDependencies, _}
 import sbt.{Def, Project, Test, Tests, _}
 import sbtdynver.DynVerPlugin.autoImport.dynverSeparator
 import sbtprotoc.ProtocPlugin.autoImport.PB
@@ -49,55 +50,30 @@ object C {
     "-parameters" // for Jackson
   )
 
-  def service(componentName: String, port: Int = 8080)(
-      project: Project
-  ): Project = {
-    project
-      .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
-      .configs(IntegrationTest.extend(Test))
-      .configure(Compilation.scala)
-      .configure(Testing.scalaTest)
-      .configure(Packaging.docker)
-      .settings(
-        Defaults.itSettings,
-        name := componentName,
-        run / fork := true,
-        scalaVersion := V.scala,
-        scalacOptions := scala3Options,
-        Compile / scalacOptions ++= scala3Options,
-        IntegrationTest / fork := true,
-        libraryDependencies ++=
-          utilityDependencies ++ loggingDependencies ++ httpDependencies ++ akkaHttpTestingDependencies ++ jsonDependencies,
-        dockerSettings(port)
-      )
-  }
-
-  def itService(componentName: String)(
-      project: Project
-  ): Project = {
-    project
-      .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
-      .configs(IntegrationTest)
-      .configure(Compilation.scala)
-      .configure(Testing.scalaTest)
-      .settings(
-        Defaults.itSettings,
-        name := componentName,
-        run / fork := true,
-        scalaVersion := V.scala,
-        scalacOptions := scala3Options,
-        IntegrationTest / fork := true,
-        Compile / scalacOptions ++= scala3Options,
-        libraryDependencies ++=
-          utilityDependencies ++ loggingDependencies ++ httpDependencies ++ akkaHttpTestingDependencies ++ jsonDependencies,
-        libraryDependencies ++= Seq(
-          "com.typesafe.akka" %% "akka-actor-typed" % V.akka,
-          "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test"
-        )
-      )
-  }
-
   object Compilation {
+
+    def service(componentName: String, port: Int = 8080)(
+        project: Project
+    ): Project = {
+      project
+        .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
+        .configs(IntegrationTest.extend(Test))
+        .configure(Compilation.scala)
+        .configure(Testing.scalaTest)
+        .configure(Packaging.docker)
+        .settings(
+          Defaults.itSettings,
+          name := componentName,
+          run / fork := true,
+          scalaVersion := V.scala,
+          scalacOptions := scala3Options,
+          Compile / scalacOptions ++= scala3Options,
+          IntegrationTest / fork := true,
+          libraryDependencies ++=
+            utilityDependencies ++ loggingDependencies ++ httpDependencies ++ akkaHttpTestingDependencies ++ jsonDependencies,
+          dockerSettings(port)
+        )
+    }
 
     def scala(project: Project): Project = {
       project.settings(
@@ -118,24 +94,31 @@ object C {
       )
     }
 
-    def scalapbCodeGen(project: Project): Project = {
-      project.settings(
-        libraryDependencies ++= scalaPbDependencies,
-        Compile / PB.targets := Seq(
-          scalapb.gen(
-            FlatPackage,
-            SingleLineToProtoString,
-            RetainSourceCodeInfo
-          ) -> (Compile / sourceManaged).value / "scalapb",
-          scalapb.validate.gen(
-            FlatPackage,
-            SingleLineToProtoString,
-            RetainSourceCodeInfo
-          ) -> (Compile / sourceManaged).value / "scalapb"
-        ),
-        libraryDependencies += scalaPbCompilerPlugin
-      )
+    def itService(componentName: String)(
+        project: Project
+    ): Project = {
+      project
+        .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
+        .configs(IntegrationTest)
+        .configure(Compilation.scala)
+        .configure(Testing.scalaTest)
+        .settings(
+          Defaults.itSettings,
+          name := componentName,
+          run / fork := true,
+          scalaVersion := V.scala,
+          scalacOptions := scala3Options,
+          IntegrationTest / fork := true,
+          Compile / scalacOptions ++= scala3Options,
+          libraryDependencies ++=
+            utilityDependencies ++ loggingDependencies ++ httpDependencies ++ akkaHttpTestingDependencies ++ jsonDependencies,
+          libraryDependencies ++= Seq(
+            "com.typesafe.akka" %% "akka-actor-typed" % V.akka,
+            "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test"
+          )
+        )
     }
+
   }
 
   object Testing {
@@ -195,6 +178,8 @@ object C {
         run / fork := true,
         Global / cancelable := false, // ctrl-c
         Defaults.itSettings,
+        Compile / PB.targets += scalapb.validate
+          .gen(FlatPackage) -> (Compile / akkaGrpcCodeGeneratorSettings / target).value,
         libraryDependencies ++= Seq(
           "com.typesafe.akka" %% "akka-actor-typed" % V.akka,
           "com.typesafe.akka" %% "akka-actor-testkit-typed" % V.akka % Test,
@@ -224,7 +209,9 @@ object C {
           "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test",
           "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion % "it, test",
           "org.wvlet.airframe" %% "airframe-ulid" % V.airframeUlidVersion,
-        ) ++ akkaHttpTestingDependencies,
+        ) ++ akkaHttpTestingDependencies ++ scalaPbDependencies ++ scalaPbValidationDependencies ++ Seq(
+          scalaPbCompilerPlugin
+        ),
         dockerSettings(port),
       )
   }
@@ -280,7 +267,7 @@ object C {
 
   def scalapbCodeGen(project: Project): Project = {
     project.settings(
-      libraryDependencies ++= scalaPbDependencies,
+      libraryDependencies ++= scalaPbDependencies ++ scalaPbValidationDependencies,
       Compile / PB.targets := Seq(
         scalapb.gen(
           FlatPackage,

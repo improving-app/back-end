@@ -12,7 +12,7 @@ import cats.implicits.toFoldableOps
 import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.MemberId
 import com.improving.app.common.errors.{Error, StateError, ValidationError}
-import com.improving.app.member.domain.MemberState.{MEMBER_STATUS_ACTIVE, MEMBER_STATUS_DRAFT, MEMBER_STATUS_SUSPENDED}
+import com.improving.app.member.domain.MemberState.{MEMBER_STATE_ACTIVE, MEMBER_STATE_DRAFT, MEMBER_STATE_SUSPENDED}
 import com.typesafe.scalalogging.StrictLogging
 
 import java.time.{Clock, Instant}
@@ -94,7 +94,7 @@ object Member extends StrictLogging {
           }
         case RegisteredMemberState(info, meta) =>
           meta.currentState match {
-            case MemberState.MEMBER_STATUS_ACTIVE =>
+            case MemberState.MEMBER_STATE_ACTIVE =>
               command.request match {
                 case suspendMemberCommand: SuspendMember     => suspendMember(info, meta, suspendMemberCommand)
                 case terminateMemberCommand: TerminateMember => terminateMember(meta, terminateMemberCommand)
@@ -103,7 +103,7 @@ object Member extends StrictLogging {
                 case _ =>
                   Left(StateError(s"${command.request.productPrefix} command cannot be used on an active Member"))
               }
-            case MemberState.MEMBER_STATUS_SUSPENDED =>
+            case MemberState.MEMBER_STATE_SUSPENDED =>
               command.request match {
                 case activateMemberCommand: ActivateMember   => activateMember(info, meta, activateMemberCommand)
                 case suspendMemberCommand: SuspendMember     => suspendMember(info, meta, suspendMemberCommand)
@@ -231,7 +231,7 @@ object Member extends StrictLogging {
           lastModifiedBy = registerMemberCommand.registeringMember,
           createdOn = now,
           createdBy = registerMemberCommand.registeringMember,
-          currentState = MEMBER_STATUS_DRAFT
+          currentState = MEMBER_STATE_DRAFT
         )
         val event = MemberRegistered(
           registerMemberCommand.memberId,
@@ -254,7 +254,7 @@ object Member extends StrictLogging {
         val newMeta = meta.copy(
           lastModifiedBy = activateMemberCommand.activatingMember,
           lastModifiedOn = Some(Timestamp(Instant.now(clock))),
-          currentState = MEMBER_STATUS_ACTIVE
+          currentState = MEMBER_STATE_ACTIVE
         )
         transitionMemberState(
           info = info,
@@ -283,7 +283,7 @@ object Member extends StrictLogging {
         val newMeta = meta.copy(
           lastModifiedBy = suspendMemberCommand.suspendingMember,
           lastModifiedOn = Some(Timestamp(Instant.now(clock))),
-          currentState = MEMBER_STATUS_SUSPENDED
+          currentState = MEMBER_STATE_SUSPENDED
         )
         transitionMemberState(
           info = info,

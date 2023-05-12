@@ -7,10 +7,9 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import com.google.protobuf.timestamp.Timestamp
-import com.improving.app.common.domain.MemberId
-import com.improving.app.common.errors.Validation._
+import com.improving.app.common.domain.{MemberId, OrganizationId}
 import com.improving.app.common.errors._
-import com.improving.app.tenant.domain.Validation._
+import com.improving.app.tenant.domain.util.infoFromEditableInfo
 
 import java.time.Instant
 
@@ -105,7 +104,7 @@ object Tenant {
         event.tenantEvent match {
           case e: TenantEstablished =>
             state match {
-              case UninitializedTenant => ActiveTenant(info = e.tenantInfo.get, metaInfo = e.metaInfo.get)
+              case UninitializedTenant => ActiveTenant(info = e.tenantInfo, metaInfo = e.metaInfo)
               case _: ActiveTenant     => state
               case _: SuspendedTenant  => state
               case _: TerminatedTenant => state
@@ -113,21 +112,21 @@ object Tenant {
           case e: TenantActivated =>
             state match {
               case _: ActiveTenant     => state // tenant cannot have TenantActivated in Active state
-              case x: SuspendedTenant  => ActiveTenant(x.info, e.metaInfo.get)
+              case x: SuspendedTenant  => ActiveTenant(x.info, e.metaInfo)
               case UninitializedTenant => UninitializedTenant
               case _: TerminatedTenant => state
             }
           case e: TenantSuspended =>
             state match {
-              case x: ActiveTenant     => SuspendedTenant(x.info, e.metaInfo.get, e.suspensionReason)
-              case x: SuspendedTenant  => SuspendedTenant(x.info, e.metaInfo.get, e.suspensionReason)
+              case x: ActiveTenant     => SuspendedTenant(x.info, e.metaInfo, e.suspensionReason)
+              case x: SuspendedTenant  => SuspendedTenant(x.info, e.metaInfo, e.suspensionReason)
               case UninitializedTenant => UninitializedTenant
               case _: TerminatedTenant => state
             }
           case e: InfoEdited =>
             state match {
-              case x: ActiveTenant     => x.copy(info = e.getNewInfo, metaInfo = e.getMetaInfo)
-              case x: SuspendedTenant  => x.copy(info = e.getNewInfo, metaInfo = e.getMetaInfo)
+              case x: ActiveTenant     => x.copy(info = e.newInfo, metaInfo = e.metaInfo)
+              case x: SuspendedTenant  => x.copy(info = e.newInfo, metaInfo = e.metaInfo)
               case UninitializedTenant => UninitializedTenant
               case _: TerminatedTenant => state
             }
@@ -142,178 +141,115 @@ object Tenant {
     }
   }
 
-  private def updateMetaInfo(metaInfo: TenantMetaInfo, lastUpdatedByOpt: Option[MemberId]): TenantMetaInfo = {
-    metaInfo.copy(lastUpdatedBy = lastUpdatedByOpt, lastUpdated = Some(Timestamp(Instant.now())))
+  private def updateMetaInfo(metaInfo: TenantMetaInfo, lastUpdatedBy: MemberId): TenantMetaInfo = {
+    metaInfo.copy(lastUpdatedBy = lastUpdatedBy, lastUpdated = Timestamp(Instant.now()))
   }
 
   private def establishTenant(establishTenant: EstablishTenant): Either[Error, TenantEnvelope] = {
-    val maybeValidationError = applyAllValidators[EstablishTenant](
-      c => required("tenant id", tenantIdValidator)(c.tenantId),
-      c => required("activating user", memberIdValidator)(c.establishingUser)
-    )(establishTenant)
-    if(maybeValidationError.isDefined) {
-      Left(maybeValidationError.get)
-    } else {
-      val maybeTenantInfoError = required("tenant info", completeTenantInfoValidator)(establishTenant.tenantInfo)
-      if (maybeTenantInfoError.isDefined) {
-        Left(maybeTenantInfoError.get)
-      } else {
-        val tenantInfo = establishTenant.tenantInfo.get
+    val tenantInfo = establishTenant.tenantInfo.get
 
-        val newMetaInfo = TenantMetaInfo(
-          createdBy = establishTenant.establishingUser,
-          createdOn = Some(Timestamp(Instant.now()))
-        )
+    val now = Instant.now()
 
-        Right(
-          TenantEventResponse(
-            TenantEstablished(
-              tenantId = establishTenant.tenantId,
-              metaInfo = Some(newMetaInfo),
-              tenantInfo = Some(tenantInfo)
-            )
-          )
+    val newMetaInfo = TenantMetaInfo(
+      createdBy = establishTenant.establishingUser,
+      createdOn = Timestamp(now),
+      lastUpdated = Timestamp(now),
+      lastUpdatedBy = establishTenant.establishingUser,
+      state = TenantState.TENANT_STATE_ACTIVE
+    )
+
+    Right(
+      TenantEventResponse(
+        TenantEstablished(
+          tenantId = establishTenant.tenantId,
+          metaInfo = newMetaInfo,
+          tenantInfo = tenantInfo
         )
-      }
-    }
+      )
+    )
   }
 
   private def activateTenant(
       state: EstablishedTenantState,
       activateTenant: ActivateTenant,
   ): Either[Error, TenantEnvelope] = {
-    val maybeValidationError = applyAllValidators[ActivateTenant](
-      c => required("tenant id", tenantIdValidator)(c.tenantId),
-      c => required("activating user", memberIdValidator)(c.activatingUser)
-    )(activateTenant)
-
-    if (maybeValidationError.isDefined) {
-      Left(maybeValidationError.get)
-    } else {
-      val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = activateTenant.activatingUser)
-      Right(
-        TenantEventResponse(
-          TenantActivated(
-            tenantId = activateTenant.tenantId,
-            metaInfo = Some(newMetaInfo)
-          )
+    val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedBy = activateTenant.activatingUser)
+    Right(
+      TenantEventResponse(
+        TenantActivated(
+          tenantId = activateTenant.tenantId,
+          metaInfo = newMetaInfo
         )
       )
-    }
+    )
   }
 
   private def suspendTenant(
       state: EstablishedTenantState,
       suspendTenant: SuspendTenant,
   ): Either[Error, TenantEnvelope] = {
-    val maybeValidationError = applyAllValidators[SuspendTenant](
-      c => required("tenant id", tenantIdValidator)(c.tenantId),
-      c => required("activating user", memberIdValidator)(c.suspendingUser)
-    )(suspendTenant)
-
-    if (maybeValidationError.isDefined) {
-      Left(maybeValidationError.get)
-    } else {
-      val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = suspendTenant.suspendingUser)
-      Right(
-        TenantEventResponse(
-          TenantSuspended(
-            tenantId = suspendTenant.tenantId,
-            metaInfo = Some(newMetaInfo),
-            suspensionReason = suspendTenant.suspensionReason
-          )
+    val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedBy = suspendTenant.suspendingUser)
+    Right(
+      TenantEventResponse(
+        TenantSuspended(
+          tenantId = suspendTenant.tenantId,
+          metaInfo = newMetaInfo,
+          suspensionReason = suspendTenant.suspensionReason
         )
       )
-    }
+    )
   }
 
   private def editInfo(
-                        state: Tenant.EstablishedTenantState,
-                        editInfoCommand: EditInfo,
-                      ): Either[Error, TenantEnvelope] = {
-    val validationResult = applyAllValidators[EditInfo](
-      c => required("tenant id", tenantIdValidator)(c.tenantId),
-      c => required("editing user", memberIdValidator)(c.editingUser),
-      c => required("tenant info", partialTenantInfoValidator)(c.infoToUpdate)
-    )(editInfoCommand)
+      state: Tenant.EstablishedTenantState,
+      editInfoCommand: EditInfo,
+  ): Either[Error, TenantEnvelope] = {
+    val infoToUpdate = editInfoCommand.infoToUpdate
+    val stateInfo = state.info
+    val newInfo = infoFromEditableInfo(infoToUpdate, stateInfo)
 
-    if (validationResult.isDefined) {
-      Left(validationResult.get)
-    } else {
-      val infoToUpdate = editInfoCommand.getInfoToUpdate
-      var updatedInfo = state.info
-      if (infoToUpdate.name.nonEmpty) {
-        updatedInfo = updatedInfo.copy(name = infoToUpdate.name)
-      }
-      if (infoToUpdate.address.isDefined) {
-        updatedInfo = updatedInfo.copy(address = infoToUpdate.address)
-      }
-      if (infoToUpdate.primaryContact.isDefined) {
-        updatedInfo = updatedInfo.copy(primaryContact = infoToUpdate.primaryContact)
-      }
-      if (infoToUpdate.organizations.isDefined) {
-        updatedInfo = updatedInfo.copy(organizations = infoToUpdate.organizations)
-      }
+    val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedBy = editInfoCommand.editingUser)
 
-      val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = editInfoCommand.editingUser)
-
-      Right(
-        TenantEventResponse(
-          InfoEdited(
-            tenantId = editInfoCommand.tenantId,
-            metaInfo = Some(newMetaInfo),
-            oldInfo = Some(state.info),
-            newInfo = Some(updatedInfo)
-          )
+    Right(
+      TenantEventResponse(
+        InfoEdited(
+          tenantId = editInfoCommand.tenantId,
+          metaInfo = newMetaInfo,
+          oldInfo = state.info,
+          newInfo = newInfo
         )
       )
-    }
+    )
   }
 
   private def getOrganizations(
-                                getOrganizationsQuery: GetOrganizations,
-                                stateOpt: Option[Tenant.EstablishedTenantState] = None
-                              ): Either[Error, TenantEnvelope] = {
-    val validationResult = applyAllValidators[GetOrganizations](
-      c => required("tenant id", tenantIdValidator)(c.tenantId)
-    )(getOrganizationsQuery)
-
-    if (validationResult.isDefined) {
-      Left(validationResult.get)
-    } else {
-      Right(
-        TenantDataResponse(
-          TenantOrganizationData(
-            organizations = stateOpt.fold[Option[TenantOrganizationList]](Some(TenantOrganizationList(Seq.empty))) {
-              _.info.organizations
-            }
-          )
+      getOrganizationsQuery: GetOrganizations,
+      stateOpt: Option[Tenant.EstablishedTenantState] = None
+  ): Either[Error, TenantEnvelope] = {
+    Right(
+      TenantDataResponse(
+        TenantOrganizationData(
+          organizations = TenantOrganizationList(stateOpt.fold[Seq[OrganizationId]](Seq.empty) {
+            _.info.organizations.value
+          })
         )
       )
-    }
+    )
   }
 
   private def terminateTenant(
-                             state: EstablishedTenantState,
-                             terminateTenant: TerminateTenant,
-                           ): Either[Error, TenantEnvelope] = {
-    val maybeValidationError = applyAllValidators[TerminateTenant](
-      c => required("tenant Id", tenantIdValidator)(c.tenantId),
-      c => required("terminating user", memberIdValidator)(c.terminatingUser)
-    )(terminateTenant)
-
-    if (maybeValidationError.isDefined) {
-      Left(maybeValidationError.get)
-    } else {
-      val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = terminateTenant.terminatingUser)
-      Right(
-        TenantEventResponse(
-          TenantTerminated(
-            tenantId = terminateTenant.tenantId,
-            metaInfo = Some(newMetaInfo)
-          )
+      state: EstablishedTenantState,
+      terminateTenant: TerminateTenant,
+  ): Either[Error, TenantEnvelope] = {
+    val newMetaInfo =
+      updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedBy = terminateTenant.terminatingUser)
+    Right(
+      TenantEventResponse(
+        TenantTerminated(
+          tenantId = terminateTenant.tenantId,
+          metaInfo = newMetaInfo
         )
       )
-    }
+    )
   }
 }
