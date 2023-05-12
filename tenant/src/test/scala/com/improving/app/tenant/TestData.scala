@@ -38,7 +38,7 @@ object TestData {
     ),
     address = Address(
       line1 = editable.getAddress.getLine1,
-      line2 = editable.getAddress.getLine2,
+      line2 = editable.getAddress.line2,
       city = editable.getAddress.getCity,
       stateProvince = editable.getAddress.getStateProvince,
       country = editable.getAddress.getCountry,

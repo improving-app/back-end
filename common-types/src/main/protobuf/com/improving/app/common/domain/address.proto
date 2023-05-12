@@ -27,7 +27,7 @@ message PostalCode {
 message Address {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   string line1 = 1 [(validate.rules).string.min_len = 1];
-  string line2 = 2 [(validate.rules).string.min_len = 1];
+  optional string line2 = 2 [(validate.rules).string.min_len = 1];
   string city = 3 [(validate.rules).string.min_len = 1];
   string state_province = 4 [(validate.rules).string.min_len = 1];
   string country = 5 [(validate.rules).string.min_len = 1];

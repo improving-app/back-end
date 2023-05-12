@@ -223,7 +223,7 @@ object Tenant {
           v =>
             Address(
               line1 = doForSameIfHas[String](v.line1, stateInfo.address.line1),
-              line2 = doForSameIfHas[String](v.line2, stateInfo.address.line2),
+              line2 = Some(doForSameIfHas[String](v.line2, stateInfo.address.getLine2)),
               city = doForSameIfHas[String](v.city, stateInfo.address.city),
               stateProvince = doForSameIfHas[String](v.stateProvince, stateInfo.address.stateProvince),
               country = doForSameIfHas[String](v.country, stateInfo.address.country),

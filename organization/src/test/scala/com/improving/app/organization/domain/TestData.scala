@@ -5,7 +5,7 @@ import com.improving.app.common.domain.{Address, CaPostalCodeImpl, PostalCodeMes
 object TestData {
   val baseAddress = Address(
     line1 = "line1",
-    line2 = "line2",
+    line2 = Some("line2"),
     city = "city",
     stateProvince = "stateProvince",
     country = "country",

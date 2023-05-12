@@ -13,7 +13,7 @@ object TestData {
   )
   val baseAddress: Address = Address(
     line1 = "line1",
-    line2 = "line2",
+    line2 = Some("line2"),
     city = "city",
     stateProvince = "stateProvince",
     country = "country",
@@ -31,7 +31,7 @@ object TestData {
     ),
     address = Address(
       line1 = editable.getAddress.getLine1,
-      line2 = editable.getAddress.getLine2,
+      line2 = editable.getAddress.line2,
       city = editable.getAddress.getCity,
       stateProvince = editable.getAddress.getStateProvince,
       country = editable.getAddress.getCountry,

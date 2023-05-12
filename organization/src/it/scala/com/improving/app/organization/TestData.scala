@@ -6,7 +6,7 @@ import com.improving.app.organization.domain.OrganizationInfo
 object TestData {
   val baseAddress: Address = Address(
     line1 = "line1",
-    line2 = "line2",
+    line2 = Some("line2"),
     city = "city",
     stateProvince = "stateProvince",
     country = "country",
