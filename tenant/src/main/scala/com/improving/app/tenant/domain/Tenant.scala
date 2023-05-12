@@ -7,9 +7,8 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import com.google.protobuf.timestamp.Timestamp
-import com.improving.app.common.domain.{Address, Contact, EditableAddress, EditableContact, MemberId, OrganizationId, PostalCodeMessageImpl}
+import com.improving.app.common.domain.{MemberId, OrganizationId}
 import com.improving.app.common.errors._
-import com.improving.app.common.service.util.{doForSameIfHas, doIfHas}
 import com.improving.app.tenant.domain.util.infoFromEditableInfo
 
 import java.time.Instant
