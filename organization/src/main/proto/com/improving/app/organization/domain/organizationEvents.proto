@@ -32,6 +32,10 @@ message OrganizationEvent {
     OrganizationSuspended organization_suspended = 3;
     OrganizationTerminated organization_terminated = 4;
     OrganizationInfoEdited organization_info_edited = 5;
+    MembersAddedToOrganization members_added_to_organization = 6;
+    MembersRemovedFromOrganization members_removed_from_organization = 7;
+    OwnersAddedToOrganization owners_added_to_organization = 8;
+    OwnersRemovedFromOrganization owners_removed_from_organization = 9;
   }
 }
 
@@ -65,4 +69,32 @@ message OrganizationInfoEdited {
   OrganizationMetaInfo meta_info = 2 [(validate.rules).message.required = true];
   OrganizationInfo old_info = 3 [(validate.rules).message.required = true];
   OrganizationInfo new_info = 4 [(validate.rules).message.required = true];
+}
+
+message MembersAddedToOrganization {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  OrganizationMetaInfo meta_info = 2;
+  repeated com.improving.app.common.domain.MemberId members_added = 3;
+}
+
+message MembersRemovedFromOrganization {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  OrganizationMetaInfo meta_info = 2;
+  repeated com.improving.app.common.domain.MemberId members_removed = 3;
+}
+
+message OwnersAddedToOrganization {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  OrganizationMetaInfo meta_info = 2;
+  repeated com.improving.app.common.domain.MemberId owners_added = 3;
+}
+
+message OwnersRemovedFromOrganization {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  OrganizationMetaInfo meta_info = 2;
+  repeated com.improving.app.common.domain.MemberId owners_removed = 3;
 }

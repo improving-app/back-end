@@ -41,6 +41,10 @@ message OrganizationRequestPB {
     SuspendOrganization suspend_organization = 3;
     TerminateOrganization terminate_organization = 4;
     EditOrganizationInfo edit_organization_info = 5;
+    AddMembersToOrganization add_members_to_organization = 6;
+    RemoveMembersFromOrganization remove_members_from_organization = 7;
+    AddOwnersToOrganization add_owners_to_organization = 8;
+    RemoveOwnersFromOrganization remove_owners_from_organization = 9;
 
     GetOrganizationInfo get_organization_info = 10;
   }
@@ -86,6 +90,42 @@ message EditOrganizationInfo {
   com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
   com.improving.app.common.domain.MemberId on_behalf_of = 2 [(validate.rules).message.required = true];
   com.improving.app.organization.domain.EditableOrganizationInfo organization_info = 3 [(validate.rules).message.required = true];
+}
+
+message AddOwnersToOrganization {
+  option (scalapb.message) = {
+    extends: [ "OrganizationCommand" ]
+  };
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  repeated com.improving.app.common.domain.MemberId owners_to_add = 3;
+}
+
+message RemoveOwnersFromOrganization {
+  option (scalapb.message) = {
+    extends: [ "OrganizationCommand" ]
+  };
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  repeated com.improving.app.common.domain.MemberId owners_to_remove = 3;
+}
+
+message AddMembersToOrganization {
+  option (scalapb.message) = {
+    extends: [ "OrganizationCommand" ]
+  };
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  repeated com.improving.app.common.domain.MemberId members_to_add = 3;
+}
+
+message RemoveMembersFromOrganization {
+  option (scalapb.message) = {
+    extends: [ "OrganizationCommand" ]
+  };
+  com.improving.app.common.domain.OrganizationId organization_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  repeated com.improving.app.common.domain.MemberId members_to_remove = 3;
 }
 
 message GetOrganizationInfo {
