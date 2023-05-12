@@ -73,28 +73,28 @@ message OrganizationInfoEdited {
 
 message MembersAddedToOrganization {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  com.improving.app.common.domain.OrganizationId organization_id = 1;
-  OrganizationMetaInfo meta_info = 2;
-  repeated com.improving.app.common.domain.MemberId members_added = 3;
+  com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
+  OrganizationMetaInfo meta_info = 2 [(validate.rules).message.required = true];
+  repeated com.improving.app.common.domain.MemberId members_added = 3 [(validate.rules).repeated.min_items = 1];
 }
 
 message MembersRemovedFromOrganization {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  com.improving.app.common.domain.OrganizationId organization_id = 1;
-  OrganizationMetaInfo meta_info = 2;
-  repeated com.improving.app.common.domain.MemberId members_removed = 3;
+  com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
+  OrganizationMetaInfo meta_info = 2 [(validate.rules).message.required = true];
+  repeated com.improving.app.common.domain.MemberId members_removed = 3 [(validate.rules).repeated.min_items = 1];
 }
 
 message OwnersAddedToOrganization {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  com.improving.app.common.domain.OrganizationId organization_id = 1;
-  OrganizationMetaInfo meta_info = 2;
-  repeated com.improving.app.common.domain.MemberId owners_added = 3;
+  com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
+  OrganizationMetaInfo meta_info = 2 [(validate.rules).message.required = true];
+  repeated com.improving.app.common.domain.MemberId owners_added = 3 [(validate.rules).repeated.min_items = 1];
 }
 
 message OwnersRemovedFromOrganization {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  com.improving.app.common.domain.OrganizationId organization_id = 1;
-  OrganizationMetaInfo meta_info = 2;
-  repeated com.improving.app.common.domain.MemberId owners_removed = 3;
+  com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
+  OrganizationMetaInfo meta_info = 2 [(validate.rules).message.required = true];
+  repeated com.improving.app.common.domain.MemberId owners_removed = 3 [(validate.rules).repeated.min_items = 1];
 }
