@@ -10,7 +10,7 @@ import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.MemberId
 import com.improving.app.common.errors.Validation._
 import com.improving.app.common.errors._
-import com.improving.app.organization.domain.OrganizationValidation._
+import com.improving.app.organization.domain.OrganizationState.ORGANIZATION_STATE_DRAFT
 
 import java.time.Instant
 
@@ -93,31 +93,31 @@ object Organization {
       case OrganizationEvent.Empty => state
       case event: OrganizationEstablished =>
         state match {
-          case UninitializedState => DraftState(info = event.organizationInfo.get, metaInfo = event.metaInfo.get)
+          case UninitializedState => DraftState(info = event.organizationInfo, metaInfo = event.metaInfo)
           case _: DraftState      => state
           case _: ActiveState     => state
           case _: SuspendedState  => state
         }
       case event: OrganizationActivated =>
         state match {
-          case x: DraftState      => ActiveState(x.info, event.metaInfo.get)
+          case x: DraftState      => ActiveState(x.info, event.metaInfo)
           case _: ActiveState     => state
-          case x: SuspendedState  => ActiveState(x.info, event.metaInfo.get)
+          case x: SuspendedState  => ActiveState(x.info, event.metaInfo)
           case UninitializedState => UninitializedState
         }
       case event: OrganizationSuspended =>
         state match {
-          case x: DraftState      => SuspendedState(x.info, event.metaInfo.get)
-          case x: ActiveState     => SuspendedState(x.info, event.metaInfo.get)
-          case x: SuspendedState  => SuspendedState(x.info, event.metaInfo.get)
+          case x: DraftState      => SuspendedState(x.info, event.metaInfo)
+          case x: ActiveState     => SuspendedState(x.info, event.metaInfo)
+          case x: SuspendedState  => SuspendedState(x.info, event.metaInfo)
           case UninitializedState => UninitializedState
         }
       case _: OrganizationTerminated => state
       case event: OrganizationInfoEdited =>
         state match {
-          case _: DraftState      => DraftState(event.getNewInfo, event.getMetaInfo)
-          case _: ActiveState     => ActiveState(event.getNewInfo, event.getMetaInfo)
-          case _: SuspendedState  => SuspendedState(event.getNewInfo, event.getMetaInfo)
+          case _: DraftState      => DraftState(event.newInfo, event.metaInfo)
+          case _: ActiveState     => ActiveState(event.newInfo, event.metaInfo)
+          case _: SuspendedState  => SuspendedState(event.newInfo, event.metaInfo)
           case UninitializedState => UninitializedState
         }
     }
@@ -125,147 +125,93 @@ object Organization {
 
   private def updateMetaInfo(
       metaInfo: OrganizationMetaInfo,
-      lastUpdatedByOpt: Option[MemberId]
+      lastUpdatedByOpt: MemberId
   ): OrganizationMetaInfo = {
-    metaInfo.copy(lastUpdatedBy = lastUpdatedByOpt, lastUpdated = Some(Timestamp(Instant.now())))
+    metaInfo.copy(lastUpdatedBy = lastUpdatedByOpt, lastUpdated = Timestamp(Instant.now()))
   }
 
   private def establishOrganization(establishOrganization: EstablishOrganization): Either[Error, OrganizationEvent] = {
-    val maybeValidationError = applyAllValidators[EstablishOrganization](
-      c => required("organization id", organizationIdValidator)(c.organizationId),
-      c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
-    )(establishOrganization)
-    if(maybeValidationError.isDefined) {
-      Left(maybeValidationError.get)
-    } else {
-      val maybeOrganizationInfoError =
-        required("organization info", inactiveStateOrganizationInfoValidator)(establishOrganization.organizationInfo)
-      if (maybeOrganizationInfoError.isDefined) {
-        Left(maybeOrganizationInfoError.get)
-      } else {
-        val organizationInfo = establishOrganization.organizationInfo.get
+    val organizationInfo = establishOrganization.organizationInfo
 
-        val newMetaInfo = OrganizationMetaInfo(
-          createdOn = Some(Timestamp(Instant.now())),
-          createdBy = Some(establishOrganization.getOnBehalfOf)
-        )
+    val now = Instant.now()
 
-        Right(
-          OrganizationEstablished(
-            organizationId = establishOrganization.organizationId,
-            metaInfo = Some(newMetaInfo),
-            organizationInfo = Some(organizationInfo)
-          )
-        )
-      }
-    }
+    val newMetaInfo = OrganizationMetaInfo(
+      createdOn = Timestamp(now),
+      createdBy = establishOrganization.onBehalfOf,
+      lastUpdated = Timestamp(now),
+      lastUpdatedBy = establishOrganization.onBehalfOf,
+      state = ORGANIZATION_STATE_DRAFT
+    )
+
+    Right(
+      OrganizationEstablished(
+        organizationId = establishOrganization.organizationId,
+        metaInfo = newMetaInfo,
+        organizationInfo = organizationInfo
+      )
+    )
   }
 
   private def activateOrganization(
-                                    state: InactiveState,
-                                    activateOrganization: ActivateOrganization,
-                                  ): Either[Error, OrganizationEvent] = {
-    val maybeValidationError: Option[ValidationError] = applyAllValidators[ActivateOrganization](
-      c => required("organization id", organizationIdValidator)(c.organizationId),
-      c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
-    )(activateOrganization).orElse(activeStateOrganizationInfoValidator(state.info))
-
-    if (maybeValidationError.isDefined) {
-      Left(maybeValidationError.get)
-    } else {
-      val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = activateOrganization.onBehalfOf)
-      Right(
-        OrganizationActivated(
-          organizationId = activateOrganization.organizationId,
-          metaInfo = Some(newMetaInfo)
-        )
+      state: InactiveState,
+      activateOrganization: ActivateOrganization,
+  ): Either[Error, OrganizationEvent] = {
+    val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = activateOrganization.onBehalfOf)
+    Right(
+      OrganizationActivated(
+        organizationId = activateOrganization.organizationId,
+        metaInfo = newMetaInfo
       )
-    }
+    )
   }
 
   private def suspendOrganization(
-                                   state: EstablishedState,
-                                   suspendOrganization: SuspendOrganization,
-                           ): Either[Error, OrganizationEvent] = {
-    val maybeValidationError = applyAllValidators[SuspendOrganization](
-      c => required("organization id", organizationIdValidator)(c.organizationId),
-      c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
-    )(suspendOrganization)
-
-    if (maybeValidationError.isDefined) {
-      Left(maybeValidationError.get)
-    } else {
-      val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = suspendOrganization.onBehalfOf)
-      Right(
-        OrganizationSuspended(
-          organizationId = suspendOrganization.organizationId,
-          metaInfo = Some(newMetaInfo),
-        )
+      state: EstablishedState,
+      suspendOrganization: SuspendOrganization,
+  ): Either[Error, OrganizationEvent] = {
+    val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = suspendOrganization.onBehalfOf)
+    Right(
+      OrganizationSuspended(
+        organizationId = suspendOrganization.organizationId,
+        metaInfo = newMetaInfo,
       )
-    }
+    )
   }
 
   private def terminateOrganization(
       establishedState: EstablishedState,
       terminate: TerminateOrganization
   ): Either[Error, OrganizationEvent] = {
-    val maybeValidationError: Option[ValidationError] = applyAllValidators[TerminateOrganization](
-      c => required("org id", organizationIdValidator)(c.organizationId),
-      c => required("on behalf of", memberIdValidator)(c.onBehalfOf)
-    )(terminate)
-
-    if (maybeValidationError.isDefined) {
-      Left(maybeValidationError.get)
-    } else {
-      Right(
-        OrganizationTerminated(
-          organizationId = terminate.organizationId
-        )
+    Right(
+      OrganizationTerminated(
+        organizationId = terminate.organizationId
       )
-    }
+    )
   }
 
   private def editOrganizationInfo(
-                                    state: EstablishedState,
-                                    command: EditOrganizationInfo
-                                  ): Either[Error, OrganizationInfoEdited] = {
-    val maybeValidationError = applyAllValidators[EditOrganizationInfo](
-      command => required("organization id", organizationIdValidator)(command.organizationId),
-      command => required("on behalf of", memberIdValidator)(command.onBehalfOf),
-    )(command)
-    if(maybeValidationError.isDefined) {
-      Left(maybeValidationError.get)
-    } else {
-      val fieldsToUpdate = command.getOrganizationInfo
+      state: EstablishedState,
+      command: EditOrganizationInfo
+  ): Either[Error, OrganizationInfoEdited] = {
+    val fieldsToUpdate = command.organizationInfo
 
-      var updatedInfo = state.info
-      fieldsToUpdate.name.foreach(newName => updatedInfo = updatedInfo.copy(name = newName))
-      fieldsToUpdate.shortName.foreach(newShortName => updatedInfo = updatedInfo.copy(shortName = newShortName))
-      fieldsToUpdate.isPublic.foreach(newIsPublic => updatedInfo = updatedInfo.copy(isPublic = newIsPublic))
-      fieldsToUpdate.address.foreach(newAddress => updatedInfo = updatedInfo.copy(address = Some(newAddress)))
-      fieldsToUpdate.url.foreach(newUrl => updatedInfo = updatedInfo.copy(url = newUrl))
-      fieldsToUpdate.logo.foreach(newLogo => updatedInfo = updatedInfo.copy(logo = newLogo))
+    var updatedInfo = state.info
+    fieldsToUpdate.name.foreach(newName => updatedInfo = updatedInfo.copy(name = newName))
+    fieldsToUpdate.shortName.foreach(newShortName => updatedInfo = updatedInfo.copy(shortName = Some(newShortName)))
+    fieldsToUpdate.isPublic.foreach(newIsPublic => updatedInfo = updatedInfo.copy(isPublic = newIsPublic))
+    fieldsToUpdate.address.foreach(newAddress => updatedInfo = updatedInfo.copy(address = Some(newAddress)))
+    fieldsToUpdate.url.foreach(newUrl => updatedInfo = updatedInfo.copy(url = Some(newUrl)))
+    fieldsToUpdate.logo.foreach(newLogo => updatedInfo = updatedInfo.copy(logo = Some(newLogo)))
 
-      val updatedInfoValidator = state match {
-        case _: ActiveState   => activeStateOrganizationInfoValidator
-        case _: InactiveState => inactiveStateOrganizationInfoValidator
-      }
+    val updatedMetaInfo = updateMetaInfo(state.metaInfo, command.onBehalfOf)
 
-      val maybeNewInfoInvalid = updatedInfoValidator(updatedInfo)
-      if (maybeNewInfoInvalid.isDefined) {
-        Left(maybeNewInfoInvalid.get)
-      } else {
-        val updatedMetaInfo = updateMetaInfo(state.metaInfo, command.onBehalfOf)
-
-        Right(
-          OrganizationInfoEdited(
-            organizationId = command.organizationId,
-            metaInfo = Some(updatedMetaInfo),
-            oldInfo = Some(state.info),
-            newInfo = Some(updatedInfo)
-          )
-        )
-      }
-    }
+    Right(
+      OrganizationInfoEdited(
+        organizationId = command.organizationId,
+        metaInfo = updatedMetaInfo,
+        oldInfo = state.info,
+        newInfo = updatedInfo
+      )
+    )
   }
 }
