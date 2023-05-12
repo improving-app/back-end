@@ -30,6 +30,15 @@ object Validation {
       }
   }
 
+  def nonEmpty: (String) => Validator[Seq[_]] = fieldName => {
+    seq =>
+      if (seq.isEmpty) {
+        Some(ValidationError("Empty " + fieldName))
+      } else {
+        None
+      }
+  }
+
   def optional[T]: Validator[T] => Validator[Option[T]] = validator => opt => opt.flatMap(validator)
 
   def skipEmpty(validator: Validation.Validator[String]): Validator[String] = str => {
@@ -38,6 +47,19 @@ object Validation {
     } else {
       validator(str)
     }
+  }
+
+
+  def validateAll[T](validator: Validator[T]): Validator[Iterable[T]] = iterable => {
+    iterable.foldLeft[Option[ValidationError]](None)(
+      (maybeExistingError: Option[ValidationError], elementToValidate: T) => {
+        if(maybeExistingError.isDefined) {
+          maybeExistingError
+        } else {
+          validator(elementToValidate)
+        }
+      }
+    )
   }
 
   val urlValidator: Validator[String] = url => {
