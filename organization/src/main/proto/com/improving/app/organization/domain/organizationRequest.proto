@@ -2,16 +2,32 @@ syntax = "proto3";
 package com.improving.app.organization.domain;
 
 import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
 
 import "com/improving/app/common/domain/ids.proto";
-import "com/improving/app/organization/domain/organizationData.proto";
+import "com/improving/app/organization/domain/organizationTypeDefinitions.proto";
+import "validate/validate.proto";
 
 option (scalapb.options) = {
-  single_file: true,
+  scope: FILE
+  [scalapb.validate.file] {
+    validate_at_construction: true
+  }
+  field_transformations: [
+    {
+      when: {options: {[validate.rules] {message: {required: true}}}}
+      set: {
+        [scalapb.field] {
+          required: true
+        }
+      }
+    }
+  ]
+  single_file: true
   preamble: [
     "sealed trait OrganizationRequest {\n",
-    "  val organizationId: Option[com.improving.app.common.domain.OrganizationId]\n"
-    "  val onBehalfOf: Option[com.improving.app.common.domain.MemberId]\n",
+    "  val organizationId: com.improving.app.common.domain.OrganizationId\n"
+    "  val onBehalfOf: com.improving.app.common.domain.MemberId\n",
     "}\n",
     "sealed trait OrganizationCommand extends OrganizationRequest\n",
     "sealed trait OrganizationQuery extends OrganizationRequest\n"
@@ -34,48 +50,48 @@ message EstablishOrganization {
   option (scalapb.message) = {
     extends: [ "OrganizationCommand" ]
   };
-  com.improving.app.common.domain.OrganizationId organization_id = 1;
-  com.improving.app.common.domain.MemberId on_behalf_of = 2;
-  com.improving.app.organization.domain.OrganizationInfo organization_info = 3;
+  com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId on_behalf_of = 2 [(validate.rules).message.required = true];
+  com.improving.app.organization.domain.OrganizationInfo organization_info = 3 [(validate.rules).message.required = true];
 }
 
 message ActivateOrganization {
   option (scalapb.message) = {
     extends: [ "OrganizationCommand" ]
   };
-  com.improving.app.common.domain.OrganizationId organization_id = 1;
-  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId on_behalf_of = 2 [(validate.rules).message.required = true];
 }
 
 message SuspendOrganization {
   option (scalapb.message) = {
     extends: [ "OrganizationCommand" ]
   };
-  com.improving.app.common.domain.OrganizationId organization_id = 1;
-  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId on_behalf_of = 2 [(validate.rules).message.required = true];
 }
 
 message TerminateOrganization {
   option (scalapb.message) = {
     extends: [ "OrganizationCommand" ]
   };
-  com.improving.app.common.domain.OrganizationId organization_id = 1;
-  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId on_behalf_of = 2 [(validate.rules).message.required = true];
 }
 
 message EditOrganizationInfo {
   option (scalapb.message) = {
     extends: [ "OrganizationCommand" ]
   };
-  com.improving.app.common.domain.OrganizationId organization_id = 1;
-  com.improving.app.common.domain.MemberId on_behalf_of = 2;
-  com.improving.app.organization.domain.EditableOrganizationInfo organization_info = 3;
+  com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId on_behalf_of = 2 [(validate.rules).message.required = true];
+  com.improving.app.organization.domain.EditableOrganizationInfo organization_info = 3 [(validate.rules).message.required = true];
 }
 
 message GetOrganizationInfo {
   option (scalapb.message) = {
     extends: [ "OrganizationQuery" ]
   };
-  com.improving.app.common.domain.OrganizationId organization_id = 1;
-  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId on_behalf_of = 2 [(validate.rules).message.required = true];
 }
