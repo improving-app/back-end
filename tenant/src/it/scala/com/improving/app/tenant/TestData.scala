@@ -1,6 +1,16 @@
 package com.improving.app.tenant
 
-import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, PostalCodeMessageImpl}
+import com.improving.app.common.domain.util.{addressFromEditableAddress, contactFromEditableContact}
+import com.improving.app.common.domain.{
+  Address,
+  CaPostalCodeImpl,
+  Contact,
+  EditableAddress,
+  EditableContact,
+  PostalCodeMessageImpl
+}
+import com.improving.app.common.service.util.{doForSameIfHas, doIfHas}
+import com.improving.app.common.test.domain.util.{testAddressFromEditableAddress, testContactFromEditableContact}
 import com.improving.app.tenant.domain.{EditableTenantInfo, TenantInfo, TenantOrganizationList}
 
 object TestData {
@@ -22,21 +32,8 @@ object TestData {
 
   def infoFromEditableInfo(editable: EditableTenantInfo): TenantInfo = TenantInfo(
     name = editable.getName,
-    primaryContact = Contact(
-      firstName = editable.getPrimaryContact.getFirstName,
-      lastName = editable.getPrimaryContact.getLastName,
-      emailAddress = editable.getPrimaryContact.emailAddress,
-      phone = editable.getPrimaryContact.phone,
-      userName = editable.getPrimaryContact.getUserName
-    ),
-    address = Address(
-      line1 = editable.getAddress.getLine1,
-      line2 = editable.getAddress.line2,
-      city = editable.getAddress.getCity,
-      stateProvince = editable.getAddress.getStateProvince,
-      country = editable.getAddress.getCountry,
-      postalCode = editable.getAddress.postalCode
-    ),
+    primaryContact = testContactFromEditableContact(editable.getPrimaryContact),
+    address = testAddressFromEditableAddress(editable.getAddress),
     organizations = editable.getOrganizations
   )
 
