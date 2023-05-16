@@ -3,7 +3,7 @@ syntax = "proto3";
 package com.improving.app.organization.api;
 
 import "com/improving/app/organization/domain/organizationRequest.proto";
-import "com/improving/app/organization/domain/organizationTypeDefinitions.proto";
+import "com/improving/app/organization/domain/organizationDomainObjects.proto";
 import "com/improving/app/organization/domain/organizationEvents.proto";
 
 service OrganizationService {

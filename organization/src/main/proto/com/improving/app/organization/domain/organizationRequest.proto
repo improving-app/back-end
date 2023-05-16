@@ -5,7 +5,7 @@ import "scalapb/scalapb.proto";
 import "scalapb/validate.proto";
 
 import "com/improving/app/common/domain/ids.proto";
-import "com/improving/app/organization/domain/organizationTypeDefinitions.proto";
+import "com/improving/app/organization/domain/organizationDomainObjects.proto";
 import "validate/validate.proto";
 
 option (scalapb.options) = {
