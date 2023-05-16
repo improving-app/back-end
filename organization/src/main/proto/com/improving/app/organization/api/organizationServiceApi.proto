@@ -18,4 +18,12 @@ service OrganizationService {
 
   rpc GetOrganizationInfo (domain.GetOrganizationInfo) returns (domain.OrganizationInfo) {}
 
+  rpc AddMembersToOrganization (domain.AddMembersToOrganization) returns (domain.MembersAddedToOrganization) {}
+
+  rpc RemoveMembersFromOrganization (domain.RemoveMembersFromOrganization) returns (domain.MembersRemovedFromOrganization) {}
+
+  rpc AddOwnersToOrganization (domain.AddOwnersToOrganization) returns (domain.OwnersAddedToOrganization) {}
+
+  rpc RemoveOwnersFromOrganization (domain.RemoveOwnersFromOrganization) returns (domain.OwnersRemovedFromOrganization) {}
+
 }
