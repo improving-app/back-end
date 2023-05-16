@@ -2,7 +2,8 @@ syntax = "proto3";
 
 package com.improving.app.member.api;
 
-import "com/improving/app/member/domain/improving-app-member-domain.proto";
+import "com/improving/app/member/domain/memberEvents.proto";
+import "com/improving/app/member/domain/memberRequests.proto";
 
 //import "google/api/annotations.proto";
 
