@@ -39,7 +39,7 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
       in: MemberRequest,
       eventHandler: PartialFunction[StatusReply[MemberResponse], T],
       extractMemberId: MemberRequest => String = {
-        case req: HasMemberId => req.extractMemberId
+        case req: HasMemberId => req.memberId.id
         case other            => throw new RuntimeException(s"Member request does not implement HasMemberId $other")
       }
   ): Future[T] = {
