@@ -10,19 +10,19 @@ import "validate/validate.proto";
 
 option (scalapb.options) = {
   scope: FILE
-[scalapb.validate.file] {
-        validate_at_construction: true
-}
-        field_transformations: [
-        {
-                when: {options: {[validate.rules] {message: {required: true}}}}
-                set: {
-                [scalapb.field] {
-                required: true
+  [scalapb.validate.file] {
+    validate_at_construction: true
+  }
+  field_transformations: [
+    {
+      when: {options: {[validate.rules] {message: {required: true}}}}
+      set: {
+        [scalapb.field] {
+          required: true
         }
-        }
-        }
-]
+      }
+    }
+  ]
 };
 
 enum TenantState {

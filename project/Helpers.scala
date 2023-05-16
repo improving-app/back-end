@@ -224,18 +224,20 @@ object C {
     dockerRepository := sys.props.get("docker.registry"),
     dockerUpdateLatest := true,
     dockerExposedPorts ++= Seq(port),
-    dockerBuildCommand := {
-      if (sys.props("os.arch") != "amd64") {
-        // use buildx with platform to build supported amd64 images on other CPU architectures
-        // this may require that you have first run 'docker buildx create' to set docker buildx up
-        dockerExecCommand.value ++ Seq(
-          "buildx",
-          "build",
-          "--platform=linux/amd64",
-          "--load"
-        ) ++ dockerBuildOptions.value :+ "."
-      } else dockerBuildCommand.value
-    }
+    // Note for developers: enable when you want to build for amd64 on non amd64
+    //
+    //dockerBuildCommand := {
+    //  if (sys.props("os.arch") != "amd64") {
+    //    // use buildx with platform to build supported amd64 images on other CPU architectures
+    //    // this may require that you have first run 'docker buildx create' to set docker buildx up
+    //    dockerExecCommand.value ++ Seq(
+    //      "buildx",
+    //      "build",
+    //      "--platform=linux/amd64",
+    //      "--load"
+    //    ) ++ dockerBuildOptions.value :+ "."
+    //  } else dockerBuildCommand.value
+    //}
   )
 
   def protobufsLib(artifactName: String)(project: Project): Project = {

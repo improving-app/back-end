@@ -2,10 +2,6 @@ syntax = "proto3";
 
 package com.improving.app.tenant.api;
 
-option java_multiple_files = true;
-option java_package = "com.improving.app.tenant.api";
-option java_outer_classname = "TenantServiceProto1";
-
 import "com/improving/app/tenant/domain/improving-app-tenant-domain.proto";
 
 service TenantService {

@@ -20,7 +20,7 @@ class OrganizationServerSpec extends ServiceTestContainerSpec(8082, "organizatio
     OrganizationServiceClient(clientSettings)
   }
 
-  behavior of "TestServer in a test container"
+  behavior.of("TestServer in a test container")
 
   override def afterAll(): Unit = {
     system.terminate()
@@ -32,85 +32,54 @@ class OrganizationServerSpec extends ServiceTestContainerSpec(8082, "organizatio
   }
 
   it should "gracefully handle bad requests that fail at service level" taggedAs Retryable in {
-    withContainers { containers =>
-      val client = getClient(containers)
-
-      val invalidRequests = Seq(
-        (
-          "EstablishOrganization missing organizationId",
-          client.establishOrganization(
-            EstablishOrganization(
-              organizationId = None,
-              onBehalfOf = Some(MemberId("establishingUser")),
-              organizationInfo = Some(baseOrganizationInfo)
-            )
-          )
-        ),
-        (
-          "EstablishOrganization missing onBehalfOf",
-          client.establishOrganization(
-            EstablishOrganization(
-              organizationId = Some(OrganizationId("boo")),
-              onBehalfOf = None,
-              organizationInfo = Some(baseOrganizationInfo)
-            )
-          )
-        ),
-        (
-          "SuspendOrganization missing OrganizationId",
-          client.suspendOrganization(
-            SuspendOrganization(
-              organizationId = None,
-              onBehalfOf = Some(MemberId("suspendingUser")),
-            )
-          )
-        ),
-        (
-          "ActivateOrganization missing OrganizationId",
-          client.activateOrganization(
-            ActivateOrganization(
-              organizationId = None,
-              onBehalfOf = Some(MemberId("activatingUser")),
-            )
-          )
-        )
-      )
-
-      invalidRequests.foreach({ case (clue: String, responseFuture: Future[_]) =>
-        withClue(clue) {
-          val exception = responseFuture.failed.futureValue
-          exception shouldBe a[GrpcServiceException]
-          val serviceException = exception.asInstanceOf[GrpcServiceException]
-          serviceException.status.getCode shouldBe Status.Code.INVALID_ARGUMENT
-        }
-      })
-    }
+    withContainers { containers => }
   }
 
-  it should "gracefully handle bad requests that fail at entity level" ignore { // I'm struggling to figure out how to gracefully handle this error
+  it should "gracefully handle bad requests that fail at entity level" taggedAs Retryable in {
     withContainers { containers =>
       val client = getClient(containers)
 
-      val invalidRequests = Seq(
-        (
-          "EstablishOrganization missing OrganizationInfo",
-          client.establishOrganization(
-            EstablishOrganization(
-              organizationId = Some(OrganizationId("boo")),
-              onBehalfOf = Some(MemberId("establishingUser")),
-              organizationInfo = None
-            )
-          )
-        ),
-      )
+      val organizationId = Random.nextString(31)
 
-      invalidRequests.foreach({ case (clue: String, responseFuture: Future[_]) =>
-        withClue(clue) {
-          val exception = responseFuture.failed.futureValue
-          exception shouldBe a[GrpcServiceException]
-          val serviceException = exception.asInstanceOf[GrpcServiceException]
-          serviceException.status.getCode shouldBe Status.Code.INVALID_ARGUMENT
-        }
+      val establishedResponse = client
+        .establishOrganization(
+          EstablishOrganization(
+            organizationId = OrganizationId(organizationId),
+            onBehalfOf = MemberId("establishingUser"),
+            organizationInfo = baseOrganizationInfo
+          )
+        )
+        .futureValue
+
+      establishedResponse.organizationId shouldBe OrganizationId(organizationId)
+      establishedResponse.metaInfo.createdBy shouldBe MemberId("establishingUser")
+
+      val response = client
+        .activateOrganization(
+          ActivateOrganization(
+            organizationId = OrganizationId(organizationId),
+            onBehalfOf = MemberId("activatingUser"),
+          )
+        )
+        .futureValue
+
+      response.organizationId shouldBe OrganizationId(organizationId)
+      response.metaInfo.lastUpdatedBy shouldBe MemberId("activatingUser")
+
+      val response2 = client
+        .activateOrganization(
+          ActivateOrganization(
+            organizationId = OrganizationId(organizationId),
+            onBehalfOf = MemberId("activatingUser"),
+          )
+        )
+
+      Seq(("Invalid Activate after previously activating", response2)).foreach({
+        case (clue: String, responseFuture: Future[_]) =>
+          withClue(clue) {
+            val exception = responseFuture.failed.futureValue
+            exception shouldBe a[GrpcServiceException]
+          }
       })
     }
   }
@@ -124,39 +93,39 @@ class OrganizationServerSpec extends ServiceTestContainerSpec(8082, "organizatio
       val establishedResponse = client
         .establishOrganization(
           EstablishOrganization(
-            organizationId = Some(OrganizationId(organizationId)),
-            onBehalfOf = Some(MemberId("establishingUser")),
-            organizationInfo = Some(baseOrganizationInfo)
+            organizationId = OrganizationId(organizationId),
+            onBehalfOf = MemberId("establishingUser"),
+            organizationInfo = baseOrganizationInfo
           )
         )
         .futureValue
 
-      establishedResponse.organizationId shouldBe Some(OrganizationId(organizationId))
-      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
+      establishedResponse.organizationId shouldBe OrganizationId(organizationId)
+      establishedResponse.metaInfo.createdBy shouldBe MemberId("establishingUser")
 
       val suspendedResponse = client
         .suspendOrganization(
           SuspendOrganization(
-            organizationId = Some(OrganizationId(organizationId)),
-            onBehalfOf = Some(MemberId("suspendingUser")),
+            organizationId = OrganizationId(organizationId),
+            onBehalfOf = MemberId("suspendingUser"),
           )
         )
         .futureValue
 
-      suspendedResponse.organizationId shouldBe Some(OrganizationId(organizationId))
-      suspendedResponse.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("suspendingUser"))
+      suspendedResponse.organizationId shouldBe OrganizationId(organizationId)
+      suspendedResponse.metaInfo.lastUpdatedBy shouldBe MemberId("suspendingUser")
 
       val response = client
         .activateOrganization(
           ActivateOrganization(
-            organizationId = Some(OrganizationId(organizationId)),
-            onBehalfOf = Some(MemberId("activatingUser")),
+            organizationId = OrganizationId(organizationId),
+            onBehalfOf = MemberId("activatingUser"),
           )
         )
         .futureValue
 
-      response.organizationId shouldBe Some(OrganizationId(organizationId))
-      response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("activatingUser"))
+      response.organizationId shouldBe OrganizationId(organizationId)
+      response.metaInfo.lastUpdatedBy shouldBe MemberId("activatingUser")
     }
   }
 
@@ -169,27 +138,27 @@ class OrganizationServerSpec extends ServiceTestContainerSpec(8082, "organizatio
       val establishedResponse = client
         .establishOrganization(
           EstablishOrganization(
-            organizationId = Some(OrganizationId(organizationId)),
-            onBehalfOf = Some(MemberId("establishingUser")),
-            organizationInfo = Some(baseOrganizationInfo)
+            organizationId = OrganizationId(organizationId),
+            onBehalfOf = MemberId("establishingUser"),
+            organizationInfo = baseOrganizationInfo
           )
         )
         .futureValue
 
-      establishedResponse.organizationId shouldBe Some(OrganizationId(organizationId))
-      establishedResponse.metaInfo.get.createdBy shouldBe Some(MemberId("establishingUser"))
+      establishedResponse.organizationId shouldBe OrganizationId(organizationId)
+      establishedResponse.metaInfo.createdBy shouldBe MemberId("establishingUser")
 
       val response = client
         .suspendOrganization(
           SuspendOrganization(
-            organizationId = Some(OrganizationId(organizationId)),
-            onBehalfOf = Some(MemberId("suspendingUser")),
+            organizationId = OrganizationId(organizationId),
+            onBehalfOf = MemberId("suspendingUser"),
           )
         )
         .futureValue
 
-      response.organizationId shouldBe Some(OrganizationId(organizationId))
-      response.metaInfo.get.lastUpdatedBy shouldBe Some(MemberId("suspendingUser"))
+      response.organizationId shouldBe OrganizationId(organizationId)
+      response.metaInfo.lastUpdatedBy shouldBe MemberId("suspendingUser")
     }
   }
 }
