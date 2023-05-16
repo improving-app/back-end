@@ -31,9 +31,9 @@ class OrganizationServerSpec extends ServiceTestContainerSpec(8082, "organizatio
     }
   }
 
-  // it should "gracefully handle bad requests that fail at service level" taggedAs Retryable in {
-  //   withContainers { containers => }
-  // }
+  it should "gracefully handle bad requests that fail at service level" taggedAs Retryable in {
+    withContainers { containers => }
+  }
 
   it should "gracefully handle bad requests that fail at entity level" taggedAs Retryable in {
     withContainers { containers =>
@@ -79,8 +79,6 @@ class OrganizationServerSpec extends ServiceTestContainerSpec(8082, "organizatio
           withClue(clue) {
             val exception = responseFuture.failed.futureValue
             exception shouldBe a[GrpcServiceException]
-            //val serviceException = exception.asInstanceOf[GrpcServiceException]
-            //serviceException.getMessage shouldBe Status.Code.INVALID_ARGUMENT
           }
       })
     }
