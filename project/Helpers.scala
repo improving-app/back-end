@@ -224,6 +224,8 @@ object C {
     dockerRepository := sys.props.get("docker.registry"),
     dockerUpdateLatest := true,
     dockerExposedPorts ++= Seq(port),
+    // Note for developers: enable when you want to build for amd64 on non amd64
+    //
     //dockerBuildCommand := {
     //  if (sys.props("os.arch") != "amd64") {
     //    // use buildx with platform to build supported amd64 images on other CPU architectures
