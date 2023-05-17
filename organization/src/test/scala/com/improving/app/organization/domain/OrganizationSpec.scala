@@ -32,17 +32,17 @@ class OrganizationSpec
   override def afterAll(): Unit = testKit.shutdownTestKit()
 
   def createTestVariables()
-      : (String, ActorRef[OrganizationRequestEnvelope], TestProbe[StatusReply[OrganizationEvent]]) = {
+      : (String, ActorRef[OrganizationRequestEnvelope], TestProbe[StatusReply[OrganizationResponse]]) = {
     val organizationId = Random.nextString(31)
     val p = this.testKit.spawn(Organization(PersistenceId.ofUniqueId(organizationId)))
-    val probe = this.testKit.createTestProbe[StatusReply[OrganizationEvent]]()
+    val probe = this.testKit.createTestProbe[StatusReply[OrganizationResponse]]()
     (organizationId, p, probe)
   }
 
   def establishOrganization(
       organizationId: String,
       p: ActorRef[OrganizationRequestEnvelope],
-      probe: TestProbe[StatusReply[OrganizationEvent]],
+      probe: TestProbe[StatusReply[OrganizationResponse]],
       organizationInfo: OrganizationInfo = baseOrganizationInfo
   ): Unit = {
     p ! Organization.OrganizationRequestEnvelope(
@@ -61,7 +61,7 @@ class OrganizationSpec
   private def suspendOrganization(
       organizationId: String,
       p: ActorRef[OrganizationRequestEnvelope],
-      probe: TestProbe[StatusReply[OrganizationEvent]]
+      probe: TestProbe[StatusReply[OrganizationResponse]]
   ) = {
     p ! Organization.OrganizationRequestEnvelope(
       SuspendOrganization(
@@ -78,7 +78,7 @@ class OrganizationSpec
   private def activateOrganization(
       organizationId: String,
       p: ActorRef[OrganizationRequestEnvelope],
-      probe: TestProbe[StatusReply[OrganizationEvent]]
+      probe: TestProbe[StatusReply[OrganizationResponse]]
   ) = {
     p ! Organization.OrganizationRequestEnvelope(
       ActivateOrganization(
@@ -131,12 +131,12 @@ class OrganizationSpec
           val response = probe.receiveMessage()
           assert(response.isSuccess)
 
-          val successVal = response.getValue
-          successVal.asMessage.sealedValue.organizationEstablished.get.organizationId shouldBe OrganizationId(
+          val successVal = response.getValue.asInstanceOf[OrganizationEstablished]
+          successVal.organizationId shouldBe OrganizationId(
             organizationId
           )
 
-          successVal.asMessage.sealedValue.organizationEstablished.get.metaInfo.createdBy shouldBe MemberId(
+          successVal.metaInfo.createdBy shouldBe MemberId(
             "establishingUser"
           )
 
@@ -173,7 +173,7 @@ class OrganizationSpec
           responseError2.getMessage shouldEqual "Message type not supported in draft state"
         }
       }
-      "executing any command other than establish" should {
+      "executing any command or query other than establish" should {
         "error as not established" in {
           val (organizationId, p, probe) = createTestVariables()
 
@@ -189,6 +189,7 @@ class OrganizationSpec
             AddOwnersToOrganization(OrganizationId(organizationId), MemberId("user"), Seq(MemberId("owner"))),
             RemoveMembersFromOrganization(OrganizationId(organizationId), MemberId("user"), Seq(MemberId("member"))),
             RemoveOwnersFromOrganization(OrganizationId(organizationId), MemberId("user"), Seq(MemberId("owner"))),
+            GetOrganizationInfo(OrganizationId(organizationId), MemberId("user"))
           )
 
           commands.foreach(command => {
@@ -312,6 +313,70 @@ class OrganizationSpec
 
           successVal.oldInfo shouldBe baseOrganizationInfo
           successVal.newInfo shouldBe baseOrganizationInfo.copy(name = newName)
+        }
+      }
+
+      "executing GetOrganizationInfo query" should {
+        "return the correct organization info for a new organization" in {
+          val (organizationId, p, probe) = createTestVariables()
+
+          establishOrganization(organizationId, p, probe)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            GetOrganizationInfo(
+              OrganizationId(organizationId),
+              MemberId("someUser"),
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
+          infoResponse.organizationId.id shouldEqual (organizationId)
+          infoResponse.info shouldEqual (baseOrganizationInfo)
+        }
+
+        "return the correct organization info for an edited organization" in {
+          val (organizationId, p, probe) = createTestVariables()
+
+          establishOrganization(organizationId, p, probe)
+          val newAddress = baseAddress.copy(city = "Timbuktu")
+          val newName = "A new name"
+
+          val updateInfo = EditableOrganizationInfo(
+            name = Some(newName),
+            address = Some(newAddress),
+          )
+
+          p ! Organization.OrganizationRequestEnvelope(
+            EditOrganizationInfo(
+              OrganizationId(organizationId),
+              MemberId("someUser"),
+              updateInfo,
+            ),
+            probe.ref
+          )
+
+          val editResponse = probe.receiveMessage()
+          assert(editResponse.isSuccess)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            GetOrganizationInfo(
+              OrganizationId(organizationId),
+              MemberId("someUser"),
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
+          infoResponse.organizationId.id shouldEqual organizationId
+          infoResponse.info.name shouldEqual newName
+          infoResponse.info.address shouldEqual Some(newAddress)
         }
       }
 
@@ -580,10 +645,7 @@ class OrganizationSpec
           val response = probe.receiveMessage()
           assert(response.isSuccess)
 
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.organizationSuspended.isDefined)
-
-          val organizationSuspended = successVal.asMessage.sealedValue.organizationSuspended.get
+          val organizationSuspended = response.getValue.asInstanceOf[OrganizationSuspended]
 
           organizationSuspended.organizationId shouldEqual OrganizationId(organizationId)
 
@@ -706,6 +768,70 @@ class OrganizationSpec
           successVal.newInfo shouldBe baseOrganizationInfo.copy(name = newName)
         }
       }
+
+      "executing GetOrganizationInfo query" should {
+        "return the correct organization info for a new organization" in {
+          val (organizationId, p, probe) = createTestVariables()
+
+          establishOrganization(organizationId, p, probe)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            GetOrganizationInfo(
+              OrganizationId(organizationId),
+              MemberId("someUser"),
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
+          infoResponse.organizationId.id shouldEqual (organizationId)
+          infoResponse.info shouldEqual (baseOrganizationInfo)
+        }
+
+        "return the correct organization info for an edited organization" in {
+          val (organizationId, p, probe) = createTestVariables()
+
+          establishOrganization(organizationId, p, probe)
+          val newAddress = baseAddress.copy(city = "Timbuktu")
+          val newName = "A new name"
+
+          val updateInfo = EditableOrganizationInfo(
+            name = Some(newName),
+            address = Some(newAddress),
+          )
+
+          p ! Organization.OrganizationRequestEnvelope(
+            EditOrganizationInfo(
+              OrganizationId(organizationId),
+              MemberId("someUser"),
+              updateInfo,
+            ),
+            probe.ref
+          )
+
+          val editResponse = probe.receiveMessage()
+          assert(editResponse.isSuccess)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            GetOrganizationInfo(
+              OrganizationId(organizationId),
+              MemberId("someUser"),
+            ),
+            probe.ref
+          )
+
+          val response = probe.receiveMessage()
+          assert(response.isSuccess)
+
+          val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
+          infoResponse.organizationId.id shouldEqual organizationId
+          infoResponse.info.name shouldEqual newName
+          infoResponse.info.address shouldEqual Some(newAddress)
+        }
+      }
     }
 
     "in the Suspended state" when {
@@ -749,10 +875,7 @@ class OrganizationSpec
           val response = probe.receiveMessage()
           assert(response.isSuccess)
 
-          val successVal = response.getValue
-          assert(successVal.asMessage.sealedValue.organizationActivated.isDefined)
-
-          val organizationActivated = successVal.asMessage.sealedValue.organizationActivated.get
+          val organizationActivated = response.getValue.asInstanceOf[OrganizationActivated]
 
           organizationActivated.organizationId shouldEqual OrganizationId(organizationId)
 
@@ -899,6 +1022,70 @@ class OrganizationSpec
 
         successVal.oldInfo shouldBe baseOrganizationInfo
         successVal.newInfo shouldBe baseOrganizationInfo.copy(name = newName)
+      }
+    }
+
+    "executing GetOrganizationInfo query" should {
+      "return the correct organization info for a new organization" in {
+        val (organizationId, p, probe) = createTestVariables()
+
+        establishOrganization(organizationId, p, probe)
+
+        p ! Organization.OrganizationRequestEnvelope(
+          GetOrganizationInfo(
+            OrganizationId(organizationId),
+            MemberId("someUser"),
+          ),
+          probe.ref
+        )
+
+        val response = probe.receiveMessage()
+        assert(response.isSuccess)
+
+        val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
+        infoResponse.organizationId.id shouldEqual (organizationId)
+        infoResponse.info shouldEqual (baseOrganizationInfo)
+      }
+
+      "return the correct organization info for an edited organization" in {
+        val (organizationId, p, probe) = createTestVariables()
+
+        establishOrganization(organizationId, p, probe)
+        val newAddress = baseAddress.copy(city = "Timbuktu")
+        val newName = "A new name"
+
+        val updateInfo = EditableOrganizationInfo(
+          name = Some(newName),
+          address = Some(newAddress),
+        )
+
+        p ! Organization.OrganizationRequestEnvelope(
+          EditOrganizationInfo(
+            OrganizationId(organizationId),
+            MemberId("someUser"),
+            updateInfo,
+          ),
+          probe.ref
+        )
+
+        val editResponse = probe.receiveMessage()
+        assert(editResponse.isSuccess)
+
+        p ! Organization.OrganizationRequestEnvelope(
+          GetOrganizationInfo(
+            OrganizationId(organizationId),
+            MemberId("someUser"),
+          ),
+          probe.ref
+        )
+
+        val response = probe.receiveMessage()
+        assert(response.isSuccess)
+
+        val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
+        infoResponse.organizationId.id shouldEqual organizationId
+        infoResponse.info.name shouldEqual newName
+        infoResponse.info.address shouldEqual Some(newAddress)
       }
     }
   }
