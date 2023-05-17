@@ -529,55 +529,55 @@ class OrganizationSpec
           event2.membersAdded shouldEqual Seq(MemberId("member4"))
         }
       }
-    }
 
-    "executing the RemoveMembersFromOrganization command" should {
-      "succeed for the golden path" in {
-        val (organizationId, p, probe) = createTestVariables()
+      "executing the RemoveMembersFromOrganization command" should {
+        "succeed for the golden path" in {
+          val (organizationId, p, probe) = createTestVariables()
 
-        establishOrganization(organizationId, p, probe)
+          establishOrganization(organizationId, p, probe)
 
-        val membersToAdd = Seq(
-          MemberId("member1"),
-          MemberId("member2"),
-          MemberId("member3"),
-        )
+          val membersToAdd = Seq(
+            MemberId("member1"),
+            MemberId("member2"),
+            MemberId("member3"),
+          )
 
-        p ! Organization.OrganizationRequestEnvelope(
-          AddMembersToOrganization(
-            OrganizationId(organizationId),
-            MemberId("updatingUser"),
-            membersToAdd
-          ),
-          probe.ref
-        )
+          p ! Organization.OrganizationRequestEnvelope(
+            AddMembersToOrganization(
+              OrganizationId(organizationId),
+              MemberId("updatingUser"),
+              membersToAdd
+            ),
+            probe.ref
+          )
 
-        val response1 = probe.receiveMessage()
-        assert(response1.isSuccess)
+          val response1 = probe.receiveMessage()
+          assert(response1.isSuccess)
 
-        val event1 = response1.getValue.asInstanceOf[MembersAddedToOrganization]
-        event1.membersAdded shouldEqual membersToAdd
+          val event1 = response1.getValue.asInstanceOf[MembersAddedToOrganization]
+          event1.membersAdded shouldEqual membersToAdd
 
-        val membersToRemove = Seq(
-          MemberId("member2"),
-          MemberId("member3"),
-          MemberId("member4"),
-        )
+          val membersToRemove = Seq(
+            MemberId("member2"),
+            MemberId("member3"),
+            MemberId("member4"),
+          )
 
-        p ! Organization.OrganizationRequestEnvelope(
-          RemoveMembersFromOrganization(
-            OrganizationId(organizationId),
-            MemberId("updatingUser"),
-            membersToRemove
-          ),
-          probe.ref
-        )
+          p ! Organization.OrganizationRequestEnvelope(
+            RemoveMembersFromOrganization(
+              OrganizationId(organizationId),
+              MemberId("updatingUser"),
+              membersToRemove
+            ),
+            probe.ref
+          )
 
-        val response2 = probe.receiveMessage()
-        assert(response2.isSuccess)
+          val response2 = probe.receiveMessage()
+          assert(response2.isSuccess)
 
-        val event2 = response2.getValue.asInstanceOf[MembersRemovedFromOrganization]
-        event2.membersRemoved shouldEqual Seq(MemberId("member2"), MemberId("member3"))
+          val event2 = response2.getValue.asInstanceOf[MembersRemovedFromOrganization]
+          event2.membersRemoved shouldEqual Seq(MemberId("member2"), MemberId("member3"))
+        }
       }
     }
 
@@ -830,6 +830,206 @@ class OrganizationSpec
           infoResponse.organizationId.id shouldEqual organizationId
           infoResponse.info.name shouldEqual newName
           infoResponse.info.address shouldEqual Some(newAddress)
+        }
+      }
+
+      "executing the AddOwnersToOrganization command" should {
+        "succeed for the golden path" in {
+          val (organizationId, p, probe) = createTestVariables()
+
+          establishOrganization(organizationId, p, probe)
+
+          val ownersToAdd = Seq(
+            MemberId("owner1"),
+            MemberId("owner2"),
+            MemberId("owner3"),
+          )
+
+          p ! Organization.OrganizationRequestEnvelope(
+            AddOwnersToOrganization(
+              OrganizationId(organizationId),
+              MemberId("updatingUser"),
+              ownersToAdd
+            ),
+            probe.ref
+          )
+
+          val response1 = probe.receiveMessage()
+          assert(response1.isSuccess)
+
+          val event1 = response1.getValue.asInstanceOf[OwnersAddedToOrganization]
+          event1.ownersAdded shouldEqual ownersToAdd
+
+          val nextOwnersToAdd = Seq(
+            MemberId("owner2"),
+            MemberId("owner3"),
+            MemberId("owner4"),
+          )
+
+          p ! Organization.OrganizationRequestEnvelope(
+            AddOwnersToOrganization(
+              OrganizationId(organizationId),
+              MemberId("updatingUser"),
+              nextOwnersToAdd
+            ),
+            probe.ref
+          )
+
+          val response2 = probe.receiveMessage()
+          assert(response2.isSuccess)
+
+          val event2 = response2.getValue.asInstanceOf[OwnersAddedToOrganization]
+          event2.ownersAdded shouldEqual Seq(MemberId("owner4"))
+        }
+      }
+
+      "executing the RemoveOwnersFromOrganization command" should {
+        "succeed for the golden path" in {
+          val (organizationId, p, probe) = createTestVariables()
+
+          establishOrganization(organizationId, p, probe)
+
+          val ownersToAdd = Seq(
+            MemberId("owner1"),
+            MemberId("owner2"),
+            MemberId("owner3"),
+          )
+
+          p ! Organization.OrganizationRequestEnvelope(
+            AddOwnersToOrganization(
+              OrganizationId(organizationId),
+              MemberId("updatingUser"),
+              ownersToAdd
+            ),
+            probe.ref
+          )
+
+          val response1 = probe.receiveMessage()
+          assert(response1.isSuccess)
+
+          val event1 = response1.getValue.asInstanceOf[OwnersAddedToOrganization]
+          event1.ownersAdded shouldEqual ownersToAdd
+
+          val ownersToRemove = Seq(
+            MemberId("owner2"),
+            MemberId("owner3"),
+            MemberId("owner4"),
+          )
+
+          p ! Organization.OrganizationRequestEnvelope(
+            RemoveOwnersFromOrganization(
+              OrganizationId(organizationId),
+              MemberId("updatingUser"),
+              ownersToRemove
+            ),
+            probe.ref
+          )
+
+          val response2 = probe.receiveMessage()
+          assert(response2.isSuccess)
+
+          val event2 = response2.getValue.asInstanceOf[OwnersRemovedFromOrganization]
+          event2.ownersRemoved shouldEqual Seq(MemberId("owner2"), MemberId("owner3"))
+        }
+      }
+
+      "executing the AddMembersToOrganization command" should {
+        "succeed for the golden path" in {
+          val (organizationId, p, probe) = createTestVariables()
+
+          establishOrganization(organizationId, p, probe)
+
+          val membersToAdd = Seq(
+            MemberId("member1"),
+            MemberId("member2"),
+            MemberId("member3"),
+          )
+
+          p ! Organization.OrganizationRequestEnvelope(
+            AddMembersToOrganization(
+              OrganizationId(organizationId),
+              MemberId("updatingUser"),
+              membersToAdd
+            ),
+            probe.ref
+          )
+
+          val response1 = probe.receiveMessage()
+          assert(response1.isSuccess)
+
+          val event1 = response1.getValue.asInstanceOf[MembersAddedToOrganization]
+          event1.membersAdded shouldEqual membersToAdd
+
+          val nextMembersToAdd = Seq(
+            MemberId("member2"),
+            MemberId("member3"),
+            MemberId("member4"),
+          )
+
+          p ! Organization.OrganizationRequestEnvelope(
+            AddMembersToOrganization(
+              OrganizationId(organizationId),
+              MemberId("updatingUser"),
+              nextMembersToAdd
+            ),
+            probe.ref
+          )
+
+          val response2 = probe.receiveMessage()
+          assert(response2.isSuccess)
+
+          val event2 = response2.getValue.asInstanceOf[MembersAddedToOrganization]
+          event2.membersAdded shouldEqual Seq(MemberId("member4"))
+        }
+      }
+
+      "executing the RemoveMembersFromOrganization command" should {
+        "succeed for the golden path" in {
+          val (organizationId, p, probe) = createTestVariables()
+
+          establishOrganization(organizationId, p, probe)
+
+          val membersToAdd = Seq(
+            MemberId("member1"),
+            MemberId("member2"),
+            MemberId("member3"),
+          )
+
+          p ! Organization.OrganizationRequestEnvelope(
+            AddMembersToOrganization(
+              OrganizationId(organizationId),
+              MemberId("updatingUser"),
+              membersToAdd
+            ),
+            probe.ref
+          )
+
+          val response1 = probe.receiveMessage()
+          assert(response1.isSuccess)
+
+          val event1 = response1.getValue.asInstanceOf[MembersAddedToOrganization]
+          event1.membersAdded shouldEqual membersToAdd
+
+          val membersToRemove = Seq(
+            MemberId("member2"),
+            MemberId("member3"),
+            MemberId("member4"),
+          )
+
+          p ! Organization.OrganizationRequestEnvelope(
+            RemoveMembersFromOrganization(
+              OrganizationId(organizationId),
+              MemberId("updatingUser"),
+              membersToRemove
+            ),
+            probe.ref
+          )
+
+          val response2 = probe.receiveMessage()
+          assert(response2.isSuccess)
+
+          val event2 = response2.getValue.asInstanceOf[MembersRemovedFromOrganization]
+          event2.membersRemoved shouldEqual Seq(MemberId("member2"), MemberId("member3"))
         }
       }
     }
@@ -1086,6 +1286,206 @@ class OrganizationSpec
         infoResponse.organizationId.id shouldEqual organizationId
         infoResponse.info.name shouldEqual newName
         infoResponse.info.address shouldEqual Some(newAddress)
+      }
+    }
+
+    "executing the AddOwnersToOrganization command" should {
+      "succeed for the golden path" in {
+        val (organizationId, p, probe) = createTestVariables()
+
+        establishOrganization(organizationId, p, probe)
+
+        val ownersToAdd = Seq(
+          MemberId("owner1"),
+          MemberId("owner2"),
+          MemberId("owner3"),
+        )
+
+        p ! Organization.OrganizationRequestEnvelope(
+          AddOwnersToOrganization(
+            OrganizationId(organizationId),
+            MemberId("updatingUser"),
+            ownersToAdd
+          ),
+          probe.ref
+        )
+
+        val response1 = probe.receiveMessage()
+        assert(response1.isSuccess)
+
+        val event1 = response1.getValue.asInstanceOf[OwnersAddedToOrganization]
+        event1.ownersAdded shouldEqual ownersToAdd
+
+        val nextOwnersToAdd = Seq(
+          MemberId("owner2"),
+          MemberId("owner3"),
+          MemberId("owner4"),
+        )
+
+        p ! Organization.OrganizationRequestEnvelope(
+          AddOwnersToOrganization(
+            OrganizationId(organizationId),
+            MemberId("updatingUser"),
+            nextOwnersToAdd
+          ),
+          probe.ref
+        )
+
+        val response2 = probe.receiveMessage()
+        assert(response2.isSuccess)
+
+        val event2 = response2.getValue.asInstanceOf[OwnersAddedToOrganization]
+        event2.ownersAdded shouldEqual Seq(MemberId("owner4"))
+      }
+    }
+
+    "executing the RemoveOwnersFromOrganization command" should {
+      "succeed for the golden path" in {
+        val (organizationId, p, probe) = createTestVariables()
+
+        establishOrganization(organizationId, p, probe)
+
+        val ownersToAdd = Seq(
+          MemberId("owner1"),
+          MemberId("owner2"),
+          MemberId("owner3"),
+        )
+
+        p ! Organization.OrganizationRequestEnvelope(
+          AddOwnersToOrganization(
+            OrganizationId(organizationId),
+            MemberId("updatingUser"),
+            ownersToAdd
+          ),
+          probe.ref
+        )
+
+        val response1 = probe.receiveMessage()
+        assert(response1.isSuccess)
+
+        val event1 = response1.getValue.asInstanceOf[OwnersAddedToOrganization]
+        event1.ownersAdded shouldEqual ownersToAdd
+
+        val ownersToRemove = Seq(
+          MemberId("owner2"),
+          MemberId("owner3"),
+          MemberId("owner4"),
+        )
+
+        p ! Organization.OrganizationRequestEnvelope(
+          RemoveOwnersFromOrganization(
+            OrganizationId(organizationId),
+            MemberId("updatingUser"),
+            ownersToRemove
+          ),
+          probe.ref
+        )
+
+        val response2 = probe.receiveMessage()
+        assert(response2.isSuccess)
+
+        val event2 = response2.getValue.asInstanceOf[OwnersRemovedFromOrganization]
+        event2.ownersRemoved shouldEqual Seq(MemberId("owner2"), MemberId("owner3"))
+      }
+    }
+
+    "executing the AddMembersToOrganization command" should {
+      "succeed for the golden path" in {
+        val (organizationId, p, probe) = createTestVariables()
+
+        establishOrganization(organizationId, p, probe)
+
+        val membersToAdd = Seq(
+          MemberId("member1"),
+          MemberId("member2"),
+          MemberId("member3"),
+        )
+
+        p ! Organization.OrganizationRequestEnvelope(
+          AddMembersToOrganization(
+            OrganizationId(organizationId),
+            MemberId("updatingUser"),
+            membersToAdd
+          ),
+          probe.ref
+        )
+
+        val response1 = probe.receiveMessage()
+        assert(response1.isSuccess)
+
+        val event1 = response1.getValue.asInstanceOf[MembersAddedToOrganization]
+        event1.membersAdded shouldEqual membersToAdd
+
+        val nextMembersToAdd = Seq(
+          MemberId("member2"),
+          MemberId("member3"),
+          MemberId("member4"),
+        )
+
+        p ! Organization.OrganizationRequestEnvelope(
+          AddMembersToOrganization(
+            OrganizationId(organizationId),
+            MemberId("updatingUser"),
+            nextMembersToAdd
+          ),
+          probe.ref
+        )
+
+        val response2 = probe.receiveMessage()
+        assert(response2.isSuccess)
+
+        val event2 = response2.getValue.asInstanceOf[MembersAddedToOrganization]
+        event2.membersAdded shouldEqual Seq(MemberId("member4"))
+      }
+    }
+
+    "executing the RemoveMembersFromOrganization command" should {
+      "succeed for the golden path" in {
+        val (organizationId, p, probe) = createTestVariables()
+
+        establishOrganization(organizationId, p, probe)
+
+        val membersToAdd = Seq(
+          MemberId("member1"),
+          MemberId("member2"),
+          MemberId("member3"),
+        )
+
+        p ! Organization.OrganizationRequestEnvelope(
+          AddMembersToOrganization(
+            OrganizationId(organizationId),
+            MemberId("updatingUser"),
+            membersToAdd
+          ),
+          probe.ref
+        )
+
+        val response1 = probe.receiveMessage()
+        assert(response1.isSuccess)
+
+        val event1 = response1.getValue.asInstanceOf[MembersAddedToOrganization]
+        event1.membersAdded shouldEqual membersToAdd
+
+        val membersToRemove = Seq(
+          MemberId("member2"),
+          MemberId("member3"),
+          MemberId("member4"),
+        )
+
+        p ! Organization.OrganizationRequestEnvelope(
+          RemoveMembersFromOrganization(
+            OrganizationId(organizationId),
+            MemberId("updatingUser"),
+            membersToRemove
+          ),
+          probe.ref
+        )
+
+        val response2 = probe.receiveMessage()
+        assert(response2.isSuccess)
+
+        val event2 = response2.getValue.asInstanceOf[MembersRemovedFromOrganization]
+        event2.membersRemoved shouldEqual Seq(MemberId("member2"), MemberId("member3"))
       }
     }
   }
