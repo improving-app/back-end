@@ -149,7 +149,7 @@ object Member extends StrictLogging {
           case DraftMemberState(editableInfo, meta) =>
             RegisteredMemberState(
               info = createMemberInfoFromDraftState(editableInfo),
-              meta = meta
+              meta = memberActivatedEvent.meta
             )
           case x: RegisteredMemberState =>
             x.copy(meta = memberActivatedEvent.meta)
@@ -222,14 +222,12 @@ object Member extends StrictLogging {
     transitionMemberState(
       info = info,
       issuingCommand = activateMemberCommand.productPrefix,
-      createEvent = () => {
-        MemberEventResponse(
-          MemberActivated(
-            activateMemberCommand.memberId,
-            newMeta
-          )
+      event = MemberEventResponse(
+        MemberActivated(
+          activateMemberCommand.memberId,
+          newMeta
         )
-      }
+      )
     )
   }
 
@@ -246,14 +244,12 @@ object Member extends StrictLogging {
     transitionMemberState(
       info = info,
       issuingCommand = suspendMemberCommand.productPrefix,
-      createEvent = () => {
-        MemberEventResponse(
-          MemberSuspended(
-            suspendMemberCommand.memberId,
-            newMeta
-          )
+      event = MemberEventResponse(
+        MemberSuspended(
+          suspendMemberCommand.memberId,
+          newMeta
         )
-      }
+      )
     )
   }
 
@@ -311,8 +307,8 @@ object Member extends StrictLogging {
   private def transitionMemberState(
       info: MemberInfo,
       issuingCommand: String,
-      createEvent: () => MemberResponse
-  ): Either[Error, MemberResponse] = Right(createEvent())
+      event: MemberResponse
+  ): Either[Error, MemberResponse] = Right(event)
 
   private def createMemberInfoFromDraftState(
       editableInfo: EditableInfo

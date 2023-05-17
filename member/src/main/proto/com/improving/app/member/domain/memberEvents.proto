@@ -73,7 +73,7 @@ message MemberData {
 }
 
 message MemberEventResponse {
-    MemberEvent member_event = 1;
+    MemberEvent member_event = 1 [(validate.rules).message.required = true];
 }
 
 message MemberResponse {
