@@ -85,101 +85,29 @@ class MemberGatewayServerSpec
           val info = baseMemberInfo
 
           val command = RegisterMember(
-            Some(MemberId.of(memberId)),
-            Some(
-              MemberInfo(
-                info.handle,
-                info.avatarUrl,
-                info.firstName,
-                info.lastName,
-                info.notificationPreference
-                  .map(pref => NotificationPreference.fromValue(pref.value)),
-                info.notificationOptIn,
-                info.contact,
-                info.organizationMembership,
-                info.tenant
-              )
+            MemberId.of(memberId),
+            MemberInfo(
+              info.handle,
+              info.avatarUrl,
+              info.firstName,
+              info.lastName,
+              info.notificationPreference
+                .map(pref => NotificationPreference.fromValue(pref.value)),
+              info.notificationOptIn,
+              info.contact,
+              info.organizationMembership,
+              info.tenant
             ),
-            Some(MemberId.of(registeringMember))
+            MemberId.of(registeringMember)
           )
           Post("/member", command.toProtoString) ~> Route.seal(
             routes(handler)
           ) ~> check {
             status shouldBe StatusCodes.OK
             val response = MemberRegistered.fromAscii(responseAs[String])
-            response.memberId.getOrElse(MemberId.defaultInstance).id shouldEqual memberId
-            response.memberInfo.getOrElse(MemberInfo.defaultInstance) shouldEqual memberInfoToGatewayMemberInfo(info)
-            response.meta.map(_.createdBy.getOrElse(MemberId.defaultInstance).id shouldEqual registeringMember)
-          }
-        }
-      }
-
-      "fail with incomplete MemberId" in {
-        withContainers { container =>
-          val handler: MemberGatewayHandler =
-            new MemberGatewayHandler(grpcClientSettingsOpt = Some(getClient(container)))
-
-          val registeringMember = UUID.randomUUID().toString
-
-          val info = baseMemberInfo
-
-          val command = RegisterMember(
-            None,
-            Some(
-              MemberInfo(
-                info.handle,
-                info.avatarUrl,
-                info.firstName,
-                info.lastName,
-                info.notificationPreference
-                  .map(pref => NotificationPreference.fromValue(pref.value)),
-                info.notificationOptIn,
-                info.contact,
-                info.organizationMembership,
-                info.tenant
-              )
-            ),
-            Some(MemberId.of(registeringMember))
-          )
-          Post("/member", command.toProtoString) ~> Route.seal(
-            routes(handler)
-          ) ~> check {
-            status shouldBe StatusCodes.BadRequest
-          }
-        }
-      }
-
-      "fail with incomplete MemberInfo" in {
-        withContainers { container =>
-          val handler: MemberGatewayHandler =
-            new MemberGatewayHandler(grpcClientSettingsOpt = Some(getClient(container)))
-
-          val registeringMember = UUID.randomUUID().toString
-
-          val info = baseMemberInfo
-
-          val command = RegisterMember(
-            Some(MemberId("boo")),
-            Some(
-              MemberInfo(
-                info.handle,
-                info.avatarUrl,
-                "",
-                info.lastName,
-                info.notificationPreference
-                  .map(pref => NotificationPreference.fromValue(pref.value)),
-                info.notificationOptIn,
-                info.contact,
-                info.organizationMembership,
-                info.tenant
-              )
-            ),
-            Some(MemberId.of(registeringMember))
-          )
-          Post("/member", command.toProtoString) ~> Route.seal(
-            routes(handler)
-          ) ~> check {
-            status shouldBe StatusCodes.BadRequest
+            response.memberId.id shouldEqual memberId
+            response.memberInfo shouldEqual memberInfoToGatewayMemberInfo(info)
+            response.meta.createdBy.id shouldEqual registeringMember
           }
         }
       }

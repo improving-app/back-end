@@ -1,0 +1,76 @@
+syntax =  "proto3";
+
+package com.improving.app.member.domain;
+
+import "com/improving/app/common/domain/ids.proto";
+import "com/improving/app/member/domain/memberDomainObjects.proto";
+import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
+import "validate/validate.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  [scalapb.validate.file] {
+    validate_at_construction: true
+  }
+  field_transformations: [
+    {
+      when: {options: {[validate.rules] {message: {required: true}}}}
+      set: {
+        [scalapb.field] {
+          required: true
+        }
+      }
+    }
+  ]
+};
+
+message RegisterMember {
+    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+    common.domain.MemberId member_id = 1 [(validate.rules).message.required = true];
+    MemberInfo member_info = 2 [(validate.rules).message.required = true];
+    common.domain.MemberId registering_member = 3 [(validate.rules).message.required = true];
+}
+
+message ActivateMember {
+    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+    common.domain.MemberId member_id = 1 [(validate.rules).message.required = true];
+    common.domain.MemberId activating_member = 2 [(validate.rules).message.required = true];
+}
+
+message SuspendMember {
+    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+    common.domain.MemberId member_id = 1 [(validate.rules).message.required = true];
+    common.domain.MemberId suspending_member = 2 [(validate.rules).message.required = true];
+}
+
+message TerminateMember {
+    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+    common.domain.MemberId member_id = 1 [(validate.rules).message.required = true];
+    common.domain.MemberId terminating_member = 2 [(validate.rules).message.required = true];
+}
+
+message EditMemberInfo {
+    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+    common.domain.MemberId member_id = 1 [(validate.rules).message.required = true];
+    EditableInfo member_info = 2 [(validate.rules).message.required = true];
+    common.domain.MemberId editing_member = 3 [(validate.rules).message.required = true];
+}
+
+message GetMemberInfo {
+    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+    common.domain.MemberId member_id = 1 [(validate.rules).message.required = true];
+}
+
+message MemberRequest{
+    option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
+
+    oneof sealed_value {
+        RegisterMember register_member_value = 1;
+        ActivateMember activate_member_value = 2;
+        SuspendMember suspend_member_value = 4;
+        TerminateMember terminate_member_value = 5;
+        EditMemberInfo edit_member_info_value = 6;
+        GetMemberInfo get_member_info_value = 7;
+    }
+}
