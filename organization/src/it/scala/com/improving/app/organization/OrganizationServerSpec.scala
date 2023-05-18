@@ -1,13 +1,11 @@
 package com.improving.app.organization
 
 import akka.grpc.{GrpcClientSettings, GrpcServiceException}
-import com.dimafeng.testcontainers.DockerComposeContainer
 import com.improving.app.common.domain._
 import com.improving.app.common.test.ServiceTestContainerSpec
 import com.improving.app.organization.TestData.baseOrganizationInfo
 import com.improving.app.organization.api.{OrganizationService, OrganizationServiceClient}
 import com.improving.app.organization.domain._
-import io.grpc.Status
 import org.scalatest.tagobjects.Retryable
 
 import scala.concurrent.Future
@@ -159,6 +157,39 @@ class OrganizationServerSpec extends ServiceTestContainerSpec(8082, "organizatio
 
       response.organizationId shouldBe OrganizationId(organizationId)
       response.metaInfo.lastUpdatedBy shouldBe MemberId("suspendingUser")
+    }
+  }
+
+  it should "properly process GetOrganizationInfo" in {
+
+    withContainers { containers =>
+      val client = getClient(containers)
+
+      val organizationId = Random.nextString(31)
+
+      val establishedResponse = client
+        .establishOrganization(
+          EstablishOrganization(
+            organizationId = OrganizationId(organizationId),
+            onBehalfOf = MemberId("establishingUser"),
+            organizationInfo = baseOrganizationInfo
+          )
+        )
+        .futureValue
+
+      establishedResponse.organizationId shouldBe OrganizationId(organizationId)
+      establishedResponse.metaInfo.createdBy shouldBe MemberId("establishingUser")
+
+      val response = client
+        .getOrganizationInfo(
+          GetOrganizationInfo(
+            organizationId = OrganizationId(organizationId),
+            onBehalfOf = MemberId("suspendingUser"),
+          )
+        )
+        .futureValue
+
+      response shouldEqual baseOrganizationInfo
     }
   }
 }
