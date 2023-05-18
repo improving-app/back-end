@@ -6,6 +6,26 @@ import "com/improving/app/common/domain/address.proto";
 import "com/improving/app/common/domain/ids.proto";
 import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
+import "validate/validate.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  [scalapb.validate.file] {
+    validate_at_construction: true
+  }
+  field_transformations: [
+    {
+      when: {options: {[validate.rules] {message: {required: true}}}}
+        set: {
+          [scalapb.field] {
+            required: true
+          }
+        }
+    }
+  ]
+};
+
 
 //Data Model
 
@@ -25,66 +45,32 @@ enum MemberStates {
 
 message MemberInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  string handle = 1;
-  string avatar_url = 2;
-  string first_name = 3;
-  string last_name = 4;
-  optional NotificationPreference notification_preference = 5;
-  bool notification_opt_in = 6;
-  common.domain.Contact contact = 7;
-  repeated common.domain.OrganizationId organization_membership = 8;
-  common.domain.TenantId tenant = 9;
-}
-
-message RequiredDraftInfo {
-  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  common.domain.Contact contact = 1;
-  string handle = 2;
-  string avatar_url = 3;
-  string first_name = 4;
-  string last_name = 5;
-  common.domain.TenantId tenant = 6;
-}
-
-message OptionalDraftInfo {
-  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  optional NotificationPreference notification_preference = 1;
-  repeated common.domain.OrganizationId organization_membership = 2;
-}
-
-message MemberMap {
-  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  common.domain.MemberId member_id = 1;
-  MemberInfo member_info = 2;
+    string handle = 1 [(validate.rules).string.min_len = 1];
+    string avatar_url = 2 [(validate.rules).string.min_len = 1];
+    string first_name = 3 [(validate.rules).string.min_len = 1];
+    string last_name = 4 [(validate.rules).string.min_len = 1];
+    optional NotificationPreference notification_preference = 5;
+    bool notification_opt_in = 6;
+    common.domain.Contact contact = 7 [(validate.rules).message.required = true];
+    repeated common.domain.OrganizationId organization_membership = 8 [(validate.rules).repeated.min_items = 1];
+    common.domain.TenantId tenant = 9 [(validate.rules).message.required = true];
 }
 
 message MemberMetaInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  google.protobuf.Timestamp created_on = 1;
-  common.domain.MemberId created_by = 2;
-  google.protobuf.Timestamp  last_modified_on = 3;
-  common.domain.MemberId last_modified_by = 4;
+  google.protobuf.Timestamp created_on = 1 [(validate.rules).message.required = true];
+  common.domain.MemberId created_by = 2 [(validate.rules).message.required = true];
+  google.protobuf.Timestamp last_modified_on = 3 [(validate.rules).message.required = true];
+  common.domain.MemberId last_modified_by = 4 [(validate.rules).message.required = true];
   MemberStates current_state = 5;
-}
-
-message EditableInfo {
-  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  optional string handle = 1;
-  optional string avatar_url = 2;
-  optional string first_name = 3;
-  optional string last_name = 4;
-  optional NotificationPreference notification_preference = 5;
-  common.domain.Contact contact = 6;
-  repeated common.domain.OrganizationId organization_membership = 7;
-  common.domain.TenantId tenant = 8;
 }
 
 //Requests
 message RegisterMember {
   option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
-  common.domain.MemberId member_id = 1;
-  MemberInfo member_info = 2;
-  common.domain.MemberId registering_member = 3;
+  common.domain.MemberId member_id = 1 [(validate.rules).message.required = true];
+  MemberInfo member_info = 2 [(validate.rules).message.required = true];
+  common.domain.MemberId registering_member = 3 [(validate.rules).message.required = true];
 }
 
 message MemberRequest{
@@ -97,9 +83,9 @@ message MemberRequest{
 
 //Member Events
 message MemberRegistered {
-  common.domain.MemberId member_id = 1;
-  MemberInfo member_info =2;
-  MemberMetaInfo meta = 3;
+  common.domain.MemberId member_id = 1 [(validate.rules).message.required = true];
+  MemberInfo member_info = 2 [(validate.rules).message.required = true];
+  MemberMetaInfo meta = 3 [(validate.rules).message.required = true];
 }
 
 message MemberEvent{
@@ -113,13 +99,13 @@ message MemberEvent{
 
 //MemberResponse
 message MemberData {
-  common.domain.MemberId member_id = 1;
-  MemberInfo member_info = 2;
-  MemberMetaInfo member_meta_info = 3;
+  common.domain.MemberId member_id = 1 [(validate.rules).message.required = true];
+  MemberInfo member_info = 2 [(validate.rules).message.required = true];
+  MemberMetaInfo member_meta_info = 3 [(validate.rules).message.required = true];
 }
 
 message MemberEventResponse {
-  MemberEvent member_event = 1;
+  MemberEvent member_event = 1 [(validate.rules).message.required = true];
 }
 
 message MemberResponse {
