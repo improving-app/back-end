@@ -8,21 +8,8 @@ import akka.persistence.typed.PersistenceId
 import akka.util.Timeout
 import com.google.rpc.Code
 import com.google.rpc.error_details.LocalizedMessage
-import com.improving.app.common.errors.ValidationError
 import com.improving.app.organization.api.OrganizationService
-import com.improving.app.organization.domain.{
-  ActivateOrganization,
-  EstablishOrganization,
-  GetOrganizationInfo,
-  Organization,
-  OrganizationActivated,
-  OrganizationEstablished,
-  OrganizationInfo,
-  OrganizationSuspended,
-  OrganizationTerminated,
-  SuspendOrganization,
-  TerminateOrganization
-}
+import com.improving.app.organization.domain.{ActivateOrganization, AddMembersToOrganization, AddOwnersToOrganization, EstablishOrganization, GetOrganizationInfo, MembersAddedToOrganization, MembersRemovedFromOrganization, Organization, OrganizationActivated, OrganizationEstablished, OrganizationEvent, OrganizationEventPB, OrganizationInfo, OrganizationInfoResponse, OrganizationRequest, OrganizationRequestPB, OrganizationResponse, OrganizationSuspended, OrganizationTerminated, OwnersAddedToOrganization, OwnersRemovedFromOrganization, RemoveMembersFromOrganization, RemoveOwnersFromOrganization, SuspendOrganization, TerminateOrganization}
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.concurrent.duration.DurationInt
@@ -53,45 +40,47 @@ class OrganizationServiceImpl(sys: ActorSystem[_]) extends OrganizationService {
     )
   }
 
-  override def establishOrganization(in: EstablishOrganization): Future[OrganizationEstablished] = {
-    val result = sharding
-      .entityRefFor(Organization.TypeKey, in.organizationId.id)
-      .ask(ref => Organization.OrganizationRequestEnvelope(in, ref))
-    result.transform(
-      result => result.getValue.asMessage.sealedValue.organizationEstablished.get,
-      exception => exceptionHandler(exception)
-    )
+  private def processEntityRequest[ResultT](
+      request: OrganizationRequest
+  ): Future[ResultT] = {
+      val result = sharding
+        .entityRefFor(Organization.TypeKey, request.organizationId.id)
+        .ask(ref => Organization.OrganizationRequestEnvelope(request.asInstanceOf[OrganizationRequestPB], ref))
+      result.transform(
+        _.getValue.asInstanceOf[ResultT],
+        exception => exceptionHandler(exception)
+      )
   }
 
-  override def activateOrganization(in: ActivateOrganization): Future[OrganizationActivated] = {
-    val result = sharding
-      .entityRefFor(Organization.TypeKey, in.organizationId.id)
-      .ask(ref => Organization.OrganizationRequestEnvelope(in, ref))
-    result.transform(
-      result => result.getValue.asMessage.sealedValue.organizationActivated.get,
-      exception => exceptionHandler(exception)
-    )
-  }
+  override def establishOrganization(command: EstablishOrganization): Future[OrganizationEstablished] =
+    processEntityRequest(command)
 
-  override def suspendOrganization(in: SuspendOrganization): Future[OrganizationSuspended] = {
-    val result = sharding
-      .entityRefFor(Organization.TypeKey, in.organizationId.id)
-      .ask(ref => Organization.OrganizationRequestEnvelope(in, ref))
-    result.transform(
-      result => result.getValue.asMessage.sealedValue.organizationSuspended.get,
-      exception => exceptionHandler(exception)
-    )
-  }
+  override def activateOrganization(command: ActivateOrganization): Future[OrganizationActivated] =
+    processEntityRequest(command)
 
-  override def terminateOrganization(in: TerminateOrganization): Future[OrganizationTerminated] = {
-    val result = sharding
-      .entityRefFor(Organization.TypeKey, in.organizationId.id)
-      .ask(ref => Organization.OrganizationRequestEnvelope(in, ref))
-    result.transform(
-      result => result.getValue.asMessage.sealedValue.organizationTerminated.get,
-      exception => exceptionHandler(exception)
-    )
-  }
+  override def suspendOrganization(command: SuspendOrganization): Future[OrganizationSuspended] =
+    processEntityRequest(command)
 
-  override def getOrganizationInfo(in: GetOrganizationInfo): Future[OrganizationInfo] = ???
+  override def terminateOrganization(command: TerminateOrganization): Future[OrganizationTerminated] =
+    processEntityRequest(command)
+
+  override def addMembersToOrganization(command: AddMembersToOrganization): Future[MembersAddedToOrganization] =
+    processEntityRequest(command)
+
+  override def removeMembersFromOrganization(
+      command: RemoveMembersFromOrganization
+  ): Future[MembersRemovedFromOrganization] =
+    processEntityRequest(command)
+
+  override def addOwnersToOrganization(command: AddOwnersToOrganization): Future[OwnersAddedToOrganization] =
+    processEntityRequest(command)
+
+  override def removeOwnersFromOrganization(
+      command: RemoveOwnersFromOrganization
+  ): Future[OwnersRemovedFromOrganization] =
+    processEntityRequest(command)
+
+  override def getOrganizationInfo(query: GetOrganizationInfo): Future[OrganizationInfo] = {
+    processEntityRequest[OrganizationInfoResponse](query).map(_.info)
+  }
 }

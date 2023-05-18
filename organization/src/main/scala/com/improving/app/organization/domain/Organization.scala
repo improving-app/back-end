@@ -8,9 +8,8 @@ import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.MemberId
-import com.improving.app.common.errors.Validation._
 import com.improving.app.common.errors._
-import com.improving.app.organization.domain.OrganizationState.ORGANIZATION_STATE_DRAFT
+import com.improving.app.organization.domain.OrganizationState._
 
 import java.time.Instant
 
@@ -19,7 +18,7 @@ object Organization {
 
   case class OrganizationRequestEnvelope(
       request: OrganizationRequestPB,
-      replyTo: ActorRef[StatusReply[OrganizationEvent]]
+      replyTo: ActorRef[StatusReply[OrganizationResponse]]
   )
 
   sealed trait OrganizationState
@@ -57,69 +56,42 @@ object Organization {
   ) extends InactiveState
 
   def apply(persistenceId: PersistenceId): Behavior[OrganizationRequestEnvelope] = {
-    Behaviors.setup(context =>
-      EventSourcedBehavior[OrganizationRequestEnvelope, OrganizationEvent, OrganizationState](
+    Behaviors.setup(_ =>
+      EventSourcedBehavior[OrganizationRequestEnvelope, OrganizationEventPB, OrganizationState](
         persistenceId = persistenceId,
         emptyState = UninitializedState,
-        commandHandler = commandHandler,
+        commandHandler = requestHandler,
         eventHandler = eventHandler
       )
     )
   }
 
-  private val commandHandler
-      : (OrganizationState, OrganizationRequestEnvelope) => ReplyEffect[OrganizationEvent, OrganizationState] = {
+  private val requestHandler
+      : (OrganizationState, OrganizationRequestEnvelope) => ReplyEffect[OrganizationEventPB, OrganizationState] = {
     (state, envelope) =>
-      val result: Either[Error, OrganizationEvent] = state match {
-        case UninitializedState =>
-          envelope.request match {
-            case command: EstablishOrganization => establishOrganization(command)
-            case _                              => Left(StateError("Organization is not established"))
-          }
-        case draftState: DraftState =>
-          envelope.request match {
-            case command: ActivateOrganization          => activateOrganization(draftState, command)
-            case command: SuspendOrganization           => suspendOrganization(draftState, command)
-            case command: TerminateOrganization         => terminateOrganization(draftState, command)
-            case command: EditOrganizationInfo          => editOrganizationInfo(draftState, command)
-            case command: AddMembersToOrganization      => addMembersToOrganization(draftState, command)
-            case command: RemoveMembersFromOrganization => removeMembersFromOrganization(draftState, command)
-            case command: AddOwnersToOrganization       => addOwnersToOrganization(draftState, command)
-            case command: RemoveOwnersFromOrganization  => removeOwnersFromOrganization(draftState, command)
-            case _                                      => Left(StateError("Message type not supported in draft state"))
-          }
-        case activeState: ActiveState =>
-          envelope.request match {
-            case command: SuspendOrganization           => suspendOrganization(activeState, command)
-            case command: TerminateOrganization         => terminateOrganization(activeState, command)
-            case command: EditOrganizationInfo          => editOrganizationInfo(activeState, command)
-            case command: AddMembersToOrganization      => addMembersToOrganization(activeState, command)
-            case command: RemoveMembersFromOrganization => removeMembersFromOrganization(activeState, command)
-            case command: AddOwnersToOrganization       => addOwnersToOrganization(activeState, command)
-            case command: RemoveOwnersFromOrganization  => removeOwnersFromOrganization(activeState, command)
-            case _                                      => Left(StateError("Message type not supported in active state"))
-          }
-        case suspendedState: SuspendedState =>
-          envelope.request match {
-            case command: ActivateOrganization          => activateOrganization(suspendedState, command)
-            case command: TerminateOrganization         => terminateOrganization(suspendedState, command)
-            case command: EditOrganizationInfo          => editOrganizationInfo(suspendedState, command)
-            case command: AddMembersToOrganization      => addMembersToOrganization(suspendedState, command)
-            case command: RemoveMembersFromOrganization => removeMembersFromOrganization(suspendedState, command)
-            case command: AddOwnersToOrganization       => addOwnersToOrganization(suspendedState, command)
-            case command: RemoveOwnersFromOrganization  => removeOwnersFromOrganization(suspendedState, command)
-            case _                                      => Left(StateError("Message type not supported in suspended state"))
-          }
-      }
-      result match {
-        case Left(error)  => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
-        case Right(event) => Effect.persist(event).thenReply(envelope.replyTo) { _ => StatusReply.Success(event) }
+      {
+        envelope.request.asInstanceOf[OrganizationRequest] match {
+          case command: OrganizationCommand =>
+            handleCommand(state, command) match {
+              case Left(error) => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
+              case Right(event) =>
+                Effect
+                  .persist(event)
+                  .thenReply(envelope.replyTo)((_: OrganizationState) => StatusReply.Success(event))
+                  .asInstanceOf[ReplyEffect[OrganizationEventPB, OrganizationState]]
+            }
+          case query: OrganizationQuery =>
+            handleQuery(state, query) match {
+              case Left(error)   => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
+              case Right(result) => Effect.reply(envelope.replyTo)(StatusReply.Success(result))
+            }
+        }
       }
   }
 
-  private val eventHandler: (OrganizationState, OrganizationEvent) => OrganizationState = { (state, event) =>
+  private val eventHandler: (OrganizationState, OrganizationEventPB) => OrganizationState = (state, event) =>
     event match {
-      case OrganizationEvent.Empty => state
+      case OrganizationEventPB.Empty => state
       case event: OrganizationEstablished =>
         state match {
           case UninitializedState =>
@@ -178,6 +150,60 @@ object Organization {
           case x: SuspendedState  => SuspendedState(x.info, event.metaInfo, x.members, x.owners -- event.ownersRemoved)
           case UninitializedState => UninitializedState
         }
+    }
+
+  private def handleCommand(state: OrganizationState, command: OrganizationCommand): Either[Error, OrganizationEvent] =
+    state match {
+      case UninitializedState =>
+        command match {
+          case command: EstablishOrganization => establishOrganization(command)
+          case _                              => Left(StateError("Organization is not established"))
+        }
+      case draftState: DraftState =>
+        command match {
+          case command: ActivateOrganization          => activateOrganization(draftState, command)
+          case command: SuspendOrganization           => suspendOrganization(draftState, command)
+          case command: TerminateOrganization         => terminateOrganization(draftState, command)
+          case command: EditOrganizationInfo          => editOrganizationInfo(draftState, command)
+          case command: AddMembersToOrganization      => addMembersToOrganization(draftState, command)
+          case command: RemoveMembersFromOrganization => removeMembersFromOrganization(draftState, command)
+          case command: AddOwnersToOrganization       => addOwnersToOrganization(draftState, command)
+          case command: RemoveOwnersFromOrganization  => removeOwnersFromOrganization(draftState, command)
+          case _                                      => Left(StateError("Message type not supported in draft state"))
+        }
+      case activeState: ActiveState =>
+        command match {
+          case command: SuspendOrganization           => suspendOrganization(activeState, command)
+          case command: TerminateOrganization         => terminateOrganization(activeState, command)
+          case command: EditOrganizationInfo          => editOrganizationInfo(activeState, command)
+          case command: AddMembersToOrganization      => addMembersToOrganization(activeState, command)
+          case command: RemoveMembersFromOrganization => removeMembersFromOrganization(activeState, command)
+          case command: AddOwnersToOrganization       => addOwnersToOrganization(activeState, command)
+          case command: RemoveOwnersFromOrganization  => removeOwnersFromOrganization(activeState, command)
+          case _                                      => Left(StateError("Message type not supported in active state"))
+        }
+      case suspendedState: SuspendedState =>
+        command match {
+          case command: ActivateOrganization          => activateOrganization(suspendedState, command)
+          case command: TerminateOrganization         => terminateOrganization(suspendedState, command)
+          case command: EditOrganizationInfo          => editOrganizationInfo(suspendedState, command)
+          case command: AddMembersToOrganization      => addMembersToOrganization(suspendedState, command)
+          case command: RemoveMembersFromOrganization => removeMembersFromOrganization(suspendedState, command)
+          case command: AddOwnersToOrganization       => addOwnersToOrganization(suspendedState, command)
+          case command: RemoveOwnersFromOrganization  => removeOwnersFromOrganization(suspendedState, command)
+          case _                                      => Left(StateError("Message type not supported in suspended state"))
+        }
+    }
+
+  private def handleQuery(
+      state: OrganizationState,
+      query: OrganizationQuery
+  ): Either[Error, OrganizationQueryResponse] = {
+    state match {
+      case state:EstablishedState => query match {
+        case GetOrganizationInfo(organizationId, _, _) => Right(OrganizationInfoResponse(organizationId, state.info))
+      }
+      case _ => Left(StateError("Organization is not established"))
     }
   }
 
