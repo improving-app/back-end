@@ -4,13 +4,29 @@ package com.improving.app.store.domain;
 import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/store/domain/storeData.proto";
 import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
+import "validate/validate.proto";
 
 option (scalapb.options) = {
+  scope: FILE
+  [scalapb.validate.file] {
+    validate_at_construction: true
+  }
+  field_transformations: [
+    {
+      when: {options: {[validate.rules] {message: {required: true}}}}
+      set: {
+        [scalapb.field] {
+          required: true
+        }
+      }
+    }
+  ]
   single_file: true,
   preamble: [
     "sealed trait StoreRequest {\n",
-    "  val storeId: Option[com.improving.app.common.domain.StoreId]\n"
-    "  val onBehalfOf: Option[com.improving.app.common.domain.MemberId]\n",
+    "  val storeId: com.improving.app.common.domain.StoreId\n"
+    "  val onBehalfOf: com.improving.app.common.domain.MemberId\n",
     "}\n",
     "sealed trait StoreCommand extends StoreRequest\n",
     "sealed trait StoreQuery extends StoreRequest\n"
@@ -35,50 +51,50 @@ message CreateStore {
   option (scalapb.message) = {
     extends: [ "StoreCommand" ]
   };
-  common.domain.StoreId store_id = 1;
-  com.improving.app.common.domain.MemberId on_behalf_of = 2;
-  EditableStoreInfo info = 3;
+  common.domain.StoreId store_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId on_behalf_of = 2 [(validate.rules).message.required = true];
+  optional EditableStoreInfo info = 3;
 }
 
 message MakeStoreReady {
   option (scalapb.message) = {
     extends: [ "StoreCommand" ]
   };
-  common.domain.StoreId store_id = 1;
-  com.improving.app.common.domain.MemberId on_behalf_of = 2;
-  StoreInfo info = 3;
+  common.domain.StoreId store_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId on_behalf_of = 2 [(validate.rules).message.required = true];
+  optional StoreInfo info = 3;
 }
 
 message DeleteStore {
   option (scalapb.message) = {
     extends: [ "StoreCommand" ]
   };
-  common.domain.StoreId store_id = 1;
-  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  common.domain.StoreId store_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId on_behalf_of = 2 [(validate.rules).message.required = true];
 }
 
 message OpenStore {
   option (scalapb.message) = {
     extends: [ "StoreCommand" ]
   };
-  common.domain.StoreId store_id = 1;
-  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  common.domain.StoreId store_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId on_behalf_of = 2 [(validate.rules).message.required = true];
 }
 
 message CloseStore {
   option (scalapb.message) = {
     extends: [ "StoreCommand" ]
   };
-  common.domain.StoreId store_id = 1;
-  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  common.domain.StoreId store_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId on_behalf_of = 2 [(validate.rules).message.required = true];
 }
 
 message TerminateStore {
   option (scalapb.message) = {
     extends: [ "StoreCommand" ]
   };
-  common.domain.StoreId store_id = 1;
-  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  common.domain.StoreId store_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId on_behalf_of = 2 [(validate.rules).message.required = true];
 }
 
 
@@ -86,13 +102,13 @@ message EditStoreInfo {
   option (scalapb.message) = {
     extends: [ "StoreCommand" ]
   };
-  common.domain.StoreId store_id = 1;
-  com.improving.app.common.domain.MemberId on_behalf_of = 2;
-  EditableStoreInfo new_info = 3;
+  common.domain.StoreId store_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId on_behalf_of = 2 [(validate.rules).message.required = true];
+  EditableStoreInfo new_info = 3 [(validate.rules).message.required = true];
 }
 
 message GetStoreInfo {
-  common.domain.StoreId store_id = 1;
+  common.domain.StoreId store_id = 1 [(validate.rules).message.required = true];
 }
 
 //message AddProductsToStore {
