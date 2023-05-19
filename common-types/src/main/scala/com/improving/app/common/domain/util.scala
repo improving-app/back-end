@@ -1,23 +1,21 @@
 package com.improving.app.common.domain
 
-import com.improving.app.common.service.util.doForSameIfHas
-
 object util {
-  def addressFromEditableAddress(addressToUpdate: EditableAddress, addressToCopy: Address): Address =
-    addressToCopy.copy(
-      line1 = doForSameIfHas[String](addressToUpdate.line1, addressToCopy.line1),
-      line2 = Some(doForSameIfHas[String](addressToUpdate.line2, addressToCopy.getLine2)),
-      city = doForSameIfHas[String](addressToUpdate.city, addressToCopy.city),
-      stateProvince = doForSameIfHas[String](addressToUpdate.stateProvince, addressToCopy.stateProvince),
-      country = doForSameIfHas[String](addressToUpdate.country, addressToCopy.country),
-      postalCode = Some(doForSameIfHas[PostalCodeMessageImpl](addressToUpdate.postalCode, addressToCopy.getPostalCode))
+  def addressFromEditableAddress(newAddress: EditableAddress, oldAddress: Address): Address =
+    Address(
+      line1 = newAddress.line1.getOrElse(oldAddress.line1),
+      line2 = newAddress.line2.orElse(oldAddress.line2),
+      city = newAddress.city.getOrElse(oldAddress.city),
+      stateProvince = newAddress.stateProvince.getOrElse(oldAddress.stateProvince),
+      country = newAddress.country.getOrElse(oldAddress.country),
+      postalCode = newAddress.postalCode.orElse(oldAddress.postalCode),
     )
 
-  def contactFromEditableContact(contactToUpdate: EditableContact, contactToCopy: Contact): Contact = Contact(
-    firstName = doForSameIfHas[String](contactToUpdate.firstName, contactToCopy.firstName),
-    lastName = doForSameIfHas[String](contactToUpdate.lastName, contactToCopy.lastName),
-    emailAddress = Some(doForSameIfHas[String](contactToUpdate.emailAddress, contactToCopy.getEmailAddress)),
-    phone = Some(doForSameIfHas[String](contactToUpdate.phone, contactToCopy.getPhone)),
-    userName = doForSameIfHas[String](contactToUpdate.userName, contactToCopy.userName),
+  def contactFromEditableContact(newContact: EditableContact, oldContact: Contact): Contact = Contact(
+    firstName = newContact.firstName.getOrElse(oldContact.firstName),
+    lastName = newContact.lastName.getOrElse(oldContact.lastName),
+    emailAddress = newContact.emailAddress.orElse(oldContact.emailAddress),
+    phone = newContact.phone.orElse(oldContact.phone),
+    userName = newContact.userName.getOrElse(oldContact.userName),
   )
 }

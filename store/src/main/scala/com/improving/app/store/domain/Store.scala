@@ -8,9 +8,7 @@ import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.{MemberId, OrganizationId}
-import com.improving.app.common.errors.Validation.{applyAllValidators, storeIdValidator}
 import com.improving.app.common.errors._
-import com.improving.app.common.service.util.{doForOptionIfHas, doForSameIfHas, doIfHas}
 import com.improving.app.store.domain.StoreValidation.draftTransitionStoreInfoValidator
 
 import java.time.Instant
@@ -293,9 +291,9 @@ object Store {
       val fieldsToUpdate = command.newInfo
 
       val updatedInfo = StoreInfo(
-        name = doForSameIfHas[String](fieldsToUpdate.name, state.info.name),
-        description = doForSameIfHas[String](fieldsToUpdate.description, state.info.description),
-        sponsoringOrg = doForSameIfHas[OrganizationId](fieldsToUpdate.sponsoringOrg, state.info.sponsoringOrg)
+        name = fieldsToUpdate.name.getOrElse(state.info.name),
+        description = fieldsToUpdate.description.getOrElse(state.info.description),
+        sponsoringOrg = fieldsToUpdate.sponsoringOrg.getOrElse(state.info.sponsoringOrg)
       )
 
       val updatedMetaInfo = updateMetaInfo(state.metaInfo, command.onBehalfOf)
@@ -312,12 +310,9 @@ object Store {
       val fieldsToUpdate = command.newInfo
 
       val updatedInfo = editableInfo.copy(
-        name = doForOptionIfHas[String](fieldsToUpdate.name, editableInfo.name),
-        description = doForOptionIfHas[String](fieldsToUpdate.description, editableInfo.description),
-        sponsoringOrg = doForOptionIfHas[OrganizationId](
-          fieldsToUpdate.sponsoringOrg,
-          editableInfo.sponsoringOrg,
-        )
+        name = fieldsToUpdate.name.orElse(editableInfo.name),
+        description = fieldsToUpdate.description.orElse(editableInfo.description),
+        sponsoringOrg = fieldsToUpdate.sponsoringOrg.orElse(editableInfo.sponsoringOrg),
       )
 
       val updatedMetaInfo = updateMetaInfo(state.metaInfo, command.onBehalfOf)
