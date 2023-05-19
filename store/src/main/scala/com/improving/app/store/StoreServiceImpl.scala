@@ -10,7 +10,6 @@ import com.google.rpc.Code
 import com.google.rpc.error_details.LocalizedMessage
 import com.improving.app.common.errors.ValidationError
 import com.improving.app.store.api.StoreService
-import com.improving.app.store.domain.StoreValidation.storeRequestValidator
 import com.improving.app.store.domain.{
   CloseStore,
   CreateStore,
@@ -72,15 +71,12 @@ class StoreServiceImpl(sys: ActorSystem[_]) extends StoreService {
 
   private def handleRequest(
       in: StoreRequestPB with StoreCommand,
-  ): Future[StoreEventMessage.SealedValue] =
-    storeRequestValidator(in) match {
-      case Some(error) => Future.failed(validationFailure(error))
-      case None =>
-        val result = sharding
-          .entityRefFor(Store.TypeKey, in.storeId.get.id)
-          .ask(ref => Store.StoreRequestEnvelope(in, ref))
-        result.transform(result => result.getValue.asMessage.sealedValue, exception => exceptionHandler(exception))
-    }
+  ): Future[StoreEventMessage.SealedValue] = {
+    val result = sharding
+      .entityRefFor(Store.TypeKey, in.storeId.id)
+      .ask(ref => Store.StoreRequestEnvelope(in, ref))
+    result.transform(result => result.getValue.asMessage.sealedValue, exception => exceptionHandler(exception))
+  }
 
   override def createStore(in: CreateStore): Future[StoreCreated] = handleRequest(in).map(_.storeCreated.get)
 

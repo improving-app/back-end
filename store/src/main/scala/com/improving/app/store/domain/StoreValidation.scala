@@ -5,14 +5,6 @@ import com.improving.app.common.errors.Validation._
 import com.improving.app.common.errors.ValidationError
 
 object StoreValidation {
-  val doNothingValidator: Validator[Any] = applyAllValidators[Any](_ => None)
-
-  val storeRequestValidator: Validator[StoreRequest] =
-    applyAllValidators[StoreRequest](
-      r => required("store id", storeIdValidator)(r.storeId),
-      r => required("on behalf of", memberIdValidator)(r.onBehalfOf)
-    )
-
   val storeNameValidator: Validator[String] = name => {
     if (name.isEmpty) {
       Some(ValidationError("name empty"))
@@ -41,13 +33,6 @@ object StoreValidation {
     applyAllValidators[EditableStoreInfo](
       storeInfo => required("name", storeNameValidator)(storeInfo.name),
       storeInfo => required("description", storeDescriptionValidator)(storeInfo.description),
-      storeInfo => required("sponsoring org", storeSponsoringOrgValidator)(storeInfo.sponsoringOrg)
-    )
-
-  val createdStateStoreInfoValidator: Validator[StoreInfo] =
-    applyAllValidators[StoreInfo](
-      storeInfo => storeNameValidator(storeInfo.name),
-      storeInfo => storeDescriptionValidator(storeInfo.description),
       storeInfo => required("sponsoring org", storeSponsoringOrgValidator)(storeInfo.sponsoringOrg)
     )
 }
