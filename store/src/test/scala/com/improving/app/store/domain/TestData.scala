@@ -8,7 +8,7 @@ object TestData {
       StoreInfo(
         name = "Store Name",
         description = "Here is the description.",
-        sponsoringOrg = Some(OrganizationId("Sponsor"))
+        sponsoringOrg = OrganizationId("Sponsor")
       )
     )
   )

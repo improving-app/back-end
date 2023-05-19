@@ -1,15 +1,7 @@
 package com.improving.app.tenant
 
-import com.improving.app.common.domain.util.{addressFromEditableAddress, contactFromEditableContact}
-import com.improving.app.common.domain.{
-  Address,
-  CaPostalCodeImpl,
-  Contact,
-  EditableAddress,
-  EditableContact,
-  PostalCodeMessageImpl
-}
-import com.improving.app.common.service.util.{doForSameIfHas, doIfHas}
+import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, PostalCodeMessageImpl}
+import com.improving.app.common.test.domain.util.{testAddressFromEditableAddress, testContactFromEditableContact}
 import com.improving.app.common.test.domain.util.{testAddressFromEditableAddress, testContactFromEditableContact}
 import com.improving.app.tenant.domain.{EditableTenantInfo, TenantInfo, TenantOrganizationList}
 
