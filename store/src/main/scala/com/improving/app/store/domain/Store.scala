@@ -10,7 +10,7 @@ import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.{MemberId, OrganizationId}
 import com.improving.app.common.errors.Validation.{applyAllValidators, storeIdValidator}
 import com.improving.app.common.errors._
-import com.improving.app.common.service.util.{doForOptionSameIfHas, doForSameIfHas, doIfHas}
+import com.improving.app.common.service.util.{doForOptionIfHas, doForSameIfHas, doIfHas}
 import com.improving.app.store.domain.StoreValidation.draftTransitionStoreInfoValidator
 
 import java.time.Instant
@@ -188,8 +188,8 @@ object Store {
       state: DraftState,
       command: MakeStoreReady
   ): Either[Error, StoreEvent] = {
-    val hasErrors = draftTransitionStoreInfoValidator(state.info)
-    if (hasErrors.isEmpty) {
+    val validationErrorsOpt = draftTransitionStoreInfoValidator(state.info)
+    if (validationErrorsOpt.isEmpty) {
       val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = command.onBehalfOf)
       Right(
         StoreIsReady(
@@ -199,7 +199,7 @@ object Store {
         )
       )
     } else
-      Left(StateError(hasErrors.get.message))
+      Left(StateError(validationErrorsOpt.get.message))
   }
 
   private def openStore(
@@ -312,9 +312,9 @@ object Store {
       val fieldsToUpdate = command.newInfo
 
       val updatedInfo = editableInfo.copy(
-        name = doForOptionSameIfHas[String](fieldsToUpdate.name, editableInfo.name),
-        description = doForOptionSameIfHas[String](fieldsToUpdate.description, editableInfo.description),
-        sponsoringOrg = doForOptionSameIfHas[OrganizationId](
+        name = doForOptionIfHas[String](fieldsToUpdate.name, editableInfo.name),
+        description = doForOptionIfHas[String](fieldsToUpdate.description, editableInfo.description),
+        sponsoringOrg = doForOptionIfHas[OrganizationId](
           fieldsToUpdate.sponsoringOrg,
           editableInfo.sponsoringOrg,
         )

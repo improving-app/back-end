@@ -11,7 +11,7 @@ object util {
   def doForSameIfHas[I](newData: Option[I], oldData: I, doFunc: I => I = (v: I) => v): I =
     doIfHas[I, I](newData, oldData, doFunc)
 
-  def doForOptionSameIfHas[I](
+  def doForOptionIfHas[I](
       newData: Option[I],
       oldData: Option[I],
       doFunc: I => I = (v: I) => v
