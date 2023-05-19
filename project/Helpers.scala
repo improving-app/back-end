@@ -70,7 +70,9 @@ object C {
           Compile / scalacOptions ++= scala3Options,
           IntegrationTest / fork := true,
           libraryDependencies ++=
-            utilityDependencies ++ loggingDependencies ++ httpDependencies ++ akkaHttpTestingDependencies ++ jsonDependencies,
+            utilityDependencies ++ loggingDependencies ++
+              httpDependencies ++ akkaHttpTestingDependencies ++
+              scalaPbDependencies ++ scalaPbValidationDependencies ++ jsonDependencies,
           dockerSettings(port)
         )
     }

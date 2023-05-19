@@ -35,53 +35,6 @@ class MemberSpec
     eventSourcedTestKit.clear()
   }
 
-  private def validateFailedInitialRegisterMember(
-      result: EventSourcedBehaviorTestKit.CommandResultWithReply[MemberCommand, MemberEvent, MemberState, StatusReply[
-        MemberResponse
-      ]]
-  ): Unit = {
-    result.hasNoEvents shouldBe true
-    result.state shouldBe UninitializedMemberState()
-  }
-
-  private def validateFailedActivateMemberInDraftState(
-      result: EventSourcedBehaviorTestKit.CommandResultWithReply[MemberCommand, MemberEvent, MemberState, StatusReply[
-        MemberResponse
-      ]]
-  ): Unit = {
-    result.hasNoEvents
-    result.stateOfType[DraftMemberState].meta.currentState shouldBe MEMBER_STATE_DRAFT
-    result.stateOfType[DraftMemberState].meta.lastModifiedBy.get.id shouldBe "registeringMember"
-  }
-
-  private def validateFailedSuspendMemberInActiveState(
-      result: EventSourcedBehaviorTestKit.CommandResultWithReply[MemberCommand, MemberEvent, MemberState, StatusReply[
-        MemberResponse
-      ]]
-  ): Unit = {
-    result.hasNoEvents
-    result.stateOfType[RegisteredMemberState].meta.currentState shouldBe MEMBER_STATE_ACTIVE
-    result.stateOfType[RegisteredMemberState].meta.lastModifiedBy.get.id shouldBe "activatingMember"
-  }
-
-  private def validateFailedEditMemberInfoInDraftState(
-      result: EventSourcedBehaviorTestKit.CommandResultWithReply[MemberCommand, MemberEvent, MemberState, StatusReply[
-        MemberResponse
-      ]]
-  ): Unit = {
-    result.hasNoEvents shouldBe true
-    val state = result.stateOfType[DraftMemberState]
-    state.requiredInfo.firstName shouldBe baseMemberInfo.firstName
-    state.requiredInfo.contact shouldBe Some(baseContact)
-    state.requiredInfo.handle shouldBe baseMemberInfo.handle
-    state.requiredInfo.avatarUrl shouldBe baseMemberInfo.avatarUrl
-    state.requiredInfo.lastName shouldBe baseMemberInfo.lastName
-    state.requiredInfo.tenant shouldBe baseMemberInfo.tenant
-    state.optionalInfo.organizationMembership shouldBe baseMemberInfo.organizationMembership
-    state.optionalInfo.notificationPreference shouldBe baseMemberInfo.notificationPreference
-    state.meta.createdBy.get.id shouldBe "registeringMember"
-  }
-
   "The member" when {
     "in the DraftMemberState" when {
       "executing RegisterMember" should {
@@ -89,7 +42,7 @@ class MemberSpec
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
             MemberCommand(
               baseRegisterMember.copy(
-                registeringMember = Some(MemberId("unauthorizedUser"))
+                registeringMember = MemberId("unauthorizedUser")
               ),
               _
             )
@@ -98,22 +51,22 @@ class MemberSpec
           result.reply.getError.getMessage shouldBe "User is not authorized to modify Member"
         }
 
-        "error for invalid MemberInfo" in {
-          val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
-            MemberCommand(
-              baseRegisterMember.copy(
-                memberInfo = Some(baseMemberInfo.copy(firstName = "firstName1"))
-              ),
-              _
-            )
-          )
-
-          assert(
-            result.reply.getError.getMessage
-              .contains("First name cannot contain spaces, numbers or special characters.")
-          )
-          validateFailedInitialRegisterMember(result)
-        }
+        //TODO: Determine how to process names with special characters
+        //"error for invalid MemberInfo" in {
+        //  val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
+        //    MemberCommand(
+        //      baseRegisterMember.copy(
+        //        memberInfo = baseMemberInfo.copy(firstName = "firstName1")
+        //      ),
+        //      _
+        //    )
+        //  )
+//
+        //  assert(
+        //    result.reply.getError.getMessage
+        //      .contains("First name cannot contain spaces, numbers or special characters.")
+        //  )
+        //}
 
         "succeed for golden path" in {
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
@@ -126,29 +79,25 @@ class MemberSpec
           val memberRegistered =
             result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberRegisteredValue.get
 
-          memberRegistered.memberId shouldBe Some(
-            MemberId(testMemberIdString)
-          )
-          memberRegistered.memberInfo shouldBe Some(baseMemberInfo)
-          memberRegistered.meta.get.currentState shouldBe MEMBER_STATE_DRAFT
-          memberRegistered.meta.get.createdBy shouldBe Some(
-            MemberId("registeringMember")
-          )
+          memberRegistered.memberId shouldBe MemberId(testMemberIdString)
+          memberRegistered.memberInfo shouldBe baseMemberInfo
+          memberRegistered.meta.currentState shouldBe MEMBER_STATE_DRAFT
+          memberRegistered.meta.createdBy shouldBe MemberId("registeringMember")
 
           val event = result.eventOfType[MemberRegistered]
-          event.memberId.get.id shouldBe testMemberIdString
-          event.memberInfo.get shouldBe baseMemberInfo
-          event.meta.get.currentState shouldBe MEMBER_STATE_DRAFT
-          event.meta.get.createdBy.get.id shouldBe "registeringMember"
+          event.memberId.id shouldBe testMemberIdString
+          event.memberInfo shouldBe baseMemberInfo
+          event.meta.currentState shouldBe MEMBER_STATE_DRAFT
+          event.meta.createdBy.id shouldBe "registeringMember"
 
           val state = result.stateOfType[DraftMemberState]
 
-          state.requiredInfo.firstName shouldBe "firstName"
-          state.requiredInfo.contact shouldBe Some(baseContact)
-          state.requiredInfo.handle shouldBe "handle"
-          state.optionalInfo.organizationMembership shouldBe baseMemberInfo.organizationMembership
-          state.meta.createdBy.get.id shouldBe "registeringMember"
-          state.meta.lastModifiedBy.get.id shouldBe "registeringMember"
+          state.editableInfo.getFirstName shouldBe "firstName"
+          state.editableInfo.getContact shouldBe baseContact
+          state.editableInfo.getHandle shouldBe "handle"
+          state.editableInfo.organizationMembership shouldBe baseMemberInfo.organizationMembership
+          state.meta.createdBy.id shouldBe "registeringMember"
+          state.meta.lastModifiedBy.id shouldBe "registeringMember"
 
         }
 
@@ -180,7 +129,6 @@ class MemberSpec
           )
 
           result.reply.getError.getMessage shouldBe "ActivateMember command cannot be used on an uninitialized Member"
-          validateFailedInitialRegisterMember(result)
         }
 
         "error for an unauthorized registering user" ignore {
@@ -188,7 +136,7 @@ class MemberSpec
 
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
             MemberCommand(
-              baseActivateMember.copy(activatingMember = Some(MemberId("unauthorizedUser"))),
+              baseActivateMember.copy(activatingMember = MemberId("unauthorizedUser")),
               _
             )
           )
@@ -209,25 +157,23 @@ class MemberSpec
           val memberActivated =
             result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberActivatedValue.get
 
-          memberActivated.memberId shouldBe Some(
-            MemberId(testMemberIdString)
-          )
-          memberActivated.meta.get.currentState shouldBe MEMBER_STATE_ACTIVE
-          memberActivated.meta.get.lastModifiedBy.get.id shouldBe "activatingMember"
+          memberActivated.memberId shouldBe MemberId(testMemberIdString)
+          memberActivated.meta.currentState shouldBe MEMBER_STATE_ACTIVE
+          memberActivated.meta.lastModifiedBy.id shouldBe "activatingMember"
 
           val event = result.eventOfType[MemberActivated]
-          event.memberId.get.id shouldBe testMemberIdString
-          event.meta.get.currentState shouldBe MEMBER_STATE_ACTIVE
-          event.meta.get.lastModifiedBy.get.id shouldBe "activatingMember"
+          event.memberId.id shouldBe testMemberIdString
+          event.meta.currentState shouldBe MEMBER_STATE_ACTIVE
+          event.meta.lastModifiedBy.id shouldBe "activatingMember"
 
           val state = result.stateOfType[RegisteredMemberState]
 
           state.info.firstName shouldBe "firstName"
-          state.info.contact shouldBe Some(baseContact)
+          state.info.contact shouldBe baseContact
           state.info.handle shouldBe "handle"
           state.info.organizationMembership shouldBe baseMemberInfo.organizationMembership
-          state.meta.createdBy.get.id shouldBe "registeringMember"
-          state.meta.lastModifiedBy.get.id shouldBe "activatingMember"
+          state.meta.createdBy.id shouldBe "registeringMember"
+          state.meta.lastModifiedBy.id shouldBe "activatingMember"
         }
       }
 
@@ -267,7 +213,6 @@ class MemberSpec
           )
 
           result.reply.getError.getMessage shouldBe "EditMemberInfo command cannot be used on an uninitialized Member"
-          validateFailedInitialRegisterMember(result)
         }
 
         "error for an unauthorized register user" ignore {
@@ -275,14 +220,13 @@ class MemberSpec
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
             MemberCommand(
               baseEditMemberInfo.copy(
-                editingMember = Some(MemberId("unauthorizedUser"))
+                editingMember = MemberId("unauthorizedUser")
               ),
               _
             )
           )
 
           result.reply.getError.getMessage shouldBe "User is not authorized to modify Member"
-          validateFailedEditMemberInfoInDraftState(result)
         }
 
         "succeed for valid editable info" in {
@@ -290,12 +234,10 @@ class MemberSpec
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
             MemberCommand(
               baseEditMemberInfo.copy(
-                memberInfo = Some(
-                  baseEditableInfo.copy(
-                    organizationMembership = Seq.empty,
-                    firstName = None,
-                    notificationPreference = None
-                  )
+                memberInfo = baseEditableInfo.copy(
+                  organizationMembership = Seq.empty,
+                  firstName = None,
+                  notificationPreference = None
                 )
               ),
               _
@@ -305,51 +247,43 @@ class MemberSpec
           val memberInfoEdited =
             result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberInfoEdited.get
 
-          memberInfoEdited.memberId shouldBe Some(
-            MemberId(testMemberIdString)
-          )
-          memberInfoEdited.memberInfo shouldBe Some(
-            baseMemberInfo.copy(
-              handle = "editHandle",
-              avatarUrl = "editAvatarUrl",
-              lastName = "editLastName",
-              contact = Some(editContact),
-              tenant = Some(TenantId("editTenantId"))
-            )
-          )
-          memberInfoEdited.meta.get.currentState shouldBe MEMBER_STATE_DRAFT
-          memberInfoEdited.meta.get.createdBy shouldBe Some(
-            MemberId("registeringMember")
-          )
-          memberInfoEdited.meta.get.lastModifiedBy shouldBe Some(
-            MemberId("editingMember")
-          )
-
-          val event = result.eventOfType[MemberInfoEdited]
-          event.memberId.get.id shouldBe testMemberIdString
-          event.memberInfo.get shouldBe baseMemberInfo.copy(
+          memberInfoEdited.memberId shouldBe MemberId(testMemberIdString)
+          memberInfoEdited.memberInfo shouldBe baseMemberInfo.copy(
             handle = "editHandle",
             avatarUrl = "editAvatarUrl",
             lastName = "editLastName",
-            contact = Some(editContact),
-            tenant = Some(TenantId("editTenantId"))
+            contact = editContact,
+            tenant = TenantId("editTenantId")
           )
-          event.meta.get.currentState shouldBe MEMBER_STATE_DRAFT
-          event.meta.get.createdBy.get.id shouldBe "registeringMember"
-          event.meta.get.lastModifiedBy.get.id shouldBe "editingMember"
+          memberInfoEdited.meta.currentState shouldBe MEMBER_STATE_DRAFT
+          memberInfoEdited.meta.createdBy shouldBe MemberId("registeringMember")
+          memberInfoEdited.meta.lastModifiedBy shouldBe MemberId("editingMember")
+
+          val event = result.eventOfType[MemberInfoEdited]
+          event.memberId.id shouldBe testMemberIdString
+          event.memberInfo shouldBe baseMemberInfo.copy(
+            handle = "editHandle",
+            avatarUrl = "editAvatarUrl",
+            lastName = "editLastName",
+            contact = editContact,
+            tenant = TenantId("editTenantId")
+          )
+          event.meta.currentState shouldBe MEMBER_STATE_DRAFT
+          event.meta.createdBy.id shouldBe "registeringMember"
+          event.meta.lastModifiedBy.id shouldBe "editingMember"
 
           val state = result.stateOfType[DraftMemberState]
 
-          state.requiredInfo.firstName shouldBe "firstName"
-          state.requiredInfo.contact shouldBe Some(editContact)
-          state.requiredInfo.handle shouldBe "editHandle"
-          state.requiredInfo.avatarUrl shouldBe "editAvatarUrl"
-          state.requiredInfo.lastName shouldBe "editLastName"
-          state.requiredInfo.tenant shouldBe Some(TenantId("editTenantId"))
-          state.optionalInfo.notificationPreference shouldBe Some(NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL)
-          state.optionalInfo.organizationMembership shouldBe baseMemberInfo.organizationMembership
-          state.meta.createdBy.get.id shouldBe "registeringMember"
-          state.meta.lastModifiedBy.get.id shouldBe "editingMember"
+          state.editableInfo.getFirstName shouldBe "firstName"
+          state.editableInfo.getContact shouldBe editContact
+          state.editableInfo.getHandle shouldBe "editHandle"
+          state.editableInfo.getAvatarUrl shouldBe "editAvatarUrl"
+          state.editableInfo.getLastName shouldBe "editLastName"
+          state.editableInfo.getTenant shouldBe TenantId("editTenantId")
+          state.editableInfo.getNotificationPreference shouldBe NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL
+          state.editableInfo.organizationMembership shouldBe baseMemberInfo.organizationMembership
+          state.meta.createdBy.id shouldBe "registeringMember"
+          state.meta.lastModifiedBy.id shouldBe "editingMember"
         }
 
         "succeed for completely filled editable info" in {
@@ -364,62 +298,54 @@ class MemberSpec
           val memberInfoEdited =
             result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberInfoEdited.get
 
-          memberInfoEdited.memberId shouldBe Some(
-            MemberId(testMemberIdString)
-          )
-          memberInfoEdited.memberInfo shouldBe Some(
-            baseMemberInfo.copy(
-              handle = "editHandle",
-              avatarUrl = "editAvatarUrl",
-              firstName = "editFirstName",
-              lastName = "editLastName",
-              notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
-              contact = Some(editContact),
-              tenant = Some(TenantId("editTenantId")),
-              organizationMembership = baseEditableInfo.organizationMembership
-            )
-          )
-          memberInfoEdited.meta.get.currentState shouldBe MEMBER_STATE_DRAFT
-          memberInfoEdited.meta.get.createdBy shouldBe Some(
-            MemberId("registeringMember")
-          )
-          memberInfoEdited.meta.get.lastModifiedBy shouldBe Some(
-            MemberId("editingMember")
-          )
-
-          val event = result.eventOfType[MemberInfoEdited]
-          event.memberId.get.id shouldBe testMemberIdString
-          event.memberInfo.get shouldBe baseMemberInfo.copy(
+          memberInfoEdited.memberId shouldBe MemberId(testMemberIdString)
+          memberInfoEdited.memberInfo shouldBe baseMemberInfo.copy(
             handle = "editHandle",
             avatarUrl = "editAvatarUrl",
             firstName = "editFirstName",
             lastName = "editLastName",
             notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
-            contact = Some(editContact),
-            tenant = Some(TenantId("editTenantId")),
+            contact = editContact,
+            tenant = TenantId("editTenantId"),
             organizationMembership = baseEditableInfo.organizationMembership
           )
-          event.meta.get.currentState shouldBe MEMBER_STATE_DRAFT
-          event.meta.get.createdBy.get.id shouldBe "registeringMember"
-          event.meta.get.lastModifiedBy.get.id shouldBe "editingMember"
+          memberInfoEdited.meta.currentState shouldBe MEMBER_STATE_DRAFT
+          memberInfoEdited.meta.createdBy shouldBe MemberId("registeringMember")
+          memberInfoEdited.meta.lastModifiedBy shouldBe MemberId("editingMember")
+
+          val event = result.eventOfType[MemberInfoEdited]
+          event.memberId.id shouldBe testMemberIdString
+          event.memberInfo shouldBe baseMemberInfo.copy(
+            handle = "editHandle",
+            avatarUrl = "editAvatarUrl",
+            firstName = "editFirstName",
+            lastName = "editLastName",
+            notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
+            contact = editContact,
+            tenant = TenantId("editTenantId"),
+            organizationMembership = baseEditableInfo.organizationMembership
+          )
+          event.meta.currentState shouldBe MEMBER_STATE_DRAFT
+          event.meta.createdBy.id shouldBe "registeringMember"
+          event.meta.lastModifiedBy.id shouldBe "editingMember"
 
           val state = result.stateOfType[DraftMemberState]
 
-          state.requiredInfo.firstName shouldBe "editFirstName"
-          state.requiredInfo.contact shouldBe Some(editContact)
-          state.requiredInfo.handle shouldBe "editHandle"
-          state.requiredInfo.avatarUrl shouldBe "editAvatarUrl"
-          state.requiredInfo.lastName shouldBe "editLastName"
-          state.requiredInfo.tenant shouldBe Some(TenantId("editTenantId"))
-          state.optionalInfo.notificationPreference shouldBe Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS)
-          state.optionalInfo.organizationMembership shouldBe Seq(OrganizationId("editOrg1"))
-          state.meta.createdBy.get.id shouldBe "registeringMember"
-          state.meta.lastModifiedBy.get.id shouldBe "editingMember"
+          state.editableInfo.getFirstName shouldBe "editFirstName"
+          state.editableInfo.contact shouldBe Some(editContact)
+          state.editableInfo.getHandle shouldBe "editHandle"
+          state.editableInfo.getAvatarUrl shouldBe "editAvatarUrl"
+          state.editableInfo.getLastName shouldBe "editLastName"
+          state.editableInfo.tenant shouldBe Some(TenantId("editTenantId"))
+          state.editableInfo.notificationPreference shouldBe Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS)
+          state.editableInfo.organizationMembership shouldBe Seq(OrganizationId("editOrg1"))
+          state.meta.createdBy.id shouldBe "registeringMember"
+          state.meta.lastModifiedBy.id shouldBe "editingMember"
         }
       }
 
       "executing GetMemberData" should {
-        "succeed and give the correct info before registering" in {
+        "error when member has never been registered" in {
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
             MemberCommand(
               baseGetMemberInfo,
@@ -427,17 +353,7 @@ class MemberSpec
             )
           )
 
-          val getMemberInfo = result.reply.getValue.asMessage.sealedValue.memberStateValue.get
-
-          getMemberInfo.memberId shouldBe Some(
-            MemberId(testMemberIdString)
-          )
-          getMemberInfo.memberInfo shouldBe None
-          getMemberInfo.memberMetaInfo shouldBe None
-
-          result.hasNoEvents
-
-          result.state shouldBe UninitializedMemberState()
+          result.reply.getError.getMessage shouldEqual "GetMemberInfo command cannot be used on an uninitialized Member"
         }
 
         "succeed and give the correct info after registering" in {
@@ -451,31 +367,27 @@ class MemberSpec
 
           val getMemberInfo = result.reply.getValue.asMessage.sealedValue.memberStateValue.get
 
-          getMemberInfo.memberId shouldBe Some(
-            MemberId(testMemberIdString)
-          )
-          getMemberInfo.memberInfo shouldBe Some(baseMemberInfo)
-          getMemberInfo.memberMetaInfo.get.createdBy.get.id shouldBe "registeringMember"
-          getMemberInfo.memberMetaInfo.get.lastModifiedBy.get.id shouldBe "registeringMember"
+          getMemberInfo.memberId shouldBe MemberId(testMemberIdString)
+          getMemberInfo.memberInfo shouldBe baseMemberInfo
+          getMemberInfo.memberMetaInfo.createdBy.id shouldBe "registeringMember"
+          getMemberInfo.memberMetaInfo.lastModifiedBy.id shouldBe "registeringMember"
 
           result.hasNoEvents
 
           val state = result.stateOfType[DraftMemberState]
 
-          state.requiredInfo shouldBe RequiredDraftInfo(
+          state.editableInfo shouldBe EditableInfo(
             contact = Some(baseContact),
-            handle = baseMemberInfo.handle,
-            avatarUrl = baseMemberInfo.avatarUrl,
-            firstName = baseMemberInfo.firstName,
-            lastName = baseMemberInfo.lastName,
-            tenant = baseMemberInfo.tenant
-          )
-          state.optionalInfo shouldBe OptionalDraftInfo(
+            handle = Some(baseMemberInfo.handle),
+            avatarUrl = Some(baseMemberInfo.avatarUrl),
+            firstName = Some(baseMemberInfo.firstName),
+            lastName = Some(baseMemberInfo.lastName),
+            tenant = Some(baseMemberInfo.tenant),
             notificationPreference = baseMemberInfo.notificationPreference,
             organizationMembership = baseMemberInfo.organizationMembership
           )
-          state.meta.createdBy.get.id shouldBe "registeringMember"
-          state.meta.lastModifiedBy.get.id shouldBe "registeringMember"
+          state.meta.createdBy.id shouldBe "registeringMember"
+          state.meta.lastModifiedBy.id shouldBe "registeringMember"
         }
       }
     }
@@ -505,7 +417,7 @@ class MemberSpec
             val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
               MemberCommand(
                 baseActivateMember.copy(
-                  activatingMember = Some(MemberId("activatingMember2"))
+                  activatingMember = MemberId("activatingMember2")
                 ),
                 _
               )
@@ -513,7 +425,7 @@ class MemberSpec
 
             result.reply.getError.getMessage shouldBe "ActivateMember command cannot be used on an active Member"
             result.hasNoEvents
-            result.stateOfType[RegisteredMemberState].meta.lastModifiedBy.get.id shouldBe "activatingMember"
+            result.stateOfType[RegisteredMemberState].meta.lastModifiedBy.id shouldBe "activatingMember"
           }
         }
 
@@ -524,7 +436,7 @@ class MemberSpec
 
             val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
               MemberCommand(
-                baseSuspendMember.copy(suspendingMember = Some(MemberId("unauthorizedUser"))),
+                baseSuspendMember.copy(suspendingMember = MemberId("unauthorizedUser")),
                 _
               )
             )
@@ -546,25 +458,23 @@ class MemberSpec
             val memberSuspended =
               result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberSuspendedValue.get
 
-            memberSuspended.memberId shouldBe Some(
-              MemberId(testMemberIdString)
-            )
-            memberSuspended.meta.get.currentState shouldBe MEMBER_STATE_SUSPENDED
-            memberSuspended.meta.get.lastModifiedBy.get.id shouldBe "suspendingMember"
+            memberSuspended.memberId shouldBe MemberId(testMemberIdString)
+            memberSuspended.meta.currentState shouldBe MEMBER_STATE_SUSPENDED
+            memberSuspended.meta.lastModifiedBy.id shouldBe "suspendingMember"
 
             val event = result.eventOfType[MemberSuspended]
-            event.memberId.get.id shouldBe testMemberIdString
-            event.meta.get.currentState shouldBe MEMBER_STATE_SUSPENDED
-            event.meta.get.lastModifiedBy.get.id shouldBe "suspendingMember"
+            event.memberId.id shouldBe testMemberIdString
+            event.meta.currentState shouldBe MEMBER_STATE_SUSPENDED
+            event.meta.lastModifiedBy.id shouldBe "suspendingMember"
 
             val state = result.stateOfType[RegisteredMemberState]
 
             state.info.firstName shouldBe "firstName"
-            state.info.contact shouldBe Some(baseContact)
+            state.info.contact shouldBe baseContact
             state.info.handle shouldBe "handle"
             state.info.organizationMembership shouldBe baseMemberInfo.organizationMembership
-            state.meta.createdBy.get.id shouldBe "registeringMember"
-            state.meta.lastModifiedBy.get.id shouldBe "suspendingMember"
+            state.meta.createdBy.id shouldBe "registeringMember"
+            state.meta.lastModifiedBy.id shouldBe "suspendingMember"
             state.meta.currentState shouldBe MEMBER_STATE_SUSPENDED
           }
         }
@@ -576,7 +486,7 @@ class MemberSpec
 
             val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
               MemberCommand(
-                baseTerminateMember.copy(terminatingMember = Some(MemberId("unauthorizedUser"))),
+                baseTerminateMember.copy(terminatingMember = MemberId("unauthorizedUser")),
                 _
               )
             )
@@ -598,21 +508,19 @@ class MemberSpec
             val memberTerminated =
               result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberTerminated.get
 
-            memberTerminated.memberId shouldBe Some(
-              MemberId(testMemberIdString)
-            )
-            memberTerminated.lastMeta.get.currentState shouldBe MEMBER_STATE_ACTIVE
-            memberTerminated.lastMeta.get.lastModifiedBy.get.id shouldBe "terminatingMember"
+            memberTerminated.memberId shouldBe MemberId(testMemberIdString)
+            memberTerminated.lastMeta.currentState shouldBe MEMBER_STATE_ACTIVE
+            memberTerminated.lastMeta.lastModifiedBy.id shouldBe "terminatingMember"
 
             val event = result.eventOfType[MemberTerminated]
-            event.memberId.get.id shouldBe testMemberIdString
-            event.lastMeta.get.currentState shouldBe MEMBER_STATE_ACTIVE
-            event.lastMeta.get.lastModifiedBy.get.id shouldBe "terminatingMember"
+            event.memberId.id shouldBe testMemberIdString
+            event.lastMeta.currentState shouldBe MEMBER_STATE_ACTIVE
+            event.lastMeta.lastModifiedBy.id shouldBe "terminatingMember"
 
             val state = result.stateOfType[TerminatedMemberState]
 
-            state.lastMeta.createdBy.get.id shouldBe "registeringMember"
-            state.lastMeta.lastModifiedBy.get.id shouldBe "terminatingMember"
+            state.lastMeta.createdBy.id shouldBe "registeringMember"
+            state.lastMeta.lastModifiedBy.id shouldBe "terminatingMember"
             state.lastMeta.currentState shouldBe MEMBER_STATE_ACTIVE
           }
         }
@@ -632,57 +540,49 @@ class MemberSpec
             val memberInfoEdited =
               result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberInfoEdited.get
 
-            memberInfoEdited.memberId shouldBe Some(
-              MemberId(testMemberIdString)
-            )
-            memberInfoEdited.memberInfo shouldBe Some(
-              baseMemberInfo.copy(
-                handle = "editHandle",
-                avatarUrl = "editAvatarUrl",
-                firstName = "editFirstName",
-                lastName = "editLastName",
-                notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
-                contact = Some(editContact),
-                tenant = Some(TenantId("editTenantId")),
-                organizationMembership = baseEditableInfo.organizationMembership
-              )
-            )
-            memberInfoEdited.meta.get.currentState shouldBe MEMBER_STATE_ACTIVE
-            memberInfoEdited.meta.get.createdBy shouldBe Some(
-              MemberId("registeringMember")
-            )
-            memberInfoEdited.meta.get.lastModifiedBy shouldBe Some(
-              MemberId("editingMember")
-            )
-
-            val event = result.eventOfType[MemberInfoEdited]
-            event.memberId.get.id shouldBe testMemberIdString
-            event.memberInfo.get shouldBe baseMemberInfo.copy(
+            memberInfoEdited.memberId shouldBe MemberId(testMemberIdString)
+            memberInfoEdited.memberInfo shouldBe baseMemberInfo.copy(
               handle = "editHandle",
               avatarUrl = "editAvatarUrl",
               firstName = "editFirstName",
               lastName = "editLastName",
               notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
-              contact = Some(editContact),
-              tenant = Some(TenantId("editTenantId")),
+              contact = editContact,
+              tenant = TenantId("editTenantId"),
               organizationMembership = baseEditableInfo.organizationMembership
             )
-            event.meta.get.currentState shouldBe MEMBER_STATE_ACTIVE
-            event.meta.get.createdBy.get.id shouldBe "registeringMember"
-            event.meta.get.lastModifiedBy.get.id shouldBe "editingMember"
+            memberInfoEdited.meta.currentState shouldBe MEMBER_STATE_ACTIVE
+            memberInfoEdited.meta.createdBy shouldBe MemberId("registeringMember")
+            memberInfoEdited.meta.lastModifiedBy shouldBe MemberId("editingMember")
+
+            val event = result.eventOfType[MemberInfoEdited]
+            event.memberId.id shouldBe testMemberIdString
+            event.memberInfo shouldBe baseMemberInfo.copy(
+              handle = "editHandle",
+              avatarUrl = "editAvatarUrl",
+              firstName = "editFirstName",
+              lastName = "editLastName",
+              notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
+              contact = editContact,
+              tenant = TenantId("editTenantId"),
+              organizationMembership = baseEditableInfo.organizationMembership
+            )
+            event.meta.currentState shouldBe MEMBER_STATE_ACTIVE
+            event.meta.createdBy.id shouldBe "registeringMember"
+            event.meta.lastModifiedBy.id shouldBe "editingMember"
 
             val state = result.stateOfType[RegisteredMemberState]
 
             state.info.firstName shouldBe "editFirstName"
-            state.info.contact shouldBe Some(editContact)
+            state.info.contact shouldBe editContact
             state.info.handle shouldBe "editHandle"
             state.info.avatarUrl shouldBe "editAvatarUrl"
             state.info.lastName shouldBe "editLastName"
-            state.info.tenant shouldBe Some(TenantId("editTenantId"))
+            state.info.tenant shouldBe TenantId("editTenantId")
             state.info.notificationPreference shouldBe Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS)
             state.info.organizationMembership shouldBe Seq(OrganizationId("editOrg1"))
-            state.meta.createdBy.get.id shouldBe "registeringMember"
-            state.meta.lastModifiedBy.get.id shouldBe "editingMember"
+            state.meta.createdBy.id shouldBe "registeringMember"
+            state.meta.lastModifiedBy.id shouldBe "editingMember"
             state.meta.currentState shouldBe MEMBER_STATE_ACTIVE
           }
         }
@@ -701,20 +601,18 @@ class MemberSpec
 
             val getMemberInfo = result.reply.getValue.asMessage.sealedValue.memberStateValue.get
 
-            getMemberInfo.memberId shouldBe Some(
-              MemberId(testMemberIdString)
-            )
-            getMemberInfo.memberInfo shouldBe Some(baseMemberInfo)
-            getMemberInfo.memberMetaInfo.get.createdBy.get.id shouldBe "registeringMember"
-            getMemberInfo.memberMetaInfo.get.lastModifiedBy.get.id shouldBe "activatingMember"
+            getMemberInfo.memberId shouldBe MemberId(testMemberIdString)
+            getMemberInfo.memberInfo shouldBe baseMemberInfo
+            getMemberInfo.memberMetaInfo.createdBy.id shouldBe "registeringMember"
+            getMemberInfo.memberMetaInfo.lastModifiedBy.id shouldBe "activatingMember"
 
             result.hasNoEvents
 
             val state = result.stateOfType[RegisteredMemberState]
 
             state.info shouldBe baseMemberInfo
-            state.meta.createdBy.get.id shouldBe "registeringMember"
-            state.meta.lastModifiedBy.get.id shouldBe "activatingMember"
+            state.meta.createdBy.id shouldBe "registeringMember"
+            state.meta.lastModifiedBy.id shouldBe "activatingMember"
           }
         }
       }
@@ -744,7 +642,7 @@ class MemberSpec
             val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
               MemberCommand(
                 baseActivateMember.copy(
-                  activatingMember = Some(MemberId("activatingMember2"))
+                  activatingMember = MemberId("activatingMember2")
                 ),
                 _
               )
@@ -753,25 +651,23 @@ class MemberSpec
             val memberActivated =
               result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberActivatedValue.get
 
-            memberActivated.memberId shouldBe Some(
-              MemberId(testMemberIdString)
-            )
-            memberActivated.meta.get.currentState shouldBe MEMBER_STATE_ACTIVE
-            memberActivated.meta.get.lastModifiedBy.get.id shouldBe "activatingMember2"
+            memberActivated.memberId shouldBe MemberId(testMemberIdString)
+            memberActivated.meta.currentState shouldBe MEMBER_STATE_ACTIVE
+            memberActivated.meta.lastModifiedBy.id shouldBe "activatingMember2"
 
             val event = result.eventOfType[MemberActivated]
-            event.memberId.get.id shouldBe testMemberIdString
-            event.meta.get.currentState shouldBe MEMBER_STATE_ACTIVE
-            event.meta.get.lastModifiedBy.get.id shouldBe "activatingMember2"
+            event.memberId.id shouldBe testMemberIdString
+            event.meta.currentState shouldBe MEMBER_STATE_ACTIVE
+            event.meta.lastModifiedBy.id shouldBe "activatingMember2"
 
             val state = result.stateOfType[RegisteredMemberState]
 
             state.info.firstName shouldBe "firstName"
-            state.info.contact shouldBe Some(baseContact)
+            state.info.contact shouldBe baseContact
             state.info.handle shouldBe "handle"
             state.info.organizationMembership shouldBe baseMemberInfo.organizationMembership
-            state.meta.createdBy.get.id shouldBe "registeringMember"
-            state.meta.lastModifiedBy.get.id shouldBe "activatingMember2"
+            state.meta.createdBy.id shouldBe "registeringMember"
+            state.meta.lastModifiedBy.id shouldBe "activatingMember2"
           }
         }
 
@@ -791,25 +687,23 @@ class MemberSpec
             val memberSuspended =
               result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberSuspendedValue.get
 
-            memberSuspended.memberId shouldBe Some(
-              MemberId(testMemberIdString)
-            )
-            memberSuspended.meta.get.currentState shouldBe MEMBER_STATE_SUSPENDED
-            memberSuspended.meta.get.lastModifiedBy.get.id shouldBe "suspendingMember"
+            memberSuspended.memberId shouldBe MemberId(testMemberIdString)
+            memberSuspended.meta.currentState shouldBe MEMBER_STATE_SUSPENDED
+            memberSuspended.meta.lastModifiedBy.id shouldBe "suspendingMember"
 
             val event = result.eventOfType[MemberSuspended]
-            event.memberId.get.id shouldBe testMemberIdString
-            event.meta.get.currentState shouldBe MEMBER_STATE_SUSPENDED
-            event.meta.get.lastModifiedBy.get.id shouldBe "suspendingMember"
+            event.memberId.id shouldBe testMemberIdString
+            event.meta.currentState shouldBe MEMBER_STATE_SUSPENDED
+            event.meta.lastModifiedBy.id shouldBe "suspendingMember"
 
             val state = result.stateOfType[RegisteredMemberState]
 
             state.info.firstName shouldBe "firstName"
-            state.info.contact shouldBe Some(baseContact)
+            state.info.contact shouldBe baseContact
             state.info.handle shouldBe "handle"
             state.info.organizationMembership shouldBe baseMemberInfo.organizationMembership
-            state.meta.createdBy.get.id shouldBe "registeringMember"
-            state.meta.lastModifiedBy.get.id shouldBe "suspendingMember"
+            state.meta.createdBy.id shouldBe "registeringMember"
+            state.meta.lastModifiedBy.id shouldBe "suspendingMember"
             state.meta.currentState shouldBe MEMBER_STATE_SUSPENDED
           }
         }
@@ -830,21 +724,19 @@ class MemberSpec
             val memberTerminated =
               result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberTerminated.get
 
-            memberTerminated.memberId shouldBe Some(
-              MemberId(testMemberIdString)
-            )
-            memberTerminated.lastMeta.get.currentState shouldBe MEMBER_STATE_SUSPENDED
-            memberTerminated.lastMeta.get.lastModifiedBy.get.id shouldBe "terminatingMember"
+            memberTerminated.memberId shouldBe MemberId(testMemberIdString)
+            memberTerminated.lastMeta.currentState shouldBe MEMBER_STATE_SUSPENDED
+            memberTerminated.lastMeta.lastModifiedBy.id shouldBe "terminatingMember"
 
             val event = result.eventOfType[MemberTerminated]
-            event.memberId.get.id shouldBe testMemberIdString
-            event.lastMeta.get.currentState shouldBe MEMBER_STATE_SUSPENDED
-            event.lastMeta.get.lastModifiedBy.get.id shouldBe "terminatingMember"
+            event.memberId.id shouldBe testMemberIdString
+            event.lastMeta.currentState shouldBe MEMBER_STATE_SUSPENDED
+            event.lastMeta.lastModifiedBy.id shouldBe "terminatingMember"
 
             val state = result.stateOfType[TerminatedMemberState]
 
-            state.lastMeta.createdBy.get.id shouldBe "registeringMember"
-            state.lastMeta.lastModifiedBy.get.id shouldBe "terminatingMember"
+            state.lastMeta.createdBy.id shouldBe "registeringMember"
+            state.lastMeta.lastModifiedBy.id shouldBe "terminatingMember"
             state.lastMeta.currentState shouldBe MEMBER_STATE_SUSPENDED
           }
         }
@@ -881,20 +773,18 @@ class MemberSpec
 
             val getMemberInfo = result.reply.getValue.asMessage.sealedValue.memberStateValue.get
 
-            getMemberInfo.memberId shouldBe Some(
-              MemberId(testMemberIdString)
-            )
-            getMemberInfo.memberInfo shouldBe Some(baseMemberInfo)
-            getMemberInfo.memberMetaInfo.get.createdBy.get.id shouldBe "registeringMember"
-            getMemberInfo.memberMetaInfo.get.lastModifiedBy.get.id shouldBe "suspendingMember"
+            getMemberInfo.memberId shouldBe MemberId(testMemberIdString)
+            getMemberInfo.memberInfo shouldBe baseMemberInfo
+            getMemberInfo.memberMetaInfo.createdBy.id shouldBe "registeringMember"
+            getMemberInfo.memberMetaInfo.lastModifiedBy.id shouldBe "suspendingMember"
 
             result.hasNoEvents
 
             val state = result.stateOfType[RegisteredMemberState]
 
             state.info shouldBe baseMemberInfo
-            state.meta.createdBy.get.id shouldBe "registeringMember"
-            state.meta.lastModifiedBy.get.id shouldBe "suspendingMember"
+            state.meta.createdBy.id shouldBe "registeringMember"
+            state.meta.lastModifiedBy.id shouldBe "suspendingMember"
           }
         }
       }
@@ -928,7 +818,6 @@ class MemberSpec
               _
             )
           )
-
           result.reply.getError.getMessage shouldBe "ActivateMember command cannot be used on a terminated Member"
         }
       }

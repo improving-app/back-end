@@ -37,13 +37,13 @@ class MemberGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = N
   def registerMember(in: GatewayRegisterMember): Future[MemberRegistered] = {
     memberClient
       .registerMember(
-        RegisterMember(in.memberId, in.memberInfo.map(gatewayMemberInfoToMemberInfo), in.registeringMember)
+        RegisterMember(in.memberId, gatewayMemberInfoToMemberInfo(in.memberInfo), in.registeringMember)
       )
       .map { response =>
         MemberRegistered(
           response.memberId,
-          response.memberInfo.map(memberInfoToGatewayMemberInfo),
-          response.meta.map(memberMetaToGatewayMemberMeta)
+          memberInfoToGatewayMemberInfo(response.memberInfo),
+          memberMetaToGatewayMemberMeta(response.meta)
         )
       }
   }

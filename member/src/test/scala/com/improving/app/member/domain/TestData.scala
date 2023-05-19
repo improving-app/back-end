@@ -30,9 +30,9 @@ object TestData {
     lastName = "lastName",
     notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL),
     notificationOptIn = true,
-    contact = Some(baseContact),
+    contact = baseContact,
     organizationMembership = Seq(OrganizationId(UUID.randomUUID().toString)),
-    tenant = Some(TenantId(UUID.randomUUID().toString))
+    tenant = TenantId(UUID.randomUUID().toString)
   )
 
   val baseEditableInfo: EditableInfo = EditableInfo(
@@ -47,55 +47,33 @@ object TestData {
   )
 
   val baseRegisterMember: RegisterMember = RegisterMember(
-    memberId = Some(
-      MemberId(testMemberIdString)
-    ),
-    memberInfo = Some(baseMemberInfo),
-    registeringMember = Some(
-      MemberId("registeringMember")
-    )
+    memberId = MemberId(testMemberIdString),
+    memberInfo = baseMemberInfo,
+    registeringMember = MemberId("registeringMember")
   )
 
   val baseActivateMember: ActivateMember = ActivateMember(
-    memberId = Some(
-      MemberId(testMemberIdString)
-    ),
-    activatingMember = Some(
-      MemberId("activatingMember")
-    )
+    memberId = MemberId(testMemberIdString),
+    activatingMember = MemberId("activatingMember")
   )
 
   val baseSuspendMember: SuspendMember = SuspendMember(
-    memberId = Some(
-      MemberId(testMemberIdString)
-    ),
-    suspendingMember = Some(
-      MemberId("suspendingMember")
-    )
+    memberId = MemberId(testMemberIdString),
+    suspendingMember = MemberId("suspendingMember")
   )
 
   val baseTerminateMember: TerminateMember = TerminateMember(
-    memberId = Some(
-      MemberId(testMemberIdString)
-    ),
-    terminatingMember = Some(
-      MemberId("terminatingMember")
-    )
+    memberId = MemberId(testMemberIdString),
+    terminatingMember = MemberId("terminatingMember")
   )
 
   val baseEditMemberInfo: EditMemberInfo = EditMemberInfo(
-    memberId = Some(
-      MemberId(testMemberIdString)
-    ),
-    memberInfo = Some(baseEditableInfo),
-    editingMember = Some(
-      MemberId("editingMember")
-    )
+    memberId = MemberId(testMemberIdString),
+    memberInfo = baseEditableInfo,
+    editingMember = MemberId("editingMember")
   )
 
   val baseGetMemberInfo: GetMemberInfo = GetMemberInfo(
-    memberId = Some(
-      MemberId(testMemberIdString)
-    )
+    memberId = MemberId(testMemberIdString)
   )
 }
