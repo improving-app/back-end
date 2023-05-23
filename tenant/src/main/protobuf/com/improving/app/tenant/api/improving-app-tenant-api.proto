@@ -2,7 +2,8 @@ syntax = "proto3";
 
 package com.improving.app.tenant.api;
 
-import "com/improving/app/tenant/domain/improving-app-tenant-domain.proto";
+import "com/improving/app/tenant/domain/tenantEvents.proto";
+import "com/improving/app/tenant/domain/tenantRequests.proto";
 
 service TenantService {
   rpc EstablishTenant (domain.EstablishTenant) returns (domain.TenantEstablished) {}

@@ -59,3 +59,10 @@ message TenantMetaInfo {
   com.improving.app.common.domain.MemberId last_updated_by = 4 [(validate.rules).message.required = true];
   TenantState state = 5 [(validate.rules).string.ignore_empty = false];
 }
+
+message TenantInfoOrEditable {
+    oneof value {
+        TenantInfo info = 1;
+        EditableTenantInfo editable = 2;
+    }
+}
