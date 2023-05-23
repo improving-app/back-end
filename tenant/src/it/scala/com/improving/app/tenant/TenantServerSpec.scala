@@ -3,9 +3,10 @@ package com.improving.app.tenant
 import akka.grpc.GrpcClientSettings
 import com.improving.app.common.domain._
 import com.improving.app.common.test.ServiceTestContainerSpec
-import com.improving.app.tenant.TestData.{baseTenantInfo, infoFromEditableInfo}
+import com.improving.app.tenant.TestData.itBaseTenantInfo
 import com.improving.app.tenant.api.{TenantService, TenantServiceClient}
 import com.improving.app.tenant.domain._
+import com.improving.app.tenant.domain.util.infoFromEditableInfo
 import org.scalatest.tagobjects.Retryable
 
 import scala.util.Random
@@ -39,7 +40,7 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
           EstablishTenant(
             tenantId = TenantId(tenantId),
             establishingUser = MemberId("establishingUser"),
-            tenantInfo = Some(baseTenantInfo)
+            tenantInfo = Some(itBaseTenantInfo)
           )
         )
         .futureValue
@@ -92,7 +93,7 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
         .futureValue
 
       response.tenantId shouldBe TenantId(tenantId)
-      response.oldInfo shouldBe baseTenantInfo
+      response.oldInfo shouldBe itBaseTenantInfo
       response.newInfo shouldBe infoFromEditableInfo(updateInfo)
       response.metaInfo.lastUpdatedBy shouldBe MemberId("updatingUser")
     }
@@ -109,7 +110,7 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
           EstablishTenant(
             tenantId = TenantId(tenantId),
             establishingUser = MemberId("establishingUser"),
-            tenantInfo = Some(baseTenantInfo)
+            tenantInfo = Some(itBaseTenantInfo)
           )
         )
         .futureValue
@@ -155,7 +156,7 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
           EstablishTenant(
             tenantId = TenantId(tenantId),
             establishingUser = MemberId("establishingUser"),
-            tenantInfo = Some(baseTenantInfo)
+            tenantInfo = Some(itBaseTenantInfo)
           )
         )
         .futureValue
@@ -190,11 +191,13 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
             tenantId = TenantId(tenantId),
             establishingUser = MemberId("establishingUser"),
             tenantInfo = Some(
-              baseTenantInfo.copy(organizations =
-                TenantOrganizationList(
-                  Seq(
-                    OrganizationId("org1"),
-                    OrganizationId("org2")
+              itBaseTenantInfo.copy(organizations =
+                Some(
+                  TenantOrganizationList(
+                    Seq(
+                      OrganizationId("org1"),
+                      OrganizationId("org2")
+                    )
                   )
                 )
               )
@@ -234,7 +237,7 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
           EstablishTenant(
             tenantId = TenantId(tenantId),
             establishingUser = MemberId("establishingUser"),
-            tenantInfo = Some(baseTenantInfo)
+            tenantInfo = Some(itBaseTenantInfo)
           )
         )
         .futureValue
