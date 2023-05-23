@@ -90,7 +90,7 @@ object Tenant {
               }
             case suspendedTenantState: SuspendedTenant =>
               command.request match {
-                case _: EstablishTenant  => Left(StateError(""))
+                case _: EstablishTenant  => Left(StateError("Tenant is already established"))
                 case x: ActivateTenant   => activateTenant(establishedState, x)
                 case x: SuspendTenant    => suspendTenant(establishedState, x)
                 case x: EditInfo         => editInfo(establishedState, x)
