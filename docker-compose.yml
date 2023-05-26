@@ -23,3 +23,8 @@ services:
     ports:
       - "8082:8082"
     depends_on: ["scylla-db"]
+
+  gateway-service:
+    image: improving-app-gateway:latest
+    ports:
+      - "8090:8090"
