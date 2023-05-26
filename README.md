@@ -16,6 +16,15 @@ For running the services that are event sourced, it needs a database for persist
 
 `docker compose up` to run all services. This is assuming you have all the dockerfiles generated after `sbt docker:stage` and `sbt clean docker: publishLocal`
 
+## Locally running on microk8s:
+
+1. Install microk8s if not already installed: see https://microk8s.io/docs/install-alternatives for instructions
+2. Install scylla-operator on microk8s: see https://operator.docs.scylladb.com/stable/generic.html for instructions
+3. Run command `microk8s kubectl apply -f microApply.yaml`
+4. Check status with `microk8s kubectl get pods -o wide`
+5. Inspect pod using `microk8s kubectl describe pod [pod-name]`
+6. Inspect services using `microk8s kubectl logs [pod-name] -c [service-name]`
+
 ## Testing on locally running server:
 
 Present in each subproject is a `sample-requests.txt`. One example is on `./tenant/src/main/resources/sample-requests.txt`.
