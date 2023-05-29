@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      name: nginx
+      targetPort: 80
+      nodePort: 32756
+  selector:
+    app: nginx
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: improving-app
+  labels:
+    app: improving-app
+spec:
+  selector:
+    matchLabels:
+      app: improving-app
+  template:
+    metadata:
+      labels:
+        app: improving-app
+    spec:
+      containers:
+      - name: tenant
+        image: weinyopp/improving-app-tenant:latest
+        ports:
+        - containerPort: 8080
+      - name: organization
+        image: weinyopp/improving-app-organization:latest
+        ports:
+        - containerPort: 8082
+      - name: member
+        image: weinyopp/improving-app-member:latest
+        ports:
+        - containerPort: 8081
+      - name: store
+        image: weinyopp/improving-app-store:latest
+        ports:
+        - containerPort: 8083
+      - name: gateway
+        image: weinyopp/improving-app-gateway:latest
+        ports:
+        - containerPort: 8090
+      nodeSelector:
+        kubernetes.io/arch: arm64

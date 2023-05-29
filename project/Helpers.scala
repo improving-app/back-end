@@ -1,4 +1,3 @@
-import C.{dockerSettings, Compilation, Packaging, Testing}
 import Dependencies._
 import akka.grpc.sbt.AkkaGrpcPlugin
 import akka.grpc.sbt.AkkaGrpcPlugin.autoImport.akkaGrpcCodeGeneratorSettings
@@ -7,7 +6,6 @@ import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
 import com.typesafe.sbt.packager.docker.DockerPlugin
 import sbt.Keys.{libraryDependencies, _}
 import sbt.{Def, Project, Test, Tests, _}
-import sbtdynver.DynVerPlugin.autoImport.dynverSeparator
 import sbtprotoc.ProtocPlugin.autoImport.PB
 import scalapb.GeneratorOption.{FlatPackage, RetainSourceCodeInfo, SingleLineToProtoString}
 
@@ -60,7 +58,6 @@ object C {
         .configs(IntegrationTest.extend(Test))
         .configure(Compilation.scala)
         .configure(Testing.scalaTest)
-        .configure(Packaging.docker)
         .settings(
           Defaults.itSettings,
           name := componentName,
@@ -130,31 +127,6 @@ object C {
         Test / testOptions += Tests.Argument("-oDF"),
         Test / logBuffered := false,
         libraryDependencies ++= basicTestingDependencies ++ jsonDependencies
-      )
-    }
-  }
-
-  object Packaging {
-
-    def docker(project: Project): Project = {
-      project.settings(
-        dockerBaseImage := "docker.io/library/adoptopenjdk:11-jre-hotspot",
-        dockerUsername := sys.props.get("docker.username"),
-        dockerRepository := sys.props.get("docker.registry"),
-        dockerUpdateLatest := true,
-        dockerExposedPorts ++= Seq(8080),
-        dockerBuildCommand := {
-          if (sys.props("os.arch") != "amd64") {
-            // use buildx with platform to build supported amd64 images on other CPU architectures
-            // this may require that you have first run 'docker buildx create' to set docker buildx up
-            dockerExecCommand.value ++ Seq(
-              "buildx",
-              "build",
-              "--platform=linux/amd64",
-              "--load"
-            ) ++ dockerBuildOptions.value :+ "."
-          } else dockerBuildCommand.value
-        }
       )
     }
   }
