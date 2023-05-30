@@ -1,6 +1,6 @@
 package com.improving.app.tenant.domain
 
-import com.improving.app.common.domain.util.{AddressUtil, ContactUtil}
+import com.improving.app.common.domain.util.{EditableAddressUtil, EditableContactUtil}
 import com.improving.app.common.errors.Validation._
 import com.improving.app.common.errors.ValidationError
 

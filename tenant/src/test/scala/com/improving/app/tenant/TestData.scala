@@ -1,6 +1,6 @@
 package com.improving.app.tenant
 
-import com.improving.app.common.domain.util.{AddressUtil, ContactUtil}
+import com.improving.app.common.domain.util.{EditableAddressUtil, EditableContactUtil}
 import com.improving.app.common.domain.{CaPostalCodeImpl, EditableAddress, EditableContact, PostalCodeMessageImpl}
 import com.improving.app.tenant.domain.{EditableTenantInfo, TenantInfo, TenantOrganizationList}
 
@@ -19,13 +19,6 @@ object TestData {
     stateProvince = Some("stateProvince"),
     country = Some("country"),
     postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
-  )
-
-  def infoFromEditableInfo(editable: EditableTenantInfo): TenantInfo = TenantInfo(
-    name = editable.getName,
-    primaryContact = editable.getPrimaryContact.toContact,
-    address = editable.getAddress.toAddress,
-    organizations = editable.getOrganizations
   )
 
   val baseTenantInfo: EditableTenantInfo =

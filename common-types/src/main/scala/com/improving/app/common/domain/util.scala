@@ -3,7 +3,7 @@ package com.improving.app.common.domain
 import scala.language.implicitConversions
 
 object util {
-  implicit class AddressUtil(newAddress: EditableAddress) {
+  implicit class EditableAddressUtil(newAddress: EditableAddress) {
     implicit def copyFromEditable(oldAddress: Address): Address =
       Address(
         line1 = newAddress.line1.getOrElse(oldAddress.line1),
@@ -24,7 +24,7 @@ object util {
     )
   }
 
-  implicit class ContactUtil(newContact: EditableContact) {
+  implicit class EditableContactUtil(newContact: EditableContact) {
     implicit def copyFromEditable(oldContact: Contact): Contact = Contact(
       firstName = newContact.firstName.getOrElse(oldContact.firstName),
       lastName = newContact.lastName.getOrElse(oldContact.lastName),

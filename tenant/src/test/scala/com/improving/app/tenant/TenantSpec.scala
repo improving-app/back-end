@@ -5,13 +5,14 @@ import akka.actor.typed.ActorRef
 import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import com.improving.app.common.domain.{MemberId, OrganizationId, TenantId}
-import com.improving.app.tenant.TestData.{baseAddress, baseContact, baseTenantInfo, infoFromEditableInfo}
+import com.improving.app.tenant.TestData.{baseAddress, baseContact, baseTenantInfo}
 import com.improving.app.tenant.domain.Tenant.TenantCommand
 import com.improving.app.tenant.domain._
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+import com.improving.app.tenant.domain.util.EditableInfoUtil
 
 import scala.util.Random
 
@@ -665,8 +666,8 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo.getEditable shouldEqual baseTenantInfo
-          successVal.newInfo.getEditable shouldEqual baseTenantInfo
+          successVal.oldInfo.getInfo shouldEqual baseTenantInfo.toInfo
+          successVal.newInfo.getInfo shouldEqual baseTenantInfo.toInfo
         }
 
         "succeed for an edit of all fields and return the proper response" in {
@@ -714,8 +715,8 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo.getEditable shouldEqual baseTenantInfo
-          successVal.newInfo.getEditable shouldEqual updatedInfo
+          successVal.oldInfo.getInfo shouldEqual baseTenantInfo.toInfo
+          successVal.newInfo.getInfo shouldEqual updatedInfo.toInfo
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -759,11 +760,13 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo.getEditable shouldEqual baseTenantInfo
-          successVal.newInfo.getEditable shouldEqual baseTenantInfo.copy(
-            name = Some(newName),
-            organizations = Some(newOrgs)
-          )
+          successVal.oldInfo.getInfo shouldEqual baseTenantInfo.toInfo
+          successVal.newInfo.getInfo shouldEqual baseTenantInfo
+            .copy(
+              name = Some(newName),
+              organizations = Some(newOrgs)
+            )
+            .toInfo
         }
       }
 

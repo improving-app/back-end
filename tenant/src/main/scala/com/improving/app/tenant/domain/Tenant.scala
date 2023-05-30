@@ -10,7 +10,7 @@ import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.{Address, Contact, EditableAddress, EditableContact, MemberId, OrganizationId}
 import com.improving.app.common.errors._
 import com.improving.app.tenant.domain.Validation.completeEditableTenantInfoValidator
-import com.improving.app.tenant.domain.util.infoFromEditableInfo
+import com.improving.app.tenant.domain.util.EditableInfoUtil
 
 import java.time.Instant
 
@@ -66,14 +66,14 @@ object Tenant {
             case x: GetOrganizations => getOrganizations(x)
             case _                   => Left(StateError("Tenant is not established"))
           }
-        case inactiveTenant: InactiveTenant =>
+        case draftState: DraftTenant =>
           command.request match {
             case _: EstablishTenant  => Left(StateError("Tenant is already established"))
-            case x: ActivateTenant   => activateTenant(inactiveTenant, x)
-            case x: SuspendTenant    => suspendTenant(inactiveTenant, x)
-            case x: EditInfo         => editInfo(inactiveTenant, x)
-            case x: GetOrganizations => getOrganizations(x, Some(inactiveTenant))
-            case x: TerminateTenant  => terminateTenant(inactiveTenant, x)
+            case x: ActivateTenant   => activateTenant(draftState, x)
+            case x: SuspendTenant    => suspendTenant(draftState, x)
+            case x: EditInfo         => editInfo(draftState, x)
+            case x: GetOrganizations => getOrganizations(x, Some(draftState))
+            case x: TerminateTenant  => terminateTenant(draftState, x)
             case _                   => Left(StateError("Command is not supported"))
           }
         case establishedState: EstablishedTenant =>
@@ -132,13 +132,13 @@ object Tenant {
             }
           case e: TenantActivated =>
             state match {
-              case x: DraftTenant     => ActiveTenant(infoFromEditableInfo(x.info), e.metaInfo)
+              case x: DraftTenant     => ActiveTenant(x.info.toInfo, e.metaInfo)
               case x: SuspendedTenant => ActiveTenant(x.info, e.metaInfo)
               case x                  => x
             }
           case e: TenantSuspended =>
             state match {
-              case x: DraftTenant       => SuspendedTenant(infoFromEditableInfo(x.info), e.metaInfo, e.suspensionReason)
+              case x: DraftTenant       => SuspendedTenant(x.info.toInfo, e.metaInfo, e.suspensionReason)
               case x: InitializedTenant => SuspendedTenant(x.info, e.metaInfo, e.suspensionReason)
               case x                    => x
             }
@@ -242,8 +242,8 @@ object Tenant {
     case draftState: DraftTenant =>
       val infoToUpdate = editInfoCommand.infoToUpdate
       val stateInfo = draftState.info
-      val stateAddress = stateInfo.getAddress
-      val stateContact = stateInfo.getPrimaryContact
+      val stateAddress = stateInfo.address
+      val stateContact = stateInfo.primaryContact
 
       val updatedInfo = EditableTenantInfo(
         name = infoToUpdate.name.orElse(stateInfo.name),
@@ -251,12 +251,12 @@ object Tenant {
           case Some(EditableAddress(line1, line2, city, stateProvince, country, postalCode, _)) =>
             Some(
               EditableAddress(
-                line1.orElse(stateAddress.line1),
-                line2.orElse(stateAddress.line2),
-                city.orElse(stateAddress.city),
-                stateProvince.orElse(stateAddress.stateProvince),
-                country.orElse(stateAddress.country),
-                postalCode.orElse(stateAddress.postalCode)
+                line1.orElse(stateAddress.flatMap(_.line1)),
+                line2.orElse(stateAddress.flatMap(_.line2)),
+                city.orElse(stateAddress.flatMap(_.city)),
+                stateProvince.orElse(stateAddress.flatMap(_.stateProvince)),
+                country.orElse(stateAddress.flatMap(_.country)),
+                postalCode.orElse(stateAddress.flatMap(_.postalCode))
               )
             )
           case None => stateInfo.address
@@ -265,11 +265,11 @@ object Tenant {
           case Some(EditableContact(firstName, lastName, email, phone, username, _)) =>
             Some(
               EditableContact(
-                firstName.orElse(stateContact.firstName),
-                lastName.orElse(stateContact.lastName),
-                email.orElse(stateContact.emailAddress),
-                phone.orElse(stateContact.phone),
-                username.orElse(stateContact.userName)
+                firstName.orElse(stateContact.flatMap(_.firstName)),
+                lastName.orElse(stateContact.flatMap(_.lastName)),
+                email.orElse(stateContact.flatMap(_.emailAddress)),
+                phone.orElse(stateContact.flatMap(_.phone)),
+                username.orElse(stateContact.flatMap(_.userName))
               )
             )
           case None => stateInfo.primaryContact
