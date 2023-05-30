@@ -120,7 +120,7 @@ object Tenant {
       }
   }
 
-  private val eventHandler: (TenantState, TenantEnvelope) => TenantState = { (state, response) =>
+  private val eventHandler: (TenantState, TenantEnvelope) => TenantState = (state, response) =>
     response match {
       case event: TenantEventResponse =>
         event.tenantEvent match {
@@ -134,13 +134,13 @@ object Tenant {
             state match {
               case x: DraftTenant     => ActiveTenant(infoFromEditableInfo(x.info), e.metaInfo)
               case x: SuspendedTenant => ActiveTenant(x.info, e.metaInfo)
-              case _                  => state
+              case x                  => x
             }
           case e: TenantSuspended =>
             state match {
+              case x: DraftTenant       => SuspendedTenant(infoFromEditableInfo(x.info), e.metaInfo, e.suspensionReason)
               case x: InitializedTenant => SuspendedTenant(x.info, e.metaInfo, e.suspensionReason)
-              case UninitializedTenant  => UninitializedTenant
-              case _                    => state
+              case x                    => x
             }
           case e: InfoEdited =>
             state match {
@@ -160,7 +160,6 @@ object Tenant {
         }
       case _ => state
     }
-  }
 
   private def updateMetaInfo(metaInfo: TenantMetaInfo, lastUpdatedBy: MemberId): TenantMetaInfo = {
     metaInfo.copy(lastUpdatedBy = lastUpdatedBy, lastUpdated = Timestamp(Instant.now()))

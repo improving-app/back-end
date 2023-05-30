@@ -1,6 +1,6 @@
 package com.improving.app.tenant.domain
 
-import com.improving.app.common.domain.util.{addressFromEditableAddress, contactFromEditableContact}
+import com.improving.app.common.domain.util.{AddressUtil, ContactUtil}
 import com.improving.app.common.errors.Validation._
 import com.improving.app.common.errors.ValidationError
 
@@ -21,8 +21,8 @@ object Validation {
   val completeEditableTenantInfoValidator: Validator[EditableTenantInfo] = tenantInfo => {
     applyAllValidators[EditableTenantInfo](
       ti => required("name", tenantNameValidator)(ti.name),
-      ti => required("primary contact", contactValidator)(ti.primaryContact.map(contactFromEditableContact)),
-      ti => required("address", addressValidator)(ti.address.map(addressFromEditableAddress)),
+      ti => required("primary contact", contactValidator)(ti.primaryContact.map(_.toContact)),
+      ti => required("address", addressValidator)(ti.address.map(_.toAddress)),
       ti => required("organizations", organizationsValidator)(ti.organizations)
     )(tenantInfo)
   }
