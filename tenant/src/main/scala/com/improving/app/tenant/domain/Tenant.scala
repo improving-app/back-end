@@ -63,7 +63,7 @@ object Tenant {
         case UninitializedTenant =>
           command.request match {
             case x: EstablishTenant  => establishTenant(x)
-            case x: GetOrganizations => getOrganizations(x)
+            case _: GetOrganizations => getOrganizations()
             case _                   => Left(StateError("Tenant is not established"))
           }
         case draftState: DraftTenant =>
@@ -72,7 +72,7 @@ object Tenant {
             case x: ActivateTenant   => activateTenant(draftState, x)
             case x: SuspendTenant    => suspendTenant(draftState, x)
             case x: EditInfo         => editInfo(draftState, x)
-            case x: GetOrganizations => getOrganizations(x, Some(draftState))
+            case _: GetOrganizations => getOrganizations(Some(draftState))
             case x: TerminateTenant  => terminateTenant(draftState, x)
             case _                   => Left(StateError("Command is not supported"))
           }
@@ -84,7 +84,7 @@ object Tenant {
                 case _: ActivateTenant   => Left(StateError("Active tenants may not transition to the Active state"))
                 case x: SuspendTenant    => suspendTenant(establishedState, x)
                 case x: EditInfo         => editInfo(establishedState, x)
-                case x: GetOrganizations => getOrganizations(x, Some(activeTenantState))
+                case _: GetOrganizations => getOrganizations(Some(activeTenantState))
                 case x: TerminateTenant  => terminateTenant(establishedState, x)
                 case _                   => Left(StateError("Command is not supported"))
               }
@@ -94,14 +94,14 @@ object Tenant {
                 case x: ActivateTenant   => activateTenant(establishedState, x)
                 case x: SuspendTenant    => suspendTenant(establishedState, x)
                 case x: EditInfo         => editInfo(establishedState, x)
-                case x: GetOrganizations => getOrganizations(x, Some(suspendedTenantState))
+                case _: GetOrganizations => getOrganizations(Some(suspendedTenantState))
                 case x: TerminateTenant  => terminateTenant(establishedState, x)
                 case _                   => Left(StateError("Command is not supported"))
               }
           }
         case _: TerminatedTenant =>
           command.request match {
-            case x: GetOrganizations => getOrganizations(x)
+            case _: GetOrganizations => getOrganizations()
             case _                   => Left(StateError("Command not allowed in Terminated state"))
           }
       }
@@ -338,13 +338,12 @@ object Tenant {
   }
 
   private def getOrganizations(
-      getOrganizationsQuery: GetOrganizations,
-      stateOpt: Option[Tenant.EstablishedTenant] = None
+      establishedInfoOpt: Option[Tenant.EstablishedTenant] = None
   ): Either[Error, TenantEnvelope] = {
     Right(
       TenantDataResponse(
         TenantOrganizationData(
-          organizations = TenantOrganizationList(stateOpt.fold[Seq[OrganizationId]](Seq.empty) {
+          organizations = TenantOrganizationList(establishedInfoOpt.fold[Seq[OrganizationId]](Seq.empty) {
             case draft: DraftTenant             => draft.info.getOrganizations.value
             case initialized: InitializedTenant => initialized.info.organizations.value
           })
