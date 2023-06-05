@@ -54,6 +54,11 @@ message Contact {
   string user_name = 5 [(validate.rules).string.min_len = 1];
 }
 
+message ContactList {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  repeated Contact contacts = 1;
+}
+
 message EditableContact {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   optional string first_name = 1 [(validate.rules).string.min_len = 1];

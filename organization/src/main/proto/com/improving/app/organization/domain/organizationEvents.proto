@@ -5,6 +5,7 @@ import "scalapb/scalapb.proto";
 import "scalapb/validate.proto";
 
 import "com/improving/app/common/domain/ids.proto";
+import "com/improving/app/common/domain/address.proto";
 import "com/improving/app/organization/domain/organizationDomainObjects.proto";
 import "validate/validate.proto";
 
@@ -34,6 +35,7 @@ option (scalapb.options) = {
 message OrganizationQueryResponsePB {
   oneof value {
     OrganizationInfoResponse organization_info_response = 1;
+    OrganizationContactsResponse organization_contacts_Response = 2;
   }
 }
 
@@ -41,6 +43,12 @@ message OrganizationInfoResponse {
   option (scalapb.message).extends = "OrganizationQueryResponse";
   com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
   OrganizationInfo info = 2 [(validate.rules).message.required = true];
+}
+
+message OrganizationContactsResponse {
+  option (scalapb.message).extends = "OrganizationQueryResponse";
+  com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
+  repeated com.improving.app.common.domain.Contact contacts = 2;
 }
 
 message OrganizationEventPB {
@@ -55,6 +63,7 @@ message OrganizationEventPB {
     MembersRemovedFromOrganization members_removed_from_organization = 7;
     OwnersAddedToOrganization owners_added_to_organization = 8;
     OwnersRemovedFromOrganization owners_removed_from_organization = 9;
+    OrganizationContactsUpdated organization_contacts_updated = 10;
   }
 }
 
@@ -116,4 +125,11 @@ message OwnersRemovedFromOrganization {
   com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
   OrganizationMetaInfo meta_info = 2 [(validate.rules).message.required = true];
   repeated com.improving.app.common.domain.MemberId owners_removed = 3 [(validate.rules).repeated.min_items = 1];
+}
+
+message OrganizationContactsUpdated {
+  option (scalapb.message).extends = "OrganizationEvent";
+  com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
+  OrganizationMetaInfo meta_info = 2 [(validate.rules).message.required = true];
+  repeated com.improving.app.common.domain.Contact contacts = 3;
 }
