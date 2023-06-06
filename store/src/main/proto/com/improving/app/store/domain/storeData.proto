@@ -7,23 +7,6 @@ import "scalapb/validate.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
-option (scalapb.options) = {
-  scope: FILE
-  [scalapb.validate.file] {
-    validate_at_construction: true
-  }
-  field_transformations: [
-    {
-      when: {options: {[validate.rules] {message: {required: true}}}}
-      set: {
-        [scalapb.field] {
-          required: true
-        }
-      }
-    }
-  ]
-};
-
 enum StoreStates {
   STORE_STATES_UNINITIALIZED = 0;
   STORE_STATES_DRAFT = 1;
@@ -35,10 +18,10 @@ enum StoreStates {
 
 message StoreMetaInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  google.protobuf.Timestamp created_on = 1 [(validate.rules).message.required = true];
-  com.improving.app.common.domain.MemberId created_by = 2 [(validate.rules).message.required = true];
-  google.protobuf.Timestamp last_updated = 3 [(validate.rules).message.required = true];
-  com.improving.app.common.domain.MemberId last_updated_by = 4 [(validate.rules).message.required = true];
+  google.protobuf.Timestamp created_on = 1;
+  com.improving.app.common.domain.MemberId created_by = 2;
+  google.protobuf.Timestamp last_updated = 3;
+  com.improving.app.common.domain.MemberId last_updated_by = 4;
   StoreStates state = 5;
 }
 
@@ -51,7 +34,7 @@ message StoreInfo {
   //EventID event = 4;
   //VenueId venue = 5;
   //LocationId location = 6;
-  common.domain.OrganizationId sponsoring_org = 7 [(validate.rules).message.required = true];
+  common.domain.OrganizationId sponsoring_org = 7;
 }
 
 message EditableStoreInfo {

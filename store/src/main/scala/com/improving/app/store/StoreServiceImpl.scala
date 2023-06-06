@@ -71,11 +71,20 @@ class StoreServiceImpl(sys: ActorSystem[_]) extends StoreService {
 
   private def handleRequest(
       in: StoreRequestPB with StoreCommand,
-  ): Future[StoreEventMessage.SealedValue] = {
-    val result = sharding
-      .entityRefFor(Store.TypeKey, in.storeId.id)
-      .ask(ref => Store.StoreRequestEnvelope(in, ref))
-    result.transform(result => result.getValue.asMessage.sealedValue, exception => exceptionHandler(exception))
+  ): Future[StoreEventMessage.SealedValue] = in.storeId match {
+    case Some(id) =>
+      val result = sharding
+        .entityRefFor(Store.TypeKey, id.id)
+        .ask(ref => Store.StoreRequestEnvelope(in, ref))
+      result.transform(result => result.getValue.asMessage.sealedValue, exception => exceptionHandler(exception))
+    case None =>
+      Future.failed(
+        GrpcServiceException.create(
+          Code.INVALID_ARGUMENT,
+          "An entity Id was not provided",
+          java.util.List.of(in.asMessage)
+        )
+      )
   }
 
   override def createStore(in: CreateStore): Future[StoreCreated] = handleRequest(in).map(_.storeCreated.get)

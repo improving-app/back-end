@@ -72,15 +72,15 @@ class StoreSpec
         EditableStoreInfo(
           Some(baseStoreInfo.getInfo.name),
           Some(baseStoreInfo.getInfo.description),
-          Some(baseStoreInfo.getInfo.sponsoringOrg)
+          baseStoreInfo.getInfo.sponsoringOrg
         )
       ),
       checkSuccess: Boolean = true
   ): StatusReply[StoreEvent] = {
     p ! Store.StoreRequestEnvelope(
       CreateStore(
-        storeId = storeId,
-        onBehalfOf = MemberId("creatingUser"),
+        storeId = Some(storeId),
+        onBehalfOf = Some(MemberId("creatingUser")),
         info = storeInfo
       ),
       probe.ref
@@ -100,8 +100,8 @@ class StoreSpec
   ): StatusReply[StoreEvent] = {
     p ! Store.StoreRequestEnvelope(
       MakeStoreReady(
-        storeId = storeId,
-        onBehalfOf = MemberId("readyingUser"),
+        storeId = Some(storeId),
+        onBehalfOf = Some(MemberId("readyingUser")),
         info = None
       ),
       probe.ref
@@ -121,8 +121,8 @@ class StoreSpec
   ): StatusReply[StoreEvent] = {
     p ! Store.StoreRequestEnvelope(
       OpenStore(
-        storeId = storeId,
-        onBehalfOf = MemberId("openingUser")
+        storeId = Some(storeId),
+        onBehalfOf = Some(MemberId("openingUser")),
       ),
       probe.ref
     )
@@ -141,8 +141,8 @@ class StoreSpec
   ): StatusReply[StoreEvent] = {
     p ! Store.StoreRequestEnvelope(
       CloseStore(
-        storeId = storeId,
-        onBehalfOf = MemberId("closingUser")
+        storeId = Some(storeId),
+        onBehalfOf = Some(MemberId("closingUser")),
       ),
       probe.ref
     )
@@ -161,8 +161,8 @@ class StoreSpec
   ): StatusReply[StoreEvent] = {
     p ! Store.StoreRequestEnvelope(
       DeleteStore(
-        storeId = storeId,
-        onBehalfOf = MemberId("deletingUser")
+        storeId = Some(storeId),
+        onBehalfOf = Some(MemberId("deletingUser")),
       ),
       probe.ref
     )
@@ -181,8 +181,8 @@ class StoreSpec
   ): StatusReply[StoreEvent] = {
     p ! Store.StoreRequestEnvelope(
       TerminateStore(
-        storeId = storeId,
-        onBehalfOf = MemberId("terminatingUser")
+        storeId = Some(storeId),
+        onBehalfOf = Some(MemberId("terminatingUser")),
       ),
       probe.ref
     )
@@ -200,15 +200,15 @@ class StoreSpec
       info: EditableStoreInfo = EditableStoreInfo(
         Some(baseStoreInfo.getInfo.name),
         Some(baseStoreInfo.getInfo.description),
-        Some(baseStoreInfo.getInfo.sponsoringOrg)
+        baseStoreInfo.getInfo.sponsoringOrg
       ),
       checkSuccess: Boolean = true
   ): StatusReply[StoreEvent] = {
     p ! Store.StoreRequestEnvelope(
       EditStoreInfo(
-        storeId = storeId,
-        onBehalfOf = MemberId("editingUser"),
-        newInfo = info
+        storeId = Some(storeId),
+        onBehalfOf = Some(MemberId("editingUser")),
+        newInfo = Some(info)
       ),
       probe.ref
     )
@@ -228,9 +228,9 @@ class StoreSpec
 
           p ! Store.StoreRequestEnvelope(
             EditStoreInfo(
-              storeId,
-              MemberId("unauthorizedUser"),
-              EditableStoreInfo(),
+              Some(storeId),
+              Some(MemberId("unauthorizedUser")),
+              Some(EditableStoreInfo()),
             ),
             probe.ref
           )
@@ -249,8 +249,10 @@ class StoreSpec
 
           val successVal = response.getValue
           assert(successVal.asMessage.sealedValue.isStoreCreated)
-          successVal.asMessage.sealedValue.storeCreated.get.storeId shouldEqual storeId
-          successVal.asMessage.sealedValue.storeCreated.get.metaInfo.createdBy shouldEqual MemberId("creatingUser")
+          successVal.asMessage.sealedValue.storeCreated.get.getStoreId shouldEqual storeId
+          successVal.asMessage.sealedValue.storeCreated.get.metaInfo.map(_.getCreatedBy) shouldEqual Some(
+            MemberId("creatingUser")
+          )
         }
 
         "error for a store that is already created" in {
@@ -270,15 +272,15 @@ class StoreSpec
           val (storeId, p, probe) = createTestVariables()
 
           val commands = Seq(
-            MakeStoreReady(storeId, MemberId("user")),
-            OpenStore(storeId, MemberId("user")),
-            CloseStore(storeId, MemberId("user")),
-            DeleteStore(storeId, MemberId("user")),
-            TerminateStore(storeId, MemberId("user")),
+            MakeStoreReady(Some(storeId), Some(MemberId("user"))),
+            OpenStore(Some(storeId), Some(MemberId("user"))),
+            CloseStore(Some(storeId), Some(MemberId("user"))),
+            DeleteStore(Some(storeId), Some(MemberId("user"))),
+            TerminateStore(Some(storeId), Some(MemberId("user"))),
             EditStoreInfo(
-              storeId,
-              MemberId("user"),
-              EditableStoreInfo()
+              Some(storeId),
+              Some(MemberId("user")),
+              Some(EditableStoreInfo())
             )
           )
 
@@ -301,9 +303,9 @@ class StoreSpec
         "error for an unauthorized updating user" ignore new CreatedSpec {
           p ! Store.StoreRequestEnvelope(
             EditStoreInfo(
-              storeId,
-              MemberId("unauthorizedUser"),
-              EditableStoreInfo(),
+              Some(storeId),
+              Some(MemberId("unauthorizedUser")),
+              Some(EditableStoreInfo()),
             ),
             probe.ref
           )
@@ -320,7 +322,7 @@ class StoreSpec
           val state: EditableStoreInfo = EditableStoreInfo(
             Some(baseStoreInfo.getInfo.name),
             Some(baseStoreInfo.getInfo.description),
-            Some(baseStoreInfo.getInfo.sponsoringOrg)
+            baseStoreInfo.getInfo.sponsoringOrg
           )
 
           val response2: StatusReply[StoreEvent] =
@@ -328,9 +330,9 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.storeId shouldEqual storeId
-          successVal.metaInfo.lastUpdatedBy shouldEqual MemberId("editingUser")
-          successVal.info.getEditableInfo shouldEqual state
+          successVal.getStoreId shouldEqual storeId
+          successVal.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("editingUser"))
+          successVal.info.map(_.getEditableInfo) shouldEqual Some(state)
         }
 
         "succeed for an edit of all fields and return the proper response" in new CreatedSpec with NewInfoForEditSpec {
@@ -345,9 +347,9 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.storeId shouldEqual storeId
-          successVal.info.getEditableInfo shouldEqual state
-          successVal.metaInfo.lastUpdatedBy shouldEqual MemberId("editingUser")
+          successVal.getStoreId shouldEqual storeId
+          successVal.info.map(_.getEditableInfo) shouldEqual Some(state)
+          successVal.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("editingUser"))
         }
 
         "succeed for a partial edit and return the proper response" in new CreatedSpec with NewInfoForEditSpec {
@@ -356,27 +358,27 @@ class StoreSpec
 
           val successVal2: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal2.storeId shouldEqual storeId
-          successVal2.metaInfo.lastUpdatedBy shouldEqual MemberId("editingUser")
-          successVal2.info.infoOrEditable.editableInfo.flatMap(_.name) shouldEqual newName
+          successVal2.getStoreId shouldEqual storeId
+          successVal2.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("editingUser"))
+          successVal2.info.map(_.infoOrEditable.editableInfo.flatMap(_.name)) shouldEqual Some(newName)
 
           val response3: StatusReply[StoreEvent] =
             editStoreInfo(storeId, p, probe, EditableStoreInfo(description = newDesc))
 
           val successVal3: StoreInfoEdited = response3.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal3.storeId shouldEqual storeId
-          successVal3.metaInfo.lastUpdatedBy shouldEqual MemberId("editingUser")
-          successVal3.info.infoOrEditable.editableInfo.flatMap(_.description) shouldEqual newDesc
+          successVal3.getStoreId shouldEqual storeId
+          successVal3.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("editingUser"))
+          successVal3.info.map(_.infoOrEditable.editableInfo.flatMap(_.description)) shouldEqual Some(newDesc)
 
           val response4: StatusReply[StoreEvent] =
             editStoreInfo(storeId, p, probe, EditableStoreInfo(sponsoringOrg = newSponsoringOrg))
 
           val successVal4: StoreInfoEdited = response4.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal4.storeId shouldEqual storeId
-          successVal4.metaInfo.lastUpdatedBy shouldEqual MemberId("editingUser")
-          successVal4.info.infoOrEditable.editableInfo.get.sponsoringOrg shouldEqual newSponsoringOrg
+          successVal4.getStoreId shouldEqual storeId
+          successVal4.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("editingUser"))
+          successVal4.info.map(_.infoOrEditable.editableInfo.get.sponsoringOrg) shouldEqual Some(newSponsoringOrg)
         }
       }
     }
@@ -396,8 +398,8 @@ class StoreSpec
         "error for an unauthorized updating user" ignore new CreatedSpec {
           p ! Store.StoreRequestEnvelope(
             MakeStoreReady(
-              storeId = storeId,
-              onBehalfOf = MemberId("unauthorized"),
+              storeId = Some(storeId),
+              onBehalfOf = Some(MemberId("unauthorized")),
             ),
             probe.ref
           )
@@ -441,12 +443,12 @@ class StoreSpec
 
           val storeOpened: StoreIsReady = successVal.asMessage.sealedValue.storeIsReady.get
 
-          storeOpened.storeId shouldEqual storeId
+          storeOpened.getStoreId shouldEqual storeId
 
-          val storeOpenedMeta: StoreMetaInfo = storeOpened.metaInfo
+          val storeOpenedMeta: StoreMetaInfo = storeOpened.getMetaInfo
 
-          storeOpenedMeta.createdBy shouldEqual MemberId("creatingUser")
-          storeOpenedMeta.lastUpdatedBy shouldEqual MemberId("readyingUser")
+          storeOpenedMeta.getCreatedBy shouldEqual MemberId("creatingUser")
+          storeOpenedMeta.getLastUpdatedBy shouldEqual MemberId("readyingUser")
         }
       }
 
@@ -455,12 +457,14 @@ class StoreSpec
           // Test command in question
           p ! Store.StoreRequestEnvelope(
             EditStoreInfo(
-              storeId = storeId,
-              onBehalfOf = MemberId("unauthorized"),
-              newInfo = EditableStoreInfo(
-                Some(baseStoreInfo.getInfo.name),
-                Some(baseStoreInfo.getInfo.description),
-                Some(baseStoreInfo.getInfo.sponsoringOrg)
+              storeId = Some(storeId),
+              onBehalfOf = Some(MemberId("unauthorized")),
+              newInfo = Some(
+                EditableStoreInfo(
+                  Some(baseStoreInfo.getInfo.name),
+                  Some(baseStoreInfo.getInfo.description),
+                  baseStoreInfo.getInfo.sponsoringOrg
+                )
               )
             ),
             probe.ref
@@ -478,7 +482,7 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.getInfo shouldEqual baseStoreInfo.getInfo
+          successVal.info.map(_.getInfo) shouldEqual Some(baseStoreInfo.getInfo)
         }
 
         "succeed for an edit of all fields and return the proper response" in new ReadiedSpec with NewInfoForEditSpec {
@@ -492,10 +496,12 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.getInfo shouldEqual StoreInfo(
-            updateInfo.getName,
-            updateInfo.getDescription,
-            updateInfo.getSponsoringOrg
+          successVal.info.map(_.getInfo) shouldEqual Some(
+            StoreInfo(
+              updateInfo.getName,
+              updateInfo.getDescription,
+              updateInfo.sponsoringOrg
+            )
           )
         }
 
@@ -508,7 +514,7 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.getInfo shouldEqual baseStoreInfo.getInfo.copy(name = updatedInfo.getName)
+          successVal.info.map(_.getInfo) shouldEqual Some(baseStoreInfo.getInfo.copy(name = updatedInfo.getName))
         }
       }
     }
@@ -518,8 +524,8 @@ class StoreSpec
         "error for an unauthorized updating user" ignore new CreatedSpec {
           p ! Store.StoreRequestEnvelope(
             MakeStoreReady(
-              storeId,
-              MemberId("unauthorizedUser"),
+              Some(storeId),
+              Some(MemberId("unauthorizedUser")),
             ),
             probe.ref
           )
@@ -534,11 +540,11 @@ class StoreSpec
 
           val storeReady: StoreIsReady = successVal.asMessage.sealedValue.storeIsReady.get
 
-          storeReady.storeId shouldEqual storeId
-          val storeReadyMeta: StoreMetaInfo = storeReady.metaInfo
+          storeReady.getStoreId shouldEqual storeId
+          val storeReadyMeta: StoreMetaInfo = storeReady.getMetaInfo
 
-          storeReadyMeta.createdBy shouldEqual MemberId("creatingUser")
-          storeReadyMeta.lastUpdatedBy shouldEqual MemberId("readyingUser")
+          storeReadyMeta.getCreatedBy shouldEqual MemberId("creatingUser")
+          storeReadyMeta.getLastUpdatedBy shouldEqual MemberId("readyingUser")
         }
 
         "error when readying a Store that is already ready" in new ReadiedSpec {
@@ -555,12 +561,14 @@ class StoreSpec
 
           p ! Store.StoreRequestEnvelope(
             EditStoreInfo(
-              storeId,
-              MemberId("unauthorizedUser"),
-              EditableStoreInfo(
-                Some(baseStoreInfo.getInfo.name),
-                Some(baseStoreInfo.getInfo.description),
-                Some(baseStoreInfo.getInfo.sponsoringOrg)
+              Some(storeId),
+              Some(MemberId("unauthorizedUser")),
+              Some(
+                EditableStoreInfo(
+                  Some(baseStoreInfo.getInfo.name),
+                  Some(baseStoreInfo.getInfo.description),
+                  baseStoreInfo.getInfo.sponsoringOrg
+                )
               )
             ),
             probe.ref
@@ -576,7 +584,7 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info shouldEqual baseStoreInfo
+          successVal.info shouldEqual Some(baseStoreInfo)
         }
 
         "succeed for an edit of all fields and return the proper response" in new ReadiedSpec with NewInfoForEditSpec {
@@ -591,10 +599,12 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.getInfo shouldEqual StoreInfo(
-            updateInfo.getName,
-            updateInfo.getDescription,
-            updateInfo.getSponsoringOrg
+          successVal.info.map(_.getInfo) shouldEqual Some(
+            StoreInfo(
+              updateInfo.getName,
+              updateInfo.getDescription,
+              updateInfo.sponsoringOrg
+            )
           )
         }
 
@@ -607,7 +617,7 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.getInfo shouldEqual baseStoreInfo.getInfo.copy(name = updatedInfo.name.get)
+          successVal.info.map(_.getInfo) shouldEqual Some(baseStoreInfo.getInfo.copy(name = updatedInfo.name.get))
         }
       }
     }
@@ -617,8 +627,8 @@ class StoreSpec
         "error for an unauthorized updating user" ignore new ReadiedSpec {
           p ! Store.StoreRequestEnvelope(
             OpenStore(
-              storeId,
-              MemberId("unauthorizedUser"),
+              Some(storeId),
+              Some(MemberId("unauthorizedUser")),
             ),
             probe.ref
           )
@@ -637,12 +647,12 @@ class StoreSpec
 
           val storeOpened: StoreOpened = successVal.asMessage.sealedValue.storeOpened.get
 
-          storeOpened.storeId shouldEqual storeId
+          storeOpened.getStoreId shouldEqual storeId
 
-          val storeOpenedMeta: StoreMetaInfo = storeOpened.metaInfo
+          val storeOpenedMeta: StoreMetaInfo = storeOpened.getMetaInfo
 
-          storeOpenedMeta.createdBy shouldEqual MemberId("creatingUser")
-          storeOpenedMeta.lastUpdatedBy shouldEqual MemberId("openingUser")
+          storeOpenedMeta.getCreatedBy shouldEqual MemberId("creatingUser")
+          storeOpenedMeta.getLastUpdatedBy shouldEqual MemberId("openingUser")
         }
 
         "error when opening a Store that is already open" in new ReadiedSpec {
@@ -677,9 +687,9 @@ class StoreSpec
           // Test command in question
           p ! Store.StoreRequestEnvelope(
             EditStoreInfo(
-              storeId,
-              MemberId("unauthorizedUser"),
-              EditableStoreInfo()
+              Some(storeId),
+              Some(MemberId("unauthorizedUser")),
+              Some(EditableStoreInfo())
             ),
             probe.ref
           )
@@ -695,7 +705,7 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.getInfo shouldEqual baseStoreInfo.getInfo
+          successVal.info.map(_.getInfo) shouldEqual Some(baseStoreInfo.getInfo)
         }
 
         "succeed for an edit of all fields and return the proper response" in new ReadiedSpec with NewInfoForEditSpec {
@@ -710,12 +720,14 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info shouldEqual StoreOrEditableInfo(
-            StoreOrEditableInfo.InfoOrEditable.Info(
-              StoreInfo(
-                updateInfo.getName,
-                updateInfo.getDescription,
-                updateInfo.getSponsoringOrg
+          successVal.info shouldEqual Some(
+            StoreOrEditableInfo(
+              StoreOrEditableInfo.InfoOrEditable.Info(
+                StoreInfo(
+                  updateInfo.getName,
+                  updateInfo.getDescription,
+                  updateInfo.sponsoringOrg
+                )
               )
             )
           )
@@ -730,7 +742,7 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.getInfo shouldEqual baseStoreInfo.getInfo.copy(name = updatedInfo.getName)
+          successVal.info.map(_.getInfo) shouldEqual Some(baseStoreInfo.getInfo.copy(name = updatedInfo.getName))
         }
       }
     }
@@ -740,8 +752,8 @@ class StoreSpec
         "error for an unauthorized updating user" ignore new ReadiedSpec {
           p ! Store.StoreRequestEnvelope(
             CloseStore(
-              storeId,
-              MemberId("unauthorizedUser")
+              Some(storeId),
+              Some(MemberId("unauthorizedUser"))
             ),
             probe.ref
           )
@@ -759,12 +771,12 @@ class StoreSpec
 
           val storeClosed: StoreClosed = successVal.asMessage.sealedValue.storeClosed.get
 
-          storeClosed.storeId shouldEqual storeId
+          storeClosed.getStoreId shouldEqual storeId
 
-          val storeClosedMeta: StoreMetaInfo = storeClosed.metaInfo
+          val storeClosedMeta: StoreMetaInfo = storeClosed.getMetaInfo
 
-          storeClosedMeta.createdBy shouldEqual MemberId("creatingUser")
-          storeClosedMeta.lastUpdatedBy shouldEqual MemberId("closingUser")
+          storeClosedMeta.getCreatedBy shouldEqual MemberId("creatingUser")
+          storeClosedMeta.getLastUpdatedBy shouldEqual MemberId("closingUser")
         }
 
         "succeed and return the proper response after store is opened" in new ReadiedSpec {
@@ -780,12 +792,12 @@ class StoreSpec
 
           val storeClosed: StoreClosed = successVal2.asMessage.sealedValue.storeClosed.get
 
-          storeClosed.storeId shouldEqual storeId
+          storeClosed.getStoreId shouldEqual storeId
 
-          val storeClosedMeta: StoreMetaInfo = storeClosed.metaInfo
+          val storeClosedMeta: StoreMetaInfo = storeClosed.getMetaInfo
 
-          storeClosedMeta.createdBy shouldEqual MemberId("creatingUser")
-          storeClosedMeta.lastUpdatedBy shouldEqual MemberId("closingUser")
+          storeClosedMeta.getCreatedBy shouldEqual MemberId("creatingUser")
+          storeClosedMeta.getLastUpdatedBy shouldEqual MemberId("closingUser")
         }
       }
 
@@ -800,12 +812,12 @@ class StoreSpec
 
           val storeOpened: StoreOpened = successVal.asMessage.sealedValue.storeOpened.get
 
-          storeOpened.storeId shouldEqual storeId
+          storeOpened.getStoreId shouldEqual storeId
 
-          val storeOpenedMeta: StoreMetaInfo = storeOpened.metaInfo
+          val storeOpenedMeta: StoreMetaInfo = storeOpened.getMetaInfo
 
-          storeOpenedMeta.createdBy shouldEqual MemberId("creatingUser")
-          storeOpenedMeta.lastUpdatedBy shouldEqual MemberId("openingUser")
+          storeOpenedMeta.getCreatedBy shouldEqual MemberId("creatingUser")
+          storeOpenedMeta.getLastUpdatedBy shouldEqual MemberId("openingUser")
         }
 
         "succeed in opening store when initially opened" in new ReadiedSpec {
@@ -819,11 +831,11 @@ class StoreSpec
 
           val storeOpened: StoreOpened = successVal.asMessage.sealedValue.storeOpened.get
 
-          storeOpened.storeId shouldEqual storeId
-          val storeOpenedMeta: StoreMetaInfo = storeOpened.metaInfo
+          storeOpened.getStoreId shouldEqual storeId
+          val storeOpenedMeta: StoreMetaInfo = storeOpened.getMetaInfo
 
-          storeOpenedMeta.createdBy shouldEqual MemberId("creatingUser")
-          storeOpenedMeta.lastUpdatedBy shouldEqual MemberId("openingUser")
+          storeOpenedMeta.getCreatedBy shouldEqual MemberId("creatingUser")
+          storeOpenedMeta.getLastUpdatedBy shouldEqual MemberId("openingUser")
         }
       }
 
@@ -844,9 +856,9 @@ class StoreSpec
           // Test command in question
           p ! Store.StoreRequestEnvelope(
             EditStoreInfo(
-              storeId,
-              MemberId("unauthorizedUser"),
-              EditableStoreInfo()
+              Some(storeId),
+              Some(MemberId("unauthorizedUser")),
+              Some(EditableStoreInfo())
             ),
             probe.ref
           )
@@ -862,7 +874,7 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.getInfo shouldEqual baseStoreInfo.getInfo
+          successVal.info.map(_.getInfo) shouldEqual Some(baseStoreInfo.getInfo)
         }
 
         "succeed for an edit of all fields and return the proper response" in new ReadiedSpec with NewInfoForEditSpec {
@@ -877,10 +889,12 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.getInfo shouldEqual StoreInfo(
-            updateInfo.getName,
-            updateInfo.getDescription,
-            updateInfo.getSponsoringOrg
+          successVal.info.map(_.getInfo) shouldEqual Some(
+            StoreInfo(
+              updateInfo.getName,
+              updateInfo.getDescription,
+              updateInfo.sponsoringOrg
+            )
           )
         }
 
@@ -893,7 +907,7 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.getInfo shouldEqual baseStoreInfo.getInfo.copy(name = updatedInfo.getName)
+          successVal.info.map(_.getInfo) shouldEqual Some(baseStoreInfo.getInfo.copy(name = updatedInfo.getName))
         }
       }
     }
@@ -904,8 +918,8 @@ class StoreSpec
           closeStore(storeId, p, probe)
           p ! Store.StoreRequestEnvelope(
             DeleteStore(
-              storeId,
-              MemberId("unauthorizedUser")
+              Some(storeId),
+              Some(MemberId("unauthorizedUser"))
             ),
             probe.ref
           )
@@ -944,11 +958,11 @@ class StoreSpec
 
           val storeDeleted: StoreDeleted = successVal2.asMessage.sealedValue.storeDeleted.get
 
-          storeDeleted.storeId shouldEqual storeId
-          val storeDeletedMeta: StoreMetaInfo = storeDeleted.metaInfo
+          storeDeleted.getStoreId shouldEqual storeId
+          val storeDeletedMeta: StoreMetaInfo = storeDeleted.getMetaInfo
 
-          storeDeletedMeta.createdBy shouldEqual MemberId("creatingUser")
-          storeDeletedMeta.lastUpdatedBy shouldEqual MemberId("deletingUser")
+          storeDeletedMeta.getCreatedBy shouldEqual MemberId("creatingUser")
+          storeDeletedMeta.getLastUpdatedBy shouldEqual MemberId("deletingUser")
         }
       }
 
@@ -1006,8 +1020,8 @@ class StoreSpec
         "error for an unauthorized updating user" ignore new ReadiedSpec {
           p ! Store.StoreRequestEnvelope(
             TerminateStore(
-              storeId,
-              MemberId("unauthorizedUser")
+              Some(storeId),
+              Some(MemberId("unauthorizedUser"))
             ),
             probe.ref
           )
@@ -1025,11 +1039,11 @@ class StoreSpec
 
           val storeTerminated: StoreTerminated = successVal.asMessage.sealedValue.storeTerminated.get
 
-          storeTerminated.storeId shouldEqual storeId
-          val storeTerminatedMeta: StoreMetaInfo = storeTerminated.metaInfo
+          storeTerminated.getStoreId shouldEqual storeId
+          val storeTerminatedMeta: StoreMetaInfo = storeTerminated.getMetaInfo
 
-          storeTerminatedMeta.createdBy shouldEqual MemberId("creatingUser")
-          storeTerminatedMeta.lastUpdatedBy shouldEqual MemberId("terminatingUser")
+          storeTerminatedMeta.getCreatedBy shouldEqual MemberId("creatingUser")
+          storeTerminatedMeta.getLastUpdatedBy shouldEqual MemberId("terminatingUser")
         }
 
         "succeed and return the proper response after store is terminated from Ready state" in new ReadiedSpec {
@@ -1041,12 +1055,12 @@ class StoreSpec
 
           val storeTerminated: StoreTerminated = successVal.asMessage.sealedValue.storeTerminated.get
 
-          storeTerminated.storeId shouldEqual storeId
+          storeTerminated.getStoreId shouldEqual storeId
 
-          val storeTerminatedMeta: StoreMetaInfo = storeTerminated.metaInfo
+          val storeTerminatedMeta: StoreMetaInfo = storeTerminated.getMetaInfo
 
-          storeTerminatedMeta.createdBy shouldEqual MemberId("creatingUser")
-          storeTerminatedMeta.lastUpdatedBy shouldEqual MemberId("terminatingUser")
+          storeTerminatedMeta.getCreatedBy shouldEqual MemberId("creatingUser")
+          storeTerminatedMeta.getLastUpdatedBy shouldEqual MemberId("terminatingUser")
         }
 
         "succeed and return the proper response after store is terminated from Open state" in new ReadiedSpec {
@@ -1060,12 +1074,12 @@ class StoreSpec
 
           val storeTerminated: StoreTerminated = successVal.asMessage.sealedValue.storeTerminated.get
 
-          storeTerminated.storeId shouldEqual storeId
+          storeTerminated.getStoreId shouldEqual storeId
 
-          val storeTerminatedMeta: StoreMetaInfo = storeTerminated.metaInfo
+          val storeTerminatedMeta: StoreMetaInfo = storeTerminated.getMetaInfo
 
-          storeTerminatedMeta.createdBy shouldEqual MemberId("creatingUser")
-          storeTerminatedMeta.lastUpdatedBy shouldEqual MemberId("terminatingUser")
+          storeTerminatedMeta.getCreatedBy shouldEqual MemberId("creatingUser")
+          storeTerminatedMeta.getLastUpdatedBy shouldEqual MemberId("terminatingUser")
         }
 
         "succeed and return the proper response after store is terminated from Closed state" in new ReadiedSpec {
@@ -1076,12 +1090,12 @@ class StoreSpec
 
           val storeTerminated: StoreTerminated = successVal.asMessage.sealedValue.storeTerminated.get
 
-          storeTerminated.storeId shouldEqual storeId
+          storeTerminated.getStoreId shouldEqual storeId
 
-          val storeTerminatedMeta: StoreMetaInfo = storeTerminated.metaInfo
+          val storeTerminatedMeta: StoreMetaInfo = storeTerminated.getMetaInfo
 
-          storeTerminatedMeta.createdBy shouldEqual MemberId("creatingUser")
-          storeTerminatedMeta.lastUpdatedBy shouldEqual MemberId("terminatingUser")
+          storeTerminatedMeta.getCreatedBy shouldEqual MemberId("creatingUser")
+          storeTerminatedMeta.getLastUpdatedBy shouldEqual MemberId("terminatingUser")
         }
 
         "succeed and return the proper response after store is terminated from Deleted state" in new ReadiedSpec {
@@ -1094,12 +1108,11 @@ class StoreSpec
 
           val storeTerminated: StoreTerminated = successVal.asMessage.sealedValue.storeTerminated.get
 
-          storeTerminated.storeId shouldEqual storeId
-          val storeTerminatedMeta: StoreMetaInfo = storeTerminated.metaInfo
+          storeTerminated.getStoreId shouldEqual storeId
+          val storeTerminatedMeta: StoreMetaInfo = storeTerminated.getMetaInfo
 
-          storeTerminatedMeta.createdBy shouldEqual MemberId("creatingUser")
-          storeTerminatedMeta.lastUpdatedBy shouldEqual MemberId("terminatingUser")
-          storeTerminatedMeta.lastUpdatedBy shouldEqual MemberId("terminatingUser")
+          storeTerminatedMeta.getCreatedBy shouldEqual MemberId("creatingUser")
+          storeTerminatedMeta.getLastUpdatedBy shouldEqual MemberId("terminatingUser")
         }
       }
 
@@ -1107,15 +1120,15 @@ class StoreSpec
         "error on all commands" in new ReadiedSpec {
           terminateStore(storeId, p, probe)
           val commands = Seq(
-            MakeStoreReady(storeId, MemberId("user")),
-            OpenStore(storeId, MemberId("user")),
-            CloseStore(storeId, MemberId("user")),
-            DeleteStore(storeId, MemberId("user")),
-            TerminateStore(storeId, MemberId("user")),
+            MakeStoreReady(Some(storeId), Some(MemberId("user"))),
+            OpenStore(Some(storeId), Some(MemberId("user"))),
+            CloseStore(Some(storeId), Some(MemberId("user"))),
+            DeleteStore(Some(storeId), Some(MemberId("user"))),
+            TerminateStore(Some(storeId), Some(MemberId("user"))),
             EditStoreInfo(
-              storeId,
-              MemberId("user"),
-              EditableStoreInfo()
+              Some(storeId),
+              Some(MemberId("user")),
+              Some(EditableStoreInfo())
             )
           )
 
