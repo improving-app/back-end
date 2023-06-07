@@ -37,7 +37,7 @@ message CreateStore {
   };
   common.domain.StoreId store_id = 1;
   com.improving.app.common.domain.MemberId on_behalf_of = 2;
-  optional EditableStoreInfo info = 3;
+  EditableStoreInfo info = 3;
 }
 
 message MakeStoreReady {
@@ -46,7 +46,7 @@ message MakeStoreReady {
   };
   common.domain.StoreId store_id = 1;
   com.improving.app.common.domain.MemberId on_behalf_of = 2;
-  optional StoreInfo info = 3;
+  EditableStoreInfo info = 3;
 }
 
 message DeleteStore {

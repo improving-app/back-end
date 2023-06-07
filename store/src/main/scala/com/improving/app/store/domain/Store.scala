@@ -187,20 +187,24 @@ object Store {
   }
 
   private def createStore(command: CreateStore): Either[Error, StoreEvent] = {
-    val newMetaInfo = StoreMetaInfo(
-      createdOn = Some(Timestamp(Instant.now())),
-      createdBy = command.onBehalfOf,
-      lastUpdated = Some(Timestamp(Instant.now())),
-      lastUpdatedBy = command.onBehalfOf
-    )
+    command.info match {
+      case Some(_) =>
+        val newMetaInfo = StoreMetaInfo(
+          createdOn = Some(Timestamp(Instant.now())),
+          createdBy = command.onBehalfOf,
+          lastUpdated = Some(Timestamp(Instant.now())),
+          lastUpdatedBy = command.onBehalfOf
+        )
 
-    Right(
-      StoreCreated(
-        storeId = command.storeId,
-        info = command.info,
-        metaInfo = Some(newMetaInfo)
-      )
-    )
+        Right(
+          StoreCreated(
+            storeId = command.storeId,
+            info = command.info,
+            metaInfo = Some(newMetaInfo)
+          )
+        )
+      case None => Left(ValidationError("EditableStoreInfo not provided in message"))
+    }
   }
 
   private def makeStoreReady(
@@ -209,15 +213,16 @@ object Store {
   ): Either[Error, StoreEvent] = {
     val validationErrorsOpt = draftTransitionStoreInfoValidator(state.info)
     if (validationErrorsOpt.isEmpty) {
+      val info = updateDraftInfo(state.info, command.info)
       val newMetaInfo = updateMetaInfo(metaInfo = Some(state.metaInfo), lastUpdatedByOpt = command.onBehalfOf)
       Right(
         StoreIsReady(
           storeId = command.storeId,
           info = Some(
             StoreInfo(
-              state.info.getName,
-              state.info.getDescription,
-              state.info.sponsoringOrg
+              info.getName,
+              info.getDescription,
+              info.sponsoringOrg
             )
           ),
           metaInfo = Some(newMetaInfo)
@@ -225,6 +230,7 @@ object Store {
       )
     } else
       Left(StateError(validationErrorsOpt.get.message))
+
   }
 
   private def openStore(
@@ -302,6 +308,21 @@ object Store {
     }
   }
 
+  private def updateDraftInfo(
+      stateInfo: EditableStoreInfo,
+      newInfoOpt: Option[EditableStoreInfo]
+  ): EditableStoreInfo = {
+    newInfoOpt match {
+      case Some(fieldsToUpdate) =>
+        stateInfo.copy(
+          name = fieldsToUpdate.name.orElse(stateInfo.name),
+          description = fieldsToUpdate.description.orElse(stateInfo.description),
+          sponsoringOrg = fieldsToUpdate.sponsoringOrg.orElse(stateInfo.sponsoringOrg),
+        )
+      case None => stateInfo
+    }
+  }
+
   private def editStoreInfo(
       state: InitializedState,
       command: EditStoreInfo
@@ -338,34 +359,20 @@ object Store {
         )
       )
 
-    case DraftState(editableInfoOpt, _) =>
-      val editableInfo = editableInfoOpt
-
-      val updatedInfo: Option[EditableStoreInfo] = command.newInfo match {
-        case Some(fieldsToUpdate) =>
-          Some(
-            editableInfo
-              .copy(
-                name = fieldsToUpdate.name.orElse(editableInfo.name),
-                description = fieldsToUpdate.description.orElse(editableInfo.description),
-                sponsoringOrg = fieldsToUpdate.sponsoringOrg.orElse(editableInfo.sponsoringOrg),
-              )
-          )
-        case None => None
-      }
-
+    case DraftState(editableInfo, _) =>
       val updatedMetaInfo = updateMetaInfo(Some(state.metaInfo), command.onBehalfOf)
-
       Right(
         StoreInfoEdited(
           storeId = command.storeId,
-          info = Some(StoreOrEditableInfo(StoreOrEditableInfo.InfoOrEditable.EditableInfo(updatedInfo match {
-            case Some(info) => info
-            case None       => editableInfoOpt
-          }))),
+          info = Some(
+            StoreOrEditableInfo(
+              StoreOrEditableInfo.InfoOrEditable.EditableInfo(updateDraftInfo(editableInfo, command.newInfo))
+            )
+          ),
           metaInfo = Some(updatedMetaInfo)
         )
       )
+
     case DeletedState(_, _) => Left(StateError("Cannot edit a deleted store"))
   }
 }
