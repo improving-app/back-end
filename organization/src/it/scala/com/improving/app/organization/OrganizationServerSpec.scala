@@ -3,7 +3,7 @@ package com.improving.app.organization
 import akka.grpc.{GrpcClientSettings, GrpcServiceException}
 import com.improving.app.common.domain._
 import com.improving.app.common.test.ServiceTestContainerSpec
-import com.improving.app.organization.TestData.baseOrganizationInfo
+import com.improving.app.organization.TestData.{baseContact, baseOrganizationInfo}
 import com.improving.app.organization.api.{OrganizationService, OrganizationServiceClient}
 import com.improving.app.organization.domain._
 import org.scalatest.tagobjects.Retryable
@@ -192,4 +192,50 @@ class OrganizationServerSpec extends ServiceTestContainerSpec(8082, "organizatio
       response shouldEqual baseOrganizationInfo
     }
   }
+
+  it should "properly process UpdateOrganizationContacts and GetOrganizationContacts" in {
+
+    withContainers { containers =>
+      val client = getClient(containers)
+
+      val organizationId = Random.nextString(31)
+
+      val establishedResponse = client
+        .establishOrganization(
+          EstablishOrganization(
+            organizationId = OrganizationId(organizationId),
+            onBehalfOf = MemberId("establishingUser"),
+            organizationInfo = baseOrganizationInfo
+          )
+        )
+        .futureValue
+
+      establishedResponse.organizationId shouldBe OrganizationId(organizationId)
+      establishedResponse.metaInfo.createdBy shouldBe MemberId("establishingUser")
+
+      val response = client
+        .updateOrganizationContacts(
+          UpdateOrganizationContacts(
+            organizationId = OrganizationId(organizationId),
+            onBehalfOf = MemberId("updatingUser"),
+            contacts = Seq(baseContact)
+          )
+        )
+        .futureValue
+
+      response.contacts shouldEqual(Seq(baseContact))
+
+      val queryResponse = client
+        .getOrganizationContacts(
+          GetOrganizationContacts(
+            organizationId = OrganizationId(organizationId),
+            onBehalfOf = MemberId("queryingUser"),
+          )
+        )
+        .futureValue
+
+      queryResponse shouldEqual ContactList(Seq(baseContact))
+    }
+  }
+
 }

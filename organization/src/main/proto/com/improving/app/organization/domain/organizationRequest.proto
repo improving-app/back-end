@@ -5,6 +5,7 @@ import "scalapb/scalapb.proto";
 import "scalapb/validate.proto";
 
 import "com/improving/app/common/domain/ids.proto";
+import "com/improving/app/common/domain/address.proto";
 import "com/improving/app/organization/domain/organizationDomainObjects.proto";
 import "validate/validate.proto";
 
@@ -45,8 +46,10 @@ message OrganizationRequestPB {
     RemoveMembersFromOrganization remove_members_from_organization = 7;
     AddOwnersToOrganization add_owners_to_organization = 8;
     RemoveOwnersFromOrganization remove_owners_from_organization = 9;
+    UpdateOrganizationContacts update_organization_contacts = 11;
 
     GetOrganizationInfo get_organization_info = 10;
+    GetOrganizationContacts get_organization_contacts = 12;
   }
 }
 
@@ -128,7 +131,24 @@ message RemoveMembersFromOrganization {
   repeated com.improving.app.common.domain.MemberId members_to_remove = 3 [(validate.rules).repeated.min_items = 1];
 }
 
+message UpdateOrganizationContacts {
+  option (scalapb.message) = {
+    extends: [ "OrganizationCommand" ]
+  };
+  com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId on_behalf_of = 2 [(validate.rules).message.required = true];
+  repeated com.improving.app.common.domain.Contact contacts = 3;
+}
+
 message GetOrganizationInfo {
+  option (scalapb.message) = {
+    extends: [ "OrganizationQuery" ]
+  };
+  com.improving.app.common.domain.OrganizationId organization_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId on_behalf_of = 2 [(validate.rules).message.required = true];
+}
+
+message GetOrganizationContacts {
   option (scalapb.message) = {
     extends: [ "OrganizationQuery" ]
   };
