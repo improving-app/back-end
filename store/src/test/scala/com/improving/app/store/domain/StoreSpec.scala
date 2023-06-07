@@ -410,6 +410,32 @@ class StoreSpec
           responseError.getMessage shouldEqual "User is not authorized to make Store ready"
         }
 
+        "errorsss on incomplete info" in new CreatedNoInfoSpec with NewInfoForEditSpec {
+          val response2: StatusReply[StoreEvent] = readyStore(storeId, p, probe, checkSuccess = false)
+
+          val responseError: Throwable = response2.getError
+          responseError.getMessage shouldEqual "No associated name"
+
+          editStoreInfo(storeId, p, probe, EditableStoreInfo(name = Some(baseStoreInfo.getInfo.name)))
+
+          val response3: StatusReply[StoreEvent] = readyStore(storeId, p, probe, checkSuccess = false)
+
+          val responseError2: Throwable = response3.getError
+          responseError2.getMessage shouldEqual "No associated description"
+
+          editStoreInfo(
+            storeId,
+            p,
+            probe,
+            EditableStoreInfo(name = None, description = Some(baseStoreInfo.getInfo.description))
+          )
+
+          val response4: StatusReply[StoreEvent] = readyStore(storeId, p, probe, checkSuccess = false)
+
+          val responseError3: Throwable = response4.getError
+          responseError3.getMessage shouldEqual "No associated sponsoring org"
+        }
+
         "error on incomplete info" in new CreatedNoInfoSpec with NewInfoForEditSpec {
           val response2: StatusReply[StoreEvent] = readyStore(storeId, p, probe, checkSuccess = false)
 
@@ -440,14 +466,14 @@ class StoreSpec
           val successVal: StoreEvent = response.getValue
           assert(successVal.asMessage.sealedValue.isStoreIsReady)
 
-          val storeOpened: StoreIsReady = successVal.asMessage.sealedValue.storeIsReady.get
+          val storeReady: StoreIsReady = successVal.asMessage.sealedValue.storeIsReady.get
 
-          storeOpened.getStoreId shouldEqual storeId
+          storeReady.getStoreId shouldEqual storeId
 
-          val storeOpenedMeta: StoreMetaInfo = storeOpened.getMetaInfo
+          val storeReadyMeta: StoreMetaInfo = storeReady.getMetaInfo
 
-          storeOpenedMeta.getCreatedBy shouldEqual MemberId("creatingUser")
-          storeOpenedMeta.getLastUpdatedBy shouldEqual MemberId("readyingUser")
+          storeReadyMeta.getCreatedBy shouldEqual MemberId("creatingUser")
+          storeReadyMeta.getLastUpdatedBy shouldEqual MemberId("readyingUser")
         }
       }
 

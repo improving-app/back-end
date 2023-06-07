@@ -10,7 +10,7 @@ import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.{MemberId, OrganizationId}
 import com.improving.app.common.errors._
 import com.improving.app.store.domain.StoreOrEditableInfo.InfoOrEditable.Info
-import com.improving.app.store.domain.StoreValidation.draftTransitionStoreInfoValidator
+import com.improving.app.store.domain.StoreValidation.{draftTransitionStoreInfoValidator, storeCommandValidator}
 
 import java.time.Instant
 
@@ -62,54 +62,65 @@ object Store {
 
   private val commandHandler: (StoreState, StoreRequestEnvelope) => ReplyEffect[StoreEvent, StoreState] = {
     (state, envelope) =>
-      val result: Either[Error, StoreEvent] = state match {
-        case _: EmptyState =>
-          envelope.request match {
-            case command: CreateStore => createStore(command)
-            case _                    => Left(StateError("Message type not supported in empty state"))
+      val errors: Either[ReplyEffect[StoreEvent, StoreState], StoreRequestPB with StoreRequest] =
+        envelope.request match {
+          case r: StoreRequest => Right(r)
+          case _               => Left(Effect.reply(envelope.replyTo)(StatusReply.Error("Message was not a StoreRequest")))
+        }
+
+      errors.map(storeCommandValidator) match {
+        case Right(None) =>
+          val result: Either[Error, StoreEvent] = state match {
+            case _: EmptyState =>
+              envelope.request match {
+                case command: CreateStore => createStore(command)
+                case _                    => Left(StateError("Message type not supported in empty state"))
+              }
+            case draftState: DraftState =>
+              envelope.request match {
+                case command: MakeStoreReady => makeStoreReady(draftState, command)
+                case command: DeleteStore    => deleteStore(draftState, command)
+                case command: TerminateStore => terminateStore(draftState, command)
+                case command: EditStoreInfo  => editStoreInfo(draftState, command)
+                case _                       => Left(StateError("Message type not supported in draft state"))
+              }
+            case readyState: ReadyState =>
+              envelope.request match {
+                case command: OpenStore      => openStore(readyState, command)
+                case command: CloseStore     => closeStore(readyState, command)
+                case command: TerminateStore => terminateStore(readyState, command)
+                case command: EditStoreInfo  => editStoreInfo(readyState, command)
+                case _: DeleteStore          => Left(StateError("Store must be closed before deleting"))
+                case _                       => Left(StateError("Message type not supported in ready state"))
+              }
+            case openState: OpenState =>
+              envelope.request match {
+                case command: CloseStore     => closeStore(openState, command)
+                case command: TerminateStore => terminateStore(openState, command)
+                case command: EditStoreInfo  => editStoreInfo(openState, command)
+                case _: DeleteStore          => Left(StateError("Store must be closed before deleting"))
+                case _                       => Left(StateError("Message type not supported in open state"))
+              }
+            case closedState: ClosedState =>
+              envelope.request match {
+                case command: OpenStore      => openStore(closedState, command)
+                case command: DeleteStore    => deleteStore(closedState, command)
+                case command: TerminateStore => terminateStore(closedState, command)
+                case command: EditStoreInfo  => editStoreInfo(closedState, command)
+                case _                       => Left(StateError("Message type not supported in closed state"))
+              }
+            case deletedState: DeletedState =>
+              envelope.request match {
+                case command: TerminateStore => terminateStore(deletedState, command)
+                case _                       => Left(StateError("Message type not supported in deleted state"))
+              }
           }
-        case draftState: DraftState =>
-          envelope.request match {
-            case command: MakeStoreReady => makeStoreReady(draftState, command)
-            case command: DeleteStore    => deleteStore(draftState, command)
-            case command: TerminateStore => terminateStore(draftState, command)
-            case command: EditStoreInfo  => editStoreInfo(draftState, command)
-            case _                       => Left(StateError("Message type not supported in draft state"))
+          result match {
+            case Left(error)  => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
+            case Right(event) => Effect.persist(event).thenReply(envelope.replyTo) { _ => StatusReply.Success(event) }
           }
-        case readyState: ReadyState =>
-          envelope.request match {
-            case command: OpenStore      => openStore(readyState, command)
-            case command: CloseStore     => closeStore(readyState, command)
-            case command: TerminateStore => terminateStore(readyState, command)
-            case command: EditStoreInfo  => editStoreInfo(readyState, command)
-            case _: DeleteStore          => Left(StateError("Store must be closed before deleting"))
-            case _                       => Left(StateError("Message type not supported in ready state"))
-          }
-        case openState: OpenState =>
-          envelope.request match {
-            case command: CloseStore     => closeStore(openState, command)
-            case command: TerminateStore => terminateStore(openState, command)
-            case command: EditStoreInfo  => editStoreInfo(openState, command)
-            case _: DeleteStore          => Left(StateError("Store must be closed before deleting"))
-            case _                       => Left(StateError("Message type not supported in open state"))
-          }
-        case closedState: ClosedState =>
-          envelope.request match {
-            case command: OpenStore      => openStore(closedState, command)
-            case command: DeleteStore    => deleteStore(closedState, command)
-            case command: TerminateStore => terminateStore(closedState, command)
-            case command: EditStoreInfo  => editStoreInfo(closedState, command)
-            case _                       => Left(StateError("Message type not supported in closed state"))
-          }
-        case deletedState: DeletedState =>
-          envelope.request match {
-            case command: TerminateStore => terminateStore(deletedState, command)
-            case _                       => Left(StateError("Message type not supported in deleted state"))
-          }
-      }
-      result match {
-        case Left(error)  => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
-        case Right(event) => Effect.persist(event).thenReply(envelope.replyTo) { _ => StatusReply.Success(event) }
+        case Right(Some(errors)) => Effect.reply(envelope.replyTo)(StatusReply.Error(errors.message))
+        case Left(r)             => r
       }
   }
 
@@ -296,47 +307,62 @@ object Store {
       command: EditStoreInfo
   ): Either[Error, StoreInfoEdited] = state match {
     case state: CreatedState =>
-      val stateInfo = state.info
-      val fieldsToUpdate = command.newInfo.getOrElse(EditableStoreInfo.defaultInstance)
+      val updatedInfo = command.newInfo match {
+        case Some(fieldsToUpdate) =>
+          val stateInfo = state.info
 
-      val updatedInfo = StoreInfo(
-        name = fieldsToUpdate.name
-          .getOrElse(stateInfo.name),
-        description = fieldsToUpdate.description
-          .getOrElse(stateInfo.description),
-        sponsoringOrg = Some(
-          fieldsToUpdate.sponsoringOrg
-            .getOrElse(stateInfo.getSponsoringOrg)
-        )
-      )
-
+          Some(
+            StoreInfo(
+              name = fieldsToUpdate.name
+                .getOrElse(stateInfo.name),
+              description = fieldsToUpdate.description
+                .getOrElse(stateInfo.description),
+              sponsoringOrg = Some(
+                fieldsToUpdate.sponsoringOrg
+                  .getOrElse(stateInfo.getSponsoringOrg)
+              )
+            )
+          )
+        case None => None
+      }
       val updatedMetaInfo = updateMetaInfo(Some(state.metaInfo), command.onBehalfOf)
 
       Right(
         StoreInfoEdited(
           storeId = command.storeId,
-          info = Some(StoreOrEditableInfo(StoreOrEditableInfo.InfoOrEditable.Info(updatedInfo))),
+          info = Some(StoreOrEditableInfo(StoreOrEditableInfo.InfoOrEditable.Info(updatedInfo match {
+            case Some(info) => info
+            case None       => state.info
+          }))),
           metaInfo = Some(updatedMetaInfo)
         )
       )
 
     case DraftState(editableInfoOpt, _) =>
-      val fieldsToUpdate = command.newInfo.getOrElse(EditableStoreInfo.defaultInstance)
       val editableInfo = editableInfoOpt
 
-      val updatedInfo = editableInfo
-        .copy(
-          name = fieldsToUpdate.name.orElse(editableInfo.name),
-          description = fieldsToUpdate.description.orElse(editableInfo.description),
-          sponsoringOrg = fieldsToUpdate.sponsoringOrg.orElse(editableInfo.sponsoringOrg),
-        )
+      val updatedInfo: Option[EditableStoreInfo] = command.newInfo match {
+        case Some(fieldsToUpdate) =>
+          Some(
+            editableInfo
+              .copy(
+                name = fieldsToUpdate.name.orElse(editableInfo.name),
+                description = fieldsToUpdate.description.orElse(editableInfo.description),
+                sponsoringOrg = fieldsToUpdate.sponsoringOrg.orElse(editableInfo.sponsoringOrg),
+              )
+          )
+        case None => None
+      }
 
       val updatedMetaInfo = updateMetaInfo(Some(state.metaInfo), command.onBehalfOf)
 
       Right(
         StoreInfoEdited(
           storeId = command.storeId,
-          info = Some(StoreOrEditableInfo(StoreOrEditableInfo.InfoOrEditable.EditableInfo(updatedInfo))),
+          info = Some(StoreOrEditableInfo(StoreOrEditableInfo.InfoOrEditable.EditableInfo(updatedInfo match {
+            case Some(info) => info
+            case None       => editableInfoOpt
+          }))),
           metaInfo = Some(updatedMetaInfo)
         )
       )
