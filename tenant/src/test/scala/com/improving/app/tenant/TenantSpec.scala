@@ -4,18 +4,15 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
-import com.improving.app.common.domain.{
-  MemberId,
-  OrganizationId,
-  TenantId
-}
-import com.improving.app.tenant.TestData.{baseAddress, baseContact, baseTenantInfo, infoFromEditableInfo}
+import com.improving.app.common.domain.{MemberId, OrganizationId, TenantId}
+import com.improving.app.tenant.TestData.{baseAddress, baseContact, baseTenantInfo}
 import com.improving.app.tenant.domain.Tenant.TenantCommand
 import com.improving.app.tenant.domain._
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+import com.improving.app.tenant.domain.util.EditableInfoUtil
 
 import scala.util.Random
 
@@ -47,13 +44,13 @@ class TenantSpec
       tenantId: String,
       p: ActorRef[TenantCommand],
       probe: TestProbe[StatusReply[TenantEnvelope]],
-      tenantInfo: TenantInfo = baseTenantInfo
+      tenantInfo: Option[EditableTenantInfo] = Some(baseTenantInfo)
   ): StatusReply[TenantEnvelope] = {
     p ! Tenant.TenantCommand(
       EstablishTenant(
         tenantId = TenantId(tenantId),
         establishingUser = MemberId("establishingUser"),
-        tenantInfo = Some(tenantInfo)
+        tenantInfo = tenantInfo
       ),
       probe.ref
     )
@@ -265,8 +262,8 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo shouldBe baseTenantInfo
-          successVal.newInfo shouldBe baseTenantInfo
+          successVal.oldInfo.getEditable shouldBe baseTenantInfo
+          successVal.newInfo.getEditable shouldBe baseTenantInfo
         }
 
         "succeed for an edit of all fields and return the proper response" in {
@@ -302,8 +299,8 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo shouldBe baseTenantInfo
-          successVal.newInfo shouldBe infoFromEditableInfo(updatedInfo)
+          successVal.oldInfo.getEditable shouldBe baseTenantInfo
+          successVal.newInfo.getEditable shouldBe updatedInfo
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -335,13 +332,86 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo shouldBe baseTenantInfo
-          successVal.newInfo shouldBe baseTenantInfo.copy(name = newName, organizations = newOrgs)
+          successVal.oldInfo.getEditable shouldBe baseTenantInfo
+          successVal.newInfo.getEditable shouldBe baseTenantInfo.copy(
+            name = Some(newName),
+            organizations = Some(newOrgs)
+          )
         }
       }
 
       "executing ActiveTenant command" should {
-        "error and return the proper response" in {
+        "error on incomplete info" in {
+          val (tenantId, p, probe) = createTestVariables()
+          establishTenant(tenantId, p, probe, None)
+
+          p ! Tenant.TenantCommand(
+            ActivateTenant(
+              TenantId(tenantId),
+              MemberId("someUser"),
+            ),
+            probe.ref
+          )
+
+          val response: StatusReply[TenantEnvelope] = probe.receiveMessage()
+
+          assert(response.isError)
+
+          val responseError: Throwable = response.getError
+          responseError.getMessage shouldEqual "No associated name"
+
+          p ! Tenant.TenantCommand(
+            EditInfo(
+              TenantId(tenantId),
+              MemberId("someUser"),
+              EditableTenantInfo(name = Some(baseTenantInfo.getName))
+            ),
+            probe.ref
+          )
+          assert(probe.receiveMessage().isSuccess)
+
+          p ! Tenant.TenantCommand(
+            ActivateTenant(
+              TenantId(tenantId),
+              MemberId("someUser")
+            ),
+            probe.ref
+          )
+
+          val response2: StatusReply[TenantEnvelope] = probe.receiveMessage()
+
+          assert(response2.isError)
+
+          val responseError2: Throwable = response2.getError
+          responseError2.getMessage shouldEqual "No associated primary contact"
+
+          p ! Tenant.TenantCommand(
+            EditInfo(
+              TenantId(tenantId),
+              MemberId("someUser"),
+              EditableTenantInfo(primaryContact = Some(baseContact), address = Some(baseAddress))
+            ),
+            probe.ref
+          )
+          assert(probe.receiveMessage().isSuccess)
+
+          p ! Tenant.TenantCommand(
+            ActivateTenant(
+              TenantId(tenantId),
+              MemberId("someUser")
+            ),
+            probe.ref
+          )
+
+          val response3: StatusReply[TenantEnvelope] = probe.receiveMessage()
+
+          assert(response3.isError)
+
+          val responseError3: Throwable = response3.getError
+          responseError3.getMessage shouldEqual "No associated organizations"
+        }
+
+        "error and return the proper response when Activating an already active tenant" in {
           // Transition to Active state
           val (tenantId, p, probe) = createTestVariables()
 
@@ -358,9 +428,21 @@ class TenantSpec
 
           val response = probe.receiveMessage()
 
-          assert(response.isError)
+          assert(response.isSuccess)
 
-          val responseError = response.getError
+          p ! Tenant.TenantCommand(
+            ActivateTenant(
+              tenantId = TenantId(tenantId),
+              activatingUser = MemberId("activatingUser")
+            ),
+            probe.ref
+          )
+
+          val response2 = probe.receiveMessage()
+
+          assert(response2.isError)
+
+          val responseError = response2.getError
           responseError.getMessage shouldEqual "Active tenants may not transition to the Active state"
         }
       }
@@ -427,11 +509,15 @@ class TenantSpec
             tenantId,
             p,
             probe,
-            baseTenantInfo.copy(organizations =
-              TenantOrganizationList(
-                Seq(
-                  OrganizationId("org1"),
-                  OrganizationId("org2")
+            Some(
+              baseTenantInfo.copy(organizations =
+                Some(
+                  TenantOrganizationList(
+                    Seq(
+                      OrganizationId("org1"),
+                      OrganizationId("org2")
+                    )
+                  )
                 )
               )
             )
@@ -580,8 +666,8 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo shouldEqual baseTenantInfo
-          successVal.newInfo shouldEqual baseTenantInfo
+          successVal.oldInfo.getInfo shouldEqual baseTenantInfo.toInfo
+          successVal.newInfo.getInfo shouldEqual baseTenantInfo.toInfo
         }
 
         "succeed for an edit of all fields and return the proper response" in {
@@ -629,8 +715,8 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo shouldEqual baseTenantInfo
-          successVal.newInfo shouldEqual infoFromEditableInfo(updatedInfo)
+          successVal.oldInfo.getInfo shouldEqual baseTenantInfo.toInfo
+          successVal.newInfo.getInfo shouldEqual updatedInfo.toInfo
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -674,8 +760,13 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo shouldEqual baseTenantInfo
-          successVal.newInfo shouldEqual baseTenantInfo.copy(name = newName, organizations = newOrgs)
+          successVal.oldInfo.getInfo shouldEqual baseTenantInfo.toInfo
+          successVal.newInfo.getInfo shouldEqual baseTenantInfo
+            .copy(
+              name = Some(newName),
+              organizations = Some(newOrgs)
+            )
+            .toInfo
         }
       }
 
@@ -839,11 +930,15 @@ class TenantSpec
             tenantId,
             p,
             probe,
-            baseTenantInfo.copy(organizations =
-              TenantOrganizationList(
-                Seq(
-                  OrganizationId("org1"),
-                  OrganizationId("org2")
+            Some(
+              baseTenantInfo.copy(organizations =
+                Some(
+                  TenantOrganizationList(
+                    Seq(
+                      OrganizationId("org1"),
+                      OrganizationId("org2")
+                    )
+                  )
                 )
               )
             )
@@ -938,10 +1033,10 @@ class TenantSpec
               tenantId = TenantId(tenantId),
               editingUser = MemberId("editingUser"),
               infoToUpdate = EditableTenantInfo(
-                Some(baseTenantInfo.name),
+                baseTenantInfo.name,
                 Some(baseContact),
                 Some(baseAddress),
-                Some(baseTenantInfo.organizations)
+                baseTenantInfo.organizations
               )
             ),
             probe.ref

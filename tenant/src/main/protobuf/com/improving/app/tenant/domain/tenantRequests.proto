@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package com.improving.app.tenant.domain;
+
+import "scalapb/validate.proto";
+import "com/improving/app/tenant/domain/tenantDomainObjects.proto";
+import "scalapb/scalapb.proto";
+import "com/improving/app/common/domain/ids.proto";
+import "validate/validate.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  [scalapb.validate.file] {
+    validate_at_construction: true
+  }
+  field_transformations: [
+    {
+      when: {options: {[validate.rules] {message: {required: true}}}}
+      set: {
+        [scalapb.field] {
+          required: true
+        }
+      }
+    }
+  ]
+};
+
+message EstablishTenant {
+  com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId establishing_user = 2 [(validate.rules).message.required = true];
+  optional EditableTenantInfo tenant_info = 3;
+}
+
+message ActivateTenant {
+  com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId activating_user = 2 [(validate.rules).message.required = true];
+}
+
+message SuspendTenant {
+  com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
+  string suspension_reason = 2 [(validate.rules).string.ignore_empty = true];
+  com.improving.app.common.domain.MemberId suspending_user = 3 [(validate.rules).message.required = true];
+}
+
+message EditInfo {
+  com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId editing_user = 2 [(validate.rules).message.required = true];
+  EditableTenantInfo info_to_update = 3 [(validate.rules).message.required = true];
+}
+
+message TerminateTenant {
+  com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId terminating_user = 2 [(validate.rules).message.required = true];
+}
+
+message GetOrganizations {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
+}
+
+message TenantRequest {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  oneof sealed_value {
+    EstablishTenant establish_tenant_value = 1;
+    ActivateTenant activate_tenant_value = 2;
+    SuspendTenant suspend_tenant_value = 3;
+    EditInfo edit_info_value = 4;
+    GetOrganizations get_organization_value = 5;
+    TerminateTenant terminate_tenant_value = 6;
+  }
+}

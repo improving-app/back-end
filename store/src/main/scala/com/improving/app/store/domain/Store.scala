@@ -30,11 +30,15 @@ object Store {
 
   sealed private trait CreatedState extends InitializedState {
     val info: StoreInfo
-    override val metaInfo: StoreMetaInfo
+    val metaInfo: StoreMetaInfo
   }
 
-  sealed private trait InactiveState extends InitializedState
-  sealed private trait DeletableState extends InitializedState
+  sealed private trait InactiveState extends InitializedState {
+    val metaInfo: StoreMetaInfo
+  }
+  sealed private trait DeletableState extends InitializedState {
+    val metaInfo: StoreMetaInfo
+  }
 
   private case class DraftState(info: EditableStoreInfo, metaInfo: StoreMetaInfo)
       extends InactiveState
@@ -288,12 +292,13 @@ object Store {
       command: EditStoreInfo
   ): Either[Error, StoreInfoEdited] = state match {
     case state: CreatedState =>
+      val stateInfo = state.info
       val fieldsToUpdate = command.newInfo
 
       val updatedInfo = StoreInfo(
-        name = fieldsToUpdate.name.getOrElse(state.info.name),
-        description = fieldsToUpdate.description.getOrElse(state.info.description),
-        sponsoringOrg = fieldsToUpdate.sponsoringOrg.getOrElse(state.info.sponsoringOrg)
+        name = fieldsToUpdate.name.getOrElse(stateInfo.name),
+        description = fieldsToUpdate.description.getOrElse(stateInfo.description),
+        sponsoringOrg = fieldsToUpdate.sponsoringOrg.getOrElse(stateInfo.sponsoringOrg)
       )
 
       val updatedMetaInfo = updateMetaInfo(state.metaInfo, command.onBehalfOf)

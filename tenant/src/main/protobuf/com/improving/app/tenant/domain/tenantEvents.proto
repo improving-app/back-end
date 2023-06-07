@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package com.improving.app.tenant.domain;
+
+import "scalapb/validate.proto";
+import "com/improving/app/tenant/domain/tenantDomainObjects.proto";
+import "scalapb/scalapb.proto";
+import "com/improving/app/common/domain/ids.proto";
+import "validate/validate.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  [scalapb.validate.file] {
+    validate_at_construction: true
+  }
+  field_transformations: [
+     {
+       when: {options: {[validate.rules] {message: {required: true}}}}
+       set: {
+         [scalapb.field] {
+           required: true
+         }
+       }
+     }
+   ]
+};
+
+message TenantEstablished {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
+    TenantMetaInfo meta_info = 2 [(validate.rules).message.required = true];
+    optional EditableTenantInfo tenant_info = 3;
+}
+message TenantActivated {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
+    TenantMetaInfo meta_info = 2 [(validate.rules).message.required = true];
+}
+
+message TenantSuspended {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
+    TenantMetaInfo meta_info = 2 [(validate.rules).message.required = true];
+    string suspension_reason = 3 [(validate.rules).string.ignore_empty = true];
+}
+
+message InfoEdited {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
+    TenantMetaInfo meta_info = 2 [(validate.rules).message.required = true];
+    TenantInfoOrEditable old_info = 3 [(validate.rules).message.required = true];
+    TenantInfoOrEditable new_info = 4 [(validate.rules).message.required = true];
+}
+
+message TenantTerminated {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
+    TenantMetaInfo meta_info = 2 [(validate.rules).message.required = true];
+}
+
+message TenantOrganizationData {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    TenantOrganizationList organizations = 1 [(validate.rules).message.required = true];
+}
+
+message TenantEvent {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    oneof sealed_value {
+        TenantEstablished tenant_established_value = 1;
+        TenantActivated tenant_activated_value = 2;
+        TenantSuspended tenant_suspended_value = 3;
+        InfoEdited info_edited_value = 4;
+        TenantTerminated tenant_terminated_value = 5;
+    }
+}
+
+message TenantData {
+    oneof sealed_value {
+        TenantOrganizationData organization_data_value = 1;
+    }
+}
+
+message TenantEventResponse {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    TenantEvent tenant_event = 1;
+}
+
+message TenantDataResponse {
+    TenantData tenant_data = 1 ;
+}
+
+message TenantEnvelope {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    oneof sealed_value {
+        TenantEventResponse tenant_event_value = 1;
+        TenantDataResponse tenant_data_value = 2;
+    }
+}
