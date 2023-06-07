@@ -47,7 +47,8 @@ class StoreSpec
   trait CreatedNoInfoSpec {
     val (storeId, p, probe) = createTestVariables()
 
-    val response: StatusReply[StoreEvent] = createStore(storeId, p, probe, storeInfo = None)
+    val response: StatusReply[StoreEvent] =
+      createStore(storeId, p, probe, storeInfo = EditableStoreInfo.defaultInstance)
   }
 
   trait ReadiedSpec {
@@ -68,12 +69,10 @@ class StoreSpec
       storeId: StoreId,
       p: ActorRef[StoreRequestEnvelope],
       probe: TestProbe[StatusReply[StoreEvent]],
-      storeInfo: Option[EditableStoreInfo] = Some(
-        EditableStoreInfo(
-          Some(baseStoreInfo.getInfo.name),
-          Some(baseStoreInfo.getInfo.description),
-          baseStoreInfo.getInfo.sponsoringOrg
-        )
+      storeInfo: EditableStoreInfo = EditableStoreInfo(
+        Some(baseStoreInfo.getInfo.name),
+        Some(baseStoreInfo.getInfo.description),
+        baseStoreInfo.getInfo.sponsoringOrg
       ),
       checkSuccess: Boolean = true
   ): StatusReply[StoreEvent] = {
@@ -81,7 +80,7 @@ class StoreSpec
       CreateStore(
         storeId = Some(storeId),
         onBehalfOf = Some(MemberId("creatingUser")),
-        info = storeInfo
+        info = Some(storeInfo)
       ),
       probe.ref
     )

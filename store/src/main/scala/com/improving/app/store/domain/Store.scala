@@ -9,6 +9,7 @@ import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffec
 import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.{MemberId, OrganizationId}
 import com.improving.app.common.errors._
+import com.improving.app.store.domain.StoreOrEditableInfo.InfoOrEditable.Info
 import com.improving.app.store.domain.StoreValidation.draftTransitionStoreInfoValidator
 
 import java.time.Instant
@@ -25,32 +26,29 @@ object Store {
   private case object UninitializedState extends EmptyState
 
   sealed private trait InitializedState extends StoreState {
-    def metaInfo: Option[StoreMetaInfo]
+    def metaInfo: StoreMetaInfo
   }
 
   sealed private trait CreatedState extends InitializedState {
-    val info: Option[StoreInfo]
-    val metaInfo: Option[StoreMetaInfo]
+    val info: StoreInfo
+    val metaInfo: StoreMetaInfo
   }
 
   sealed private trait InactiveState extends InitializedState {
-    val metaInfo: Option[StoreMetaInfo]
+    val metaInfo: StoreMetaInfo
   }
   sealed private trait DeletableState extends InitializedState {
-    val metaInfo: Option[StoreMetaInfo]
+    val metaInfo: StoreMetaInfo
   }
 
-  private case class DraftState(info: Option[EditableStoreInfo], metaInfo: Option[StoreMetaInfo])
+  private case class DraftState(info: EditableStoreInfo, metaInfo: StoreMetaInfo)
       extends InactiveState
       with DeletableState
-  private case class ReadyState(info: Option[StoreInfo], metaInfo: Option[StoreMetaInfo]) extends CreatedState
-  private case class OpenState(info: Option[StoreInfo], metaInfo: Option[StoreMetaInfo]) extends CreatedState
-  private case class ClosedState(info: Option[StoreInfo], metaInfo: Option[StoreMetaInfo])
-      extends CreatedState
-      with DeletableState
-  private case class DeletedState(info: Option[StoreInfo], metaInfo: Option[StoreMetaInfo]) extends InactiveState
-  private case class TerminatedState(lastMeta: Option[StoreMetaInfo]) extends EmptyState
-
+  private case class ReadyState(info: StoreInfo, metaInfo: StoreMetaInfo) extends CreatedState
+  private case class OpenState(info: StoreInfo, metaInfo: StoreMetaInfo) extends CreatedState
+  private case class ClosedState(info: StoreInfo, metaInfo: StoreMetaInfo) extends CreatedState with DeletableState
+  private case class DeletedState(info: StoreInfo, metaInfo: StoreMetaInfo) extends InactiveState
+  private case class TerminatedState(lastMeta: StoreMetaInfo) extends EmptyState
   def apply(persistenceId: PersistenceId): Behavior[StoreRequestEnvelope] = {
     Behaviors.setup(context =>
       EventSourcedBehavior[StoreRequestEnvelope, StoreEvent, StoreState](
@@ -118,52 +116,58 @@ object Store {
   private val eventHandler: (StoreState, StoreEvent) => StoreState = { (state, event) =>
     event match {
       case StoreEvent.Empty => state
-      case event: StoreCreated =>
+      case StoreCreated(_, Some(info), Some(metaInfo), _) =>
         state match {
           case s: EmptyState =>
             s match {
               case t: TerminatedState => t
               case _ =>
-                DraftState(info = event.info, metaInfo = event.metaInfo)
+                DraftState(info = info, metaInfo = metaInfo)
             }
           case x: StoreState => x
         }
-      case event: StoreIsReady =>
+      case StoreIsReady(_, Some(info), Some(metaInfo), _) =>
         state match {
-          case _: DraftState => ReadyState(event.info, event.metaInfo)
+          case _: DraftState => ReadyState(info, metaInfo)
           case x: StoreState => x
         }
-      case event: StoreOpened =>
+      case StoreOpened(_, Some(info), Some(metaInfo), _) =>
         state match {
-          case x: ReadyState  => OpenState(x.info, event.metaInfo)
-          case x: ClosedState => OpenState(x.info, event.metaInfo)
+          case _: ReadyState  => OpenState(info, metaInfo)
+          case _: ClosedState => OpenState(info, metaInfo)
           case x: StoreState  => x
         }
-      case event: StoreClosed =>
+      case StoreClosed(_, Some(info), Some(metaInfo), _) =>
         state match {
-          case x: ReadyState => ClosedState(x.info, event.metaInfo)
-          case x: OpenState  => ClosedState(x.info, event.metaInfo)
+          case _: ReadyState => ClosedState(info, metaInfo)
+          case _: OpenState  => ClosedState(info, metaInfo)
           case x: StoreState => x
         }
-      case event: StoreDeleted =>
+      case StoreDeleted(_, Some(info), Some(metaInfo), _) =>
         state match {
-          case _: DraftState  => DeletedState(event.info, event.metaInfo)
-          case x: ClosedState => DeletedState(x.info, event.metaInfo)
+          case _: DraftState  => DeletedState(info, metaInfo)
+          case _: ClosedState => DeletedState(info, metaInfo)
           case x: StoreState  => x
         }
-      case event: StoreTerminated =>
+      case StoreTerminated(_, Some(metaInfo), _) =>
         state match {
-          case _: InitializedState => TerminatedState(event.metaInfo)
+          case _: InitializedState => TerminatedState(metaInfo)
           case x: StoreState       => x
         }
-      case event: StoreInfoEdited =>
+      case StoreInfoEdited(
+            _,
+            Some(infoOrEditable: StoreOrEditableInfo),
+            Some(metaInfo),
+            _
+          ) =>
         state match {
-          case _: DraftState  => DraftState(event.getInfo.infoOrEditable.editableInfo, event.metaInfo)
-          case _: ReadyState  => ReadyState(event.getInfo.infoOrEditable.info, event.metaInfo)
-          case _: OpenState   => OpenState(event.getInfo.infoOrEditable.info, event.metaInfo)
-          case _: ClosedState => ClosedState(event.getInfo.infoOrEditable.info, event.metaInfo)
+          case _: DraftState  => DraftState(infoOrEditable.getEditableInfo, metaInfo)
+          case _: ReadyState  => ReadyState(infoOrEditable.getInfo, metaInfo)
+          case _: OpenState   => OpenState(infoOrEditable.getInfo, metaInfo)
+          case _: ClosedState => ClosedState(infoOrEditable.getInfo, metaInfo)
           case x: StoreState  => x
         }
+      case _ => state
     }
   }
 
@@ -192,17 +196,17 @@ object Store {
       state: DraftState,
       command: MakeStoreReady
   ): Either[Error, StoreEvent] = {
-    val validationErrorsOpt = draftTransitionStoreInfoValidator(state.info.getOrElse(EditableStoreInfo.defaultInstance))
+    val validationErrorsOpt = draftTransitionStoreInfoValidator(state.info)
     if (validationErrorsOpt.isEmpty) {
-      val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = command.onBehalfOf)
+      val newMetaInfo = updateMetaInfo(metaInfo = Some(state.metaInfo), lastUpdatedByOpt = command.onBehalfOf)
       Right(
         StoreIsReady(
           storeId = command.storeId,
           info = Some(
             StoreInfo(
-              state.info.getOrElse(EditableStoreInfo.defaultInstance).getName,
-              state.info.getOrElse(EditableStoreInfo.defaultInstance).getDescription,
-              state.info.getOrElse(EditableStoreInfo.defaultInstance).sponsoringOrg
+              state.info.getName,
+              state.info.getDescription,
+              state.info.sponsoringOrg
             )
           ),
           metaInfo = Some(newMetaInfo)
@@ -216,11 +220,11 @@ object Store {
       state: CreatedState,
       command: OpenStore
   ): Either[Error, StoreEvent] = {
-    val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = command.onBehalfOf)
+    val newMetaInfo = updateMetaInfo(metaInfo = Some(state.metaInfo), lastUpdatedByOpt = command.onBehalfOf)
     Right(
       StoreOpened(
         storeId = command.storeId,
-        info = state.info,
+        info = Some(state.info),
         metaInfo = Some(newMetaInfo)
       )
     )
@@ -230,11 +234,11 @@ object Store {
       state: CreatedState,
       command: CloseStore
   ): Either[Error, StoreEvent] = {
-    val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = command.onBehalfOf)
+    val newMetaInfo = updateMetaInfo(metaInfo = Some(state.metaInfo), lastUpdatedByOpt = command.onBehalfOf)
     Right(
       StoreClosed(
         storeId = command.storeId,
-        info = state.info,
+        info = Some(state.info),
         metaInfo = Some(newMetaInfo)
       )
     )
@@ -244,7 +248,7 @@ object Store {
       state: DeletableState,
       command: DeleteStore
   ): Either[Error, StoreEvent] = {
-    val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = command.onBehalfOf)
+    val newMetaInfo = updateMetaInfo(metaInfo = Some(state.metaInfo), lastUpdatedByOpt = command.onBehalfOf)
 
     state match {
       case DraftState(editable, _) =>
@@ -253,9 +257,9 @@ object Store {
             storeId = command.storeId,
             info = Some(
               StoreInfo(
-                editable.getOrElse(EditableStoreInfo.defaultInstance).getName,
-                editable.getOrElse(EditableStoreInfo.defaultInstance).getDescription,
-                editable.getOrElse(EditableStoreInfo.defaultInstance).sponsoringOrg
+                editable.getName,
+                editable.getDescription,
+                editable.sponsoringOrg
               )
             ),
             metaInfo = Some(newMetaInfo)
@@ -265,7 +269,7 @@ object Store {
         Right(
           StoreDeleted(
             storeId = command.storeId,
-            info = info,
+            info = Some(info),
             metaInfo = Some(newMetaInfo)
           )
         )
@@ -274,7 +278,7 @@ object Store {
   }
 
   private def terminateStore(state: InitializedState, terminate: TerminateStore): Either[Error, StoreEvent] = {
-    val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = terminate.onBehalfOf)
+    val newMetaInfo = updateMetaInfo(metaInfo = Some(state.metaInfo), lastUpdatedByOpt = terminate.onBehalfOf)
 
     state match {
       case _ =>
@@ -292,7 +296,7 @@ object Store {
       command: EditStoreInfo
   ): Either[Error, StoreInfoEdited] = state match {
     case state: CreatedState =>
-      val stateInfo = state.info.getOrElse(StoreInfo.defaultInstance)
+      val stateInfo = state.info
       val fieldsToUpdate = command.newInfo.getOrElse(EditableStoreInfo.defaultInstance)
 
       val updatedInfo = StoreInfo(
@@ -306,7 +310,7 @@ object Store {
         )
       )
 
-      val updatedMetaInfo = updateMetaInfo(state.metaInfo, command.onBehalfOf)
+      val updatedMetaInfo = updateMetaInfo(Some(state.metaInfo), command.onBehalfOf)
 
       Right(
         StoreInfoEdited(
@@ -318,7 +322,7 @@ object Store {
 
     case DraftState(editableInfoOpt, _) =>
       val fieldsToUpdate = command.newInfo.getOrElse(EditableStoreInfo.defaultInstance)
-      val editableInfo = editableInfoOpt.getOrElse(EditableStoreInfo.defaultInstance)
+      val editableInfo = editableInfoOpt
 
       val updatedInfo = editableInfo
         .copy(
@@ -327,7 +331,7 @@ object Store {
           sponsoringOrg = fieldsToUpdate.sponsoringOrg.orElse(editableInfo.sponsoringOrg),
         )
 
-      val updatedMetaInfo = updateMetaInfo(state.metaInfo, command.onBehalfOf)
+      val updatedMetaInfo = updateMetaInfo(Some(state.metaInfo), command.onBehalfOf)
 
       Right(
         StoreInfoEdited(
