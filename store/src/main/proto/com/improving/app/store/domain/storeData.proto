@@ -3,7 +3,6 @@ package com.improving.app.store.domain;
 
 import "com/improving/app/common/domain/ids.proto";
 import "scalapb/scalapb.proto";
-import "scalapb/validate.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
