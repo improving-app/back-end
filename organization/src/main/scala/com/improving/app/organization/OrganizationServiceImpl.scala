@@ -8,8 +8,9 @@ import akka.persistence.typed.PersistenceId
 import akka.util.Timeout
 import com.google.rpc.Code
 import com.google.rpc.error_details.LocalizedMessage
+import com.improving.app.common.domain.ContactList
 import com.improving.app.organization.api.OrganizationService
-import com.improving.app.organization.domain.{ActivateOrganization, AddMembersToOrganization, AddOwnersToOrganization, EstablishOrganization, GetOrganizationInfo, MembersAddedToOrganization, MembersRemovedFromOrganization, Organization, OrganizationActivated, OrganizationEstablished, OrganizationEvent, OrganizationEventPB, OrganizationInfo, OrganizationInfoResponse, OrganizationRequest, OrganizationRequestPB, OrganizationResponse, OrganizationSuspended, OrganizationTerminated, OwnersAddedToOrganization, OwnersRemovedFromOrganization, RemoveMembersFromOrganization, RemoveOwnersFromOrganization, SuspendOrganization, TerminateOrganization}
+import com.improving.app.organization.domain.{ActivateOrganization, AddMembersToOrganization, AddOwnersToOrganization, EstablishOrganization, GetOrganizationContacts, GetOrganizationInfo, MembersAddedToOrganization, MembersRemovedFromOrganization, Organization, OrganizationActivated, OrganizationContactsResponse, OrganizationContactsUpdated, OrganizationEstablished, OrganizationEvent, OrganizationEventPB, OrganizationInfo, OrganizationInfoResponse, OrganizationRequest, OrganizationRequestPB, OrganizationResponse, OrganizationSuspended, OrganizationTerminated, OwnersAddedToOrganization, OwnersRemovedFromOrganization, RemoveMembersFromOrganization, RemoveOwnersFromOrganization, SuspendOrganization, TerminateOrganization, UpdateOrganizationContacts}
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.concurrent.duration.DurationInt
@@ -82,5 +83,13 @@ class OrganizationServiceImpl(sys: ActorSystem[_]) extends OrganizationService {
 
   override def getOrganizationInfo(query: GetOrganizationInfo): Future[OrganizationInfo] = {
     processEntityRequest[OrganizationInfoResponse](query).map(_.info)
+  }
+
+  override def updateOrganizationContacts(query: UpdateOrganizationContacts): Future[OrganizationContactsUpdated] = {
+    processEntityRequest[OrganizationContactsUpdated](query)
+  }
+
+  override def getOrganizationContacts(query: GetOrganizationContacts): Future[ContactList] = {
+    processEntityRequest[OrganizationContactsResponse](query).map(r => ContactList(r.contacts))
   }
 }

@@ -1,6 +1,6 @@
 package com.improving.app.organization.domain
 
-import com.improving.app.common.domain.{Address, CaPostalCodeImpl, PostalCodeMessageImpl, TenantId}
+import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, PostalCodeMessageImpl, TenantId}
 
 object TestData {
   val baseAddress: Address = Address(
@@ -10,6 +10,14 @@ object TestData {
     stateProvince = "stateProvince",
     country = "country",
     postalCode = Some(PostalCodeMessageImpl(CaPostalCodeImpl("caPostalCode")))
+  )
+
+  val baseContact: Contact = Contact(
+    firstName = "Bob",
+    lastName = "Dobbs",
+    emailAddress = Some("bob@dobbs.com"),
+    userName = "bobdobbs23",
+    phone = Some("555-2323"),
   )
 
   val baseOrganizationInfo: OrganizationInfo = OrganizationInfo(

@@ -1,6 +1,6 @@
 package com.improving.app.organization.domain
 
-import TestData.{baseAddress, baseOrganizationInfo}
+import TestData.{baseAddress, baseContact, baseOrganizationInfo}
 import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import akka.pattern.StatusReply
@@ -1030,6 +1030,57 @@ class OrganizationSpec
 
           val event2 = response2.getValue.asInstanceOf[MembersRemovedFromOrganization]
           event2.membersRemoved shouldEqual Seq(MemberId("member2"), MemberId("member3"))
+        }
+      }
+
+      "executing the UpdateOrganizationContacts command" should {
+        "update the organization contacts" in {
+          val (organizationId, p, probe) = createTestVariables()
+
+          establishOrganization(organizationId, p, probe)
+          activateOrganization(organizationId, p, probe)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            GetOrganizationContacts(
+              OrganizationId(organizationId),
+              onBehalfOf = MemberId("QueryingUser"),
+            ),
+            probe.ref
+          )
+
+          val getContactsResponse1 = probe.receiveMessage()
+          assert(getContactsResponse1.isSuccess)
+          val contactsResult1 = getContactsResponse1.getValue.asInstanceOf[OrganizationContactsResponse]
+          assert(contactsResult1.contacts.isEmpty)
+
+          val newContacts = Seq(baseContact, baseContact.copy(firstName = "Frank"))
+
+          p ! Organization.OrganizationRequestEnvelope(
+            UpdateOrganizationContacts(
+              OrganizationId(organizationId),
+              onBehalfOf = MemberId("UpdatingUser"),
+              contacts = newContacts,
+            ),
+            probe.ref
+          )
+
+          val updateContactsResponse = probe.receiveMessage()
+          assert(updateContactsResponse.isSuccess)
+          val contactsUpdated = updateContactsResponse.getValue.asInstanceOf[OrganizationContactsUpdated]
+          contactsUpdated.contacts shouldEqual(newContacts)
+
+          p ! Organization.OrganizationRequestEnvelope(
+            GetOrganizationContacts(
+              OrganizationId(organizationId),
+              onBehalfOf = MemberId("QueryingUser"),
+            ),
+            probe.ref
+          )
+
+          val getContactsResponse2 = probe.receiveMessage()
+          assert(getContactsResponse2.isSuccess)
+          val contactsResult2 = getContactsResponse2.getValue.asInstanceOf[OrganizationContactsResponse]
+          contactsResult2.contacts shouldEqual(newContacts)
         }
       }
     }
