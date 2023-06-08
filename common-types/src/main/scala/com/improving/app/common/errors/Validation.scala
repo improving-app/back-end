@@ -21,7 +21,7 @@ object Validation {
         maybeAlreadyError.orElse(validator(validatee))
       )
 
-  def required[T]: (String, Validator[T]) => Validator[Option[T]] = (fieldName, validator) => {
+  def requiredThenValidate[T]: (String, Validator[T]) => Validator[Option[T]] = (fieldName, validator) => {
     opt =>
       if (opt.isEmpty) {
         Some(ValidationError("No associated " + fieldName))
@@ -30,7 +30,16 @@ object Validation {
       }
   }
 
-  def nonEmpty: (String) => Validator[Seq[_]] = fieldName => {
+  def required[T]: String => Validator[Option[T]] = fieldName => {
+    opt =>
+      if (opt.isEmpty) {
+        Some(ValidationError("No associated " + fieldName))
+      } else {
+        None
+      }
+  }
+
+  def nonEmpty: String => Validator[Seq[_]] = fieldName => {
     seq =>
       if (seq.isEmpty) {
         Some(ValidationError("Empty " + fieldName))
@@ -49,11 +58,10 @@ object Validation {
     }
   }
 
-
   def validateAll[T](validator: Validator[T]): Validator[Iterable[T]] = iterable => {
     iterable.foldLeft[Option[ValidationError]](None)(
       (maybeExistingError: Option[ValidationError], elementToValidate: T) => {
-        if(maybeExistingError.isDefined) {
+        if (maybeExistingError.isDefined) {
           maybeExistingError
         } else {
           validator(elementToValidate)

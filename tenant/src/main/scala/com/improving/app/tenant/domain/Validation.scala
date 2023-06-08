@@ -20,10 +20,10 @@ object Validation {
 
   val completeEditableTenantInfoValidator: Validator[EditableTenantInfo] = tenantInfo => {
     applyAllValidators[EditableTenantInfo](
-      ti => required("name", tenantNameValidator)(ti.name),
-      ti => required("primary contact", contactValidator)(ti.primaryContact.map(_.toContact)),
-      ti => required("address", addressValidator)(ti.address.map(_.toAddress)),
-      ti => required("organizations", organizationsValidator)(ti.organizations)
+      ti => requiredThenValidate("name", tenantNameValidator)(ti.name),
+      ti => requiredThenValidate("primary contact", contactValidator)(ti.primaryContact.map(_.toContact)),
+      ti => requiredThenValidate("address", addressValidator)(ti.address.map(_.toAddress)),
+      ti => requiredThenValidate("organizations", organizationsValidator)(ti.organizations)
     )(tenantInfo)
   }
 
