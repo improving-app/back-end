@@ -42,7 +42,7 @@ class MemberSpec
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
             MemberCommand(
               baseRegisterMember.copy(
-                registeringMember = MemberId("unauthorizedUser")
+                registeringMember = Some(MemberId("unauthorizedUser"))
               ),
               _
             )
@@ -79,16 +79,16 @@ class MemberSpec
           val memberRegistered =
             result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberRegisteredValue.get
 
-          memberRegistered.memberId shouldBe MemberId(testMemberIdString)
-          memberRegistered.memberInfo shouldBe baseMemberInfo
-          memberRegistered.meta.currentState shouldBe MEMBER_STATE_DRAFT
-          memberRegistered.meta.createdBy shouldBe MemberId("registeringMember")
+          memberRegistered.memberId shouldBe Some(MemberId(testMemberIdString))
+          memberRegistered.memberInfo shouldBe Some(baseMemberInfo)
+          memberRegistered.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_DRAFT)
+          memberRegistered.meta.flatMap(_.createdBy) shouldBe Some(MemberId("registeringMember"))
 
           val event = result.eventOfType[MemberRegistered]
-          event.memberId.id shouldBe testMemberIdString
-          event.memberInfo shouldBe baseMemberInfo
-          event.meta.currentState shouldBe MEMBER_STATE_DRAFT
-          event.meta.createdBy.id shouldBe "registeringMember"
+          event.memberId.map(_.id) shouldBe Some(testMemberIdString)
+          event.memberInfo shouldBe Some(baseMemberInfo)
+          event.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_DRAFT)
+          event.meta.flatMap(_.createdBy.map(_.id)) shouldBe Some("registeringMember")
 
           val state = result.stateOfType[DraftMemberState]
 
@@ -96,8 +96,8 @@ class MemberSpec
           state.editableInfo.getContact shouldBe baseContact
           state.editableInfo.getHandle shouldBe "handle"
           state.editableInfo.organizationMembership shouldBe baseMemberInfo.organizationMembership
-          state.meta.createdBy.id shouldBe "registeringMember"
-          state.meta.lastModifiedBy.id shouldBe "registeringMember"
+          state.meta.createdBy.map(_.id) shouldBe Some("registeringMember")
+          state.meta.lastModifiedBy.map(_.id) shouldBe Some("registeringMember")
 
         }
 
@@ -136,7 +136,7 @@ class MemberSpec
 
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
             MemberCommand(
-              baseActivateMember.copy(activatingMember = MemberId("unauthorizedUser")),
+              baseActivateMember.copy(activatingMember = Some(MemberId("unauthorizedUser"))),
               _
             )
           )
@@ -157,23 +157,23 @@ class MemberSpec
           val memberActivated =
             result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberActivatedValue.get
 
-          memberActivated.memberId shouldBe MemberId(testMemberIdString)
-          memberActivated.meta.currentState shouldBe MEMBER_STATE_ACTIVE
-          memberActivated.meta.lastModifiedBy.id shouldBe "activatingMember"
+          memberActivated.memberId shouldBe Some(MemberId(testMemberIdString))
+          memberActivated.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_ACTIVE)
+          memberActivated.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("activatingMember")
 
           val event = result.eventOfType[MemberActivated]
-          event.memberId.id shouldBe testMemberIdString
-          event.meta.currentState shouldBe MEMBER_STATE_ACTIVE
-          event.meta.lastModifiedBy.id shouldBe "activatingMember"
+          event.memberId.map(_.id) shouldBe Some(testMemberIdString)
+          event.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_ACTIVE)
+          event.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("activatingMember")
 
           val state = result.stateOfType[RegisteredMemberState]
 
           state.info.firstName shouldBe "firstName"
-          state.info.contact shouldBe baseContact
+          state.info.contact shouldBe Some(baseContact)
           state.info.handle shouldBe "handle"
           state.info.organizationMembership shouldBe baseMemberInfo.organizationMembership
-          state.meta.createdBy.id shouldBe "registeringMember"
-          state.meta.lastModifiedBy.id shouldBe "activatingMember"
+          state.meta.createdBy.map(_.id) shouldBe Some("registeringMember")
+          state.meta.lastModifiedBy.map(_.id) shouldBe Some("activatingMember")
         }
       }
 
@@ -220,7 +220,7 @@ class MemberSpec
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
             MemberCommand(
               baseEditMemberInfo.copy(
-                editingMember = MemberId("unauthorizedUser")
+                editingMember = Some(MemberId("unauthorizedUser"))
               ),
               _
             )
@@ -234,10 +234,12 @@ class MemberSpec
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
             MemberCommand(
               baseEditMemberInfo.copy(
-                memberInfo = baseEditableInfo.copy(
-                  organizationMembership = Seq.empty,
-                  firstName = None,
-                  notificationPreference = None
+                memberInfo = Some(
+                  baseEditableInfo.copy(
+                    organizationMembership = Seq.empty,
+                    firstName = None,
+                    notificationPreference = None
+                  )
                 )
               ),
               _
@@ -247,30 +249,34 @@ class MemberSpec
           val memberInfoEdited =
             result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberInfoEdited.get
 
-          memberInfoEdited.memberId shouldBe MemberId(testMemberIdString)
-          memberInfoEdited.memberInfo shouldBe baseMemberInfo.copy(
-            handle = "editHandle",
-            avatarUrl = "editAvatarUrl",
-            lastName = "editLastName",
-            contact = editContact,
-            tenant = TenantId("editTenantId")
+          memberInfoEdited.memberId shouldBe Some(MemberId(testMemberIdString))
+          memberInfoEdited.memberInfo shouldBe Some(
+            baseMemberInfo.copy(
+              handle = "editHandle",
+              avatarUrl = "editAvatarUrl",
+              lastName = "editLastName",
+              contact = Some(editContact),
+              tenant = Some(TenantId("editTenantId"))
+            )
           )
-          memberInfoEdited.meta.currentState shouldBe MEMBER_STATE_DRAFT
-          memberInfoEdited.meta.createdBy shouldBe MemberId("registeringMember")
-          memberInfoEdited.meta.lastModifiedBy shouldBe MemberId("editingMember")
+          memberInfoEdited.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_DRAFT)
+          memberInfoEdited.meta.flatMap(_.createdBy) shouldBe Some(MemberId("registeringMember"))
+          memberInfoEdited.meta.flatMap(_.lastModifiedBy) shouldBe Some(MemberId("editingMember"))
 
           val event = result.eventOfType[MemberInfoEdited]
-          event.memberId.id shouldBe testMemberIdString
-          event.memberInfo shouldBe baseMemberInfo.copy(
-            handle = "editHandle",
-            avatarUrl = "editAvatarUrl",
-            lastName = "editLastName",
-            contact = editContact,
-            tenant = TenantId("editTenantId")
+          event.memberId.map(_.id) shouldBe Some(testMemberIdString)
+          event.memberInfo shouldBe Some(
+            baseMemberInfo.copy(
+              handle = "editHandle",
+              avatarUrl = "editAvatarUrl",
+              lastName = "editLastName",
+              contact = Some(editContact),
+              tenant = Some(TenantId("editTenantId"))
+            )
           )
-          event.meta.currentState shouldBe MEMBER_STATE_DRAFT
-          event.meta.createdBy.id shouldBe "registeringMember"
-          event.meta.lastModifiedBy.id shouldBe "editingMember"
+          event.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_DRAFT)
+          event.meta.flatMap(_.createdBy.map(_.id)) shouldBe Some("registeringMember")
+          event.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("editingMember")
 
           val state = result.stateOfType[DraftMemberState]
 
@@ -282,8 +288,8 @@ class MemberSpec
           state.editableInfo.getTenant shouldBe TenantId("editTenantId")
           state.editableInfo.getNotificationPreference shouldBe NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL
           state.editableInfo.organizationMembership shouldBe baseMemberInfo.organizationMembership
-          state.meta.createdBy.id shouldBe "registeringMember"
-          state.meta.lastModifiedBy.id shouldBe "editingMember"
+          state.meta.createdBy.map(_.id) shouldBe Some("registeringMember")
+          state.meta.lastModifiedBy.map(_.id) shouldBe Some("editingMember")
         }
 
         "succeed for completely filled editable info" in {
@@ -298,36 +304,40 @@ class MemberSpec
           val memberInfoEdited =
             result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberInfoEdited.get
 
-          memberInfoEdited.memberId shouldBe MemberId(testMemberIdString)
-          memberInfoEdited.memberInfo shouldBe baseMemberInfo.copy(
-            handle = "editHandle",
-            avatarUrl = "editAvatarUrl",
-            firstName = "editFirstName",
-            lastName = "editLastName",
-            notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
-            contact = editContact,
-            tenant = TenantId("editTenantId"),
-            organizationMembership = baseEditableInfo.organizationMembership
+          memberInfoEdited.memberId shouldBe Some(MemberId(testMemberIdString))
+          memberInfoEdited.memberInfo shouldBe Some(
+            baseMemberInfo.copy(
+              handle = "editHandle",
+              avatarUrl = "editAvatarUrl",
+              firstName = "editFirstName",
+              lastName = "editLastName",
+              notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
+              contact = Some(editContact),
+              tenant = Some(TenantId("editTenantId")),
+              organizationMembership = baseEditableInfo.organizationMembership
+            )
           )
-          memberInfoEdited.meta.currentState shouldBe MEMBER_STATE_DRAFT
-          memberInfoEdited.meta.createdBy shouldBe MemberId("registeringMember")
-          memberInfoEdited.meta.lastModifiedBy shouldBe MemberId("editingMember")
+          memberInfoEdited.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_DRAFT)
+          memberInfoEdited.meta.flatMap(_.createdBy) shouldBe Some(MemberId("registeringMember"))
+          memberInfoEdited.meta.flatMap(_.lastModifiedBy) shouldBe Some(MemberId("editingMember"))
 
           val event = result.eventOfType[MemberInfoEdited]
-          event.memberId.id shouldBe testMemberIdString
-          event.memberInfo shouldBe baseMemberInfo.copy(
-            handle = "editHandle",
-            avatarUrl = "editAvatarUrl",
-            firstName = "editFirstName",
-            lastName = "editLastName",
-            notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
-            contact = editContact,
-            tenant = TenantId("editTenantId"),
-            organizationMembership = baseEditableInfo.organizationMembership
+          event.memberId.map(_.id) shouldBe Some(testMemberIdString)
+          event.memberInfo shouldBe Some(
+            baseMemberInfo.copy(
+              handle = "editHandle",
+              avatarUrl = "editAvatarUrl",
+              firstName = "editFirstName",
+              lastName = "editLastName",
+              notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
+              contact = Some(editContact),
+              tenant = Some(TenantId("editTenantId")),
+              organizationMembership = baseEditableInfo.organizationMembership
+            )
           )
-          event.meta.currentState shouldBe MEMBER_STATE_DRAFT
-          event.meta.createdBy.id shouldBe "registeringMember"
-          event.meta.lastModifiedBy.id shouldBe "editingMember"
+          event.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_DRAFT)
+          event.meta.flatMap(_.createdBy.map(_.id)) shouldBe Some("registeringMember")
+          event.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("editingMember")
 
           val state = result.stateOfType[DraftMemberState]
 
@@ -339,8 +349,8 @@ class MemberSpec
           state.editableInfo.tenant shouldBe Some(TenantId("editTenantId"))
           state.editableInfo.notificationPreference shouldBe Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS)
           state.editableInfo.organizationMembership shouldBe Seq(OrganizationId("editOrg1"))
-          state.meta.createdBy.id shouldBe "registeringMember"
-          state.meta.lastModifiedBy.id shouldBe "editingMember"
+          state.meta.createdBy.map(_.id) shouldBe Some("registeringMember")
+          state.meta.lastModifiedBy.map(_.id) shouldBe Some("editingMember")
         }
       }
 
@@ -367,10 +377,10 @@ class MemberSpec
 
           val getMemberInfo = result.reply.getValue.asMessage.sealedValue.memberStateValue.get
 
-          getMemberInfo.memberId shouldBe MemberId(testMemberIdString)
-          getMemberInfo.memberInfo shouldBe baseMemberInfo
-          getMemberInfo.memberMetaInfo.createdBy.id shouldBe "registeringMember"
-          getMemberInfo.memberMetaInfo.lastModifiedBy.id shouldBe "registeringMember"
+          getMemberInfo.memberId shouldBe Some(MemberId(testMemberIdString))
+          getMemberInfo.memberInfo shouldBe Some(baseMemberInfo)
+          getMemberInfo.memberMetaInfo.flatMap(_.createdBy.map(_.id)) shouldBe Some("registeringMember")
+          getMemberInfo.memberMetaInfo.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("registeringMember")
 
           result.hasNoEvents
 
@@ -382,12 +392,12 @@ class MemberSpec
             avatarUrl = Some(baseMemberInfo.avatarUrl),
             firstName = Some(baseMemberInfo.firstName),
             lastName = Some(baseMemberInfo.lastName),
-            tenant = Some(baseMemberInfo.tenant),
+            tenant = baseMemberInfo.tenant,
             notificationPreference = baseMemberInfo.notificationPreference,
             organizationMembership = baseMemberInfo.organizationMembership
           )
-          state.meta.createdBy.id shouldBe "registeringMember"
-          state.meta.lastModifiedBy.id shouldBe "registeringMember"
+          state.meta.createdBy.map(_.id) shouldBe Some("registeringMember")
+          state.meta.lastModifiedBy.map(_.id) shouldBe Some("registeringMember")
         }
       }
     }
@@ -417,7 +427,7 @@ class MemberSpec
             val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
               MemberCommand(
                 baseActivateMember.copy(
-                  activatingMember = MemberId("activatingMember2")
+                  activatingMember = Some(MemberId("activatingMember2"))
                 ),
                 _
               )
@@ -425,7 +435,7 @@ class MemberSpec
 
             result.reply.getError.getMessage shouldBe "ActivateMember command cannot be used on an active Member"
             result.hasNoEvents
-            result.stateOfType[RegisteredMemberState].meta.lastModifiedBy.id shouldBe "activatingMember"
+            result.stateOfType[RegisteredMemberState].meta.lastModifiedBy.map(_.id) shouldBe Some("activatingMember")
           }
         }
 
@@ -436,7 +446,7 @@ class MemberSpec
 
             val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
               MemberCommand(
-                baseSuspendMember.copy(suspendingMember = MemberId("unauthorizedUser")),
+                baseSuspendMember.copy(suspendingMember = Some(MemberId("unauthorizedUser"))),
                 _
               )
             )
@@ -458,23 +468,23 @@ class MemberSpec
             val memberSuspended =
               result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberSuspendedValue.get
 
-            memberSuspended.memberId shouldBe MemberId(testMemberIdString)
-            memberSuspended.meta.currentState shouldBe MEMBER_STATE_SUSPENDED
-            memberSuspended.meta.lastModifiedBy.id shouldBe "suspendingMember"
+            memberSuspended.memberId shouldBe Some(MemberId(testMemberIdString))
+            memberSuspended.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_SUSPENDED)
+            memberSuspended.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("suspendingMember")
 
             val event = result.eventOfType[MemberSuspended]
-            event.memberId.id shouldBe testMemberIdString
-            event.meta.currentState shouldBe MEMBER_STATE_SUSPENDED
-            event.meta.lastModifiedBy.id shouldBe "suspendingMember"
+            event.memberId.map(_.id) shouldBe Some(testMemberIdString)
+            event.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_SUSPENDED)
+            event.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("suspendingMember")
 
             val state = result.stateOfType[RegisteredMemberState]
 
             state.info.firstName shouldBe "firstName"
-            state.info.contact shouldBe baseContact
+            state.info.contact shouldBe Some(baseContact)
             state.info.handle shouldBe "handle"
             state.info.organizationMembership shouldBe baseMemberInfo.organizationMembership
-            state.meta.createdBy.id shouldBe "registeringMember"
-            state.meta.lastModifiedBy.id shouldBe "suspendingMember"
+            state.meta.createdBy.map(_.id) shouldBe Some("registeringMember")
+            state.meta.lastModifiedBy.map(_.id) shouldBe Some("suspendingMember")
             state.meta.currentState shouldBe MEMBER_STATE_SUSPENDED
           }
         }
@@ -486,7 +496,7 @@ class MemberSpec
 
             val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
               MemberCommand(
-                baseTerminateMember.copy(terminatingMember = MemberId("unauthorizedUser")),
+                baseTerminateMember.copy(terminatingMember = Some(MemberId("unauthorizedUser"))),
                 _
               )
             )
@@ -508,19 +518,19 @@ class MemberSpec
             val memberTerminated =
               result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberTerminated.get
 
-            memberTerminated.memberId shouldBe MemberId(testMemberIdString)
-            memberTerminated.lastMeta.currentState shouldBe MEMBER_STATE_ACTIVE
-            memberTerminated.lastMeta.lastModifiedBy.id shouldBe "terminatingMember"
+            memberTerminated.memberId shouldBe Some(MemberId(testMemberIdString))
+            memberTerminated.lastMeta.map(_.currentState) shouldBe Some(MEMBER_STATE_ACTIVE)
+            memberTerminated.lastMeta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("terminatingMember")
 
             val event = result.eventOfType[MemberTerminated]
-            event.memberId.id shouldBe testMemberIdString
-            event.lastMeta.currentState shouldBe MEMBER_STATE_ACTIVE
-            event.lastMeta.lastModifiedBy.id shouldBe "terminatingMember"
+            event.memberId.map(_.id) shouldBe Some(testMemberIdString)
+            event.lastMeta.map(_.currentState) shouldBe Some(MEMBER_STATE_ACTIVE)
+            event.lastMeta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("terminatingMember")
 
             val state = result.stateOfType[TerminatedMemberState]
 
-            state.lastMeta.createdBy.id shouldBe "registeringMember"
-            state.lastMeta.lastModifiedBy.id shouldBe "terminatingMember"
+            state.lastMeta.createdBy.map(_.id) shouldBe Some("registeringMember")
+            state.lastMeta.lastModifiedBy.map(_.id) shouldBe Some("terminatingMember")
             state.lastMeta.currentState shouldBe MEMBER_STATE_ACTIVE
           }
         }
@@ -540,49 +550,53 @@ class MemberSpec
             val memberInfoEdited =
               result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberInfoEdited.get
 
-            memberInfoEdited.memberId shouldBe MemberId(testMemberIdString)
-            memberInfoEdited.memberInfo shouldBe baseMemberInfo.copy(
-              handle = "editHandle",
-              avatarUrl = "editAvatarUrl",
-              firstName = "editFirstName",
-              lastName = "editLastName",
-              notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
-              contact = editContact,
-              tenant = TenantId("editTenantId"),
-              organizationMembership = baseEditableInfo.organizationMembership
+            memberInfoEdited.memberId shouldBe Some(MemberId(testMemberIdString))
+            memberInfoEdited.memberInfo shouldBe Some(
+              baseMemberInfo.copy(
+                handle = "editHandle",
+                avatarUrl = "editAvatarUrl",
+                firstName = "editFirstName",
+                lastName = "editLastName",
+                notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
+                contact = Some(editContact),
+                tenant = Some(TenantId("editTenantId")),
+                organizationMembership = baseEditableInfo.organizationMembership
+              )
             )
-            memberInfoEdited.meta.currentState shouldBe MEMBER_STATE_ACTIVE
-            memberInfoEdited.meta.createdBy shouldBe MemberId("registeringMember")
-            memberInfoEdited.meta.lastModifiedBy shouldBe MemberId("editingMember")
+            memberInfoEdited.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_ACTIVE)
+            memberInfoEdited.meta.flatMap(_.createdBy) shouldBe Some(MemberId("registeringMember"))
+            memberInfoEdited.meta.flatMap(_.lastModifiedBy) shouldBe Some(MemberId("editingMember"))
 
             val event = result.eventOfType[MemberInfoEdited]
-            event.memberId.id shouldBe testMemberIdString
-            event.memberInfo shouldBe baseMemberInfo.copy(
-              handle = "editHandle",
-              avatarUrl = "editAvatarUrl",
-              firstName = "editFirstName",
-              lastName = "editLastName",
-              notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
-              contact = editContact,
-              tenant = TenantId("editTenantId"),
-              organizationMembership = baseEditableInfo.organizationMembership
+            event.memberId.map(_.id) shouldBe Some(testMemberIdString)
+            event.memberInfo shouldBe Some(
+              baseMemberInfo.copy(
+                handle = "editHandle",
+                avatarUrl = "editAvatarUrl",
+                firstName = "editFirstName",
+                lastName = "editLastName",
+                notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
+                contact = Some(editContact),
+                tenant = Some(TenantId("editTenantId")),
+                organizationMembership = baseEditableInfo.organizationMembership
+              )
             )
-            event.meta.currentState shouldBe MEMBER_STATE_ACTIVE
-            event.meta.createdBy.id shouldBe "registeringMember"
-            event.meta.lastModifiedBy.id shouldBe "editingMember"
+            event.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_ACTIVE)
+            event.meta.flatMap(_.createdBy.map(_.id)) shouldBe Some("registeringMember")
+            event.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("editingMember")
 
             val state = result.stateOfType[RegisteredMemberState]
 
             state.info.firstName shouldBe "editFirstName"
-            state.info.contact shouldBe editContact
+            state.info.contact shouldBe Some(editContact)
             state.info.handle shouldBe "editHandle"
             state.info.avatarUrl shouldBe "editAvatarUrl"
             state.info.lastName shouldBe "editLastName"
-            state.info.tenant shouldBe TenantId("editTenantId")
+            state.info.tenant shouldBe Some(TenantId("editTenantId"))
             state.info.notificationPreference shouldBe Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS)
             state.info.organizationMembership shouldBe Seq(OrganizationId("editOrg1"))
-            state.meta.createdBy.id shouldBe "registeringMember"
-            state.meta.lastModifiedBy.id shouldBe "editingMember"
+            state.meta.createdBy.map(_.id) shouldBe Some("registeringMember")
+            state.meta.lastModifiedBy.map(_.id) shouldBe Some("editingMember")
             state.meta.currentState shouldBe MEMBER_STATE_ACTIVE
           }
         }
@@ -601,18 +615,18 @@ class MemberSpec
 
             val getMemberInfo = result.reply.getValue.asMessage.sealedValue.memberStateValue.get
 
-            getMemberInfo.memberId shouldBe MemberId(testMemberIdString)
-            getMemberInfo.memberInfo shouldBe baseMemberInfo
-            getMemberInfo.memberMetaInfo.createdBy.id shouldBe "registeringMember"
-            getMemberInfo.memberMetaInfo.lastModifiedBy.id shouldBe "activatingMember"
+            getMemberInfo.memberId shouldBe Some(MemberId(testMemberIdString))
+            getMemberInfo.memberInfo shouldBe Some(baseMemberInfo)
+            getMemberInfo.memberMetaInfo.flatMap(_.createdBy.map(_.id)) shouldBe Some("registeringMember")
+            getMemberInfo.memberMetaInfo.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("activatingMember")
 
             result.hasNoEvents
 
             val state = result.stateOfType[RegisteredMemberState]
 
             state.info shouldBe baseMemberInfo
-            state.meta.createdBy.id shouldBe "registeringMember"
-            state.meta.lastModifiedBy.id shouldBe "activatingMember"
+            state.meta.createdBy.map(_.id) shouldBe Some("registeringMember")
+            state.meta.lastModifiedBy.map(_.id) shouldBe Some("activatingMember")
           }
         }
       }
@@ -642,7 +656,7 @@ class MemberSpec
             val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
               MemberCommand(
                 baseActivateMember.copy(
-                  activatingMember = MemberId("activatingMember2")
+                  activatingMember = Some(MemberId("activatingMember2"))
                 ),
                 _
               )
@@ -651,23 +665,23 @@ class MemberSpec
             val memberActivated =
               result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberActivatedValue.get
 
-            memberActivated.memberId shouldBe MemberId(testMemberIdString)
-            memberActivated.meta.currentState shouldBe MEMBER_STATE_ACTIVE
-            memberActivated.meta.lastModifiedBy.id shouldBe "activatingMember2"
+            memberActivated.memberId shouldBe Some(MemberId(testMemberIdString))
+            memberActivated.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_ACTIVE)
+            memberActivated.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("activatingMember2")
 
             val event = result.eventOfType[MemberActivated]
-            event.memberId.id shouldBe testMemberIdString
-            event.meta.currentState shouldBe MEMBER_STATE_ACTIVE
-            event.meta.lastModifiedBy.id shouldBe "activatingMember2"
+            event.memberId.map(_.id) shouldBe Some(testMemberIdString)
+            event.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_ACTIVE)
+            event.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("activatingMember2")
 
             val state = result.stateOfType[RegisteredMemberState]
 
             state.info.firstName shouldBe "firstName"
-            state.info.contact shouldBe baseContact
+            state.info.contact shouldBe Some(baseContact)
             state.info.handle shouldBe "handle"
             state.info.organizationMembership shouldBe baseMemberInfo.organizationMembership
-            state.meta.createdBy.id shouldBe "registeringMember"
-            state.meta.lastModifiedBy.id shouldBe "activatingMember2"
+            state.meta.createdBy.map(_.id) shouldBe Some("registeringMember")
+            state.meta.lastModifiedBy.map(_.id) shouldBe Some("activatingMember2")
           }
         }
 
@@ -687,23 +701,23 @@ class MemberSpec
             val memberSuspended =
               result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberSuspendedValue.get
 
-            memberSuspended.memberId shouldBe MemberId(testMemberIdString)
-            memberSuspended.meta.currentState shouldBe MEMBER_STATE_SUSPENDED
-            memberSuspended.meta.lastModifiedBy.id shouldBe "suspendingMember"
+            memberSuspended.memberId shouldBe Some(MemberId(testMemberIdString))
+            memberSuspended.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_SUSPENDED)
+            memberSuspended.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("suspendingMember")
 
             val event = result.eventOfType[MemberSuspended]
-            event.memberId.id shouldBe testMemberIdString
-            event.meta.currentState shouldBe MEMBER_STATE_SUSPENDED
-            event.meta.lastModifiedBy.id shouldBe "suspendingMember"
+            event.memberId.map(_.id) shouldBe Some(testMemberIdString)
+            event.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_SUSPENDED)
+            event.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("suspendingMember")
 
             val state = result.stateOfType[RegisteredMemberState]
 
             state.info.firstName shouldBe "firstName"
-            state.info.contact shouldBe baseContact
+            state.info.contact shouldBe Some(baseContact)
             state.info.handle shouldBe "handle"
             state.info.organizationMembership shouldBe baseMemberInfo.organizationMembership
-            state.meta.createdBy.id shouldBe "registeringMember"
-            state.meta.lastModifiedBy.id shouldBe "suspendingMember"
+            state.meta.createdBy.map(_.id) shouldBe Some("registeringMember")
+            state.meta.lastModifiedBy.map(_.id) shouldBe Some("suspendingMember")
             state.meta.currentState shouldBe MEMBER_STATE_SUSPENDED
           }
         }
@@ -724,19 +738,19 @@ class MemberSpec
             val memberTerminated =
               result.reply.getValue.asMessage.sealedValue.memberEventValue.get.memberEvent.asMessage.sealedValue.memberTerminated.get
 
-            memberTerminated.memberId shouldBe MemberId(testMemberIdString)
-            memberTerminated.lastMeta.currentState shouldBe MEMBER_STATE_SUSPENDED
-            memberTerminated.lastMeta.lastModifiedBy.id shouldBe "terminatingMember"
+            memberTerminated.memberId shouldBe Some(MemberId(testMemberIdString))
+            memberTerminated.lastMeta.map(_.currentState) shouldBe Some(MEMBER_STATE_SUSPENDED)
+            memberTerminated.lastMeta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("terminatingMember")
 
             val event = result.eventOfType[MemberTerminated]
-            event.memberId.id shouldBe testMemberIdString
-            event.lastMeta.currentState shouldBe MEMBER_STATE_SUSPENDED
-            event.lastMeta.lastModifiedBy.id shouldBe "terminatingMember"
+            event.memberId.map(_.id) shouldBe Some(testMemberIdString)
+            event.lastMeta.map(_.currentState) shouldBe Some(MEMBER_STATE_SUSPENDED)
+            event.lastMeta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("terminatingMember")
 
             val state = result.stateOfType[TerminatedMemberState]
 
-            state.lastMeta.createdBy.id shouldBe "registeringMember"
-            state.lastMeta.lastModifiedBy.id shouldBe "terminatingMember"
+            state.lastMeta.createdBy.map(_.id) shouldBe Some("registeringMember")
+            state.lastMeta.lastModifiedBy.map(_.id) shouldBe Some("terminatingMember")
             state.lastMeta.currentState shouldBe MEMBER_STATE_SUSPENDED
           }
         }
@@ -773,18 +787,18 @@ class MemberSpec
 
             val getMemberInfo = result.reply.getValue.asMessage.sealedValue.memberStateValue.get
 
-            getMemberInfo.memberId shouldBe MemberId(testMemberIdString)
-            getMemberInfo.memberInfo shouldBe baseMemberInfo
-            getMemberInfo.memberMetaInfo.createdBy.id shouldBe "registeringMember"
-            getMemberInfo.memberMetaInfo.lastModifiedBy.id shouldBe "suspendingMember"
+            getMemberInfo.memberId shouldBe Some(MemberId(testMemberIdString))
+            getMemberInfo.memberInfo shouldBe Some(baseMemberInfo)
+            getMemberInfo.memberMetaInfo.flatMap(_.createdBy.map(_.id)) shouldBe Some("registeringMember")
+            getMemberInfo.memberMetaInfo.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("suspendingMember")
 
             result.hasNoEvents
 
             val state = result.stateOfType[RegisteredMemberState]
 
             state.info shouldBe baseMemberInfo
-            state.meta.createdBy.id shouldBe "registeringMember"
-            state.meta.lastModifiedBy.id shouldBe "suspendingMember"
+            state.meta.createdBy.map(_.id) shouldBe Some("registeringMember")
+            state.meta.lastModifiedBy.map(_.id) shouldBe Some("suspendingMember")
           }
         }
       }

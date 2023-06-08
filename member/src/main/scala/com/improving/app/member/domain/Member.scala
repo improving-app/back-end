@@ -6,12 +6,9 @@ import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.pattern.StatusReply
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import akka.persistence.typed.{PersistenceId, RecoveryCompleted}
-import cats.data
-import cats.data.Validated.{Invalid, Valid}
-import cats.implicits.toFoldableOps
 import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.MemberId
-import com.improving.app.common.errors.{Error, StateError, ValidationError}
+import com.improving.app.common.errors.{Error, StateError}
 import com.improving.app.member.domain.MemberState.{MEMBER_STATE_ACTIVE, MEMBER_STATE_DRAFT, MEMBER_STATE_SUSPENDED}
 import com.typesafe.scalalogging.StrictLogging
 
@@ -39,7 +36,7 @@ object Member extends StrictLogging {
   case class TerminatedMemberState(lastMeta: MemberMetaInfo) extends MemberState
 
   trait HasMemberId {
-    def memberId: MemberId
+    def memberId: Option[MemberId]
   }
 
   def apply(entityTypeHint: String, memberId: String): Behavior[MemberCommand] =
@@ -138,48 +135,48 @@ object Member extends StrictLogging {
         state match {
           case _: UninitializedMemberState =>
             DraftMemberState(
-              editableInfo = editableInfoFromMemberInfo(memberRegisteredEvent.memberInfo),
-              meta = memberRegisteredEvent.meta
+              editableInfo = editableInfoFromMemberInfo(memberRegisteredEvent.getMemberInfo),
+              meta = memberRegisteredEvent.getMeta
             )
           case _ => state
         }
 
       case memberActivatedEvent: MemberActivated =>
         state match {
-          case DraftMemberState(editableInfo, meta) =>
+          case DraftMemberState(editableInfo, _) =>
             RegisteredMemberState(
               info = createMemberInfoFromDraftState(editableInfo),
-              meta = memberActivatedEvent.meta
+              meta = memberActivatedEvent.getMeta
             )
           case x: RegisteredMemberState =>
-            x.copy(meta = memberActivatedEvent.meta)
+            x.copy(meta = memberActivatedEvent.getMeta)
           case _ => state
         }
 
       case memberSuspendedEvent: MemberSuspended =>
         state match {
-          case x: RegisteredMemberState => x.copy(meta = memberSuspendedEvent.meta)
+          case x: RegisteredMemberState => x.copy(meta = memberSuspendedEvent.getMeta)
           case _                        => state
         }
 
       case memberTerminatedEvent: MemberTerminated =>
         state match {
-          case _: RegisteredMemberState => TerminatedMemberState(lastMeta = memberTerminatedEvent.lastMeta)
+          case _: RegisteredMemberState => TerminatedMemberState(lastMeta = memberTerminatedEvent.getLastMeta)
           case _                        => state
         }
 
       case memberInfoEdited: MemberInfoEdited =>
         state match {
           case _: DraftMemberState =>
-            val info = memberInfoEdited.memberInfo
+            val info = memberInfoEdited.getMemberInfo
             DraftMemberState(
               editableInfo = editableInfoFromMemberInfo(info),
-              meta = memberInfoEdited.meta
+              meta = memberInfoEdited.getMeta
             )
           case _: RegisteredMemberState =>
             RegisteredMemberState(
-              info = memberInfoEdited.memberInfo,
-              meta = memberInfoEdited.meta
+              info = memberInfoEdited.getMemberInfo,
+              meta = memberInfoEdited.getMeta
             )
           case _ => state
         }
@@ -195,16 +192,16 @@ object Member extends StrictLogging {
     logger.info("registering")
     val now = Timestamp(Instant.now(clock))
     val newMeta = MemberMetaInfo(
-      lastModifiedOn = now,
+      lastModifiedOn = Some(now),
       lastModifiedBy = registerMemberCommand.registeringMember,
-      createdOn = now,
+      createdOn = Some(now),
       createdBy = registerMemberCommand.registeringMember,
       currentState = MEMBER_STATE_DRAFT
     )
     val event = MemberRegistered(
       registerMemberCommand.memberId,
       registerMemberCommand.memberInfo,
-      newMeta
+      Some(newMeta)
     )
     Right(MemberEventResponse(event))
   }
@@ -216,7 +213,7 @@ object Member extends StrictLogging {
   ): Either[Error, MemberResponse] = {
     val newMeta = meta.copy(
       lastModifiedBy = activateMemberCommand.activatingMember,
-      lastModifiedOn = Timestamp(Instant.now(clock)),
+      lastModifiedOn = Some(Timestamp(Instant.now(clock))),
       currentState = MEMBER_STATE_ACTIVE
     )
     transitionMemberState(
@@ -225,7 +222,7 @@ object Member extends StrictLogging {
       event = MemberEventResponse(
         MemberActivated(
           activateMemberCommand.memberId,
-          newMeta
+          Some(newMeta)
         )
       )
     )
@@ -238,7 +235,7 @@ object Member extends StrictLogging {
   ): Either[Error, MemberResponse] = {
     val newMeta = meta.copy(
       lastModifiedBy = suspendMemberCommand.suspendingMember,
-      lastModifiedOn = Timestamp(Instant.now(clock)),
+      lastModifiedOn = Some(Timestamp(Instant.now(clock))),
       currentState = MEMBER_STATE_SUSPENDED
     )
     transitionMemberState(
@@ -247,7 +244,7 @@ object Member extends StrictLogging {
       event = MemberEventResponse(
         MemberSuspended(
           suspendMemberCommand.memberId,
-          newMeta
+          Some(newMeta)
         )
       )
     )
@@ -259,9 +256,9 @@ object Member extends StrictLogging {
   ): Either[Error, MemberResponse] = {
     val newMeta = meta.copy(
       lastModifiedBy = terminateMemberCommand.terminatingMember,
-      lastModifiedOn = Timestamp(Instant.now(clock))
+      lastModifiedOn = Some(Timestamp(Instant.now(clock)))
     )
-    val event = MemberTerminated(terminateMemberCommand.memberId, newMeta)
+    val event = MemberTerminated(terminateMemberCommand.memberId, Some(newMeta))
     Right(MemberEventResponse(event))
   }
 
@@ -270,13 +267,13 @@ object Member extends StrictLogging {
       meta: MemberMetaInfo,
       editMemberInfoCommand: EditMemberInfo
   ): Either[Error, MemberResponse] = {
-    val newInfo = updateInfoFromEditInfo(info, editMemberInfoCommand.memberInfo)
+    val newInfo = editMemberInfoCommand.memberInfo.map(editable => updateInfoFromEditInfo(info, editable))
 
     val newMeta = meta.copy(
       lastModifiedBy = editMemberInfoCommand.editingMember,
-      lastModifiedOn = Timestamp(Instant.now(clock))
+      lastModifiedOn = Some(Timestamp(Instant.now(clock)))
     )
-    val event = MemberInfoEdited(editMemberInfoCommand.memberId, newInfo, newMeta)
+    val event = MemberInfoEdited(editMemberInfoCommand.memberId, newInfo, Some(newMeta))
     Right(MemberEventResponse(event))
   }
 
@@ -284,7 +281,7 @@ object Member extends StrictLogging {
       info: MemberInfo,
       meta: MemberMetaInfo,
       getMemberInfoCommand: GetMemberInfo,
-  ): Either[Error, MemberResponse] = Right(MemberData(getMemberInfoCommand.memberId, info, meta))
+  ): Either[Error, MemberResponse] = Right(MemberData(getMemberInfoCommand.memberId, Some(info), Some(meta)))
 
   // Helpers
 
@@ -296,11 +293,11 @@ object Member extends StrictLogging {
       lastName = editableInfo.lastName.getOrElse(info.lastName),
       notificationPreference = editableInfo.notificationPreference.orElse(info.notificationPreference),
       notificationOptIn = editableInfo.notificationPreference.fold(info.notificationOptIn)(_ => true),
-      contact = editableInfo.contact.getOrElse(info.contact),
+      contact = editableInfo.contact.orElse(info.contact),
       organizationMembership =
         if (editableInfo.organizationMembership.nonEmpty) editableInfo.organizationMembership
         else info.organizationMembership,
-      tenant = editableInfo.tenant.getOrElse(info.tenant)
+      tenant = editableInfo.tenant.orElse(info.tenant)
     )
   }
 
@@ -319,18 +316,18 @@ object Member extends StrictLogging {
     lastName = editableInfo.getLastName,
     notificationPreference = editableInfo.notificationPreference,
     notificationOptIn = editableInfo.notificationPreference.isDefined,
-    contact = editableInfo.getContact,
+    contact = editableInfo.contact,
     organizationMembership = editableInfo.organizationMembership,
-    tenant = editableInfo.getTenant
+    tenant = editableInfo.tenant
   )
 
   private def editableInfoFromMemberInfo(memberInfo: MemberInfo): EditableInfo = EditableInfo(
-    contact = Some(memberInfo.contact),
+    contact = memberInfo.contact,
     handle = Some(memberInfo.handle),
     avatarUrl = Some(memberInfo.avatarUrl),
     firstName = Some(memberInfo.firstName),
     lastName = Some(memberInfo.lastName),
-    tenant = Some(memberInfo.tenant),
+    tenant = memberInfo.tenant,
     notificationPreference = memberInfo.notificationPreference,
     organizationMembership = memberInfo.organizationMembership
   )

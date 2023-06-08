@@ -39,8 +39,12 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
       in: MemberRequest,
       eventHandler: PartialFunction[StatusReply[MemberResponse], T],
       extractMemberId: MemberRequest => String = {
-        case req: HasMemberId => req.memberId.id
-        case other            => throw new RuntimeException(s"Member request does not implement HasMemberId $other")
+        case req: HasMemberId =>
+          req.memberId match {
+            case Some(id) => id.id
+            case None     => throw new RuntimeException(s"Member request does include a memberId (it is None)")
+          }
+        case other => throw new RuntimeException(s"Member request does not implement HasMemberId $other")
       }
   ): Future[T] = {
     val memberEntity = sharding.entityRefFor(MemberEntityKey, extractMemberId(in))
