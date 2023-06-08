@@ -328,19 +328,17 @@ object Store {
       command: EditStoreInfo
   ): Either[Error, StoreInfoEdited] = state match {
     case state: CreatedState =>
-      val updatedInfo = command.newInfo.flatMap { fieldsToUpdate =>
+      val updatedInfo = command.newInfo.map { fieldsToUpdate =>
         val stateInfo = state.info
 
-        Some(
-          StoreInfo(
-            name = fieldsToUpdate.name
-              .getOrElse(stateInfo.name),
-            description = fieldsToUpdate.description
-              .getOrElse(stateInfo.description),
-            sponsoringOrg = Some(
-              fieldsToUpdate.sponsoringOrg
-                .getOrElse(stateInfo.getSponsoringOrg)
-            )
+        StoreInfo(
+          name = fieldsToUpdate.name
+            .getOrElse(stateInfo.name),
+          description = fieldsToUpdate.description
+            .getOrElse(stateInfo.description),
+          sponsoringOrg = Some(
+            fieldsToUpdate.sponsoringOrg
+              .getOrElse(stateInfo.getSponsoringOrg)
           )
         )
       }
