@@ -5,45 +5,22 @@ package com.improving.app.member.domain;
 import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/member/domain/memberDomainObjects.proto";
 import "scalapb/scalapb.proto";
+import "validate/validate.proto";
 
-message RegisterMember {
-    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
-    common.domain.MemberId member_id = 1;
-    EditableInfo member_info = 2;
-    common.domain.MemberId registering_member = 3;
-}
+option (scalapb.options) = {
+    single_file: true,
+    preamble: [
+        "sealed trait MemberRequest {\n",
+        "  val memberId: Option[com.improving.app.common.domain.MemberId]\n",
+        "}\n",
+        "sealed trait MemberCommand extends MemberRequest {",
+        "  val onBehalfOf: Option[com.improving.app.common.domain.MemberId]\n",
+        "}\n",
+        "sealed trait MemberQuery extends MemberRequest\n"
+    ]
+};
 
-message ActivateMember {
-    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
-    common.domain.MemberId member_id = 1;
-    common.domain.MemberId activating_member = 2;
-}
-
-message SuspendMember {
-    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
-    common.domain.MemberId member_id = 1;
-    common.domain.MemberId suspending_member = 2;
-}
-
-message TerminateMember {
-    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
-    common.domain.MemberId member_id = 1;
-    common.domain.MemberId terminating_member = 2;
-}
-
-message EditMemberInfo {
-    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
-    common.domain.MemberId member_id = 1;
-    EditableInfo member_info = 2;
-    common.domain.MemberId editing_member = 3;
-}
-
-message GetMemberInfo {
-    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
-    common.domain.MemberId member_id = 1;
-}
-
-message MemberRequest{
+message MemberRequestPB{
     option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
 
     oneof sealed_value {
@@ -54,4 +31,60 @@ message MemberRequest{
         EditMemberInfo edit_member_info_value = 6;
         GetMemberInfo get_member_info_value = 7;
     }
+}
+
+message RegisterMember {
+    option (scalapb.message) = {
+        extends: [ "MemberCommand" ]
+    };
+    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+    common.domain.MemberId member_id = 1;
+    EditableInfo member_info = 2;
+    common.domain.MemberId on_behalf_of = 3;
+}
+
+message ActivateMember {
+    option (scalapb.message) = {
+        extends: [ "MemberCommand" ]
+    };
+    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+    common.domain.MemberId member_id = 1;
+    common.domain.MemberId on_behalf_of = 2;
+}
+
+message SuspendMember {
+    option (scalapb.message) = {
+        extends: [ "MemberCommand" ]
+    };
+    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+    common.domain.MemberId member_id = 1;
+    common.domain.MemberId on_behalf_of = 2;
+    string suspension_reason = 3 [(validate.rules).string.min_len = 1];
+}
+
+message TerminateMember {
+    option (scalapb.message) = {
+        extends: [ "MemberCommand" ]
+    };
+    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+    common.domain.MemberId member_id = 1;
+    common.domain.MemberId on_behalf_of = 2;
+}
+
+message EditMemberInfo {
+    option (scalapb.message) = {
+        extends: [ "MemberCommand" ]
+    };
+    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+    common.domain.MemberId member_id = 1;
+    EditableInfo member_info = 2;
+    common.domain.MemberId on_behalf_of = 3;
+}
+
+message GetMemberInfo {
+    option (scalapb.message) = {
+        extends: [ "MemberQuery" ]
+    };
+    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+    common.domain.MemberId member_id = 1;
 }
