@@ -1,6 +1,7 @@
 package com.improving.app.member.domain
 
 import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
+import com.improving.app.member.domain.Member.{editableInfoFromMemberInfo, memberInfoFromEditableInfo}
 
 import java.util.UUID
 
@@ -29,7 +30,6 @@ object TestData {
     firstName = "firstName",
     lastName = "lastName",
     notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL),
-    notificationOptIn = true,
     contact = Some(baseContact),
     organizationMembership = Seq(OrganizationId(UUID.randomUUID().toString)),
     tenant = Some(TenantId(UUID.randomUUID().toString))
@@ -48,29 +48,29 @@ object TestData {
 
   val baseRegisterMember: RegisterMember = RegisterMember(
     memberId = Some(MemberId(testMemberIdString)),
-    memberInfo = Some(baseMemberInfo),
-    registeringMember = Some(MemberId("registeringMember"))
+    memberInfo = Some(editableInfoFromMemberInfo(baseMemberInfo)),
+    onBehalfOf = Some(MemberId("registeringMember"))
   )
 
   val baseActivateMember: ActivateMember = ActivateMember(
     memberId = Some(MemberId(testMemberIdString)),
-    activatingMember = Some(MemberId("activatingMember"))
+    onBehalfOf = Some(MemberId("activatingMember"))
   )
 
   val baseSuspendMember: SuspendMember = SuspendMember(
     memberId = Some(MemberId(testMemberIdString)),
-    suspendingMember = Some(MemberId("suspendingMember"))
+    onBehalfOf = Some(MemberId("suspendingMember"))
   )
 
   val baseTerminateMember: TerminateMember = TerminateMember(
     memberId = Some(MemberId(testMemberIdString)),
-    terminatingMember = Some(MemberId("terminatingMember"))
+    onBehalfOf = Some(MemberId("terminatingMember"))
   )
 
   val baseEditMemberInfo: EditMemberInfo = EditMemberInfo(
     memberId = Some(MemberId(testMemberIdString)),
     memberInfo = Some(baseEditableInfo),
-    editingMember = Some(MemberId("editingMember"))
+    onBehalfOf = Some(MemberId("editingMember"))
   )
 
   val baseGetMemberInfo: GetMemberInfo = GetMemberInfo(

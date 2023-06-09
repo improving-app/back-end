@@ -31,7 +31,6 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
     firstName = "FirstName",
     lastName = "LastName",
     notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL),
-    notificationOptIn = true,
     contact = Some(
       Contact(
         firstName = "FirstName",
@@ -45,7 +44,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
     tenant = Some(TenantId("SomeTenant"))
   )
 
-  val editableInfo: EditableInfo = EditableInfo(
+  protected val editableInfo: EditableInfo = EditableInfo(
     contact = Some(
       Contact(
         firstName = memberInfo.firstName,
@@ -107,7 +106,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
         .registerMember(
           RegisterMember(
             Some(MemberId(memberId)),
-            Some(memberInfo),
+            Some(editableInfo),
             Some(MemberId("ADMIN_1"))
           )
         )
@@ -115,16 +114,15 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
 
       inside(response.memberInfo) {
         case Some(
-              MemberInfo(
-                handle,
-                avatarUrl,
-                firstName,
-                lastName,
-                notificationPreference,
-                notificationOptIn,
-                contact,
+              EditableInfo(
+                Some(handle),
+                Some(avatarUrl),
+                Some(firstName),
+                Some(lastName),
+                Some(notificationPreference),
+                Some(contact),
                 orgs,
-                tenant,
+                Some(tenant),
                 _
               )
             ) =>
@@ -132,7 +130,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
           avatarUrl should equal("")
           firstName should equal("FirstName")
           lastName should equal("LastName")
-          inside(contact) { case Some(Contact(fName, lName, email, phone, userName, _)) =>
+          inside(contact) { case Contact(fName, lName, email, phone, userName, _) =>
             fName should equal("FirstName")
             lName should equal("LastName")
             email should equal(Some("someone@somewhere.com"))
@@ -140,7 +138,6 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
             userName should equal("SomeUserName")
           }
           notificationPreference should equal(Some(NOTIFICATION_PREFERENCE_EMAIL))
-          notificationOptIn should equal(true)
           orgs shouldEqual Seq(OrganizationId("SomeOrganization"))
           tenant should matchPattern { case Some(TenantId("SomeTenant", _)) => }
       }
@@ -164,7 +161,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
         .registerMember(
           RegisterMember(
             Some(MemberId(memberId)),
-            Some(memberInfo),
+            Some(editableInfo),
             Some(MemberId("ADMIN_1"))
           )
         )
@@ -193,7 +190,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
         .registerMember(
           RegisterMember(
             Some(MemberId(memberId)),
-            Some(memberInfo),
+            Some(editableInfo),
             Some(MemberId("ADMIN_1"))
           )
         )
@@ -242,7 +239,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
         .registerMember(
           RegisterMember(
             Some(MemberId(memberId)),
-            Some(memberInfo),
+            Some(editableInfo),
             Some(MemberId("ADMIN_1"))
           )
         )
@@ -273,7 +270,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
         .registerMember(
           RegisterMember(
             Some(MemberId(memberId)),
-            Some(memberInfo),
+            Some(editableInfo),
             Some(MemberId("ADMIN_1"))
           )
         )
