@@ -7,9 +7,8 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import com.google.protobuf.timestamp.Timestamp
-import com.improving.app.common.domain.{MemberId, OrganizationId}
+import com.improving.app.common.domain.MemberId
 import com.improving.app.common.errors._
-import com.improving.app.store.domain.StoreOrEditableInfo.InfoOrEditable.Info
 import com.improving.app.store.domain.StoreValidation.{draftTransitionStoreInfoValidator, storeCommandValidator}
 
 import java.time.Instant
