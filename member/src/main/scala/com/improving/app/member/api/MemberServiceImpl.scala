@@ -2,9 +2,11 @@ package com.improving.app.member.api
 import akka.actor.typed.ActorSystem
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
+import akka.grpc.GrpcServiceException
 import akka.pattern.StatusReply
 import akka.util.Timeout
-import com.improving.app.member.domain.Member.{HasMemberId, MemberCommand, MemberEntityKey}
+import com.google.rpc.Code
+import com.improving.app.member.domain.Member.{MemberEntityKey, MemberEnvelope}
 import com.improving.app.member.domain._
 
 import scala.concurrent.duration.DurationInt
@@ -35,28 +37,52 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
     })
   }
 
-  private def handleRequest[T](
-      in: MemberRequest,
-      eventHandler: PartialFunction[StatusReply[MemberResponse], T],
-      extractMemberId: MemberRequest => String = {
-        case req: HasMemberId =>
-          req.memberId match {
-            case Some(id) => id.id
-            case None     => throw new RuntimeException(s"Member request does include a memberId (it is None)")
-          }
-        case other => throw new RuntimeException(s"Member request does not implement HasMemberId $other")
-      }
-  ): Future[T] = {
-    val memberEntity = sharding.entityRefFor(MemberEntityKey, extractMemberId(in))
+  private def handleCommand[T](
+      in: MemberRequestPB with MemberCommand,
+      eventHandler: PartialFunction[StatusReply[MemberResponse], T]
+  ): Future[T] = in.memberId
+    .map { id =>
+      val memberEntity = sharding.entityRefFor(MemberEntityKey, id.id)
 
-    //Register the member
-    memberEntity
-      .ask[StatusReply[MemberResponse]](replyTo => MemberCommand(in, replyTo))
-      .map { handleResponse(eventHandler) }
-  }
+      //Register the member
+      memberEntity
+        .ask[StatusReply[MemberResponse]](replyTo => MemberEnvelope(in, replyTo))
+        .map { handleResponse(eventHandler) }
+    }
+    .getOrElse(
+      Future.failed(
+        GrpcServiceException.create(
+          Code.INVALID_ARGUMENT,
+          "An entity Id was not provided",
+          java.util.List.of(in.asMessage)
+        )
+      )
+    )
+
+  private def handleQuery[T](
+      in: MemberRequestPB with MemberQuery,
+      eventHandler: PartialFunction[StatusReply[MemberResponse], T]
+  ): Future[T] = in.memberId
+    .map { id =>
+      val memberEntity = sharding.entityRefFor(MemberEntityKey, id.id)
+
+      //Register the member
+      memberEntity
+        .ask[StatusReply[MemberResponse]](replyTo => MemberEnvelope(in, replyTo))
+        .map { handleResponse(eventHandler) }
+    }
+    .getOrElse(
+      Future.failed(
+        GrpcServiceException.create(
+          Code.INVALID_ARGUMENT,
+          "An entity Id was not provided",
+          java.util.List.of(in.asMessage)
+        )
+      )
+    )
 
   override def registerMember(in: RegisterMember): Future[MemberRegistered] = {
-    handleRequest(
+    handleCommand(
       in,
       { case StatusReply.Success(MemberEventResponse(response @ MemberRegistered(_, _, _, _), _)) =>
         response
@@ -65,19 +91,19 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
   }
 
   override def activateMember(in: ActivateMember): Future[MemberActivated] =
-    handleRequest(
+    handleCommand(
       in,
       { case StatusReply.Success(MemberEventResponse(response @ MemberActivated(_, _, _), _)) => response }
     )
 
   override def suspendMember(in: SuspendMember): Future[MemberSuspended] =
-    handleRequest(
+    handleCommand(
       in,
-      { case StatusReply.Success(MemberEventResponse(response @ MemberSuspended(_, _, _), _)) => response }
+      { case StatusReply.Success(MemberEventResponse(response @ MemberSuspended(_, _, _, _), _)) => response }
     )
 
   override def terminateMember(in: TerminateMember): Future[MemberTerminated] =
-    handleRequest(
+    handleCommand(
       in,
       { case StatusReply.Success(MemberEventResponse(response @ MemberTerminated(_, _, _), _)) => response }
     )
@@ -85,13 +111,13 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
   override def editMemberInfo(
       in: EditMemberInfo
   ): Future[MemberInfoEdited] =
-    handleRequest(
+    handleCommand(
       in,
       { case StatusReply.Success(MemberEventResponse(response @ MemberInfoEdited(_, _, _, _), _)) => response }
     )
 
   override def getMemberInfo(in: GetMemberInfo): Future[MemberData] =
-    handleRequest(
+    handleQuery(
       in,
       { case StatusReply.Success(response @ MemberData(_, _, _, _)) => response }
     )
