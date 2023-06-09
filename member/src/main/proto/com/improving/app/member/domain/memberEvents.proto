@@ -5,10 +5,11 @@ package com.improving.app.member.domain;
 import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/member/domain/memberDomainObjects.proto";
 import "scalapb/scalapb.proto";
+import "validate/validate.proto";
 
 message MemberRegistered {
     common.domain.MemberId member_id = 1;
-    MemberInfo member_info = 2;
+    EditableInfo member_info = 2;
     MemberMetaInfo meta = 3;
 }
 
@@ -20,6 +21,7 @@ message MemberActivated {
 message MemberSuspended {
     common.domain.MemberId member_id = 1;
     MemberMetaInfo meta = 2;
+    string suspension_reason = 3 [(validate.rules).string.min_len = 1];
 }
 
 message MemberTerminated {
@@ -29,7 +31,7 @@ message MemberTerminated {
 
 message MemberInfoEdited {
     common.domain.MemberId member_id = 1;
-    MemberInfo member_info = 2;
+    EditableInfo member_info = 2;
     MemberMetaInfo meta = 3;
 }
 
