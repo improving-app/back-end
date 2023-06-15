@@ -5,51 +5,34 @@ package com.improving.app.member.domain;
 import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/member/domain/memberDomainObjects.proto";
 import "scalapb/scalapb.proto";
-import "scalapb/validate.proto";
 import "validate/validate.proto";
 
-option (scalapb.options) = {
-  scope: FILE
-  [scalapb.validate.file] {
-      validate_at_construction: true
-  }
-  field_transformations: [
-  {
-    when: {options: {[validate.rules] {message: {required: true}}}}
-      set: {
-        [scalapb.field] {
-          required: true
-        }
-      }
-    }
-  ]
-};
-
 message MemberRegistered {
-    common.domain.MemberId member_id = 1 [(validate.rules).message.required = true];
-    MemberInfo member_info = 2 [(validate.rules).message.required = true];
-    MemberMetaInfo meta = 3 [(validate.rules).message.required = true];
+    common.domain.MemberId member_id = 1;
+    EditableInfo member_info = 2;
+    MemberMetaInfo meta = 3;
 }
 
 message MemberActivated {
-    common.domain.MemberId member_id = 1 [(validate.rules).message.required = true];
-    MemberMetaInfo meta = 2 [(validate.rules).message.required = true];
+    common.domain.MemberId member_id = 1;
+    MemberMetaInfo meta = 2;
 }
 
 message MemberSuspended {
-    common.domain.MemberId member_id = 1 [(validate.rules).message.required = true];
-    MemberMetaInfo meta = 2 [(validate.rules).message.required = true];
+    common.domain.MemberId member_id = 1;
+    MemberMetaInfo meta = 2;
+    string suspension_reason = 3 [(validate.rules).string.min_len = 1];
 }
 
 message MemberTerminated {
-    common.domain.MemberId member_id = 1 [(validate.rules).message.required = true];
-    MemberMetaInfo last_meta = 2 [(validate.rules).message.required = true];
+    common.domain.MemberId member_id = 1;
+    MemberMetaInfo last_meta = 2;
 }
 
 message MemberInfoEdited {
-    common.domain.MemberId member_id = 1 [(validate.rules).message.required = true];
-    MemberInfo member_info = 2 [(validate.rules).message.required = true];
-    MemberMetaInfo meta = 3 [(validate.rules).message.required = true];
+    common.domain.MemberId member_id = 1;
+    EditableInfo member_info = 2;
+    MemberMetaInfo meta = 3;
 }
 
 
@@ -67,13 +50,13 @@ message MemberEvent{
 
 //MemberResponse
 message MemberData {
-    common.domain.MemberId member_id = 1 [(validate.rules).message.required = true];
-    MemberInfo member_info = 2 [(validate.rules).message.required = true];
-    MemberMetaInfo member_meta_info = 3 [(validate.rules).message.required = true];
+    common.domain.MemberId member_id = 1;
+    MemberInfo member_info = 2;
+    MemberMetaInfo member_meta_info = 3;
 }
 
 message MemberEventResponse {
-    MemberEvent member_event = 1 [(validate.rules).message.required = true];
+    MemberEvent member_event = 1;
 }
 
 message MemberResponse {

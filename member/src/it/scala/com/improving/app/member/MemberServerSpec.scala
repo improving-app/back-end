@@ -31,26 +31,27 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
     firstName = "FirstName",
     lastName = "LastName",
     notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL),
-    notificationOptIn = true,
-    contact = Contact(
-      firstName = "FirstName",
-      lastName = "LastName",
-      emailAddress = Some("someone@somewhere.com"),
-      phone = None,
-      userName = "SomeUserName",
+    contact = Some(
+      Contact(
+        firstName = "FirstName",
+        lastName = "LastName",
+        emailAddress = Some("someone@somewhere.com"),
+        phone = None,
+        userName = "SomeUserName",
+      )
     ),
     organizationMembership = Seq(OrganizationId("SomeOrganization")),
-    tenant = TenantId("SomeTenant")
+    tenant = Some(TenantId("SomeTenant"))
   )
 
-  val editableInfo: EditableInfo = EditableInfo(
+  protected val editableInfo: EditableInfo = EditableInfo(
     contact = Some(
       Contact(
         firstName = memberInfo.firstName,
         lastName = memberInfo.lastName,
-        emailAddress = memberInfo.contact.emailAddress,
+        emailAddress = memberInfo.contact.flatMap(_.emailAddress),
         phone = Some("123-456-7890"),
-        userName = memberInfo.contact.userName
+        userName = memberInfo.contact.getOrElse(Contact.defaultInstance).userName
       )
     )
   )
@@ -63,12 +64,12 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
       memberStatus: MemberState,
       client: MemberService
   ): Assertion = {
-    val response = client.getMemberInfo(GetMemberInfo(memberId)).futureValue
+    val response = client.getMemberInfo(GetMemberInfo(Some(memberId))).futureValue
     response.memberId should equal(memberId)
     response.memberInfo should equal(memberInfo)
     response.memberMetaInfo should matchPattern {
       case Some(MemberMetaInfo(_, createdByMem, _, lastUpMem, memberSt, _))
-          if createdByMem == createdBy.get && lastUpMem == lastUpdatedBy.get && memberSt == memberStatus =>
+          if createdByMem == createdBy && lastUpMem == lastUpdatedBy && memberSt == memberStatus =>
     }
   }
 
@@ -86,7 +87,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
       val response = getClient(containers)
         .getMemberInfo(
           GetMemberInfo(
-            MemberId(memberId)
+            Some(MemberId(memberId))
           )
         )
         .futureValue
@@ -104,25 +105,26 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
       val response = client
         .registerMember(
           RegisterMember(
-            MemberId(memberId),
-            memberInfo,
-            MemberId("ADMIN_1")
+            Some(MemberId(memberId)),
+            Some(editableInfo),
+            Some(MemberId("ADMIN_1"))
           )
         )
         .futureValue
 
       inside(response.memberInfo) {
-        case MemberInfo(
-              handle,
-              avatarUrl,
-              firstName,
-              lastName,
-              notificationPreference,
-              notificationOptIn,
-              contact,
-              orgs,
-              tenant,
-              _
+        case Some(
+              EditableInfo(
+                Some(handle),
+                Some(avatarUrl),
+                Some(firstName),
+                Some(lastName),
+                Some(notificationPreference),
+                Some(contact),
+                orgs,
+                Some(tenant),
+                _
+              )
             ) =>
           handle should equal("SomeHandle")
           avatarUrl should equal("")
@@ -136,7 +138,6 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
             userName should equal("SomeUserName")
           }
           notificationPreference should equal(Some(NOTIFICATION_PREFERENCE_EMAIL))
-          notificationOptIn should equal(true)
           orgs shouldEqual Seq(OrganizationId("SomeOrganization"))
           tenant should matchPattern { case Some(TenantId("SomeTenant", _)) => }
       }
@@ -159,15 +160,15 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
       client
         .registerMember(
           RegisterMember(
-            MemberId(memberId),
-            memberInfo,
-            MemberId("ADMIN_1")
+            Some(MemberId(memberId)),
+            Some(editableInfo),
+            Some(MemberId("ADMIN_1"))
           )
         )
         .futureValue
       val response =
-        client.activateMember(ActivateMember(MemberId(memberId), MemberId("ADMIN_2"))).futureValue
-      response.memberId.id should equal(memberId)
+        client.activateMember(ActivateMember(Some(MemberId(memberId)), Some(MemberId("ADMIN_2")))).futureValue
+      response.memberId.map(_.id) should equal(Some(memberId))
 
       validateMember(
         MemberId(memberId),
@@ -188,24 +189,24 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
       client
         .registerMember(
           RegisterMember(
-            MemberId(memberId),
-            memberInfo,
-            MemberId("ADMIN_1")
+            Some(MemberId(memberId)),
+            Some(editableInfo),
+            Some(MemberId("ADMIN_1"))
           )
         )
         .futureValue
 
       val response2 =
-        client.activateMember(ActivateMember(MemberId(memberId), MemberId("ADMIN_2"))).futureValue
-      response2.memberId should equal(MemberId(memberId))
+        client.activateMember(ActivateMember(Some(MemberId(memberId)), Some(MemberId("ADMIN_2")))).futureValue
+      response2.memberId should equal(Some(MemberId(memberId)))
 
       val response =
         client
           .editMemberInfo(
             EditMemberInfo(
-              MemberId(memberId),
-              editableInfo,
-              MemberId("ADMIN_5")
+              Some(MemberId(memberId)),
+              Some(editableInfo),
+              Some(MemberId("ADMIN_5"))
             )
           )
           .futureValue
@@ -214,8 +215,10 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
         MemberId(memberId),
         Some(
           memberInfo.copy(
-            contact = memberInfo.contact.copy(
-              phone = Some("123-456-7890")
+            contact = memberInfo.contact.map(
+              _.copy(
+                phone = Some("123-456-7890")
+              )
             )
           )
         ),
@@ -235,17 +238,17 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
       client
         .registerMember(
           RegisterMember(
-            MemberId(memberId),
-            memberInfo,
-            MemberId("ADMIN_1")
+            Some(MemberId(memberId)),
+            Some(editableInfo),
+            Some(MemberId("ADMIN_1"))
           )
         )
         .futureValue
 
-      client.activateMember(ActivateMember(MemberId(memberId), MemberId("ADMIN_2"))).futureValue
+      client.activateMember(ActivateMember(Some(MemberId(memberId)), Some(MemberId("ADMIN_2")))).futureValue
       val response =
-        client.suspendMember(SuspendMember(MemberId(memberId), MemberId("ADMIN_4"))).futureValue
-      response.memberId.id should equal(memberId)
+        client.suspendMember(SuspendMember(Some(MemberId(memberId)), Some(MemberId("ADMIN_4")))).futureValue
+      response.memberId.map(_.id) should equal(Some(memberId))
       validateMember(
         MemberId(memberId),
         Some(memberInfo),
@@ -266,18 +269,18 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
       client
         .registerMember(
           RegisterMember(
-            MemberId(memberId),
-            memberInfo,
-            MemberId("ADMIN_1")
+            Some(MemberId(memberId)),
+            Some(editableInfo),
+            Some(MemberId("ADMIN_1"))
           )
         )
         .futureValue
 
-      client.activateMember(ActivateMember(MemberId(memberId), MemberId("ADMIN_2"))).futureValue
+      client.activateMember(ActivateMember(Some(MemberId(memberId)), Some(MemberId("ADMIN_2")))).futureValue
 
       val response =
-        client.terminateMember(TerminateMember(MemberId(memberId), MemberId("ADMIN_6"))).futureValue
-      response.memberId should equal(MemberId(memberId))
+        client.terminateMember(TerminateMember(Some(MemberId(memberId)), Some(MemberId("ADMIN_6")))).futureValue
+      response.memberId should equal(Some(MemberId(memberId)))
     }
   }
 }
