@@ -92,7 +92,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
         )
         .futureValue
 
-      response.memberId should equal(Some(Some(MemberId(memberId))))
+      response.memberId should equal(Some(MemberId(memberId)))
       response.memberInfo should equal(None)
       response.memberMetaInfo should matchPattern { case None => }
     }
@@ -210,7 +210,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
             )
           )
           .futureValue
-      response.memberId should equal(Some(Some(MemberId(memberId))))
+      response.memberId should equal(Some(MemberId(memberId)))
       validateMember(
         MemberId(memberId),
         Some(
