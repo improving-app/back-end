@@ -5,7 +5,7 @@ import akka.actor.typed.javadsl.Behaviors
 import com.typesafe.scalalogging.StrictLogging
 
 /**
- * This is the running application for the Tenant project.
+ * This is the running application for the Gateway of the Improving.App project.
  */
 object Main extends App with StrictLogging {
 

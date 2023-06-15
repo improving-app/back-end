@@ -24,7 +24,7 @@ object Dependencies {
     val testcontainers = "1.17.6"
     val cats = "2.9.0"
     val circe = "0.14.5"
-    val gatling = "3.9.2"
+    val gatling = "3.9.5"
   }
 
   import Versions._
@@ -90,6 +90,11 @@ object Dependencies {
     "com.typesafe.akka" %% "akka-http2-support" % akkaHttp % Test
   )
 
+  val akkaTypedDependencies: Seq[ModuleID] = Seq(
+    "com.typesafe.akka" %% "akka-actor-typed" % V.akka,
+    "com.typesafe.akka" %% "akka-actor-testkit-typed" % V.akka % Test
+  )
+
   val loadTestDependencies: Seq[ModuleID] = Seq(
     "io.gatling.highcharts" % "gatling-charts-highcharts" % gatling % "test,it",
     "io.gatling" % "gatling-test-framework" % gatling % "test,it",
@@ -112,5 +117,11 @@ object Dependencies {
     "com.thesamet.scalapb" %% "scalapb-validate-core" % scalapb.validate.compiler.BuildInfo.version % "protobuf",
     "com.thesamet.scalapb" %% "scalapb-validate-codegen" % "0.3.4" % "protobuf",
     "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion
+  )
+
+  val gatlingDependencies: Seq[ModuleID] = Seq(
+    "io.gatling.highcharts" % "gatling-charts-highcharts" % Versions.gatling % "test",
+    "io.gatling" % "gatling-test-framework" % Versions.gatling % "test",
+    "com.github.phisgr" % "gatling-grpc" % "0.16.0" % "test"
   )
 }

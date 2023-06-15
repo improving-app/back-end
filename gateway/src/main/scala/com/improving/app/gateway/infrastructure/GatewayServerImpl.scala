@@ -2,6 +2,8 @@ package com.improving.app.gateway.infrastructure
 
 import akka.actor.typed.{ActorSystem, DispatcherSelector}
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.MediaType
+import akka.http.scaladsl.settings.{ParserSettings, ServerSettings}
 import com.improving.app.gateway.api.handlers.MemberGatewayHandler
 import com.improving.app.gateway.infrastructure.routes.MemberGatewayRoutes
 import com.typesafe.config.{Config, ConfigFactory}

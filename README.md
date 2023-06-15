@@ -24,6 +24,8 @@ For running the services that are event sourced, it needs a database for persist
 4. Check status with `microk8s kubectl get pods -o wide`
 5. Inspect pod using `microk8s kubectl describe pod [pod-name]`
 6. Inspect services using `microk8s kubectl logs [pod-name] -c [service-name]`
+7. Expose deployment internally using `microk8s kubectl expose deployment improving-app --type=NodePort --port=9000`
+8. Expose node externally using port fowarding `microk8s port-forward services/improving-app 9000:9000`
 
 ## Testing on locally running server:
 

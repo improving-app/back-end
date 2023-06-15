@@ -2,7 +2,7 @@ ThisBuild / dynverSeparator := "-"
 
 lazy val allServices = project
   .in(file("."))
-  .aggregate(gateway, tenant, organization, member, store)
+  .aggregate(gateway, tenant, organization, member, store, gatling)
 
 // This is for protobuf types defined at 'domain' scope and having cross-service applicability only.
 lazy val commonTypes = project
@@ -33,3 +33,12 @@ lazy val gateway = project
   .in(file("gateway"))
   .configure(C.Compilation.service("improving-app-gateway", 8090))
   .dependsOn(commonTypes, member % "compile->compile;test->test;it->test")
+
+lazy val gatling = project
+  .in(file("gatling"))
+  .configure(
+    C.Compilation
+      .service("improving-app-gatling", 8900, Dependencies.gatlingDependencies)
+  )
+  .enablePlugins(GatlingPlugin)
+  .dependsOn(commonTypes, gateway)

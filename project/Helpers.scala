@@ -50,7 +50,11 @@ object C {
 
   object Compilation {
 
-    def service(componentName: String, port: Int = 8080)(
+    def service(
+        componentName: String,
+        port: Int = 8080,
+        additionalDependencies: Seq[ModuleID] = Seq()
+    )(
         project: Project
     ): Project = {
       project
@@ -68,9 +72,10 @@ object C {
           IntegrationTest / fork := true,
           libraryDependencies ++=
             utilityDependencies ++ loggingDependencies ++
-              httpDependencies ++ akkaHttpTestingDependencies ++
-              scalaPbDependencies ++ scalaPbValidationDependencies ++ jsonDependencies,
-          dockerSettings(port)
+              httpDependencies ++ akkaHttpTestingDependencies ++ jsonDependencies ++
+              scalaPbDependencies ++ scalaPbValidationDependencies ++ akkaTypedDependencies ++ additionalDependencies,
+          dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.13.5",
+            dockerSettings(port)
         )
     }
 
@@ -92,32 +97,6 @@ object C {
         )
       )
     }
-
-    def itService(componentName: String)(
-        project: Project
-    ): Project = {
-      project
-        .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
-        .configs(IntegrationTest)
-        .configure(Compilation.scala)
-        .configure(Testing.scalaTest)
-        .settings(
-          Defaults.itSettings,
-          name := componentName,
-          run / fork := true,
-          scalaVersion := V.scala,
-          scalacOptions := scala3Options,
-          IntegrationTest / fork := true,
-          Compile / scalacOptions ++= scala3Options,
-          libraryDependencies ++=
-            utilityDependencies ++ loggingDependencies ++ httpDependencies ++ akkaHttpTestingDependencies ++ jsonDependencies,
-          libraryDependencies ++= Seq(
-            "com.typesafe.akka" %% "akka-actor-typed" % V.akka,
-            "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test"
-          )
-        )
-    }
-
   }
 
   object Testing {
