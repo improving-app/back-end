@@ -1,6 +1,6 @@
 syntax =  "proto3";
 
-package com.improving.app.gateway.domain;
+package com.improving.app.gateway.domain.member;
 
 import "com/improving/app/common/domain/address.proto";
 import "com/improving/app/common/domain/ids.proto";
@@ -8,9 +8,6 @@ import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
 import "scalapb/validate.proto";
 import "validate/validate.proto";
-
-
-//Data Model
 
 enum NotificationPreference {
   option (scalapb.enum_options).extends = "com.improving.app.common.serialize.PBEnumSerializable";
@@ -57,54 +54,4 @@ message MemberMetaInfo {
   google.protobuf.Timestamp last_modified_on = 3;
   common.domain.MemberId last_modified_by = 4;
   MemberStates current_state = 5;
-}
-
-//Requests
-message RegisterMember {
-  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
-  common.domain.MemberId member_id = 1;
-  EditableMemberInfo member_info = 2;
-  common.domain.MemberId registering_member = 3;
-}
-
-message MemberRequest{
-  option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
-
-  oneof sealed_value {
-    RegisterMember register_member_value = 1;
-  }
-}
-
-//Member Events
-message MemberRegistered {
-  common.domain.MemberId member_id = 1;
-  EditableMemberInfo member_info = 2;
-  MemberMetaInfo meta = 3;
-}
-
-message MemberEvent{
-
-  option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
-
-  oneof sealed_value {
-    MemberRegistered member_registered_value = 1;
-  }
-}
-
-//MemberResponse
-message MemberData {
-  common.domain.MemberId member_id = 1;
-  MemberInfo member_info = 2;
-  MemberMetaInfo member_meta_info = 3;
-}
-
-message MemberEventResponse {
-  MemberEvent member_event = 1;
-}
-
-message MemberResponse {
-  oneof sealed_value {
-    MemberData member_state_value = 1;
-    MemberEventResponse member_event_value = 2;
-  }
 }

@@ -10,11 +10,11 @@ import com.dimafeng.testcontainers.scalatest.TestContainerForAll
 import com.dimafeng.testcontainers.{DockerComposeContainer, ExposedService}
 import com.improving.app.common.domain.MemberId
 import com.improving.app.gateway.api.handlers.MemberGatewayHandler
-import com.improving.app.gateway.domain.common.util.{
+import com.improving.app.gateway.domain.common.memberUtil.{
   editableMemberInfoToGatewayEditableInfo,
   notificationPreferenceToGatewayNotificationPreference
 }
-import com.improving.app.gateway.domain.{EditableMemberInfo, MemberRegistered, RegisterMember}
+import com.improving.app.gateway.domain.member.{EditableMemberInfo, MemberRegistered, RegisterMember}
 import com.improving.app.gateway.infrastructure.routes.MemberGatewayRoutes
 import com.improving.app.member.domain.TestData.baseEditableInfo
 import com.typesafe.config.{Config, ConfigFactory}
@@ -104,7 +104,7 @@ class MemberGatewayServerSpec
             Some(MemberId.of(registeringMember))
           )
           Post("/member", command.toProtoString) ~> Route.seal(
-            routes(handler)
+            memberRoutes(handler)
           ) ~> check {
             status shouldBe StatusCodes.OK
             val response = MemberRegistered.fromAscii(responseAs[String])

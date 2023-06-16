@@ -1,0 +1,27 @@
+syntax =  "proto3";
+
+package com.improving.app.gateway.domain.member;
+
+import "com/improving/app/common/domain/address.proto";
+import "com/improving/app/common/domain/ids.proto";
+import "com/improving/app/gateway/domain/member/memberGatewayDomainObjects.proto";
+import "google/protobuf/timestamp.proto";
+import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
+import "validate/validate.proto";
+
+//Requests
+message RegisterMember {
+  option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+  common.domain.MemberId member_id = 1;
+  EditableMemberInfo member_info = 2;
+  common.domain.MemberId registering_member = 3;
+}
+
+message MemberRequest{
+  option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
+
+  oneof sealed_value {
+    RegisterMember register_member_value = 1;
+  }
+}
