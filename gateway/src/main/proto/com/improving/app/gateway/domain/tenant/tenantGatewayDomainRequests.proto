@@ -1,0 +1,23 @@
+syntax =  "proto3";
+
+package com.improving.app.gateway.domain.tenant;
+
+import "com/improving/app/gateway/domain/tenant/tenantGatewayDomainObjects.proto";
+import "com/improving/app/common/domain/ids.proto";
+import "scalapb/scalapb.proto";
+import "validate/validate.proto";
+
+//Requests
+message EstablishTenant {
+    com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
+    com.improving.app.common.domain.MemberId establishing_user = 2 [(validate.rules).message.required = true];
+    optional EditableTenantInfo tenant_info = 3;
+}
+
+message TenantRequest{
+  option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
+
+  oneof sealed_value {
+    EstablishTenant establish_tenant_value = 1;
+  }
+}

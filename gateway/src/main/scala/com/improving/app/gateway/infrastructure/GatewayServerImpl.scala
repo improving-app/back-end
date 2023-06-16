@@ -2,27 +2,29 @@ package com.improving.app.gateway.infrastructure
 
 import akka.actor.typed.{ActorSystem, DispatcherSelector}
 import akka.http.scaladsl.Http
-import com.improving.app.gateway.api.handlers.MemberGatewayHandler
-import com.improving.app.gateway.infrastructure.routes.MemberGatewayRoutes
+import akka.http.scaladsl.server.Directives
+import com.improving.app.gateway.api.handlers.{MemberGatewayHandler, TenantGatewayHandler}
+import com.improving.app.gateway.infrastructure.routes.{MemberGatewayRoutes, TenantGatewayRoutes}
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success}
 
-class GatewayServerImpl(implicit val sys: ActorSystem[_]) extends MemberGatewayRoutes {
+class GatewayServerImpl(implicit val sys: ActorSystem[_]) extends MemberGatewayRoutes with TenantGatewayRoutes {
 
   override val config: Config = ConfigFactory
     .load("application.conf")
     .withFallback(ConfigFactory.defaultApplication())
 
-  val handler: MemberGatewayHandler = new MemberGatewayHandler()
+  private val memberHandler: MemberGatewayHandler = new MemberGatewayHandler()
+  private val tenantHandler: TenantGatewayHandler = new TenantGatewayHandler()
 
   implicit val dispatcher: ExecutionContextExecutor = sys.dispatchers.lookup(DispatcherSelector.defaultDispatcher())
 
   private val binding = Http()
     .newServerAt(config.getString("akka.http.interface"), config.getInt("akka.http.port"))
-    .bindFlow(routes(handler))
+    .bindFlow(Directives.concat(memberRoutes(memberHandler), tenantRoutes(tenantHandler)))
 
   def start(): Unit = binding
     .onComplete {
