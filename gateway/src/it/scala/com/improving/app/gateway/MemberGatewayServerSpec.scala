@@ -2,7 +2,7 @@ package com.improving.app.gateway
 
 import akka.actor.typed
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
-import akka.grpc.{GrpcClientSettings, GrpcServiceException}
+import akka.grpc.GrpcClientSettings
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
@@ -10,10 +10,13 @@ import com.dimafeng.testcontainers.scalatest.TestContainerForAll
 import com.dimafeng.testcontainers.{DockerComposeContainer, ExposedService}
 import com.improving.app.common.domain.MemberId
 import com.improving.app.gateway.api.handlers.MemberGatewayHandler
-import com.improving.app.gateway.domain.common.util.memberInfoToGatewayMemberInfo
-import com.improving.app.gateway.domain.{MemberInfo, MemberRegistered, NotificationPreference, RegisterMember}
+import com.improving.app.gateway.domain.common.util.{
+  editableMemberInfoToGatewayEditableInfo,
+  notificationPreferenceToGatewayNotificationPreference
+}
+import com.improving.app.gateway.domain.{EditableMemberInfo, MemberRegistered, RegisterMember}
 import com.improving.app.gateway.infrastructure.routes.MemberGatewayRoutes
-import com.improving.app.member.domain.TestData.baseMemberInfo
+import com.improving.app.member.domain.TestData.baseEditableInfo
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.ScalaFutures
@@ -82,32 +85,32 @@ class MemberGatewayServerSpec
           val memberId = UUID.randomUUID().toString
           val registeringMember = UUID.randomUUID().toString
 
-          val info = baseMemberInfo
+          val info = baseEditableInfo
 
           val command = RegisterMember(
-            MemberId.of(memberId),
-            MemberInfo(
-              info.handle,
-              info.avatarUrl,
-              info.firstName,
-              info.lastName,
-              info.notificationPreference
-                .map(pref => NotificationPreference.fromValue(pref.value)),
-              info.notificationOptIn,
-              info.contact,
-              info.organizationMembership,
-              info.tenant
+            Some(MemberId.of(memberId)),
+            Some(
+              EditableMemberInfo(
+                info.handle,
+                info.avatarUrl,
+                info.firstName,
+                info.lastName,
+                info.notificationPreference.map(notificationPreferenceToGatewayNotificationPreference),
+                info.contact,
+                info.organizationMembership,
+                info.tenant
+              )
             ),
-            MemberId.of(registeringMember)
+            Some(MemberId.of(registeringMember))
           )
           Post("/member", command.toProtoString) ~> Route.seal(
             routes(handler)
           ) ~> check {
             status shouldBe StatusCodes.OK
             val response = MemberRegistered.fromAscii(responseAs[String])
-            response.memberId.id shouldEqual memberId
-            response.memberInfo shouldEqual memberInfoToGatewayMemberInfo(info)
-            response.meta.createdBy.id shouldEqual registeringMember
+            response.memberId.map(_.id) shouldEqual Some(memberId)
+            response.memberInfo shouldEqual Some(editableMemberInfoToGatewayEditableInfo(info))
+            response.meta.flatMap(_.createdBy.map(_.id)) shouldEqual Some(registeringMember)
           }
         }
       }

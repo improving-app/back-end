@@ -31,7 +31,7 @@ message Address {
   string city = 3 [(validate.rules).string.min_len = 1];
   string state_province = 4 [(validate.rules).string.min_len = 1];
   string country = 5 [(validate.rules).string.min_len = 1];
-  PostalCode postal_code = 6 [(validate.rules).message.required = true];
+  PostalCode postal_code = 6;
 }
 
 message EditableAddress {
@@ -41,7 +41,7 @@ message EditableAddress {
   optional string city = 3 [(validate.rules).string.min_len = 1];
   optional string state_province = 4 [(validate.rules).string.min_len = 1];
   optional string country = 5 [(validate.rules).string.min_len = 1];
-  optional PostalCode postal_code = 6 [(validate.rules).message.required = false];
+  optional PostalCode postal_code = 6;
 }
 
 // Contact information for an individual
