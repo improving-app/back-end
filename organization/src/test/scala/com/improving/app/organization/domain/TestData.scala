@@ -23,7 +23,7 @@ object TestData {
   val baseOrganizationInfo: OrganizationInfo = OrganizationInfo(
     name = "Organization Name",
     shortName = Some("Org"),
-    tenant = TenantId("tenant"),
+    tenant = Some(TenantId("tenant")),
     isPublic = false,
     address = Some(baseAddress),
     url = None,

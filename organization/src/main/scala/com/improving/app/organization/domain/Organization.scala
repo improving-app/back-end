@@ -99,66 +99,66 @@ object Organization {
       case event: OrganizationEstablished =>
         state match {
           case UninitializedState =>
-            DraftState(info = event.organizationInfo, metaInfo = event.metaInfo, Set.empty, Set.empty, Set.empty)
+            DraftState(info = event.getOrganizationInfo, metaInfo = event.getMetaInfo, Set.empty, Set.empty, Set.empty)
           case _: DraftState     => state
           case _: ActiveState    => state
           case _: SuspendedState => state
         }
       case event: OrganizationActivated =>
         state match {
-          case x: DraftState      => ActiveState(x.info, event.metaInfo, x.members, x.owners, x.contacts)
+          case x: DraftState      => ActiveState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
           case _: ActiveState     => state
-          case x: SuspendedState  => ActiveState(x.info, event.metaInfo, x.members, x.owners, x.contacts)
+          case x: SuspendedState  => ActiveState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
           case UninitializedState => UninitializedState
         }
       case event: OrganizationSuspended =>
         state match {
-          case x: DraftState      => SuspendedState(x.info, event.metaInfo, x.members, x.owners, x.contacts)
-          case x: ActiveState     => SuspendedState(x.info, event.metaInfo, x.members, x.owners, x.contacts)
-          case x: SuspendedState  => SuspendedState(x.info, event.metaInfo, x.members, x.owners, x.contacts)
+          case x: DraftState      => SuspendedState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
+          case x: ActiveState     => SuspendedState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
+          case x: SuspendedState  => SuspendedState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
           case UninitializedState => UninitializedState
         }
       case _: OrganizationTerminated => state
       case event: OrganizationInfoEdited =>
         state match {
-          case x: DraftState      => x.copy(metaInfo = event.metaInfo, info = event.newInfo)
-          case x: ActiveState     => x.copy(metaInfo = event.metaInfo, info = event.newInfo)
-          case x: SuspendedState  => x.copy(metaInfo = event.metaInfo, info = event.newInfo)
+          case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, info = event.getNewInfo)
+          case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, info = event.getNewInfo)
+          case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, info = event.getNewInfo)
           case UninitializedState => UninitializedState
         }
       case event: MembersAddedToOrganization =>
         state match {
-          case x: DraftState      => x.copy(metaInfo = event.metaInfo, members = x.members ++ event.membersAdded)
-          case x: ActiveState     => x.copy(metaInfo = event.metaInfo, members = x.members ++ event.membersAdded)
-          case x: SuspendedState  => x.copy(metaInfo = event.metaInfo, members = x.members ++ event.membersAdded)
+          case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, members = x.members ++ event.membersAdded)
+          case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, members = x.members ++ event.membersAdded)
+          case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, members = x.members ++ event.membersAdded)
           case UninitializedState => UninitializedState
         }
       case event: MembersRemovedFromOrganization =>
         state match {
-          case x: DraftState      => x.copy(metaInfo = event.metaInfo, members = x.members -- event.membersRemoved)
-          case x: ActiveState     => x.copy(metaInfo = event.metaInfo, members = x.members -- event.membersRemoved)
-          case x: SuspendedState  => x.copy(metaInfo = event.metaInfo, members = x.members -- event.membersRemoved)
+          case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, members = x.members -- event.membersRemoved)
+          case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, members = x.members -- event.membersRemoved)
+          case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, members = x.members -- event.membersRemoved)
           case UninitializedState => UninitializedState
         }
       case event: OwnersAddedToOrganization =>
         state match {
-          case x: DraftState      => x.copy(metaInfo = event.metaInfo, owners = x.owners ++ event.ownersAdded)
-          case x: ActiveState     => x.copy(metaInfo = event.metaInfo, owners = x.owners ++ event.ownersAdded)
-          case x: SuspendedState  => x.copy(metaInfo = event.metaInfo, owners = x.owners ++ event.ownersAdded)
+          case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, owners = x.owners ++ event.ownersAdded)
+          case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, owners = x.owners ++ event.ownersAdded)
+          case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, owners = x.owners ++ event.ownersAdded)
           case UninitializedState => UninitializedState
         }
       case event: OwnersRemovedFromOrganization =>
         state match {
-          case x: DraftState      => x.copy(metaInfo = event.metaInfo, owners = x.owners -- event.ownersRemoved)
-          case x: ActiveState     => x.copy(metaInfo = event.metaInfo, owners = x.owners -- event.ownersRemoved)
-          case x: SuspendedState  => x.copy(metaInfo = event.metaInfo, owners = x.owners -- event.ownersRemoved)
+          case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, owners = x.owners -- event.ownersRemoved)
+          case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, owners = x.owners -- event.ownersRemoved)
+          case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, owners = x.owners -- event.ownersRemoved)
           case UninitializedState => UninitializedState
         }
       case event: OrganizationContactsUpdated =>
         state match {
-          case x: DraftState => x.copy(metaInfo = event.metaInfo, contacts = event.contacts.toSet)
-          case x: ActiveState => x.copy(metaInfo = event.metaInfo, contacts = event.contacts.toSet)
-          case x: SuspendedState => x.copy(metaInfo = event.metaInfo, contacts = event.contacts.toSet)
+          case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, contacts = event.contacts.toSet)
+          case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, contacts = event.contacts.toSet)
+          case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, contacts = event.contacts.toSet)
           case UninitializedState => UninitializedState
         }
     }
@@ -216,8 +216,10 @@ object Organization {
     state match {
       case state: EstablishedState =>
         query match {
-          case GetOrganizationInfo(organizationId, _, _) => Right(OrganizationInfoResponse(organizationId, state.info))
-          case GetOrganizationContacts(organizationId, _, _) => Right(OrganizationContactsResponse(organizationId, contacts = state.contacts.toSeq))
+          case GetOrganizationInfo(organizationId, _, _) =>
+            Right(OrganizationInfoResponse(organizationId, Some(state.info)))
+          case GetOrganizationContacts(organizationId, _, _) =>
+            Right(OrganizationContactsResponse(organizationId, contacts = state.contacts.toSeq))
         }
       case _ => Left(StateError("Organization is not established"))
     }
@@ -225,10 +227,9 @@ object Organization {
 
   private def updateMetaInfo(
       metaInfo: OrganizationMetaInfo,
-      lastUpdatedByOpt: MemberId
-  ): OrganizationMetaInfo = {
-    metaInfo.copy(lastUpdatedBy = lastUpdatedByOpt, lastUpdated = Timestamp(Instant.now()))
-  }
+      lastUpdatedByOpt: Option[MemberId]
+  ): OrganizationMetaInfo =
+    metaInfo.copy(lastUpdatedBy = lastUpdatedByOpt, lastUpdated = Some(Timestamp(Instant.now())))
 
   private def establishOrganization(establishOrganization: EstablishOrganization): Either[Error, OrganizationEvent] = {
     val organizationInfo = establishOrganization.organizationInfo
@@ -236,9 +237,9 @@ object Organization {
     val now = Instant.now()
 
     val newMetaInfo = OrganizationMetaInfo(
-      createdOn = Timestamp(now),
+      createdOn = Some(Timestamp(now)),
       createdBy = establishOrganization.onBehalfOf,
-      lastUpdated = Timestamp(now),
+      lastUpdated = Some(Timestamp(now)),
       lastUpdatedBy = establishOrganization.onBehalfOf,
       state = ORGANIZATION_STATE_DRAFT
     )
@@ -246,7 +247,7 @@ object Organization {
     Right(
       OrganizationEstablished(
         organizationId = establishOrganization.organizationId,
-        metaInfo = newMetaInfo,
+        metaInfo = Some(newMetaInfo),
         organizationInfo = organizationInfo
       )
     )
@@ -260,7 +261,7 @@ object Organization {
     Right(
       OrganizationActivated(
         organizationId = activateOrganization.organizationId,
-        metaInfo = newMetaInfo
+        metaInfo = Some(newMetaInfo)
       )
     )
   }
@@ -273,7 +274,7 @@ object Organization {
     Right(
       OrganizationSuspended(
         organizationId = suspendOrganization.organizationId,
-        metaInfo = newMetaInfo,
+        metaInfo = Some(newMetaInfo),
       )
     )
   }
@@ -293,7 +294,7 @@ object Organization {
       state: EstablishedState,
       command: EditOrganizationInfo
   ): Either[Error, OrganizationInfoEdited] = {
-    val fieldsToUpdate = command.organizationInfo
+    val fieldsToUpdate = command.getOrganizationInfo
 
     var updatedInfo = state.info
     fieldsToUpdate.name.foreach(newName => updatedInfo = updatedInfo.copy(name = newName))
@@ -308,9 +309,9 @@ object Organization {
     Right(
       OrganizationInfoEdited(
         organizationId = command.organizationId,
-        metaInfo = updatedMetaInfo,
-        oldInfo = state.info,
-        newInfo = updatedInfo
+        metaInfo = Some(updatedMetaInfo),
+        oldInfo = Some(state.info),
+        newInfo = Some(updatedInfo)
       )
     )
   }
@@ -325,7 +326,7 @@ object Organization {
     Right(
       MembersAddedToOrganization(
         organizationId = command.organizationId,
-        metaInfo = updatedMetaInfo,
+        metaInfo = Some(updatedMetaInfo),
         membersAdded = newMembersAdded.toSeq
       )
     )
@@ -341,7 +342,7 @@ object Organization {
     Right(
       MembersRemovedFromOrganization(
         organizationId = command.organizationId,
-        metaInfo = updatedMetaInfo,
+        metaInfo = Some(updatedMetaInfo),
         membersRemoved = realMembersToRemove.toSeq
       )
     )
@@ -357,7 +358,7 @@ object Organization {
     Right(
       OwnersAddedToOrganization(
         organizationId = command.organizationId,
-        metaInfo = updatedMetaInfo,
+        metaInfo = Some(updatedMetaInfo),
         ownersAdded = newOwnersAdded.toSeq
       )
     )
@@ -373,7 +374,7 @@ object Organization {
     Right(
       OwnersRemovedFromOrganization(
         organizationId = command.organizationId,
-        metaInfo = updatedMetaInfo,
+        metaInfo = Some(updatedMetaInfo),
         ownersRemoved = realOwnersToRemove.toSeq
       )
     )
@@ -386,7 +387,7 @@ object Organization {
     Right(
       OrganizationContactsUpdated(
         organizationId = command.organizationId,
-        metaInfo = updateMetaInfo(state.metaInfo, command.onBehalfOf),
+        metaInfo = Some(updateMetaInfo(state.metaInfo, command.onBehalfOf)),
         contacts = command.contacts
       )
     )
