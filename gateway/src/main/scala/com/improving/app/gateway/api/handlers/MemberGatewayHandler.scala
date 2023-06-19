@@ -5,9 +5,9 @@ import akka.grpc.GrpcClientSettings
 import akka.util.Timeout
 import com.improving.app.gateway.domain.{MemberRegistered, RegisterMember => GatewayRegisterMember}
 import com.improving.app.gateway.domain.common.util.{
-  gatewayMemberInfoToMemberInfo,
+  editableMemberInfoToGatewayEditableInfo,
+  gatewayEditableMemberInfoToEditableInfo,
   getHostAndPortForService,
-  memberInfoToGatewayMemberInfo,
   memberMetaToGatewayMemberMeta
 }
 import com.improving.app.member.api.MemberServiceClient
@@ -35,15 +35,33 @@ class MemberGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = N
   )
 
   def registerMember(in: GatewayRegisterMember): Future[MemberRegistered] = {
+    logger.info(
+      RegisterMember(
+        in.memberId,
+        Some(gatewayEditableMemberInfoToEditableInfo(in.getMemberInfo)),
+        in.registeringMember
+      ).toProtoString
+    )
     memberClient
       .registerMember(
-        RegisterMember(in.memberId, gatewayMemberInfoToMemberInfo(in.memberInfo), in.registeringMember)
+        RegisterMember(
+          in.memberId,
+          Some(gatewayEditableMemberInfoToEditableInfo(in.getMemberInfo)),
+          in.registeringMember
+        )
       )
       .map { response =>
+        logger.info(
+          MemberRegistered(
+            response.memberId,
+            response.memberInfo.map(editableMemberInfoToGatewayEditableInfo),
+            response.meta.map(memberMetaToGatewayMemberMeta)
+          ).toProtoString
+        )
         MemberRegistered(
           response.memberId,
-          memberInfoToGatewayMemberInfo(response.memberInfo),
-          memberMetaToGatewayMemberMeta(response.meta)
+          response.memberInfo.map(editableMemberInfoToGatewayEditableInfo),
+          response.meta.map(memberMetaToGatewayMemberMeta)
         )
       }
   }

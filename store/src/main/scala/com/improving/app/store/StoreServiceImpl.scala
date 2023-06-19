@@ -71,13 +71,14 @@ class StoreServiceImpl(sys: ActorSystem[_]) extends StoreService {
 
   private def handleRequest(
       in: StoreRequestPB with StoreCommand,
-  ): Future[StoreEventMessage.SealedValue] = in.storeId match {
-    case Some(id) =>
+  ): Future[StoreEventMessage.SealedValue] = in.storeId
+    .map { id =>
       val result = sharding
         .entityRefFor(Store.TypeKey, id.id)
         .ask(ref => Store.StoreRequestEnvelope(in, ref))
       result.transform(result => result.getValue.asMessage.sealedValue, exception => exceptionHandler(exception))
-    case None =>
+    }
+    .getOrElse(
       Future.failed(
         GrpcServiceException.create(
           Code.INVALID_ARGUMENT,
@@ -85,7 +86,7 @@ class StoreServiceImpl(sys: ActorSystem[_]) extends StoreService {
           java.util.List.of(in.asMessage)
         )
       )
-  }
+    )
 
   override def createStore(in: CreateStore): Future[StoreCreated] = handleRequest(in).map(_.storeCreated.get)
 
