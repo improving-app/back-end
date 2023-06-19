@@ -4,6 +4,7 @@ import com.dimafeng.testcontainers.{DockerComposeContainer, ExposedService}
 import com.improving.app.gateway.MemberGatewayServerSpec
 import com.improving.app.member.MemberServerSpec
 import com.improving.app.organization.OrganizationServerSpec
+import com.improving.app.store.StoreServerSpec
 import com.improving.app.tenant.TenantServerSpec
 import org.scalatest.{BeforeAndAfterAll, ParallelTestExecution, Suite}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -20,6 +21,7 @@ class RunAllTestsSpec extends AnyFlatSpec with ParallelTestExecution with Before
       ExposedService("tenant-service", 8080, Wait.forLogMessage(s".*gRPC server bound to 0.0.0.0:8080*.", 1)),
       ExposedService("member-service", 8081, Wait.forLogMessage(s".*gRPC server bound to 0.0.0.0:8081*.", 1)),
       ExposedService("organization-service", 8082, Wait.forLogMessage(s".*gRPC server bound to 0.0.0.0:8082*.", 1))
+        ExposedService("store-service", 8083, Wait.forLogMessage(s".*gRPC server bound to 0.0.0.0:8083*.", 1))
     )
   )
 
@@ -41,6 +43,9 @@ class RunAllTestsSpec extends AnyFlatSpec with ParallelTestExecution with Before
       override val containerDef: DockerComposeContainer.Def = self.containerDef
     },
     new MemberGatewayServerSpec {
+      override val containerDef: DockerComposeContainer.Def = self.containerDef
+    },
+    new StoreServerSpec {
       override val containerDef: DockerComposeContainer.Def = self.containerDef
     }
   )

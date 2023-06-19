@@ -28,3 +28,9 @@ services:
     image: improving-app-gateway:latest
     ports:
       - "8090:8090"
+
+  store-service:
+    image: improving-app-store:latest
+    ports:
+      - "8083:8083"
+    depends_on: [ "scylla-db" ]
