@@ -6,18 +6,23 @@ import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/member/domain/memberDomainObjects.proto";
 import "scalapb/scalapb.proto";
 import "validate/validate.proto";
+import "scalapb/validate.proto";
 
 option (scalapb.options) = {
-    single_file: true,
-    preamble: [
-        "sealed trait MemberRequest {\n",
-        "  val memberId: Option[com.improving.app.common.domain.MemberId]\n",
-        "}\n",
-        "sealed trait MemberCommand extends MemberRequest {",
-        "  val onBehalfOf: Option[com.improving.app.common.domain.MemberId]\n",
-        "}\n",
-        "sealed trait MemberQuery extends MemberRequest\n"
-    ]
+  scope: FILE
+  [scalapb.validate.file] {
+    validate_at_construction: true
+  }
+  single_file: true,
+  preamble: [
+      "sealed trait MemberRequest {\n",
+      "  val memberId: Option[com.improving.app.common.domain.MemberId]\n",
+      "}\n",
+      "sealed trait MemberCommand extends MemberRequest {",
+      "  val onBehalfOf: Option[com.improving.app.common.domain.MemberId]\n",
+      "}\n",
+      "sealed trait MemberQuery extends MemberRequest\n"
+  ]
 };
 
 message MemberRequestPB{

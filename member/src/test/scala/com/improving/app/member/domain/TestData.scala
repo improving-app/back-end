@@ -59,7 +59,8 @@ object TestData {
 
   val baseSuspendMember: SuspendMember = SuspendMember(
     memberId = Some(MemberId(testMemberIdString)),
-    onBehalfOf = Some(MemberId("suspendingMember"))
+    onBehalfOf = Some(MemberId("suspendingMember")),
+    suspensionReason = "Reason"
   )
 
   val baseTerminateMember: TerminateMember = TerminateMember(
