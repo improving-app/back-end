@@ -6,7 +6,10 @@ import akka.actor.typed.ActorRef
 import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import com.improving.app.common.domain.{MemberId, OrganizationId}
-import com.improving.app.organization.domain.Organization.OrganizationRequestEnvelope
+import com.improving.app.organization.domain.Organization.{
+  organizationInfoFromEditableInfo,
+  OrganizationRequestEnvelope
+}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
@@ -43,7 +46,7 @@ class OrganizationSpec
       organizationId: String,
       p: ActorRef[OrganizationRequestEnvelope],
       probe: TestProbe[StatusReply[OrganizationResponse]],
-      organizationInfo: OrganizationInfo = baseOrganizationInfo
+      organizationInfo: EditableOrganizationInfo = baseOrganizationInfo
   ): Unit = {
     p ! Organization.OrganizationRequestEnvelope(
       EstablishOrganization(
@@ -265,8 +268,7 @@ class OrganizationSpec
 
           val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-          successVal.getOldInfo shouldBe baseOrganizationInfo
-          successVal.getNewInfo shouldBe baseOrganizationInfo
+          successVal.getInfo shouldBe baseOrganizationInfo
         }
 
         "succeed for an edit of all fields and return the proper response" in {
@@ -296,10 +298,9 @@ class OrganizationSpec
 
           val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-          val updatedInfo = baseOrganizationInfo.copy(name = newName, address = Some(newAddress))
+          val updatedInfo = baseOrganizationInfo.copy(name = Some(newName), address = Some(newAddress))
 
-          successVal.getOldInfo shouldBe baseOrganizationInfo
-          successVal.getNewInfo shouldBe updatedInfo
+          successVal.getInfo shouldBe updatedInfo
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -327,13 +328,12 @@ class OrganizationSpec
 
           val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-          successVal.getOldInfo shouldBe baseOrganizationInfo
-          successVal.getNewInfo shouldBe baseOrganizationInfo.copy(name = newName)
+          successVal.getInfo shouldBe baseOrganizationInfo.copy(name = Some(newName))
         }
       }
 
       "executing GetOrganizationInfo query" should {
-        "return the correct organization info for a new organization" in {
+        "error since querying is not available in Draft state" in {
           val (organizationId, p, probe) = createTestVariables()
 
           establishOrganization(organizationId, p, probe)
@@ -347,52 +347,7 @@ class OrganizationSpec
           )
 
           val response = probe.receiveMessage()
-          assert(response.isSuccess)
-
-          val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
-          infoResponse.organizationId.map(_.id shouldEqual organizationId)
-          infoResponse.getInfo shouldEqual baseOrganizationInfo
-        }
-
-        "return the correct organization info for an edited organization" in {
-          val (organizationId, p, probe) = createTestVariables()
-
-          establishOrganization(organizationId, p, probe)
-          val newAddress = baseAddress.copy(city = "Timbuktu")
-          val newName = "A new name"
-
-          val updateInfo = EditableOrganizationInfo(
-            name = Some(newName),
-            address = Some(newAddress),
-          )
-
-          p ! Organization.OrganizationRequestEnvelope(
-            EditOrganizationInfo(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("someUser")),
-              Some(updateInfo),
-            ),
-            probe.ref
-          )
-
-          val editResponse = probe.receiveMessage()
-          assert(editResponse.isSuccess)
-
-          p ! Organization.OrganizationRequestEnvelope(
-            GetOrganizationInfo(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("someUser")),
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isSuccess)
-
-          val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
-          infoResponse.organizationId.map(_.id shouldEqual organizationId)
-          infoResponse.info.map(_.name shouldEqual newName)
-          infoResponse.info.map(_.address shouldEqual Some(newAddress))
+          assert(response.isError)
         }
       }
 
@@ -716,8 +671,7 @@ class OrganizationSpec
 
           val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-          successVal.getOldInfo shouldBe baseOrganizationInfo
-          successVal.getNewInfo shouldBe baseOrganizationInfo
+          successVal.getInfo shouldBe baseOrganizationInfo
         }
 
         "succeed for an edit of all fields and return the proper response" in {
@@ -748,10 +702,9 @@ class OrganizationSpec
 
           val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-          val updatedInfo = baseOrganizationInfo.copy(name = newName, address = Some(newAddress))
+          val updatedInfo = baseOrganizationInfo.copy(name = Some(newName), address = Some(newAddress))
 
-          successVal.getOldInfo shouldBe baseOrganizationInfo
-          successVal.getNewInfo shouldBe updatedInfo
+          successVal.getInfo shouldBe updatedInfo
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -780,16 +733,16 @@ class OrganizationSpec
 
           val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-          successVal.getOldInfo shouldBe baseOrganizationInfo
-          successVal.getNewInfo shouldBe baseOrganizationInfo.copy(name = newName)
+          successVal.getInfo shouldBe baseOrganizationInfo.copy(name = Some(newName))
         }
       }
 
       "executing GetOrganizationInfo query" should {
-        "return the correct organization info for a new organization" in {
+        "return the correct organization info for a new activated organization" in {
           val (organizationId, p, probe) = createTestVariables()
 
           establishOrganization(organizationId, p, probe)
+          activateOrganization(organizationId, p, probe)
 
           p ! Organization.OrganizationRequestEnvelope(
             GetOrganizationInfo(
@@ -804,48 +757,7 @@ class OrganizationSpec
 
           val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
           infoResponse.organizationId.map(_.id shouldEqual organizationId)
-          infoResponse.getInfo shouldEqual baseOrganizationInfo
-        }
-
-        "return the correct organization info for an edited organization" in {
-          val (organizationId, p, probe) = createTestVariables()
-
-          establishOrganization(organizationId, p, probe)
-          val newAddress = baseAddress.copy(city = "Timbuktu")
-          val newName = "A new name"
-
-          val updateInfo = EditableOrganizationInfo(
-            name = Some(newName),
-            address = Some(newAddress),
-          )
-
-          p ! Organization.OrganizationRequestEnvelope(
-            EditOrganizationInfo(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("someUser")),
-              Some(updateInfo),
-            ),
-            probe.ref
-          )
-
-          val editResponse = probe.receiveMessage()
-          assert(editResponse.isSuccess)
-
-          p ! Organization.OrganizationRequestEnvelope(
-            GetOrganizationInfo(
-              Some(OrganizationId(organizationId)),
-              Some(MemberId("someUser")),
-            ),
-            probe.ref
-          )
-
-          val response = probe.receiveMessage()
-          assert(response.isSuccess)
-
-          val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
-          infoResponse.organizationId.map(_.id shouldEqual organizationId)
-          infoResponse.info.map(_.name shouldEqual newName)
-          infoResponse.info.map(_.address shouldEqual Some(newAddress))
+          infoResponse.getInfo shouldEqual organizationInfoFromEditableInfo(baseOrganizationInfo)
         }
       }
 
@@ -1221,8 +1133,7 @@ class OrganizationSpec
 
         val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-        successVal.getOldInfo shouldBe baseOrganizationInfo
-        successVal.getNewInfo shouldBe baseOrganizationInfo
+        successVal.getInfo shouldBe baseOrganizationInfo
       }
 
       "succeed for an edit of all fields and return the proper response" in {
@@ -1254,10 +1165,9 @@ class OrganizationSpec
 
         val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-        val updatedInfo = baseOrganizationInfo.copy(name = newName, address = Some(newAddress))
+        val updatedInfo = baseOrganizationInfo.copy(name = Some(newName), address = Some(newAddress))
 
-        successVal.getOldInfo shouldBe baseOrganizationInfo
-        successVal.getNewInfo shouldBe updatedInfo
+        successVal.getInfo shouldBe updatedInfo
       }
 
       "succeed for a partial edit and return the proper response" in {
@@ -1287,16 +1197,16 @@ class OrganizationSpec
 
         val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-        successVal.getOldInfo shouldBe baseOrganizationInfo
-        successVal.getNewInfo shouldBe baseOrganizationInfo.copy(name = newName)
+        successVal.getInfo shouldBe baseOrganizationInfo.copy(name = Some(newName))
       }
     }
 
     "executing GetOrganizationInfo query" should {
-      "return the correct organization info for a new organization" in {
+      "return the correct organization info for a new suspended organization" in {
         val (organizationId, p, probe) = createTestVariables()
 
         establishOrganization(organizationId, p, probe)
+        suspendOrganization(organizationId, p, probe)
 
         p ! Organization.OrganizationRequestEnvelope(
           GetOrganizationInfo(
@@ -1311,10 +1221,10 @@ class OrganizationSpec
 
         val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
         infoResponse.organizationId.map(_.id shouldEqual organizationId)
-        infoResponse.getInfo shouldEqual baseOrganizationInfo
+        infoResponse.getInfo shouldEqual organizationInfoFromEditableInfo(baseOrganizationInfo)
       }
 
-      "return the correct organization info for an edited organization" in {
+      "return the correct organization info for an edited suspended organization" in {
         val (organizationId, p, probe) = createTestVariables()
 
         establishOrganization(organizationId, p, probe)
@@ -1337,6 +1247,17 @@ class OrganizationSpec
 
         val editResponse = probe.receiveMessage()
         assert(editResponse.isSuccess)
+
+        p ! Organization.OrganizationRequestEnvelope(
+          SuspendOrganization(
+            Some(OrganizationId(organizationId)),
+            Some(MemberId("someUser")),
+          ),
+          probe.ref
+        )
+
+        val activateResponse = probe.receiveMessage()
+        assert(activateResponse.isSuccess)
 
         p ! Organization.OrganizationRequestEnvelope(
           GetOrganizationInfo(

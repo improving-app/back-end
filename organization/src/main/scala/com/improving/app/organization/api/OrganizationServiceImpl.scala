@@ -1,4 +1,4 @@
-package com.improving.app.organization
+package com.improving.app.organization.api
 
 import akka.actor.typed.ActorSystem
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
@@ -9,41 +9,10 @@ import akka.util.Timeout
 import com.google.rpc.Code
 import com.google.rpc.error_details.LocalizedMessage
 import com.improving.app.common.domain.ContactList
-import com.improving.app.organization.api.OrganizationService
-import com.improving.app.organization.domain.{
-  ActivateOrganization,
-  AddMembersToOrganization,
-  AddOwnersToOrganization,
-  EstablishOrganization,
-  GetOrganizationContacts,
-  GetOrganizationInfo,
-  MembersAddedToOrganization,
-  MembersRemovedFromOrganization,
-  Organization,
-  OrganizationActivated,
-  OrganizationContactsResponse,
-  OrganizationContactsUpdated,
-  OrganizationEstablished,
-  OrganizationEvent,
-  OrganizationEventPB,
-  OrganizationInfo,
-  OrganizationInfoResponse,
-  OrganizationRequest,
-  OrganizationRequestPB,
-  OrganizationResponse,
-  OrganizationSuspended,
-  OrganizationTerminated,
-  OwnersAddedToOrganization,
-  OwnersRemovedFromOrganization,
-  RemoveMembersFromOrganization,
-  RemoveOwnersFromOrganization,
-  SuspendOrganization,
-  TerminateOrganization,
-  UpdateOrganizationContacts
-}
+import com.improving.app.organization.domain._
 
-import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ExecutionContextExecutor, Future}
 
 class OrganizationServiceImpl(sys: ActorSystem[_]) extends OrganizationService {
   implicit private val system: ActorSystem[_] = sys

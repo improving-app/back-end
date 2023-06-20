@@ -47,8 +47,9 @@ message EditableOrganizationInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   optional string name = 1 [(validate.rules).string.min_len = 1];
   optional string short_name = 2 [(validate.rules).string.min_len = 1];
-  optional bool is_public = 3;
-  optional com.improving.app.common.domain.Address address = 4;
-  optional string url = 5 [(validate.rules).string.min_len = 1];
-  optional string logo = 6 [(validate.rules).string.min_len = 1];
+  optional com.improving.app.common.domain.TenantId tenant = 3;
+  optional bool is_public = 4;
+  optional com.improving.app.common.domain.Address address = 5;
+  optional string url = 6 [(validate.rules).string.min_len = 1];
+  optional string logo = 7 [(validate.rules).string.min_len = 1];
 }

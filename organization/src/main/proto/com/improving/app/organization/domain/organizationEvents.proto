@@ -25,7 +25,7 @@ option (scalapb.options) = {
 message OrganizationQueryResponsePB {
   oneof value {
     OrganizationInfoResponse organization_info_response = 1;
-    OrganizationContactsResponse organization_contacts_Response = 2;
+    OrganizationContactsResponse organization_contacts_response = 2;
   }
 }
 
@@ -60,7 +60,7 @@ message OrganizationEventPB {
 message OrganizationEstablished {
   option (scalapb.message).extends = "OrganizationEvent";
   com.improving.app.common.domain.OrganizationId organization_id = 1;
-  com.improving.app.organization.domain.OrganizationInfo organization_info = 2;
+  com.improving.app.organization.domain.EditableOrganizationInfo organization_info = 2;
   com.improving.app.organization.domain.OrganizationMetaInfo meta_info = 3;
 }
 
@@ -84,9 +84,8 @@ message OrganizationTerminated {
 message OrganizationInfoEdited {
   option (scalapb.message).extends = "OrganizationEvent";
   com.improving.app.common.domain.OrganizationId organization_id = 1;
-  OrganizationMetaInfo meta_info = 2;
-  OrganizationInfo old_info = 3;
-  OrganizationInfo new_info = 4;
+  EditableOrganizationInfo info = 2;
+  OrganizationMetaInfo meta_info = 3;
 }
 
 message MembersAddedToOrganization {
