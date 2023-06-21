@@ -19,7 +19,10 @@ For running the services that are event sourced, it needs a database for persist
 ## Locally running on microk8s:
 
 1. Install microk8s if not already installed: see https://microk8s.io/docs/install-alternatives for instructions
-2. Install scylla-operator on microk8s: see https://operator.docs.scylladb.com/stable/generic.html for instructions
+2. Install scylla
+   1. Run command `docker run --name some-scylla -d scylladb/scylla` (from https://opensource.docs.scylladb.com/stable/operating-scylla/procedures/tips/best-practices-scylla-on-docker.html)
+   2. Follow instructions for "Working with locally built images without a registry" at using previously downloaded docker image https://microk8s.io/docs/registry-images
+   3. Run command `microk8s kubectl apply -f scyllaApply.yaml`
 3. Run command `microk8s kubectl apply -f microApply.yaml`
 4. Check status with `microk8s kubectl get pods -o wide`
 5. Inspect pod using `microk8s kubectl describe pod [pod-name]`

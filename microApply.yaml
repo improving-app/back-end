@@ -52,3 +52,4 @@ spec:
         - containerPort: 9000
       nodeSelector:
         kubernetes.io/arch: arm64
+      hostNetwork: true
