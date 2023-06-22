@@ -622,8 +622,8 @@ class OrganizationSpec
 
           val organizationSuspendedMeta = organizationSuspended.metaInfo
 
-          organizationSuspendedMeta.map(_.getCreatedBy shouldEqual MemberId("establishingUser"))
-          organizationSuspendedMeta.map(_.getLastUpdatedBy shouldEqual MemberId("suspendingUser"))
+          organizationSuspendedMeta.map(_.getCreatedBy) shouldEqual Some(MemberId("establishingUser"))
+          organizationSuspendedMeta.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("suspendingUser"))
         }
       }
 
@@ -756,7 +756,7 @@ class OrganizationSpec
           assert(response.isSuccess)
 
           val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
-          infoResponse.organizationId.map(_.id shouldEqual organizationId)
+          infoResponse.organizationId.map(_.id) shouldEqual Some(organizationId)
           infoResponse.getInfo shouldEqual organizationInfoFromEditableInfo(baseOrganizationInfo)
         }
       }
@@ -1060,8 +1060,8 @@ class OrganizationSpec
 
           val organizationSuspendedMeta = organizationActivated.metaInfo
 
-          organizationSuspendedMeta.map(_.getCreatedBy shouldEqual MemberId("establishingUser"))
-          organizationSuspendedMeta.map(_.getLastUpdatedBy shouldEqual MemberId("activatingUser"))
+          organizationSuspendedMeta.map(_.getCreatedBy) shouldEqual Some(MemberId("establishingUser"))
+          organizationSuspendedMeta.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("activatingUser"))
         }
       }
 
@@ -1220,7 +1220,7 @@ class OrganizationSpec
         assert(response.isSuccess)
 
         val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
-        infoResponse.organizationId.map(_.id shouldEqual organizationId)
+        infoResponse.organizationId.map(_.id) shouldEqual Some(organizationId)
         infoResponse.getInfo shouldEqual organizationInfoFromEditableInfo(baseOrganizationInfo)
       }
 
@@ -1271,9 +1271,9 @@ class OrganizationSpec
         assert(response.isSuccess)
 
         val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
-        infoResponse.organizationId.map(_.id shouldEqual organizationId)
-        infoResponse.info.map(_.name shouldEqual newName)
-        infoResponse.info.map(_.address shouldEqual Some(newAddress))
+        infoResponse.organizationId.map(_.id) shouldEqual Some(organizationId)
+        infoResponse.info.map(_.name) shouldEqual Some(newName)
+        infoResponse.info.flatMap(_.address) shouldEqual Some(newAddress)
       }
     }
 
