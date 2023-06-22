@@ -1,7 +1,7 @@
 package com.improving.app.organization
 
 import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, PostalCodeMessageImpl, TenantId}
-import com.improving.app.organization.domain.OrganizationInfo
+import com.improving.app.organization.domain.{EditableOrganizationInfo, OrganizationInfo}
 
 object TestData {
   val baseAddress: Address = Address(
@@ -21,10 +21,20 @@ object TestData {
     phone = Some("555-2323"),
   )
 
-  val baseOrganizationInfo: OrganizationInfo = OrganizationInfo(
-    name = "Organization Name",
+  val baseOrganizationInfo: EditableOrganizationInfo = EditableOrganizationInfo(
+    name = Some("Organization Name"),
     shortName = Some("OrgName"),
-    tenant = TenantId("tenant"),
+    tenant = Some(TenantId("tenant")),
     address = Some(baseAddress),
+  )
+
+  def organizationInfoFromEditableInfo(editableInfo: EditableOrganizationInfo): OrganizationInfo = OrganizationInfo(
+    name = editableInfo.getName,
+    shortName = editableInfo.shortName,
+    isPublic = editableInfo.getIsPublic,
+    address = editableInfo.address,
+    tenant = editableInfo.tenant,
+    url = editableInfo.url,
+    logo = editableInfo.logo
   )
 }

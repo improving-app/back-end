@@ -6,7 +6,15 @@ import "com/improving/app/common/domain/address.proto";
 import "com/improving/app/common/domain/ids.proto";
 import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
 import "validate/validate.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  [scalapb.validate.file] {
+    validate_at_construction: true
+  }
+};
 
 enum NotificationPreference {
   option (scalapb.enum_options).extends = "com.improving.app.common.serialize.PBEnumSerializable";
