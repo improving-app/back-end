@@ -3,9 +3,9 @@ kind: Service
 metadata:
   name: scylla
 spec:
-  type: NodePort
   selector:
     app: scylla
+  clusterIP: None
   ports:
     - port: 9042
       targetPort: 9042
@@ -15,13 +15,17 @@ kind: Pod
 metadata:
   name: scylla
   labels:
-    name: scylla
+    app: scylla
 spec:
-  hostname: scylla
+  hostname: scylla-db
   setHostnameAsFQDN: true
   containers:
     - image: scylladb/scylla:latest
       name: scylla
+      ports:
+        - name: scylla
+          containerPort: 9042
+  hostNetwork: true
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -41,7 +45,7 @@ spec:
       containers:
         - name: scylla
           image: scylladb/scylla:latest
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9042
       hostNetwork: true
