@@ -338,7 +338,8 @@ object Member extends StrictLogging {
       MemberEventResponse(
         MemberSuspended(
           suspendMemberCommand.memberId,
-          Some(newMeta)
+          Some(newMeta),
+          suspendMemberCommand.suspensionReason
         )
       )
     )

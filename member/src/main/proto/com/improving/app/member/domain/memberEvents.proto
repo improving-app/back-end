@@ -5,7 +5,15 @@ package com.improving.app.member.domain;
 import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/member/domain/memberDomainObjects.proto";
 import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
 import "validate/validate.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  [scalapb.validate.file] {
+    validate_at_construction: true
+  }
+};
 
 message MemberRegistered {
     common.domain.MemberId member_id = 1;
