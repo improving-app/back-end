@@ -6,9 +6,6 @@ spec:
   selector:
     app: scylla-db
   clusterIP: None
-  ports:
-    - port: 9042
-      targetPort: 9042
 ---
 apiVersion: v1
 kind: Pod
@@ -18,11 +15,10 @@ metadata:
     app: scylla-db
 spec:
   hostname: scylla-db
-  setHostnameAsFQDN: true
   containers:
     - image: scylladb/scylla:latest
+      imagePullPolicy: IfNotPresent
       name: scylla-db
       ports:
         - name: scylla-db
           containerPort: 9042
-  hostNetwork: true
