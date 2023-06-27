@@ -7,9 +7,9 @@ object util {
   implicit class EditableInfoUtil(editable: EditableTenantInfo) {
     implicit def toInfo: TenantInfo = TenantInfo(
       name = editable.getName,
-      primaryContact = editable.getPrimaryContact.toContact,
-      address = editable.getAddress.toAddress,
-      organizations = editable.getOrganizations
+      primaryContact = editable.primaryContact.map(_.toContact),
+      address = editable.address.map(_.toAddress),
+      organizations = editable.organizations
     )
   }
 }
