@@ -40,64 +40,41 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
     )
   }
 
-  override def establishTenant(in: EstablishTenant): Future[TenantEstablished] = {
-    val result = sharding
-      .entityRefFor(Tenant.TypeKey, in.tenantId.id)
-      .ask(ref => Tenant.TenantCommand(in, ref))
-    result.transform(
-      result => result.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantEstablishedValue,
-      exception => exceptionHandler(exception)
+  private def handleRequest[ResultT](
+      request: TenantRequest with TenantRequestPB
+  ): Future[ResultT] = request.tenantId
+    .map { id =>
+      val result = sharding
+        .entityRefFor(Tenant.TypeKey, id.id)
+        .ask(ref => Tenant.TenantRequestEnvelope(request.asInstanceOf[TenantRequestPB], ref))
+      result.transform(
+        _.getValue.asInstanceOf[ResultT],
+        exception => exceptionHandler(exception)
+      )
+    }
+    .getOrElse(
+      Future.failed(
+        GrpcServiceException.create(
+          Code.INVALID_ARGUMENT,
+          "An entity Id was not provided",
+          java.util.List.of(request.asMessage)
+        )
+      )
     )
-  }
 
-  override def editInfo(in: EditInfo): Future[InfoEdited] = {
-    val result = sharding
-      .entityRefFor(Tenant.TypeKey, in.tenantId.id)
-      .ask(ref => Tenant.TenantCommand(in, ref))
+  override def establishTenant(in: EstablishTenant): Future[TenantEstablished] =
+    handleRequest(in)
 
-    result.transform(
-      result => result.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue,
-      exception => exceptionHandler(exception)
-    )
-  }
+  override def editInfo(in: EditInfo): Future[InfoEdited] = handleRequest(in)
 
-  override def activateTenant(in: ActivateTenant): Future[TenantActivated] = {
-    val result = sharding
-      .entityRefFor(Tenant.TypeKey, in.tenantId.id)
-      .ask(ref => Tenant.TenantCommand(in, ref))
-    result.transform(
-      result => result.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantActivatedValue,
-      exception => exceptionHandler(exception)
-    )
-  }
+  override def activateTenant(in: ActivateTenant): Future[TenantActivated] =
+    handleRequest(in)
 
-  override def suspendTenant(in: SuspendTenant): Future[TenantSuspended] = {
-    val result = sharding
-      .entityRefFor(Tenant.TypeKey, in.tenantId.id)
-      .ask(ref => Tenant.TenantCommand(in, ref))
-    result.transform(
-      result => result.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantSuspendedValue,
-      exception => exceptionHandler(exception)
-    )
-  }
+  override def suspendTenant(in: SuspendTenant): Future[TenantSuspended] =
+    handleRequest(in)
 
-  override def terminateTenant(in: TerminateTenant): Future[TenantTerminated] = {
-    val result = sharding
-      .entityRefFor(Tenant.TypeKey, in.tenantId.id)
-      .ask(ref => Tenant.TenantCommand(in, ref))
-    result.transform(
-      result => result.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantTerminatedValue,
-      exception => exceptionHandler(exception)
-    )
-  }
+  override def terminateTenant(in: TerminateTenant): Future[TenantTerminated] =
+    handleRequest(in)
 
-  override def getOrganizations(in: GetOrganizations): Future[TenantOrganizationData] = {
-    val result = sharding
-      .entityRefFor(Tenant.TypeKey, in.tenantId.id)
-      .ask(ref => Tenant.TenantCommand(in, ref))
-    result.transform(
-      result => result.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue,
-      exception => exceptionHandler(exception)
-    )
-  }
+  override def getOrganizations(in: GetOrganizations): Future[TenantOrganizationData] = handleRequest(in)
 }

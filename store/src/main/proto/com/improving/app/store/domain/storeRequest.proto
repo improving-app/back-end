@@ -5,7 +5,6 @@ import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/store/domain/storeData.proto";
 import "scalapb/scalapb.proto";
 import "scalapb/validate.proto";
-import "validate/validate.proto";
 
 option (scalapb.options) = {
   scope: FILE

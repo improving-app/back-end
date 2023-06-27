@@ -6,7 +6,7 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import com.improving.app.common.domain.{MemberId, OrganizationId, TenantId}
 import com.improving.app.tenant.TestData.{baseAddress, baseContact, baseTenantInfo}
-import com.improving.app.tenant.domain.Tenant.TenantCommand
+import com.improving.app.tenant.domain.Tenant.TenantRequestEnvelope
 import com.improving.app.tenant.domain._
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.BeforeAndAfterAll
@@ -33,23 +33,23 @@ class TenantSpec
     with Matchers {
   override def afterAll(): Unit = testKit.shutdownTestKit()
 
-  def createTestVariables(): (String, ActorRef[TenantCommand], TestProbe[StatusReply[TenantEnvelope]]) = {
+  def createTestVariables(): (String, ActorRef[TenantRequestEnvelope], TestProbe[StatusReply[TenantResponse]]) = {
     val tenantId = Random.nextString(31)
     val p = this.testKit.spawn(Tenant(PersistenceId.ofUniqueId(tenantId)))
-    val probe = this.testKit.createTestProbe[StatusReply[TenantEnvelope]]()
+    val probe = this.testKit.createTestProbe[StatusReply[TenantResponse]]()
     (tenantId, p, probe)
   }
 
   def establishTenant(
       tenantId: String,
-      p: ActorRef[TenantCommand],
-      probe: TestProbe[StatusReply[TenantEnvelope]],
+      p: ActorRef[TenantRequestEnvelope],
+      probe: TestProbe[StatusReply[TenantResponse]],
       tenantInfo: Option[EditableTenantInfo] = Some(baseTenantInfo)
-  ): StatusReply[TenantEnvelope] = {
-    p ! Tenant.TenantCommand(
+  ): StatusReply[TenantResponse] = {
+    p ! Tenant.TenantRequestEnvelope(
       EstablishTenant(
-        tenantId = TenantId(tenantId),
-        establishingUser = MemberId("establishingUser"),
+        tenantId = Some(TenantId(tenantId)),
+        onBehalfOf = Some(MemberId("establishingUser")),
         tenantInfo = tenantInfo
       ),
       probe.ref
@@ -60,16 +60,16 @@ class TenantSpec
 
   def terminateTenant(
       tenantId: String,
-      p: ActorRef[TenantCommand],
-      probe: TestProbe[StatusReply[TenantEnvelope]]
-  ): StatusReply[TenantEnvelope] = {
+      p: ActorRef[TenantRequestEnvelope],
+      probe: TestProbe[StatusReply[TenantResponse]]
+  ): StatusReply[TenantResponse] = {
     val establishResponse = establishTenant(tenantId, p, probe)
     assert(establishResponse.isSuccess)
 
-    p ! Tenant.TenantCommand(
+    p ! Tenant.TenantRequestEnvelope(
       TerminateTenant(
-        tenantId = TenantId(tenantId),
-        terminatingUser = MemberId("terminatingUser")
+        tenantId = Some(TenantId(tenantId)),
+        onBehalfOf = Some(MemberId("terminatingUser"))
       ),
       probe.ref
     )
@@ -84,10 +84,10 @@ class TenantSpec
         "error for an unauthorized updating user" ignore {
           val (tenantId, p, probe) = createTestVariables()
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             EstablishTenant(
-              tenantId = TenantId(tenantId),
-              establishingUser = MemberId("unauthorizedUser"),
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("unauthorizedUser")),
               tenantInfo = Some(baseTenantInfo)
             ),
             probe.ref
@@ -104,10 +104,10 @@ class TenantSpec
         "succeed for the golden path and return the proper response" in {
           val (tenantId, p, probe) = createTestVariables()
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             EstablishTenant(
-              tenantId = TenantId(tenantId),
-              establishingUser = MemberId("establishingUser"),
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("establishingUser")),
               tenantInfo = Some(baseTenantInfo)
             ),
             probe.ref
@@ -118,17 +118,17 @@ class TenantSpec
 
           val successVal =
             response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantEstablishedValue
-          successVal.tenantId shouldBe TenantId(tenantId)
-          successVal.metaInfo.createdBy shouldBe MemberId("establishingUser")
+          successVal.tenantId shouldBe Some(TenantId(tenantId))
+          successVal.getMetaInfo.createdBy shouldBe Some(MemberId("establishingUser"))
         }
 
         "error for a tenant that is already established" in {
           val (tenantId, p, probe) = createTestVariables()
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             EstablishTenant(
-              tenantId = TenantId(tenantId),
-              establishingUser = MemberId("establishingUser"),
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("establishingUser")),
               tenantInfo = Some(baseTenantInfo)
             ),
             probe.ref
@@ -137,10 +137,10 @@ class TenantSpec
           val establishResponse = probe.receiveMessage()
           assert(establishResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             EstablishTenant(
-              tenantId = TenantId(tenantId),
-              establishingUser = MemberId("establishingUser"),
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("establishingUser")),
               tenantInfo = Some(baseTenantInfo)
             ),
             probe.ref
@@ -157,9 +157,9 @@ class TenantSpec
         "succeed but return an empty list" in {
           val (tenantId, p, probe) = createTestVariables()
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             GetOrganizations(
-              tenantId = TenantId(tenantId)
+              tenantId = Some(TenantId(tenantId))
             ),
             probe.ref
           )
@@ -168,7 +168,7 @@ class TenantSpec
           assert(response.isSuccess)
 
           val responseVal = response.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue
-          responseVal.organizations shouldBe TenantOrganizationList()
+          responseVal.getOrganizations shouldBe TenantOrganizationList()
         }
       }
       "executing any command other than establish" should {
@@ -176,13 +176,13 @@ class TenantSpec
           val (tenantId, p, probe) = createTestVariables()
 
           val commands = Seq(
-            EditInfo(TenantId(tenantId), MemberId("user"), EditableTenantInfo()),
-            ActivateTenant(TenantId(tenantId), MemberId("user")),
-            SuspendTenant(TenantId(tenantId), "just feel like it", MemberId("user")),
+            EditInfo(Some(TenantId(tenantId)), Some(MemberId("user")), Some(EditableTenantInfo())),
+            ActivateTenant(Some(TenantId(tenantId)), Some(MemberId("user"))),
+            SuspendTenant(Some(TenantId(tenantId)), "just feel like it", Some(MemberId("user"))),
           )
 
           commands.foreach(command => {
-            p ! Tenant.TenantCommand(command, probe.ref)
+            p ! Tenant.TenantRequestEnvelope(command, probe.ref)
 
             val response = probe.receiveMessage()
 
@@ -198,10 +198,10 @@ class TenantSpec
         "error as not established" in {
           val (tenantId, p, probe) = createTestVariables()
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             TerminateTenant(
-              tenantId = TenantId(tenantId),
-              terminatingUser = MemberId("terminatingUser")
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("terminatingUser"))
             ),
             probe.ref
           )
@@ -225,11 +225,11 @@ class TenantSpec
           assert(establishTenantResponse.isSuccess)
 
           // Test command in question
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             EditInfo(
-              TenantId(tenantId),
-              MemberId("unauthorizedUser"),
-              EditableTenantInfo(),
+              Some(TenantId(tenantId)),
+              Some(MemberId("unauthorizedUser")),
+              Some(EditableTenantInfo()),
             ),
             probe.ref
           )
@@ -248,11 +248,11 @@ class TenantSpec
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             EditInfo(
-              TenantId(tenantId),
-              MemberId("someUser"),
-              EditableTenantInfo(),
+              Some(TenantId(tenantId)),
+              Some(MemberId("someUser")),
+              Some(EditableTenantInfo()),
             ),
             probe.ref
           )
@@ -262,8 +262,8 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo.getEditable shouldBe baseTenantInfo
-          successVal.newInfo.getEditable shouldBe baseTenantInfo
+          successVal.oldInfo.map(_.getEditable) shouldBe Some(baseTenantInfo)
+          successVal.newInfo.map(_.getEditable) shouldBe Some(baseTenantInfo)
         }
 
         "succeed for an edit of all fields and return the proper response" in {
@@ -285,11 +285,11 @@ class TenantSpec
             organizations = Some(newOrgs)
           )
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             EditInfo(
-              TenantId(tenantId),
-              MemberId("someUser"),
-              updatedInfo,
+              Some(TenantId(tenantId)),
+              Some(MemberId("someUser")),
+              Some(updatedInfo),
             ),
             probe.ref
           )
@@ -299,8 +299,8 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo.getEditable shouldBe baseTenantInfo
-          successVal.newInfo.getEditable shouldBe updatedInfo
+          successVal.oldInfo.map(_.getEditable) shouldBe Some(baseTenantInfo)
+          successVal.newInfo.map(_.getEditable) shouldBe Some(updatedInfo)
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -318,11 +318,11 @@ class TenantSpec
             organizations = Some(newOrgs)
           )
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             EditInfo(
-              TenantId(tenantId),
-              MemberId("someUser"),
-              updatedInfo,
+              Some(TenantId(tenantId)),
+              Some(MemberId("someUser")),
+              Some(updatedInfo),
             ),
             probe.ref
           )
@@ -332,10 +332,12 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo.getEditable shouldBe baseTenantInfo
-          successVal.newInfo.getEditable shouldBe baseTenantInfo.copy(
-            name = Some(newName),
-            organizations = Some(newOrgs)
+          successVal.oldInfo.map(_.getEditable) shouldBe Some(baseTenantInfo)
+          successVal.newInfo.map(_.getEditable) shouldBe Some(
+            baseTenantInfo.copy(
+              name = Some(newName),
+              organizations = Some(newOrgs)
+            )
           )
         }
       }
@@ -345,65 +347,65 @@ class TenantSpec
           val (tenantId, p, probe) = createTestVariables()
           establishTenant(tenantId, p, probe, None)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             ActivateTenant(
-              TenantId(tenantId),
-              MemberId("someUser"),
+              Some(TenantId(tenantId)),
+              Some(MemberId("someUser")),
             ),
             probe.ref
           )
 
-          val response: StatusReply[TenantEnvelope] = probe.receiveMessage()
+          val response: StatusReply[TenantResponse] = probe.receiveMessage()
 
           assert(response.isError)
 
           val responseError: Throwable = response.getError
           responseError.getMessage shouldEqual "No associated name"
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             EditInfo(
-              TenantId(tenantId),
-              MemberId("someUser"),
-              EditableTenantInfo(name = Some(baseTenantInfo.getName))
+              Some(TenantId(tenantId)),
+              Some(MemberId("someUser")),
+              Some(EditableTenantInfo(name = Some(baseTenantInfo.getName)))
             ),
             probe.ref
           )
           assert(probe.receiveMessage().isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             ActivateTenant(
-              TenantId(tenantId),
-              MemberId("someUser")
+              Some(TenantId(tenantId)),
+              Some(MemberId("someUser"))
             ),
             probe.ref
           )
 
-          val response2: StatusReply[TenantEnvelope] = probe.receiveMessage()
+          val response2: StatusReply[TenantResponse] = probe.receiveMessage()
 
           assert(response2.isError)
 
           val responseError2: Throwable = response2.getError
           responseError2.getMessage shouldEqual "No associated primary contact"
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             EditInfo(
-              TenantId(tenantId),
-              MemberId("someUser"),
-              EditableTenantInfo(primaryContact = Some(baseContact), address = Some(baseAddress))
+              Some(TenantId(tenantId)),
+              Some(MemberId("someUser")),
+              Some(EditableTenantInfo(primaryContact = Some(baseContact), address = Some(baseAddress)))
             ),
             probe.ref
           )
           assert(probe.receiveMessage().isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             ActivateTenant(
-              TenantId(tenantId),
-              MemberId("someUser")
+              Some(TenantId(tenantId)),
+              Some(MemberId("someUser"))
             ),
             probe.ref
           )
 
-          val response3: StatusReply[TenantEnvelope] = probe.receiveMessage()
+          val response3: StatusReply[TenantResponse] = probe.receiveMessage()
 
           assert(response3.isError)
 
@@ -418,10 +420,10 @@ class TenantSpec
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             ActivateTenant(
-              tenantId = TenantId(tenantId),
-              activatingUser = MemberId("activatingUser")
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("activatingUser"))
             ),
             probe.ref
           )
@@ -430,10 +432,10 @@ class TenantSpec
 
           assert(response.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             ActivateTenant(
-              tenantId = TenantId(tenantId),
-              activatingUser = MemberId("activatingUser")
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("activatingUser"))
             ),
             probe.ref
           )
@@ -454,11 +456,11 @@ class TenantSpec
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             SuspendTenant(
-              tenantId = TenantId(tenantId),
+              tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason",
-              suspendingUser = MemberId("unauthorizedUser")
+              onBehalfOf = Some(MemberId("unauthorizedUser"))
             ),
             probe.ref
           )
@@ -477,11 +479,11 @@ class TenantSpec
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             SuspendTenant(
-              tenantId = TenantId(tenantId),
+              tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason1",
-              suspendingUser = MemberId("suspendingUser")
+              onBehalfOf = Some(MemberId("suspendingUser"))
             ),
             probe.ref
           )
@@ -491,13 +493,13 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantSuspendedValue
 
-          successVal.tenantId shouldEqual TenantId(tenantId)
+          successVal.tenantId shouldEqual Some(TenantId(tenantId))
           successVal.suspensionReason shouldEqual "reason1"
 
-          val tenantSuspendedMeta = successVal.metaInfo
+          val tenantSuspendedMeta = successVal.getMetaInfo
 
-          tenantSuspendedMeta.createdBy shouldEqual MemberId("establishingUser")
-          tenantSuspendedMeta.lastUpdatedBy shouldEqual MemberId("suspendingUser")
+          tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
+          tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("suspendingUser"))
         }
       }
 
@@ -524,9 +526,9 @@ class TenantSpec
           )
           assert(establishTenantResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             GetOrganizations(
-              tenantId = TenantId(tenantId)
+              tenantId = Some(TenantId(tenantId))
             ),
             probe.ref
           )
@@ -535,12 +537,11 @@ class TenantSpec
           assert(response.isSuccess)
 
           val successVal = response.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue
-          successVal.organizations shouldEqual TenantOrganizationList(
+          successVal.getOrganizations.value shouldEqual
             Seq(
               OrganizationId("org1"),
               OrganizationId("org2")
             )
-          )
         }
       }
 
@@ -551,10 +552,10 @@ class TenantSpec
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             TerminateTenant(
-              tenantId = TenantId(tenantId),
-              terminatingUser = MemberId("terminatingUser")
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("terminatingUser"))
             ),
             probe.ref
           )
@@ -572,10 +573,10 @@ class TenantSpec
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             TerminateTenant(
-              tenantId = TenantId(tenantId),
-              terminatingUser = MemberId("terminatingUser")
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("terminatingUser"))
             ),
             probe.ref
           )
@@ -585,12 +586,12 @@ class TenantSpec
 
           val successVal =
             response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantTerminatedValue
-          successVal.tenantId.id shouldBe tenantId
+          successVal.tenantId.map(_.id) shouldBe Some(tenantId)
 
-          val metaInfo = successVal.metaInfo
+          val metaInfo = successVal.getMetaInfo
 
-          metaInfo.createdBy.id shouldBe "establishingUser"
-          metaInfo.lastUpdatedBy.id shouldBe "terminatingUser"
+          metaInfo.createdBy.map(_.id) shouldBe Some("establishingUser")
+          metaInfo.lastUpdatedBy.map(_.id) shouldBe Some("terminatingUser")
         }
       }
     }
@@ -605,11 +606,11 @@ class TenantSpec
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             SuspendTenant(
-              tenantId = TenantId(tenantId),
+              tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason1",
-              suspendingUser = MemberId("suspendingUser")
+              onBehalfOf = Some(MemberId("suspendingUser"))
             ),
             probe.ref
           )
@@ -618,11 +619,11 @@ class TenantSpec
           assert(suspendResponse.isSuccess)
 
           // Test command in question
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             EditInfo(
-              TenantId(tenantId),
-              MemberId("unauthorizedUser"),
-              EditableTenantInfo(),
+              Some(TenantId(tenantId)),
+              Some(MemberId("unauthorizedUser")),
+              Some(EditableTenantInfo()),
             ),
             probe.ref
           )
@@ -640,11 +641,11 @@ class TenantSpec
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             SuspendTenant(
-              tenantId = TenantId(tenantId),
+              tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason1",
-              suspendingUser = MemberId("suspendingUser")
+              onBehalfOf = Some(MemberId("suspendingUser"))
             ),
             probe.ref
           )
@@ -652,11 +653,11 @@ class TenantSpec
           val suspendResponse = probe.receiveMessage()
           assert(suspendResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             EditInfo(
-              TenantId(tenantId),
-              MemberId("someUser"),
-              EditableTenantInfo(),
+              Some(TenantId(tenantId)),
+              Some(MemberId("someUser")),
+              Some(EditableTenantInfo()),
             ),
             probe.ref
           )
@@ -666,8 +667,8 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo.getInfo shouldEqual baseTenantInfo.toInfo
-          successVal.newInfo.getInfo shouldEqual baseTenantInfo.toInfo
+          successVal.oldInfo.map(_.getInfo) shouldEqual Some(baseTenantInfo.toInfo)
+          successVal.newInfo.map(_.getInfo) shouldEqual Some(baseTenantInfo.toInfo)
         }
 
         "succeed for an edit of all fields and return the proper response" in {
@@ -677,11 +678,11 @@ class TenantSpec
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             SuspendTenant(
-              tenantId = TenantId(tenantId),
+              tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason1",
-              suspendingUser = MemberId("suspendingUser")
+              onBehalfOf = Some(MemberId("suspendingUser"))
             ),
             probe.ref
           )
@@ -701,11 +702,11 @@ class TenantSpec
             organizations = Some(newOrgs)
           )
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             EditInfo(
-              TenantId(tenantId),
-              MemberId("someUser"),
-              updatedInfo,
+              Some(TenantId(tenantId)),
+              Some(MemberId("someUser")),
+              Some(updatedInfo),
             ),
             probe.ref
           )
@@ -715,8 +716,8 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo.getInfo shouldEqual baseTenantInfo.toInfo
-          successVal.newInfo.getInfo shouldEqual updatedInfo.toInfo
+          successVal.oldInfo.map(_.getInfo) shouldEqual Some(baseTenantInfo.toInfo)
+          successVal.newInfo.map(_.getInfo) shouldEqual Some(updatedInfo.toInfo)
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -726,11 +727,11 @@ class TenantSpec
           val establishTenantResponse = establishTenant(tenantId, p, probe)
           assert(establishTenantResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             SuspendTenant(
-              tenantId = TenantId(tenantId),
+              tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason1",
-              suspendingUser = MemberId("suspendingUser")
+              onBehalfOf = Some(MemberId("suspendingUser"))
             ),
             probe.ref
           )
@@ -746,11 +747,11 @@ class TenantSpec
             organizations = Some(newOrgs)
           )
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             EditInfo(
-              TenantId(tenantId),
-              MemberId("someUser"),
-              updatedInfo,
+              Some(TenantId(tenantId)),
+              Some(MemberId("someUser")),
+              Some(updatedInfo),
             ),
             probe.ref
           )
@@ -760,13 +761,15 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo.getInfo shouldEqual baseTenantInfo.toInfo
-          successVal.newInfo.getInfo shouldEqual baseTenantInfo
-            .copy(
-              name = Some(newName),
-              organizations = Some(newOrgs)
-            )
-            .toInfo
+          successVal.oldInfo.map(_.getInfo) shouldEqual Some(baseTenantInfo.toInfo)
+          successVal.newInfo.map(_.getInfo) shouldEqual Some(
+            baseTenantInfo
+              .copy(
+                name = Some(newName),
+                organizations = Some(newOrgs)
+              )
+              .toInfo
+          )
         }
       }
 
@@ -777,10 +780,10 @@ class TenantSpec
           val establishResponse = establishTenant(tenantId, p, probe)
           assert(establishResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             SuspendTenant(
-              tenantId = TenantId(tenantId),
-              suspendingUser = MemberId("suspendingUser"),
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -789,10 +792,10 @@ class TenantSpec
           val suspendTenantResponse = probe.receiveMessage()
           assert(suspendTenantResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             ActivateTenant(
-              tenantId = TenantId(tenantId),
-              MemberId("unauthorizedUser")
+              tenantId = Some(TenantId(tenantId)),
+              Some(MemberId("unauthorizedUser"))
             ),
             probe.ref
           )
@@ -810,10 +813,10 @@ class TenantSpec
           val establishResponse = establishTenant(tenantId, p, probe)
           assert(establishResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             SuspendTenant(
-              tenantId = TenantId(tenantId),
-              suspendingUser = MemberId("suspendingUser"),
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -823,10 +826,10 @@ class TenantSpec
           assert(suspendTenantResponse.isSuccess)
 
           // Change state to active
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             ActivateTenant(
-              tenantId = TenantId(tenantId),
-              activatingUser = MemberId("activatingUser")
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("activatingUser"))
             ),
             probe.ref
           )
@@ -836,12 +839,12 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantActivatedValue
 
-          successVal.tenantId shouldEqual TenantId(tenantId)
+          successVal.tenantId shouldEqual Some(TenantId(tenantId))
 
-          val tenantSuspendedMeta = successVal.metaInfo
+          val tenantSuspendedMeta = successVal.getMetaInfo
 
-          tenantSuspendedMeta.createdBy shouldEqual MemberId("establishingUser")
-          tenantSuspendedMeta.lastUpdatedBy shouldEqual MemberId("activatingUser")
+          tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
+          tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("activatingUser"))
         }
       }
 
@@ -852,10 +855,10 @@ class TenantSpec
           val establishResponse = establishTenant(tenantId, p, probe)
           assert(establishResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             SuspendTenant(
-              tenantId = TenantId(tenantId),
-              suspendingUser = MemberId("suspendingUser"),
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -864,11 +867,11 @@ class TenantSpec
           val suspendTenantResponse = probe.receiveMessage()
           assert(suspendTenantResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             SuspendTenant(
-              tenantId = TenantId(tenantId),
+              tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason",
-              MemberId("someUser")
+              Some(MemberId("someUser"))
             ),
             probe.ref
           )
@@ -886,11 +889,11 @@ class TenantSpec
           val establishResponse = establishTenant(tenantId, p, probe)
           assert(establishResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             SuspendTenant(
-              tenantId = TenantId(tenantId),
+              tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason",
-              suspendingUser = MemberId("suspendingUser")
+              onBehalfOf = Some(MemberId("suspendingUser"))
             ),
             probe.ref
           )
@@ -898,11 +901,11 @@ class TenantSpec
           val suspendTenantResponse = probe.receiveMessage()
           assert(suspendTenantResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             SuspendTenant(
-              tenantId = TenantId(tenantId),
+              tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason1",
-              suspendingUser = MemberId("updatingUser1")
+              onBehalfOf = Some(MemberId("updatingUser1"))
             ),
             probe.ref
           )
@@ -912,13 +915,13 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantSuspendedValue
 
-          successVal.tenantId shouldEqual TenantId(tenantId)
+          successVal.tenantId shouldEqual Some(TenantId(tenantId))
           successVal.suspensionReason shouldEqual "reason1"
 
-          val tenantSuspendedMeta = successVal.metaInfo
+          val tenantSuspendedMeta = successVal.getMetaInfo
 
-          tenantSuspendedMeta.createdBy shouldEqual MemberId("establishingUser")
-          tenantSuspendedMeta.lastUpdatedBy shouldEqual MemberId("updatingUser1")
+          tenantSuspendedMeta.createdBy shouldEqual Some(MemberId("establishingUser"))
+          tenantSuspendedMeta.lastUpdatedBy shouldEqual Some(MemberId("updatingUser1"))
         }
       }
 
@@ -945,10 +948,10 @@ class TenantSpec
           )
           assert(establishResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             SuspendTenant(
-              tenantId = TenantId(tenantId),
-              suspendingUser = MemberId("suspendingUser"),
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("suspendingUser")),
               suspensionReason = "reason"
             ),
             probe.ref
@@ -957,9 +960,9 @@ class TenantSpec
           val suspendTenantResponse = probe.receiveMessage()
           assert(suspendTenantResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             GetOrganizations(
-              tenantId = TenantId(tenantId)
+              tenantId = Some(TenantId(tenantId))
             ),
             probe.ref
           )
@@ -968,12 +971,10 @@ class TenantSpec
           assert(response.isSuccess)
 
           val successVal = response.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue
-          successVal.organizations shouldEqual
-            TenantOrganizationList(
-              Seq(
-                OrganizationId("org1"),
-                OrganizationId("org2")
-              )
+          successVal.getOrganizations.value shouldEqual
+            Seq(
+              OrganizationId("org1"),
+              OrganizationId("org2")
             )
         }
       }
@@ -985,11 +986,11 @@ class TenantSpec
           val establishResponse = establishTenant(tenantId, p, probe)
           assert(establishResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             SuspendTenant(
-              tenantId = TenantId(tenantId),
+              tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason",
-              suspendingUser = MemberId("suspendingUser")
+              onBehalfOf = Some(MemberId("suspendingUser"))
             ),
             probe.ref
           )
@@ -997,10 +998,10 @@ class TenantSpec
           val suspendTenantResponse = probe.receiveMessage()
           assert(suspendTenantResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             TerminateTenant(
-              tenantId = TenantId(tenantId),
-              terminatingUser = MemberId("terminatingUser")
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("terminatingUser"))
             ),
             probe.ref
           )
@@ -1010,12 +1011,12 @@ class TenantSpec
 
           val successVal =
             response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getTenantTerminatedValue
-          successVal.tenantId.id shouldBe tenantId
+          successVal.tenantId.map(_.id) shouldBe Some(tenantId)
 
-          val metaInfo = successVal.metaInfo
+          val metaInfo = successVal.getMetaInfo
 
-          metaInfo.createdBy.id shouldBe "establishingUser"
-          metaInfo.lastUpdatedBy.id shouldBe "terminatingUser"
+          metaInfo.createdBy.map(_.id) shouldBe Some("establishingUser")
+          metaInfo.lastUpdatedBy.map(_.id) shouldBe Some("terminatingUser")
         }
       }
     }
@@ -1028,15 +1029,17 @@ class TenantSpec
           val terminateResponse = terminateTenant(tenantId, p, probe)
           assert(terminateResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             EditInfo(
-              tenantId = TenantId(tenantId),
-              editingUser = MemberId("editingUser"),
-              infoToUpdate = EditableTenantInfo(
-                baseTenantInfo.name,
-                Some(baseContact),
-                Some(baseAddress),
-                baseTenantInfo.organizations
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("editingUser")),
+              infoToUpdate = Some(
+                EditableTenantInfo(
+                  baseTenantInfo.name,
+                  Some(baseContact),
+                  Some(baseAddress),
+                  baseTenantInfo.organizations
+                )
               )
             ),
             probe.ref
@@ -1056,10 +1059,10 @@ class TenantSpec
           val terminateResponse = terminateTenant(tenantId, p, probe)
           assert(terminateResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             ActivateTenant(
-              tenantId = TenantId(tenantId),
-              activatingUser = MemberId("activatingUser")
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("activatingUser"))
             ),
             probe.ref
           )
@@ -1078,11 +1081,11 @@ class TenantSpec
           val terminateResponse = terminateTenant(tenantId, p, probe)
           assert(terminateResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             SuspendTenant(
-              tenantId = TenantId(tenantId),
+              tenantId = Some(TenantId(tenantId)),
               suspensionReason = "reason",
-              suspendingUser = MemberId("suspendingUser")
+              onBehalfOf = Some(MemberId("suspendingUser"))
             ),
             probe.ref
           )
@@ -1095,24 +1098,22 @@ class TenantSpec
       }
 
       "executing GetOrganizations command" should {
-        "succeed but return an empty list" in {
+        "error that command is not allowed" in {
           val (tenantId, p, probe) = createTestVariables()
 
           val terminateResponse = terminateTenant(tenantId, p, probe)
           assert(terminateResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             GetOrganizations(
-              tenantId = TenantId(tenantId)
+              tenantId = Some(TenantId(tenantId))
             ),
             probe.ref
           )
 
           val response = probe.receiveMessage()
-          assert(response.isSuccess)
-
-          val responseVal = response.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue
-          responseVal.organizations shouldBe TenantOrganizationList()
+          assert(response.isError)
+          assert(response.getError.getMessage eq "Command not allowed in Terminated state")
         }
       }
 
@@ -1123,10 +1124,10 @@ class TenantSpec
           val terminateResponse = terminateTenant(tenantId, p, probe)
           assert(terminateResponse.isSuccess)
 
-          p ! Tenant.TenantCommand(
+          p ! Tenant.TenantRequestEnvelope(
             TerminateTenant(
-              tenantId = TenantId(tenantId),
-              terminatingUser = MemberId("terminatingUser")
+              tenantId = Some(TenantId(tenantId)),
+              onBehalfOf = Some(MemberId("terminatingUser"))
             ),
             probe.ref
           )
