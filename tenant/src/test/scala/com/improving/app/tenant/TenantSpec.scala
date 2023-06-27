@@ -1098,7 +1098,7 @@ class TenantSpec
       }
 
       "executing GetOrganizations command" should {
-        "succeed but return an empty list" in {
+        "error that command is not allowed" in {
           val (tenantId, p, probe) = createTestVariables()
 
           val terminateResponse = terminateTenant(tenantId, p, probe)
@@ -1112,10 +1112,8 @@ class TenantSpec
           )
 
           val response = probe.receiveMessage()
-          assert(response.isSuccess)
-
-          val responseVal = response.getValue.asMessage.getTenantDataValue.tenantData.asMessage.getOrganizationDataValue
-          responseVal.getOrganizations.value shouldBe Seq()
+          assert(response.isError)
+          assert(response.getError.getMessage eq "Command not allowed in Terminated state")
         }
       }
 

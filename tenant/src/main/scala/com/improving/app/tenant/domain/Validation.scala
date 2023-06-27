@@ -18,13 +18,21 @@ object Validation {
     }
   }
 
-  val completeEditableTenantInfoValidator: Validator[EditableTenantInfo] = tenantInfo => {
+  val draftTransitionTenantInfoValidator: Validator[EditableTenantInfo] = tenantInfo => {
     applyAllValidators[EditableTenantInfo](
-      ti => requiredThenValidate("name", tenantNameValidator)(ti.name),
-      ti => requiredThenValidate("primary contact", contactValidator)(ti.primaryContact.map(_.toContact)),
-      ti => requiredThenValidate("address", addressValidator)(ti.address.map(_.toAddress)),
-      ti => requiredThenValidate("organizations", organizationsValidator)(ti.organizations)
+      ti => required("name")(ti.name),
+      ti => required("primary contact")(ti.primaryContact.map(_.toContact)),
+      ti => required("address")(ti.address.map(_.toAddress)),
+      ti => required("organizations")(ti.organizations)
     )(tenantInfo)
+  }
+
+  val tenantRequestValidator: Validator[TenantRequest] = command => {
+    applyAllValidators[TenantRequest](c => required("name")(c.tenantId.map(_.id)))(command)
+  }
+
+  val tenantCommandValidator: Validator[TenantCommand] = command => {
+    applyAllValidators[TenantCommand](c => required("primary contact")(c.onBehalfOf.map(_.id)))(command)
   }
 
 }

@@ -9,7 +9,11 @@ import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffec
 import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.{Address, Contact, EditableAddress, EditableContact, MemberId, OrganizationId}
 import com.improving.app.common.errors._
-import com.improving.app.tenant.domain.Validation.completeEditableTenantInfoValidator
+import com.improving.app.tenant.domain.Validation.{
+  draftTransitionTenantInfoValidator,
+  tenantCommandValidator,
+  tenantRequestValidator
+}
 import com.improving.app.tenant.domain.util.EditableInfoUtil
 
 import java.time.Instant
@@ -58,65 +62,93 @@ object Tenant {
   }
 
   private val commandHandler: (TenantState, TenantRequestEnvelope) => ReplyEffect[TenantResponse, TenantState] = {
-    (state, command) =>
-      val result: Either[Error, TenantResponse] = state match {
-        case UninitializedTenant =>
-          command.request match {
-            case x: EstablishTenant  => establishTenant(x)
-            case _: GetOrganizations => getOrganizations()
-            case _                   => Left(StateError("Tenant is not established"))
-          }
-        case draftState: DraftTenant =>
-          command.request match {
-            case _: EstablishTenant  => Left(StateError("Tenant is already established"))
-            case x: ActivateTenant   => activateTenant(draftState, x)
-            case x: SuspendTenant    => suspendTenant(draftState, x)
-            case x: EditInfo         => editInfo(draftState, x)
-            case _: GetOrganizations => getOrganizations(Some(draftState))
-            case x: TerminateTenant  => terminateTenant(draftState, x)
-            case _                   => Left(StateError("Command is not supported"))
-          }
-        case establishedState: EstablishedTenant =>
-          establishedState match {
-            case activeTenantState: ActiveTenant =>
-              command.request match {
-                case _: EstablishTenant  => Left(StateError("Tenant is already established"))
-                case _: ActivateTenant   => Left(StateError("Active tenants may not transition to the Active state"))
-                case x: SuspendTenant    => suspendTenant(establishedState, x)
-                case x: EditInfo         => editInfo(establishedState, x)
-                case _: GetOrganizations => getOrganizations(Some(activeTenantState))
-                case x: TerminateTenant  => terminateTenant(establishedState, x)
-                case _                   => Left(StateError("Command is not supported"))
+    (state, envelope) =>
+      val requestErrors: Either[ReplyEffect[TenantResponse, TenantState], TenantRequestPB with TenantRequest] =
+        envelope.request match {
+          case r: TenantRequest => Right(r)
+          case _                => Left(Effect.reply(envelope.replyTo)(StatusReply.Error("Message was not a TenantRequest")))
+        }
+
+      requestErrors.map(tenantRequestValidator) match {
+        case Right(None) =>
+          def getCommandErrors(
+              errorsOrResponse: Either[Error, TenantResponse]
+          ): Either[ReplyEffect[TenantResponse, TenantState], Either[Error, TenantResponse]] =
+            envelope.request match {
+              case r: TenantCommand =>
+                tenantCommandValidator(r) match {
+                  case None => Right(errorsOrResponse)
+                  case Some(err: ValidationError) =>
+                    Left(Effect.reply(envelope.replyTo)(StatusReply.Error(err.message)))
+                }
+              case _ => Left(Effect.reply(envelope.replyTo)(StatusReply.Error("Message was not a TenantRequest")))
+            }
+          val result: Either[ReplyEffect[TenantResponse, TenantState], Either[Error, TenantResponse]] = state match {
+            case UninitializedTenant =>
+              envelope.request match {
+                case x: EstablishTenant  => getCommandErrors(establishTenant(x))
+                case _: GetOrganizations => Right(getOrganizations())
+                case _                   => Right(Left(StateError("Tenant is not established")))
               }
-            case suspendedTenantState: SuspendedTenant =>
-              command.request match {
-                case _: EstablishTenant  => Left(StateError("Tenant is already established"))
-                case x: ActivateTenant   => activateTenant(establishedState, x)
-                case x: SuspendTenant    => suspendTenant(establishedState, x)
-                case x: EditInfo         => editInfo(establishedState, x)
-                case _: GetOrganizations => getOrganizations(Some(suspendedTenantState))
-                case x: TerminateTenant  => terminateTenant(establishedState, x)
-                case _                   => Left(StateError("Command is not supported"))
+            case draftState: DraftTenant =>
+              envelope.request match {
+                case _: EstablishTenant  => Right(Left(StateError("Tenant is already established")))
+                case x: ActivateTenant   => getCommandErrors(activateTenant(draftState, x))
+                case x: SuspendTenant    => getCommandErrors(suspendTenant(draftState, x))
+                case x: EditInfo         => getCommandErrors(editInfo(draftState, x))
+                case _: GetOrganizations => Right(getOrganizations(Some(draftState)))
+                case x: TerminateTenant  => getCommandErrors(terminateTenant(draftState, x))
+                case _                   => Right(Left(StateError("Command is not supported")))
               }
+            case establishedState: EstablishedTenant =>
+              establishedState match {
+                case activeTenantState: ActiveTenant =>
+                  envelope.request match {
+                    case _: EstablishTenant => Right(Left(StateError("Tenant is already established")))
+                    case _: ActivateTenant =>
+                      Right(Left(StateError("Active tenants may not transition to the Active state")))
+                    case x: SuspendTenant    => getCommandErrors(suspendTenant(establishedState, x))
+                    case x: EditInfo         => getCommandErrors(editInfo(establishedState, x))
+                    case _: GetOrganizations => Right(getOrganizations(Some(activeTenantState)))
+                    case x: TerminateTenant  => getCommandErrors(terminateTenant(establishedState, x))
+                    case _                   => Right(Left(StateError("Command is not supported")))
+                  }
+                case suspendedTenantState: SuspendedTenant =>
+                  envelope.request match {
+                    case _: EstablishTenant  => Right(Left(StateError("Tenant is already established")))
+                    case x: ActivateTenant   => getCommandErrors(activateTenant(establishedState, x))
+                    case x: SuspendTenant    => getCommandErrors(suspendTenant(establishedState, x))
+                    case x: EditInfo         => getCommandErrors(editInfo(establishedState, x))
+                    case _: GetOrganizations => Right(getOrganizations(Some(suspendedTenantState)))
+                    case x: TerminateTenant  => getCommandErrors(terminateTenant(establishedState, x))
+                    case _                   => Right(Left(StateError("Command is not supported")))
+                  }
+              }
+            case _: TerminatedTenant =>
+              Right(envelope.request match {
+                case _ => Left(StateError("Command not allowed in Terminated state"))
+              })
           }
-        case _: TerminatedTenant =>
-          command.request match {
-            case _: GetOrganizations => getOrganizations()
-            case _                   => Left(StateError("Command not allowed in Terminated state"))
+
+          result match {
+            case Right(Left(error)) => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
+            case Right(Right(response)) =>
+              response match {
+                case _: TenantDataResponse =>
+                  Effect.reply(envelope.replyTo) {
+                    StatusReply.Success(response)
+                  }
+                case _: TenantEventResponse =>
+                  Effect.persist(response).thenReply(envelope.replyTo) { _ => StatusReply.Success(response) }
+                case _ =>
+                  Effect.reply(envelope.replyTo)(
+                    StatusReply.Error(s"${response.productPrefix} is not a supported member response")
+                  )
+              }
+            case Left(r) => r
           }
-      }
-      result match {
-        case Left(error) => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
-        case Right(response) =>
-          response match {
-            case _: TenantDataResponse => Effect.reply(command.replyTo) { StatusReply.Success(response) }
-            case _: TenantEventResponse =>
-              Effect.persist(response).thenReply(command.replyTo) { _ => StatusReply.Success(response) }
-            case _ =>
-              Effect.reply(command.replyTo)(
-                StatusReply.Error(s"${response.productPrefix} is not a supported member response")
-              )
-          }
+        case Right(Some(errors)) => Effect.reply(envelope.replyTo)(StatusReply.Error(errors.message))
+        case Left(r)             => r
       }
   }
 
@@ -194,7 +226,7 @@ object Tenant {
     val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedBy = activateTenant.onBehalfOf)
     state match {
       case draft: DraftTenant =>
-        val errorsOpt = completeEditableTenantInfoValidator(draft.info)
+        val errorsOpt = draftTransitionTenantInfoValidator(draft.info)
         errorsOpt match {
           case None =>
             Right(
