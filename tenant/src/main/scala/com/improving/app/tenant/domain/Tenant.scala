@@ -73,66 +73,65 @@ object Tenant {
         case Right(None) =>
           def getCommandErrors(
               errorsOrResponse: Either[Error, TenantResponse]
-          ): Either[ReplyEffect[TenantResponse, TenantState], Either[Error, TenantResponse]] =
+          ): Either[Error, TenantResponse] =
             envelope.request match {
               case r: TenantCommand =>
                 tenantCommandValidator(r) match {
-                  case None => Right(errorsOrResponse)
-                  case Some(err: ValidationError) =>
-                    Left(Effect.reply(envelope.replyTo)(StatusReply.Error(err.message)))
+                  case None                       => errorsOrResponse
+                  case Some(err: ValidationError) => Left(err)
                 }
-              case _ => Left(Effect.reply(envelope.replyTo)(StatusReply.Error("Message was not a TenantRequest")))
+              case _ => Left(ValidationError("Message was not a TenantRequest"))
             }
-          val result: Either[ReplyEffect[TenantResponse, TenantState], Either[Error, TenantResponse]] = state match {
+          val result: Either[Error, TenantResponse] = state match {
             case UninitializedTenant =>
               envelope.request match {
                 case x: EstablishTenant  => getCommandErrors(establishTenant(x))
-                case _: GetOrganizations => Right(getOrganizations())
-                case _                   => Right(Left(StateError("Tenant is not established")))
+                case _: GetOrganizations => getOrganizations()
+                case _                   => Left(StateError("Tenant is not established"))
               }
             case draftState: DraftTenant =>
               envelope.request match {
-                case _: EstablishTenant  => Right(Left(StateError("Tenant is already established")))
+                case _: EstablishTenant  => Left(StateError("Tenant is already established"))
                 case x: ActivateTenant   => getCommandErrors(activateTenant(draftState, x))
                 case x: SuspendTenant    => getCommandErrors(suspendTenant(draftState, x))
                 case x: EditInfo         => getCommandErrors(editInfo(draftState, x))
-                case _: GetOrganizations => Right(getOrganizations(Some(draftState)))
+                case _: GetOrganizations => getOrganizations(Some(draftState))
                 case x: TerminateTenant  => getCommandErrors(terminateTenant(draftState, x))
-                case _                   => Right(Left(StateError("Command is not supported")))
+                case _                   => Left(StateError("Command is not supported"))
               }
             case establishedState: EstablishedTenant =>
               establishedState match {
                 case activeTenantState: ActiveTenant =>
                   envelope.request match {
-                    case _: EstablishTenant => Right(Left(StateError("Tenant is already established")))
+                    case _: EstablishTenant => Left(StateError("Tenant is already established"))
                     case _: ActivateTenant =>
-                      Right(Left(StateError("Active tenants may not transition to the Active state")))
+                      Left(StateError("Active tenants may not transition to the Active state"))
                     case x: SuspendTenant    => getCommandErrors(suspendTenant(establishedState, x))
                     case x: EditInfo         => getCommandErrors(editInfo(establishedState, x))
-                    case _: GetOrganizations => Right(getOrganizations(Some(activeTenantState)))
+                    case _: GetOrganizations => getOrganizations(Some(activeTenantState))
                     case x: TerminateTenant  => getCommandErrors(terminateTenant(establishedState, x))
-                    case _                   => Right(Left(StateError("Command is not supported")))
+                    case _                   => Left(StateError("Command is not supported"))
                   }
                 case suspendedTenantState: SuspendedTenant =>
                   envelope.request match {
-                    case _: EstablishTenant  => Right(Left(StateError("Tenant is already established")))
+                    case _: EstablishTenant  => Left(StateError("Tenant is already established"))
                     case x: ActivateTenant   => getCommandErrors(activateTenant(establishedState, x))
                     case x: SuspendTenant    => getCommandErrors(suspendTenant(establishedState, x))
                     case x: EditInfo         => getCommandErrors(editInfo(establishedState, x))
-                    case _: GetOrganizations => Right(getOrganizations(Some(suspendedTenantState)))
+                    case _: GetOrganizations => getOrganizations(Some(suspendedTenantState))
                     case x: TerminateTenant  => getCommandErrors(terminateTenant(establishedState, x))
-                    case _                   => Right(Left(StateError("Command is not supported")))
+                    case _                   => Left(StateError("Command is not supported"))
                   }
               }
             case _: TerminatedTenant =>
-              Right(envelope.request match {
+              envelope.request match {
                 case _ => Left(StateError("Command not allowed in Terminated state"))
-              })
+              }
           }
 
           result match {
-            case Right(Left(error)) => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
-            case Right(Right(response)) =>
+            case Left(error) => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
+            case Right(response) =>
               response match {
                 case _: TenantDataResponse =>
                   Effect.reply(envelope.replyTo) {
@@ -145,7 +144,6 @@ object Tenant {
                     StatusReply.Error(s"${response.productPrefix} is not a supported member response")
                   )
               }
-            case Left(r) => r
           }
         case Right(Some(errors)) => Effect.reply(envelope.replyTo)(StatusReply.Error(errors.message))
         case Left(r)             => r
