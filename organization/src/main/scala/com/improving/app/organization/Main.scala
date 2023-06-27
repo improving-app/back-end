@@ -3,7 +3,7 @@ package com.improving.app.organization
 import akka.actor.typed.ActorSystem
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import com.improving.app.common.service.ServiceMain
-import com.improving.app.organization.api.OrganizationServiceHandler
+import com.improving.app.organization.api.{OrganizationServiceHandler, OrganizationServiceImpl}
 
 import scala.concurrent.Future
 

@@ -14,16 +14,6 @@ option (scalapb.options) = {
   [scalapb.validate.file] {
     validate_at_construction: true
   }
-  field_transformations: [
-    {
-      when: {options: {[validate.rules] {message: {required: true}}}}
-      set: {
-        [scalapb.field] {
-          required: true
-        }
-      }
-    }
-  ]
 };
 
 enum OrganizationState {
@@ -35,10 +25,10 @@ enum OrganizationState {
 
 message OrganizationMetaInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  google.protobuf.Timestamp created_on = 1 [(validate.rules).message.required = true];
-  com.improving.app.common.domain.MemberId created_by = 2 [(validate.rules).message.required = true];
-  google.protobuf.Timestamp last_updated = 3 [(validate.rules).message.required = true];
-  com.improving.app.common.domain.MemberId last_updated_by = 4 [(validate.rules).message.required = true];
+  google.protobuf.Timestamp created_on = 1;
+  com.improving.app.common.domain.MemberId created_by = 2;
+  google.protobuf.Timestamp last_updated = 3;
+  com.improving.app.common.domain.MemberId last_updated_by = 4;
   OrganizationState state = 5;
 }
 
@@ -46,7 +36,7 @@ message OrganizationInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   string name = 1 [(validate.rules).string.min_len = 1];
   optional string short_name = 2 [(validate.rules).string.min_len = 1];
-  com.improving.app.common.domain.TenantId tenant = 3 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.TenantId tenant = 3;
   bool is_public = 4;
   optional com.improving.app.common.domain.Address address = 5;
   optional string url = 6 [(validate.rules).string.min_len = 1];
@@ -57,8 +47,9 @@ message EditableOrganizationInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   optional string name = 1 [(validate.rules).string.min_len = 1];
   optional string short_name = 2 [(validate.rules).string.min_len = 1];
-  optional bool is_public = 3;
-  optional com.improving.app.common.domain.Address address = 4;
-  optional string url = 5 [(validate.rules).string.min_len = 1];
-  optional string logo = 6 [(validate.rules).string.min_len = 1];
+  optional com.improving.app.common.domain.TenantId tenant = 3;
+  optional bool is_public = 4;
+  optional com.improving.app.common.domain.Address address = 5;
+  optional string url = 6 [(validate.rules).string.min_len = 1];
+  optional string logo = 7 [(validate.rules).string.min_len = 1];
 }

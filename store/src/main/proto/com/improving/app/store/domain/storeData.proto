@@ -2,9 +2,17 @@ syntax = "proto3";
 package com.improving.app.store.domain;
 
 import "com/improving/app/common/domain/ids.proto";
-import "scalapb/scalapb.proto";
 import "google/protobuf/timestamp.proto";
+import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
 import "validate/validate.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  [scalapb.validate.file] {
+    validate_at_construction: true
+  }
+};
 
 enum StoreStates {
   STORE_STATES_UNINITIALIZED = 0;

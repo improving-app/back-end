@@ -1,4 +1,4 @@
-package com.improving.app.organization
+package com.improving.app.organization.api
 
 import akka.actor.typed.ActorSystem
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
@@ -9,11 +9,10 @@ import akka.util.Timeout
 import com.google.rpc.Code
 import com.google.rpc.error_details.LocalizedMessage
 import com.improving.app.common.domain.ContactList
-import com.improving.app.organization.api.OrganizationService
-import com.improving.app.organization.domain.{ActivateOrganization, AddMembersToOrganization, AddOwnersToOrganization, EstablishOrganization, GetOrganizationContacts, GetOrganizationInfo, MembersAddedToOrganization, MembersRemovedFromOrganization, Organization, OrganizationActivated, OrganizationContactsResponse, OrganizationContactsUpdated, OrganizationEstablished, OrganizationEvent, OrganizationEventPB, OrganizationInfo, OrganizationInfoResponse, OrganizationRequest, OrganizationRequestPB, OrganizationResponse, OrganizationSuspended, OrganizationTerminated, OwnersAddedToOrganization, OwnersRemovedFromOrganization, RemoveMembersFromOrganization, RemoveOwnersFromOrganization, SuspendOrganization, TerminateOrganization, UpdateOrganizationContacts}
+import com.improving.app.organization.domain._
 
-import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ExecutionContextExecutor, Future}
 
 class OrganizationServiceImpl(sys: ActorSystem[_]) extends OrganizationService {
   implicit private val system: ActorSystem[_] = sys
@@ -42,16 +41,26 @@ class OrganizationServiceImpl(sys: ActorSystem[_]) extends OrganizationService {
   }
 
   private def processEntityRequest[ResultT](
-      request: OrganizationRequest
-  ): Future[ResultT] = {
+      request: OrganizationRequest with OrganizationRequestPB
+  ): Future[ResultT] = request.organizationId
+    .map { id =>
       val result = sharding
-        .entityRefFor(Organization.TypeKey, request.organizationId.id)
+        .entityRefFor(Organization.TypeKey, id.id)
         .ask(ref => Organization.OrganizationRequestEnvelope(request.asInstanceOf[OrganizationRequestPB], ref))
       result.transform(
         _.getValue.asInstanceOf[ResultT],
         exception => exceptionHandler(exception)
       )
-  }
+    }
+    .getOrElse(
+      Future.failed(
+        GrpcServiceException.create(
+          Code.INVALID_ARGUMENT,
+          "An entity Id was not provided",
+          java.util.List.of(request.asMessage)
+        )
+      )
+    )
 
   override def establishOrganization(command: EstablishOrganization): Future[OrganizationEstablished] =
     processEntityRequest(command)
@@ -82,7 +91,7 @@ class OrganizationServiceImpl(sys: ActorSystem[_]) extends OrganizationService {
     processEntityRequest(command)
 
   override def getOrganizationInfo(query: GetOrganizationInfo): Future[OrganizationInfo] = {
-    processEntityRequest[OrganizationInfoResponse](query).map(_.info)
+    processEntityRequest[OrganizationInfoResponse](query).map(_.getInfo)
   }
 
   override def updateOrganizationContacts(query: UpdateOrganizationContacts): Future[OrganizationContactsUpdated] = {

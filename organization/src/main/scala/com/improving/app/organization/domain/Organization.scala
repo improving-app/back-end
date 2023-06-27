@@ -10,11 +10,18 @@ import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.{Contact, MemberId}
 import com.improving.app.common.errors._
 import com.improving.app.organization.domain.OrganizationState._
+import com.improving.app.organization.domain.OrganizationValidation.{
+  draftTransitionOrganizationInfoValidator,
+  organizationCommandValidator,
+  organizationQueryValidator
+}
 
-import java.time.Instant
+import java.time.{Clock, Instant}
 
 object Organization {
   val TypeKey: EntityTypeKey[OrganizationRequestEnvelope] = EntityTypeKey[OrganizationRequestEnvelope]("Organization")
+
+  private val clock: Clock = Clock.systemDefaultZone()
 
   case class OrganizationRequestEnvelope(
       request: OrganizationRequestPB,
@@ -26,17 +33,20 @@ object Organization {
   private case object UninitializedState extends OrganizationState
 
   sealed private trait EstablishedState extends OrganizationState {
-    val info: OrganizationInfo
     val metaInfo: OrganizationMetaInfo
     val members: Set[MemberId]
     val owners: Set[MemberId]
     val contacts: Set[Contact]
   }
 
+  sealed private trait DefinedState extends EstablishedState {
+    val info: OrganizationInfo
+  }
+
   sealed private trait InactiveState extends EstablishedState
 
   private case class DraftState(
-      info: OrganizationInfo,
+      info: EditableOrganizationInfo,
       metaInfo: OrganizationMetaInfo,
       members: Set[MemberId],
       owners: Set[MemberId],
@@ -49,7 +59,7 @@ object Organization {
       members: Set[MemberId],
       owners: Set[MemberId],
       contacts: Set[Contact],
-  ) extends EstablishedState
+  ) extends DefinedState
 
   private case class SuspendedState(
       info: OrganizationInfo,
@@ -57,7 +67,8 @@ object Organization {
       members: Set[MemberId],
       owners: Set[MemberId],
       contacts: Set[Contact],
-  ) extends InactiveState
+  ) extends DefinedState
+      with InactiveState
 
   def apply(persistenceId: PersistenceId): Behavior[OrganizationRequestEnvelope] = {
     Behaviors.setup(_ =>
@@ -71,27 +82,35 @@ object Organization {
   }
 
   private val requestHandler
-      : (OrganizationState, OrganizationRequestEnvelope) => ReplyEffect[OrganizationEventPB, OrganizationState] = {
+      : (OrganizationState, OrganizationRequestEnvelope) => ReplyEffect[OrganizationEventPB, OrganizationState] =
     (state, envelope) =>
-      {
-        envelope.request.asInstanceOf[OrganizationRequest] match {
-          case command: OrganizationCommand =>
-            handleCommand(state, command) match {
-              case Left(error) => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
-              case Right(event) =>
-                Effect
-                  .persist(event)
-                  .thenReply(envelope.replyTo)((_: OrganizationState) => StatusReply.Success(event))
-                  .asInstanceOf[ReplyEffect[OrganizationEventPB, OrganizationState]]
-            }
-          case query: OrganizationQuery =>
-            handleQuery(state, query) match {
-              case Left(error)   => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
-              case Right(result) => Effect.reply(envelope.replyTo)(StatusReply.Success(result))
-            }
-        }
+      envelope.request match {
+        case c: OrganizationCommand =>
+          organizationCommandValidator(c) match {
+            case None =>
+              handleCommand(state, c) match {
+                case Left(error) => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
+                case Right(event) =>
+                  Effect
+                    .persist(event)
+                    .thenReply(envelope.replyTo)((_: OrganizationState) => StatusReply.Success(event))
+                    .asInstanceOf[ReplyEffect[OrganizationEventPB, OrganizationState]]
+              }
+            case Some(errors) => Effect.reply(envelope.replyTo)(StatusReply.Error(errors.message))
+          }
+        case query: OrganizationQuery =>
+          organizationQueryValidator(query) match {
+            case None =>
+              handleQuery(state, query) match {
+                case Left(error)   => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
+                case Right(result) => Effect.reply(envelope.replyTo)(StatusReply.Success(result))
+              }
+            case Some(errors) => Effect.reply(envelope.replyTo)(StatusReply.Error(errors.message))
+
+          }
+        case OrganizationRequestPB.Empty =>
+          Effect.reply(envelope.replyTo)(StatusReply.Error("OrganizationRequest is of type Empty"))
       }
-  }
 
   private val eventHandler: (OrganizationState, OrganizationEventPB) => OrganizationState = (state, event) =>
     event match {
@@ -99,66 +118,70 @@ object Organization {
       case event: OrganizationEstablished =>
         state match {
           case UninitializedState =>
-            DraftState(info = event.organizationInfo, metaInfo = event.metaInfo, Set.empty, Set.empty, Set.empty)
+            DraftState(info = event.getOrganizationInfo, metaInfo = event.getMetaInfo, Set.empty, Set.empty, Set.empty)
           case _: DraftState     => state
           case _: ActiveState    => state
           case _: SuspendedState => state
         }
       case event: OrganizationActivated =>
         state match {
-          case x: DraftState      => ActiveState(x.info, event.metaInfo, x.members, x.owners, x.contacts)
+          case x: DraftState =>
+            ActiveState(organizationInfoFromEditableInfo(x.info), event.getMetaInfo, x.members, x.owners, x.contacts)
           case _: ActiveState     => state
-          case x: SuspendedState  => ActiveState(x.info, event.metaInfo, x.members, x.owners, x.contacts)
+          case x: SuspendedState  => ActiveState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
           case UninitializedState => UninitializedState
         }
       case event: OrganizationSuspended =>
         state match {
-          case x: DraftState      => SuspendedState(x.info, event.metaInfo, x.members, x.owners, x.contacts)
-          case x: ActiveState     => SuspendedState(x.info, event.metaInfo, x.members, x.owners, x.contacts)
-          case x: SuspendedState  => SuspendedState(x.info, event.metaInfo, x.members, x.owners, x.contacts)
+          case x: DraftState =>
+            SuspendedState(organizationInfoFromEditableInfo(x.info), event.getMetaInfo, x.members, x.owners, x.contacts)
+          case x: ActiveState     => SuspendedState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
+          case x: SuspendedState  => SuspendedState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
           case UninitializedState => UninitializedState
         }
       case _: OrganizationTerminated => state
       case event: OrganizationInfoEdited =>
         state match {
-          case x: DraftState      => x.copy(metaInfo = event.metaInfo, info = event.newInfo)
-          case x: ActiveState     => x.copy(metaInfo = event.metaInfo, info = event.newInfo)
-          case x: SuspendedState  => x.copy(metaInfo = event.metaInfo, info = event.newInfo)
+          case x: DraftState => x.copy(metaInfo = event.getMetaInfo, info = event.getInfo)
+          case x: ActiveState =>
+            x.copy(metaInfo = event.getMetaInfo, info = organizationInfoFromEditableInfo(event.getInfo))
+          case x: SuspendedState =>
+            x.copy(metaInfo = event.getMetaInfo, info = organizationInfoFromEditableInfo(event.getInfo))
           case UninitializedState => UninitializedState
         }
       case event: MembersAddedToOrganization =>
         state match {
-          case x: DraftState      => x.copy(metaInfo = event.metaInfo, members = x.members ++ event.membersAdded)
-          case x: ActiveState     => x.copy(metaInfo = event.metaInfo, members = x.members ++ event.membersAdded)
-          case x: SuspendedState  => x.copy(metaInfo = event.metaInfo, members = x.members ++ event.membersAdded)
+          case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, members = x.members ++ event.membersAdded)
+          case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, members = x.members ++ event.membersAdded)
+          case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, members = x.members ++ event.membersAdded)
           case UninitializedState => UninitializedState
         }
       case event: MembersRemovedFromOrganization =>
         state match {
-          case x: DraftState      => x.copy(metaInfo = event.metaInfo, members = x.members -- event.membersRemoved)
-          case x: ActiveState     => x.copy(metaInfo = event.metaInfo, members = x.members -- event.membersRemoved)
-          case x: SuspendedState  => x.copy(metaInfo = event.metaInfo, members = x.members -- event.membersRemoved)
+          case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, members = x.members -- event.membersRemoved)
+          case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, members = x.members -- event.membersRemoved)
+          case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, members = x.members -- event.membersRemoved)
           case UninitializedState => UninitializedState
         }
       case event: OwnersAddedToOrganization =>
         state match {
-          case x: DraftState      => x.copy(metaInfo = event.metaInfo, owners = x.owners ++ event.ownersAdded)
-          case x: ActiveState     => x.copy(metaInfo = event.metaInfo, owners = x.owners ++ event.ownersAdded)
-          case x: SuspendedState  => x.copy(metaInfo = event.metaInfo, owners = x.owners ++ event.ownersAdded)
+          case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, owners = x.owners ++ event.ownersAdded)
+          case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, owners = x.owners ++ event.ownersAdded)
+          case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, owners = x.owners ++ event.ownersAdded)
           case UninitializedState => UninitializedState
         }
       case event: OwnersRemovedFromOrganization =>
         state match {
-          case x: DraftState      => x.copy(metaInfo = event.metaInfo, owners = x.owners -- event.ownersRemoved)
-          case x: ActiveState     => x.copy(metaInfo = event.metaInfo, owners = x.owners -- event.ownersRemoved)
-          case x: SuspendedState  => x.copy(metaInfo = event.metaInfo, owners = x.owners -- event.ownersRemoved)
+          case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, owners = x.owners -- event.ownersRemoved)
+          case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, owners = x.owners -- event.ownersRemoved)
+          case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, owners = x.owners -- event.ownersRemoved)
           case UninitializedState => UninitializedState
         }
       case event: OrganizationContactsUpdated =>
         state match {
-          case x: DraftState => x.copy(metaInfo = event.metaInfo, contacts = event.contacts.toSet)
-          case x: ActiveState => x.copy(metaInfo = event.metaInfo, contacts = event.contacts.toSet)
-          case x: SuspendedState => x.copy(metaInfo = event.metaInfo, contacts = event.contacts.toSet)
+          case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, contacts = event.contacts.toSet)
+          case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, contacts = event.contacts.toSet)
+          case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, contacts = event.contacts.toSet)
           case UninitializedState => UninitializedState
         }
     }
@@ -172,10 +195,12 @@ object Organization {
         }
       case draftState: DraftState =>
         command match {
-          case command: ActivateOrganization          => activateOrganization(draftState, command)
-          case command: SuspendOrganization           => suspendOrganization(draftState, command)
-          case command: TerminateOrganization         => terminateOrganization(draftState, command)
-          case command: EditOrganizationInfo          => editOrganizationInfo(draftState, command)
+          case command: ActivateOrganization =>
+            activateOrganization(Left(draftState.info), draftState.metaInfo, command)
+          case command: SuspendOrganization   => suspendOrganization(draftState, command)
+          case command: TerminateOrganization => terminateOrganization(command)
+          case command: EditOrganizationInfo =>
+            editOrganizationInfo(Left(draftState.info), draftState.metaInfo, command)
           case command: AddMembersToOrganization      => addMembersToOrganization(draftState, command)
           case command: RemoveMembersFromOrganization => removeMembersFromOrganization(draftState, command)
           case command: AddOwnersToOrganization       => addOwnersToOrganization(draftState, command)
@@ -185,9 +210,10 @@ object Organization {
         }
       case activeState: ActiveState =>
         command match {
-          case command: SuspendOrganization           => suspendOrganization(activeState, command)
-          case command: TerminateOrganization         => terminateOrganization(activeState, command)
-          case command: EditOrganizationInfo          => editOrganizationInfo(activeState, command)
+          case command: SuspendOrganization   => suspendOrganization(activeState, command)
+          case command: TerminateOrganization => terminateOrganization(command)
+          case command: EditOrganizationInfo =>
+            editOrganizationInfo(Right(activeState.info), activeState.metaInfo, command)
           case command: AddMembersToOrganization      => addMembersToOrganization(activeState, command)
           case command: RemoveMembersFromOrganization => removeMembersFromOrganization(activeState, command)
           case command: AddOwnersToOrganization       => addOwnersToOrganization(activeState, command)
@@ -197,9 +223,11 @@ object Organization {
         }
       case suspendedState: SuspendedState =>
         command match {
-          case command: ActivateOrganization          => activateOrganization(suspendedState, command)
-          case command: TerminateOrganization         => terminateOrganization(suspendedState, command)
-          case command: EditOrganizationInfo          => editOrganizationInfo(suspendedState, command)
+          case command: ActivateOrganization =>
+            activateOrganization(Right(suspendedState.info), suspendedState.metaInfo, command)
+          case command: TerminateOrganization => terminateOrganization(command)
+          case command: EditOrganizationInfo =>
+            editOrganizationInfo(Right(suspendedState.info), suspendedState.metaInfo, command)
           case command: AddMembersToOrganization      => addMembersToOrganization(suspendedState, command)
           case command: RemoveMembersFromOrganization => removeMembersFromOrganization(suspendedState, command)
           case command: AddOwnersToOrganization       => addOwnersToOrganization(suspendedState, command)
@@ -214,10 +242,12 @@ object Organization {
       query: OrganizationQuery
   ): Either[Error, OrganizationQueryResponse] = {
     state match {
-      case state: EstablishedState =>
+      case state: DefinedState =>
         query match {
-          case GetOrganizationInfo(organizationId, _, _) => Right(OrganizationInfoResponse(organizationId, state.info))
-          case GetOrganizationContacts(organizationId, _, _) => Right(OrganizationContactsResponse(organizationId, contacts = state.contacts.toSeq))
+          case GetOrganizationInfo(organizationId, _, _) =>
+            Right(OrganizationInfoResponse(organizationId, Some(state.info)))
+          case GetOrganizationContacts(organizationId, _, _) =>
+            Right(OrganizationContactsResponse(organizationId, contacts = state.contacts.toSeq))
         }
       case _ => Left(StateError("Organization is not established"))
     }
@@ -225,20 +255,19 @@ object Organization {
 
   private def updateMetaInfo(
       metaInfo: OrganizationMetaInfo,
-      lastUpdatedByOpt: MemberId
-  ): OrganizationMetaInfo = {
-    metaInfo.copy(lastUpdatedBy = lastUpdatedByOpt, lastUpdated = Timestamp(Instant.now()))
-  }
+      lastUpdatedByOpt: Option[MemberId]
+  ): OrganizationMetaInfo =
+    metaInfo.copy(lastUpdatedBy = lastUpdatedByOpt, lastUpdated = Some(Timestamp(Instant.now(clock))))
 
   private def establishOrganization(establishOrganization: EstablishOrganization): Either[Error, OrganizationEvent] = {
     val organizationInfo = establishOrganization.organizationInfo
 
-    val now = Instant.now()
+    val now = Instant.now(clock)
 
     val newMetaInfo = OrganizationMetaInfo(
-      createdOn = Timestamp(now),
+      createdOn = Some(Timestamp(now)),
       createdBy = establishOrganization.onBehalfOf,
-      lastUpdated = Timestamp(now),
+      lastUpdated = Some(Timestamp(now)),
       lastUpdatedBy = establishOrganization.onBehalfOf,
       state = ORGANIZATION_STATE_DRAFT
     )
@@ -246,23 +275,38 @@ object Organization {
     Right(
       OrganizationEstablished(
         organizationId = establishOrganization.organizationId,
-        metaInfo = newMetaInfo,
+        metaInfo = Some(newMetaInfo),
         organizationInfo = organizationInfo
       )
     )
   }
 
   private def activateOrganization(
-      state: InactiveState,
+      info: Either[EditableOrganizationInfo, OrganizationInfo],
+      meta: OrganizationMetaInfo,
       activateOrganization: ActivateOrganization,
   ): Either[Error, OrganizationEvent] = {
-    val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedByOpt = activateOrganization.onBehalfOf)
-    Right(
-      OrganizationActivated(
-        organizationId = activateOrganization.organizationId,
-        metaInfo = newMetaInfo
-      )
-    )
+    val newMeta = updateMetaInfo(metaInfo = meta, lastUpdatedByOpt = activateOrganization.onBehalfOf)
+    info match {
+      case Left(e: EditableOrganizationInfo) =>
+        val validationErrorsOpt = draftTransitionOrganizationInfoValidator(e)
+        if (validationErrorsOpt.isEmpty) {
+          Right(
+            OrganizationActivated(
+              organizationId = activateOrganization.organizationId,
+              metaInfo = Some(newMeta)
+            )
+          )
+        } else
+          Left(StateError(validationErrorsOpt.get.message))
+      case Right(_: OrganizationInfo) =>
+        Right(
+          OrganizationActivated(
+            activateOrganization.organizationId,
+            Some(newMeta)
+          )
+        )
+    }
   }
 
   private def suspendOrganization(
@@ -273,13 +317,12 @@ object Organization {
     Right(
       OrganizationSuspended(
         organizationId = suspendOrganization.organizationId,
-        metaInfo = newMetaInfo,
+        metaInfo = Some(newMetaInfo),
       )
     )
   }
 
   private def terminateOrganization(
-      establishedState: EstablishedState,
       terminate: TerminateOrganization
   ): Either[Error, OrganizationEvent] = {
     Right(
@@ -290,29 +333,36 @@ object Organization {
   }
 
   private def editOrganizationInfo(
-      state: EstablishedState,
+      info: Either[EditableOrganizationInfo, OrganizationInfo],
+      meta: OrganizationMetaInfo,
       command: EditOrganizationInfo
   ): Either[Error, OrganizationInfoEdited] = {
-    val fieldsToUpdate = command.organizationInfo
-
-    var updatedInfo = state.info
-    fieldsToUpdate.name.foreach(newName => updatedInfo = updatedInfo.copy(name = newName))
-    fieldsToUpdate.shortName.foreach(newShortName => updatedInfo = updatedInfo.copy(shortName = Some(newShortName)))
-    fieldsToUpdate.isPublic.foreach(newIsPublic => updatedInfo = updatedInfo.copy(isPublic = newIsPublic))
-    fieldsToUpdate.address.foreach(newAddress => updatedInfo = updatedInfo.copy(address = Some(newAddress)))
-    fieldsToUpdate.url.foreach(newUrl => updatedInfo = updatedInfo.copy(url = Some(newUrl)))
-    fieldsToUpdate.logo.foreach(newLogo => updatedInfo = updatedInfo.copy(logo = Some(newLogo)))
-
-    val updatedMetaInfo = updateMetaInfo(state.metaInfo, command.onBehalfOf)
-
-    Right(
-      OrganizationInfoEdited(
-        organizationId = command.organizationId,
-        metaInfo = updatedMetaInfo,
-        oldInfo = state.info,
-        newInfo = updatedInfo
-      )
+    val newMeta = meta.copy(
+      lastUpdatedBy = command.onBehalfOf,
+      lastUpdated = Some(Timestamp(Instant.now(clock)))
     )
+
+    command.organizationInfo
+      .map { editable =>
+        val event = OrganizationInfoEdited(
+          command.organizationId,
+          Some(info match {
+            case Right(i: OrganizationInfo)        => editableInfoFromOrganizationInfo(updateInfo(i, editable))
+            case Left(e: EditableOrganizationInfo) => updateEditableInfo(e, editable)
+          }),
+          Some(newMeta)
+        )
+        Right(event)
+      }
+      .getOrElse(
+        Right(
+          OrganizationInfoEdited(
+            command.organizationId,
+            None,
+            Some(newMeta)
+          )
+        )
+      )
   }
 
   def addMembersToOrganization(
@@ -325,7 +375,7 @@ object Organization {
     Right(
       MembersAddedToOrganization(
         organizationId = command.organizationId,
-        metaInfo = updatedMetaInfo,
+        metaInfo = Some(updatedMetaInfo),
         membersAdded = newMembersAdded.toSeq
       )
     )
@@ -341,7 +391,7 @@ object Organization {
     Right(
       MembersRemovedFromOrganization(
         organizationId = command.organizationId,
-        metaInfo = updatedMetaInfo,
+        metaInfo = Some(updatedMetaInfo),
         membersRemoved = realMembersToRemove.toSeq
       )
     )
@@ -357,7 +407,7 @@ object Organization {
     Right(
       OwnersAddedToOrganization(
         organizationId = command.organizationId,
-        metaInfo = updatedMetaInfo,
+        metaInfo = Some(updatedMetaInfo),
         ownersAdded = newOwnersAdded.toSeq
       )
     )
@@ -373,7 +423,7 @@ object Organization {
     Right(
       OwnersRemovedFromOrganization(
         organizationId = command.organizationId,
-        metaInfo = updatedMetaInfo,
+        metaInfo = Some(updatedMetaInfo),
         ownersRemoved = realOwnersToRemove.toSeq
       )
     )
@@ -386,9 +436,56 @@ object Organization {
     Right(
       OrganizationContactsUpdated(
         organizationId = command.organizationId,
-        metaInfo = updateMetaInfo(state.metaInfo, command.onBehalfOf),
+        metaInfo = Some(updateMetaInfo(state.metaInfo, command.onBehalfOf)),
         contacts = command.contacts
       )
     )
   }
+
+  private[domain] def editableInfoFromOrganizationInfo(orgInfo: OrganizationInfo): EditableOrganizationInfo =
+    EditableOrganizationInfo(
+      name = Some(orgInfo.name),
+      shortName = orgInfo.shortName,
+      isPublic = Some(orgInfo.isPublic),
+      address = orgInfo.address,
+      tenant = orgInfo.tenant,
+      url = orgInfo.url,
+      logo = orgInfo.logo
+    )
+
+  private[domain] def organizationInfoFromEditableInfo(editableInfo: EditableOrganizationInfo): OrganizationInfo =
+    OrganizationInfo(
+      name = editableInfo.getName,
+      shortName = editableInfo.shortName,
+      isPublic = editableInfo.getIsPublic,
+      address = editableInfo.address,
+      tenant = editableInfo.tenant,
+      url = editableInfo.url,
+      logo = editableInfo.logo
+    )
+
+  private[domain] def updateInfo(info: OrganizationInfo, editableInfo: EditableOrganizationInfo): OrganizationInfo =
+    info.copy(
+      name = editableInfo.name.getOrElse(info.name),
+      shortName = editableInfo.shortName.orElse(info.shortName),
+      isPublic = editableInfo.isPublic.getOrElse(info.isPublic),
+      address = editableInfo.address.orElse(info.address),
+      tenant = editableInfo.tenant.orElse(info.tenant),
+      url = editableInfo.url.orElse(info.url),
+      logo = editableInfo.logo.orElse(info.logo)
+    )
+
+  private[domain] def updateEditableInfo(
+      info: EditableOrganizationInfo,
+      editableInfo: EditableOrganizationInfo
+  ): EditableOrganizationInfo =
+    info.copy(
+      name = editableInfo.name.orElse(info.name),
+      shortName = editableInfo.shortName.orElse(info.shortName),
+      isPublic = editableInfo.isPublic.orElse(info.isPublic),
+      address = editableInfo.address.orElse(info.address),
+      tenant = editableInfo.tenant.orElse(info.tenant),
+      url = editableInfo.url.orElse(info.url),
+      logo = editableInfo.logo.orElse(info.logo)
+    )
 }
