@@ -6,7 +6,7 @@ import com.improving.app.common.test.ServiceTestContainerSpec
 import com.improving.app.tenant.TestData.itBaseTenantInfo
 import com.improving.app.tenant.api.{TenantService, TenantServiceClient}
 import com.improving.app.tenant.domain._
-import com.improving.app.tenant.domain.util.infoFromEditableInfo
+import com.improving.app.tenant.domain.util.EditableInfoUtil
 import org.scalatest.tagobjects.Retryable
 
 import scala.util.Random
@@ -38,15 +38,15 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
       val establishedResponse = client
         .establishTenant(
           EstablishTenant(
-            tenantId = TenantId(tenantId),
-            establishingUser = MemberId("establishingUser"),
+            tenantId = Some(TenantId(tenantId)),
+            onBehalfOf = Some(MemberId("establishingUser")),
             tenantInfo = Some(itBaseTenantInfo)
           )
         )
         .futureValue
 
-      establishedResponse.tenantId shouldBe TenantId(tenantId)
-      establishedResponse.metaInfo.createdBy shouldBe MemberId("establishingUser")
+      establishedResponse.tenantId shouldBe Some(TenantId(tenantId))
+      establishedResponse.getMetaInfo.createdBy shouldBe Some(MemberId("establishingUser"))
 
       val newName = "newName"
 
@@ -85,17 +85,17 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
       val response = client
         .editInfo(
           EditInfo(
-            tenantId = TenantId(tenantId),
-            editingUser = MemberId("updatingUser"),
-            infoToUpdate = updateInfo
+            tenantId = Some(TenantId(tenantId)),
+            onBehalfOf = Some(MemberId("updatingUser")),
+            infoToUpdate = Some(updateInfo)
           )
         )
         .futureValue
 
       response.tenantId shouldBe TenantId(tenantId)
       response.oldInfo shouldBe itBaseTenantInfo
-      response.newInfo shouldBe infoFromEditableInfo(updateInfo)
-      response.metaInfo.lastUpdatedBy shouldBe MemberId("updatingUser")
+      response.newInfo shouldBe updateInfo.toInfo
+      response.getMetaInfo.lastUpdatedBy shouldBe MemberId("updatingUser")
     }
   }
 
@@ -108,40 +108,40 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
       val establishedResponse = client
         .establishTenant(
           EstablishTenant(
-            tenantId = TenantId(tenantId),
-            establishingUser = MemberId("establishingUser"),
+            tenantId = Some(TenantId(tenantId)),
+            onBehalfOf = Some(MemberId("establishingUser")),
             tenantInfo = Some(itBaseTenantInfo)
           )
         )
         .futureValue
 
       establishedResponse.tenantId shouldBe TenantId(tenantId)
-      establishedResponse.metaInfo.createdBy shouldBe MemberId("establishingUser")
+      establishedResponse.getMetaInfo.createdBy shouldBe Some(MemberId("establishingUser"))
 
       val suspendResponse = client
         .suspendTenant(
           SuspendTenant(
-            tenantId = TenantId(tenantId),
+            tenantId = Some(TenantId(tenantId)),
             suspensionReason = "reason",
-            suspendingUser = MemberId("suspendingUser")
+            onBehalfOf = Some(MemberId("suspendingUser"))
           )
         )
         .futureValue
 
       suspendResponse.tenantId shouldBe TenantId(tenantId)
-      suspendResponse.metaInfo.lastUpdatedBy shouldBe MemberId("suspendingUser")
+      suspendResponse.getMetaInfo.lastUpdatedBy shouldBe MemberId("suspendingUser")
 
       val response = client
         .activateTenant(
           ActivateTenant(
-            tenantId = TenantId(tenantId),
-            activatingUser = MemberId("activatingUser")
+            tenantId = Some(TenantId(tenantId)),
+            onBehalfOf = Some(MemberId("activatingUser"))
           )
         )
         .futureValue
 
       response.tenantId shouldBe TenantId(tenantId)
-      response.metaInfo.lastUpdatedBy shouldBe MemberId("activatingUser")
+      response.getMetaInfo.lastUpdatedBy shouldBe MemberId("activatingUser")
     }
   }
 
@@ -154,28 +154,28 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
       val establishedResponse = client
         .establishTenant(
           EstablishTenant(
-            tenantId = TenantId(tenantId),
-            establishingUser = MemberId("establishingUser"),
+            tenantId = Some(TenantId(tenantId)),
+            onBehalfOf = Some(MemberId("establishingUser")),
             tenantInfo = Some(itBaseTenantInfo)
           )
         )
         .futureValue
 
       establishedResponse.tenantId shouldBe TenantId(tenantId)
-      establishedResponse.metaInfo.createdBy shouldBe MemberId("establishingUser")
+      establishedResponse.getMetaInfo.createdBy shouldBe MemberId("establishingUser")
 
       val response = client
         .suspendTenant(
           SuspendTenant(
-            tenantId = TenantId(tenantId),
+            tenantId = Some(TenantId(tenantId)),
             suspensionReason = "reason",
-            suspendingUser = MemberId("suspendingUser")
+            onBehalfOf = Some(MemberId("suspendingUser"))
           )
         )
         .futureValue
 
       response.tenantId shouldBe TenantId(tenantId)
-      response.metaInfo.lastUpdatedBy shouldBe MemberId("suspendingUser")
+      response.getMetaInfo.lastUpdatedBy shouldBe MemberId("suspendingUser")
     }
   }
 
@@ -188,8 +188,8 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
       val establishedResponse = client
         .establishTenant(
           EstablishTenant(
-            tenantId = TenantId(tenantId),
-            establishingUser = MemberId("establishingUser"),
+            tenantId = Some(TenantId(tenantId)),
+            onBehalfOf = Some(MemberId("establishingUser")),
             tenantInfo = Some(
               itBaseTenantInfo.copy(organizations =
                 Some(
@@ -207,12 +207,12 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
         .futureValue
 
       establishedResponse.tenantId shouldBe TenantId(tenantId)
-      establishedResponse.metaInfo.createdBy shouldBe MemberId("establishingUser")
+      establishedResponse.getMetaInfo.createdBy shouldBe MemberId("establishingUser")
 
       val response = client
         .getOrganizations(
           GetOrganizations(
-            tenantId = TenantId(tenantId),
+            tenantId = Some(TenantId(tenantId)),
           )
         )
         .futureValue
@@ -235,26 +235,26 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
       val establishedResponse = client
         .establishTenant(
           EstablishTenant(
-            tenantId = TenantId(tenantId),
-            establishingUser = MemberId("establishingUser"),
+            tenantId = Some(TenantId(tenantId)),
+            onBehalfOf = Some(MemberId("establishingUser")),
             tenantInfo = Some(itBaseTenantInfo)
           )
         )
         .futureValue
 
       establishedResponse.tenantId shouldBe TenantId(tenantId)
-      establishedResponse.metaInfo.createdBy shouldBe MemberId("establishingUser")
+      establishedResponse.getMetaInfo.createdBy shouldBe MemberId("establishingUser")
 
       val response = client
         .terminateTenant(
           TerminateTenant(
-            tenantId = TenantId(tenantId),
-            terminatingUser = MemberId("terminatingUser")
+            tenantId = Some(TenantId(tenantId)),
+            onBehalfOf = Some(MemberId("terminatingUser"))
           )
         )
         .futureValue
-      response.tenantId.id shouldBe tenantId
-      response.metaInfo.lastUpdatedBy.id shouldBe "terminatingUser"
+      response.tenantId.map(_.id) shouldBe Some(tenantId)
+      response.metaInfo.flatMap(_.lastUpdatedBy.map(_.id)) shouldBe Some("terminatingUser")
     }
   }
 }
