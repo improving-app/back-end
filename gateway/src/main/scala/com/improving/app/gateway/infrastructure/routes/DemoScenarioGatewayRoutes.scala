@@ -29,14 +29,14 @@ trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with Stric
 
   val config: Config
 
-  val firstNamesFile = Source.fromFile("../../domain/common/firstNames.txt")
-  val lastNamesFile = Source.fromFile("../../domain/common/lastNames.txt")
+  private val firstNamesFile = Source.fromFile("../../domain/common/firstNames.txt")
+  private val lastNamesFile = Source.fromFile("../../domain/common/lastNames.txt")
 
-  val firstNames: Seq[String] =
+  private val firstNames: Seq[String] =
     try firstNamesFile.getLines().toSeq
     finally firstNamesFile.close()
 
-  val lastNames: Seq[String] =
+  private val lastNames: Seq[String] =
     try lastNamesFile.getLines().toSeq
     finally lastNamesFile.close()
 
