@@ -58,7 +58,7 @@ object Dependencies {
     "com.github.pureconfig" %% "pureconfig" % pureconfig,
     "org.scalacheck" %% "scalacheck" % scalacheck,
     "org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4",
-    "org.scalameta" %% "scalafmt-cli" % "3.0.0",
+    "org.scalameta" %% "scalafmt-cli" % "3.7.2",
     // "dev.optics" %% "monocle-core" % monocle,
     // "dev.optics" %% "monocle-macro" % monocle,
     // noinspection SbtDependencyVersionInspection

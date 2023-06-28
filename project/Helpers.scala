@@ -183,6 +183,7 @@ object C {
           "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test",
           "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion % "it, test",
           "org.wvlet.airframe" %% "airframe-ulid" % V.airframeUlidVersion,
+          "org.scalameta" %% "scalafmt-cli" % "3.7.2"
         ) ++ akkaHttpTestingDependencies ++ scalaPbDependencies ++ scalaPbValidationDependencies ++ Seq(
           scalaPbCompilerPlugin
         ),
