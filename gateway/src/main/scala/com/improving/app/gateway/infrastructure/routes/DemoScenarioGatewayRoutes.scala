@@ -2,9 +2,11 @@ package com.improving.app.gateway.infrastructure.routes
 
 import akka.http.scaladsl.server.Directives.{as, complete, entity, logRequestResult, onSuccess, pathPrefix, post}
 import akka.http.scaladsl.server.Route
+import cats.implicits.toFunctorOps
 import com.improving.app.common.domain.{EditableAddress, EditableContact, MemberId, OrganizationId, TenantId}
 import com.improving.app.gateway.api.handlers.TenantGatewayHandler
 import com.improving.app.gateway.domain.common.tenantUtil.EstablishedTenantUtil
+import com.improving.app.gateway.domain.common.util.genPhoneNumber
 import com.improving.app.gateway.domain.demoScenario.{ScenarioStarted, StartScenario, Tenant}
 import com.improving.app.gateway.domain.tenant.{
   EditableTenantInfo,
@@ -20,11 +22,23 @@ import java.time.LocalDateTime
 import java.util.UUID
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
+import scala.io.{BufferedSource, Source}
+import scala.util.{Failure, Random, Success, Using}
 
 trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLogging {
 
   val config: Config
+
+  val firstNamesFile = Source.fromFile("../../domain/common/firstNames.txt")
+  val lastNamesFile = Source.fromFile("../../domain/common/lastNames.txt")
+
+  val firstNames: Seq[String] =
+    try firstNamesFile.getLines().toSeq
+    finally firstNamesFile.close()
+
+  val lastNames: Seq[String] =
+    try lastNamesFile.getLines().toSeq
+    finally lastNamesFile.close()
 
   def demoScenarioRoutes(handler: TenantGatewayHandler): Route = logRequestResult("DemoScenarioGateway") {
     pathPrefix("demo") {
@@ -36,23 +50,33 @@ trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with Stric
             val creatingMemberId = Some(MemberId(UUID.randomUUID().toString))
             val orgId = OrganizationId(UUID.randomUUID().toString)
 
-            val establishTenantRequests = (1 to parsed.numTenants).map(_ =>
-              EstablishTenant(
-                Some(TenantId(UUID.randomUUID().toString)),
-                creatingMemberId,
-                Some(
-                  EditableTenantInfo(
-                    Some("Demo-" + LocalDateTime.now().toString),
+            val establishTenantRequests: Seq[EstablishTenant] =
+              Random
+                .shuffle(firstNames)
+                .take(parsed.numTenants)
+                .zip(Random.shuffle(lastNames).take(parsed.numTenants))
+                .map { case (first, last) =>
+                  EstablishTenant(
+                    Some(TenantId(UUID.randomUUID().toString)),
+                    creatingMemberId,
                     Some(
-                      EditableContact(
+                      EditableTenantInfo(
+                        Some("Demo-" + LocalDateTime.now().toString),
+                        Some(
+                          EditableContact(
+                            Some(first),
+                            Some(last),
+                            Some(s"$first.$last@orgorg.com"),
+                            Some(genPhoneNumber),
+                            Some(first.take(1) + last)
+                          )
+                        ),
+                        Some(EditableAddress()),
+                        Some(TenantOrganizationList(Seq(orgId)))
                       )
-                    ),
-                    Some(EditableAddress()),
-                    Some(TenantOrganizationList(Seq(orgId)))
+                    )
                   )
-                )
-              )
-            )
+                }
 
             val requestsFut = Future
               .sequence(

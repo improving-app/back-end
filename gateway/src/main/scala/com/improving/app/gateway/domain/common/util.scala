@@ -2,7 +2,13 @@ package com.improving.app.gateway.domain.common
 
 import com.typesafe.config.ConfigFactory
 
+import scala.util.Random
+
 object util {
+
+  def genPhoneNumber: String =
+    s"(${Random.nextInt(10)}${Random.nextInt(10)}${Random.nextInt(10)})-${Random.nextInt(10)}${Random.nextInt(10)}${Random
+        .nextInt(10)}-${Random.nextInt(10)}${Random.nextInt(10)}${Random.nextInt(10)}${Random.nextInt(10)}"
 
   def getHostAndPortForService(serviceName: String): (String, Int) = {
     val config = ConfigFactory
