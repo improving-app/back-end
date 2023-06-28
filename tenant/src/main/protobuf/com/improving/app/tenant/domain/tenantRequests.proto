@@ -13,52 +13,70 @@ option (scalapb.options) = {
   [scalapb.validate.file] {
     validate_at_construction: true
   }
-  field_transformations: [
-    {
-      when: {options: {[validate.rules] {message: {required: true}}}}
-      set: {
-        [scalapb.field] {
-          required: true
-        }
-      }
-    }
+  single_file: true
+  preamble: [
+    "sealed trait TenantRequest {\n",
+    "  val tenantId: Option[com.improving.app.common.domain.TenantId]\n"
+    "}\n",
+    "sealed trait TenantCommand extends TenantRequest {\n",
+    "  val onBehalfOf: Option[com.improving.app.common.domain.MemberId]\n"
+    "}\n",
+    "sealed trait TenantQuery extends TenantRequest\n"
   ]
 };
 
 message EstablishTenant {
-  com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
-  com.improving.app.common.domain.MemberId establishing_user = 2 [(validate.rules).message.required = true];
+  option (scalapb.message) = {
+      extends: [ "TenantCommand" ]
+  };
+  com.improving.app.common.domain.TenantId tenant_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
   optional EditableTenantInfo tenant_info = 3;
 }
 
 message ActivateTenant {
-  com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
-  com.improving.app.common.domain.MemberId activating_user = 2 [(validate.rules).message.required = true];
+  option (scalapb.message) = {
+      extends: [ "TenantCommand" ]
+  };
+  com.improving.app.common.domain.TenantId tenant_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
 }
 
 message SuspendTenant {
-  com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
+  option (scalapb.message) = {
+      extends: [ "TenantCommand" ]
+  };
+  com.improving.app.common.domain.TenantId tenant_id = 1;
   string suspension_reason = 2 [(validate.rules).string.ignore_empty = true];
-  com.improving.app.common.domain.MemberId suspending_user = 3 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.MemberId on_behalf_of = 3;
 }
 
 message EditInfo {
-  com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
-  com.improving.app.common.domain.MemberId editing_user = 2 [(validate.rules).message.required = true];
-  EditableTenantInfo info_to_update = 3 [(validate.rules).message.required = true];
+  option (scalapb.message) = {
+      extends: [ "TenantCommand" ]
+  };
+  com.improving.app.common.domain.TenantId tenant_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
+  EditableTenantInfo info_to_update = 3;
 }
 
 message TerminateTenant {
-  com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
-  com.improving.app.common.domain.MemberId terminating_user = 2 [(validate.rules).message.required = true];
+  option (scalapb.message) = {
+      extends: [ "TenantCommand" ]
+  };
+  com.improving.app.common.domain.TenantId tenant_id = 1;
+  com.improving.app.common.domain.MemberId on_behalf_of = 2;
 }
 
 message GetOrganizations {
+  option (scalapb.message) = {
+      extends: [ "TenantQuery" ]
+  };
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-  com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
+  com.improving.app.common.domain.TenantId tenant_id = 1;
 }
 
-message TenantRequest {
+message TenantRequestPB {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   oneof sealed_value {
     EstablishTenant establish_tenant_value = 1;

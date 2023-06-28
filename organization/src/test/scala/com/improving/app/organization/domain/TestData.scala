@@ -20,13 +20,13 @@ object TestData {
     phone = Some("555-2323"),
   )
 
-  val baseOrganizationInfo: OrganizationInfo = OrganizationInfo(
-    name = "Organization Name",
+  val baseOrganizationInfo: EditableOrganizationInfo = EditableOrganizationInfo(
+    name = Some("Organization Name"),
     shortName = Some("Org"),
-    tenant = TenantId("tenant"),
-    isPublic = false,
+    tenant = Some(TenantId("tenant")),
+    isPublic = Some(false),
     address = Some(baseAddress),
     url = None,
-    logo = None,
+    logo = None
   )
 }
