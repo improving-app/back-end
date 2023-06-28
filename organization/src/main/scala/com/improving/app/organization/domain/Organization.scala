@@ -233,7 +233,7 @@ object Organization {
           case command: AddOwnersToOrganization       => addOwnersToOrganization(suspendedState, command)
           case command: RemoveOwnersFromOrganization  => removeOwnersFromOrganization(suspendedState, command)
           case command: UpdateOrganizationContacts    => updateOrganizationContacts(suspendedState, command)
-          case _                                      => Left(StateError("Message type not supported in suspended state"))
+          case _ => Left(StateError("Message type not supported in suspended state"))
         }
     }
 

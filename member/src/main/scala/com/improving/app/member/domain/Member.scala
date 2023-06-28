@@ -25,7 +25,7 @@ object Member extends StrictLogging {
 
   val MemberEntityKey: EntityTypeKey[MemberEnvelope] = EntityTypeKey[MemberEnvelope]("Member")
 
-  //Command wraps the request type
+  // Command wraps the request type
   final case class MemberEnvelope(request: MemberRequestPB, replyTo: ActorRef[StatusReply[MemberResponse]])
 
   private def emptyState(): MemberState = {
@@ -68,7 +68,7 @@ object Member extends StrictLogging {
           commandHandler = commandHandler,
           eventHandler = eventHandler
         )
-        //.withRetention(RetentionCriteria.snapshotEvery(numberOfEvents = 100, keepNSnapshots = 2))
+        // .withRetention(RetentionCriteria.snapshotEvery(numberOfEvents = 100, keepNSnapshots = 2))
         .receiveSignal {
           case (state, RecoveryCompleted) =>
             context.log.debug("onRecoveryCompleted: [{}]", state)
@@ -77,7 +77,7 @@ object Member extends StrictLogging {
         }
     }
 
-  //CommandHandler
+  // CommandHandler
   private val commandHandler: (MemberState, MemberEnvelope) => ReplyEffect[MemberResponse, MemberState] = {
     (state, command) =>
       def replyWithResponseEvent(response: MemberResponse): ReplyEffect[MemberResponse, MemberState] = response match {
@@ -200,7 +200,7 @@ object Member extends StrictLogging {
       }
   }
 
-  //EventHandler
+  // EventHandler
   private val eventHandler: (MemberState, MemberResponse) => MemberState = { (state, response) =>
     response match {
       case eventResponse: MemberEventResponse =>
