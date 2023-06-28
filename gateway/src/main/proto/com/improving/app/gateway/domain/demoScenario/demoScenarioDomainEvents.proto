@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package com.improving.app.gateway.domain.demoScenario;
+
+import "com/improving/app/gateway/domain/demoScenario/demoScenarioDomainObjects.proto";
+
+message ScenarioStarted {
+    repeated Tenant tenants = 1;
+    repeated Member members = 3;
+}
+
+message DemoScenarioResponse {
+    oneof sealed_value {
+        ScenarioStarted scenario_started = 1;
+    }
+}

@@ -6,7 +6,6 @@ import "com/improving/app/common/domain/address.proto";
 import "com/improving/app/common/domain/ids.proto";
 import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
-import "scalapb/validate.proto";
 import "validate/validate.proto";
 
 enum NotificationPreference {

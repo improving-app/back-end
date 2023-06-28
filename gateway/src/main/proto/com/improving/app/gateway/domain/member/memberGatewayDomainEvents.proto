@@ -2,13 +2,9 @@ syntax =  "proto3";
 
 package com.improving.app.gateway.domain.member;
 
-import "com/improving/app/common/domain/address.proto";
 import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/gateway/domain/member/memberGatewayDomainObjects.proto";
-import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
-import "scalapb/validate.proto";
-import "validate/validate.proto";
 
 message MemberRegistered {
   common.domain.MemberId member_id = 1;

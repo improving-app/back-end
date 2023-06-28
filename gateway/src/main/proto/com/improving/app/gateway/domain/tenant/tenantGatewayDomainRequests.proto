@@ -5,7 +5,6 @@ package com.improving.app.gateway.domain.tenant;
 import "com/improving/app/gateway/domain/tenant/tenantGatewayDomainObjects.proto";
 import "com/improving/app/common/domain/ids.proto";
 import "scalapb/scalapb.proto";
-import "validate/validate.proto";
 
 //Requests
 message EstablishTenant {
