@@ -9,8 +9,8 @@ import com.improving.app.member.domain.{
 }
 import com.typesafe.config.ConfigFactory
 import com.improving.app.gateway.domain.{
-  MemberInfo => GatewayMemberInfo,
   EditableMemberInfo => GatewayEditableMemberInfo,
+  MemberInfo => GatewayMemberInfo,
   MemberMetaInfo => GatewayMemberMetaInfo,
   MemberStates => GatewayMemberStates,
   NotificationPreference => GatewayNotificationPreference
