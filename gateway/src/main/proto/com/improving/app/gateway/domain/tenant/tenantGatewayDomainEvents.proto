@@ -11,6 +11,8 @@ message TenantEvent {
     option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     oneof sealed_value {
         TenantEstablished tenant_established_value = 1;
+        TenantActivated tenant_activated_value = 2;
+        TenantTerminated tenant_terminated_value = 3;
     }
 }
 message TenantOrganizationData {
@@ -22,12 +24,26 @@ message TenantData {
         TenantOrganizationData organization_data_value = 1;
     }
 }
+
 message TenantEstablished {
     option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     com.improving.app.common.domain.TenantId tenant_id = 1 [(validate.rules).message.required = true];
     TenantMetaInfo meta_info = 2 [(validate.rules).message.required = true];
     optional EditableTenantInfo tenant_info = 3;
 }
+
+message TenantActivated {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    com.improving.app.common.domain.TenantId tenant_id = 1;
+    TenantMetaInfo meta_info = 2;
+}
+
+message TenantTerminated {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    com.improving.app.common.domain.TenantId tenant_id = 1;
+    TenantMetaInfo meta_info = 2;
+}
+
 message TenantEventResponse {
     option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     TenantEvent tenant_event = 1;

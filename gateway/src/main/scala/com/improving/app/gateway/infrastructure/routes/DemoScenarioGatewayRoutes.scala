@@ -13,21 +13,23 @@ import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport
 import io.circe.Json
 
-trait TenantGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLogging {
+trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLogging {
 
   val config: Config
 
-  def tenantRoutes(handler: TenantGatewayHandler): Route = logRequestResult("TenantGateway") {
-    pathPrefix("tenant") {
-      post {
-        entity(as[String]) { establishTenant =>
-          onSuccess(
-            handler
-              .establishTenant(
-                GatewayEstablishTenant.fromAscii(establishTenant)
-              )
-          ) { tenantEstablished =>
-            complete(tenantEstablished.toProtoString)
+  def demoScenarioRoutes(handler: TenantGatewayHandler): Route = logRequestResult("DemoScenarioGateway") {
+    pathPrefix("demo") {
+      pathPrefix("startScenario") {
+        post {
+          entity(as[String]) { establishTenant =>
+            onSuccess(
+              handler
+                .establishTenant(
+                  GatewayEstablishTenant.fromAscii(establishTenant)
+                )
+            ) { tenantEstablished =>
+              complete(tenantEstablished.toProtoString)
+            }
           }
         }
       }

@@ -25,10 +25,10 @@ object tenantUtil {
     )
 
   def tenantMetaToGatewayTenantMeta(metaInfo: TenantMetaInfo): GatewayTenantMetaInfo = GatewayTenantMetaInfo(
-    Some(metaInfo.createdOn),
-    Some(metaInfo.createdBy),
-    Some(metaInfo.lastUpdated),
-    Some(metaInfo.lastUpdatedBy),
+    metaInfo.createdOn,
+    metaInfo.createdBy,
+    metaInfo.lastUpdated,
+    metaInfo.lastUpdatedBy,
     GatewayTenantStates.fromValue(metaInfo.state.value)
   )
 }

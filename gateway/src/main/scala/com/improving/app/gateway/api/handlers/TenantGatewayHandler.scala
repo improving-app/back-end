@@ -9,9 +9,16 @@ import com.improving.app.gateway.domain.common.tenantUtil.{
   tenantMetaToGatewayTenantMeta
 }
 import com.improving.app.gateway.domain.common.util.getHostAndPortForService
-import com.improving.app.gateway.domain.tenant.{TenantEstablished, EstablishTenant => GatewayEstablishTenant}
+import com.improving.app.gateway.domain.tenant.{
+  TenantActivated,
+  TenantEstablished,
+  TenantTerminated,
+  ActivateTenant => GatewayActivateTenant,
+  EstablishTenant => GatewayEstablishTenant,
+  TerminateTenant => GatewayTerminateTenant
+}
 import com.improving.app.tenant.api.TenantServiceClient
-import com.improving.app.tenant.domain.EstablishTenant
+import com.improving.app.tenant.domain.{ActivateTenant, EstablishTenant, TerminateTenant}
 import com.typesafe.scalalogging.StrictLogging
 import com.improving.app.gateway.api.handlers.errors.handlers.exceptionHandler
 
@@ -39,16 +46,46 @@ class TenantGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = N
     tenantClient
       .establishTenant(
         EstablishTenant(
-          in.getTenantId,
-          in.getEstablishingUser,
+          in.tenantId,
+          in.onBehalfOf,
           Some(gatewayEditableTenantInfoToEditableInfo(in.getTenantInfo))
         )
       )
       .map { response =>
         TenantEstablished(
-          Some(response.tenantId),
-          Some(tenantMetaToGatewayTenantMeta(response.metaInfo)),
+          Some(response.getTenantId),
+          Some(tenantMetaToGatewayTenantMeta(response.getMetaInfo)),
           response.tenantInfo.map(editableTenantInfoToGatewayEditableInfo)
+        )
+      }
+
+  def activateTenant(in: GatewayActivateTenant): Future[TenantActivated] =
+    tenantClient
+      .activateTenant(
+        ActivateTenant(
+          in.tenantId,
+          in.onBehalfOf
+        )
+      )
+      .map { response =>
+        TenantActivated(
+          Some(response.getTenantId),
+          Some(tenantMetaToGatewayTenantMeta(response.getMetaInfo)),
+        )
+      }
+
+  def terminateTenant(in: GatewayTerminateTenant): Future[TenantTerminated] =
+    tenantClient
+      .terminateTenant(
+        TerminateTenant(
+          in.tenantId,
+          in.onBehalfOf
+        )
+      )
+      .map { response =>
+        TenantTerminated(
+          Some(response.getTenantId),
+          Some(tenantMetaToGatewayTenantMeta(response.getMetaInfo)),
         )
       }
 }
