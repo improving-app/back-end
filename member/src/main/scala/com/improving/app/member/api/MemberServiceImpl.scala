@@ -18,7 +18,7 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
   implicit val ec: ExecutionContext = system.executionContext
   implicit val timeout: Timeout = Timeout(5 minute)
 
-  //Create a new member
+  // Create a new member
   val sharding: ClusterSharding = ClusterSharding(system)
   ClusterSharding(system).init(
     Entity(MemberEntityKey)(entityContext => Member(entityContext.entityTypeKey.name, entityContext.entityId))
@@ -26,15 +26,15 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
 
   Cluster(system).manager ! Join(Cluster(system).selfMember.address)
 
-  //Do not use for RegisterMember
+  // Do not use for RegisterMember
 
   private def handleResponse[T](
       eventHandler: PartialFunction[StatusReply[MemberResponse], T]
   ): PartialFunction[StatusReply[MemberResponse], T] = {
-    eventHandler.orElse({
+    eventHandler.orElse {
       case StatusReply.Success(response) => throw new RuntimeException(s"Unexpected response $response")
       case StatusReply.Error(ex)         => throw ex
-    })
+    }
   }
 
   private def handleCommand[T](
@@ -44,7 +44,7 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
     .map { id =>
       val memberEntity = sharding.entityRefFor(MemberEntityKey, id.id)
 
-      //Register the member
+      // Register the member
       memberEntity
         .ask[StatusReply[MemberResponse]](replyTo => MemberEnvelope(in, replyTo))
         .map { handleResponse(eventHandler) }
@@ -66,7 +66,7 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
     .map { id =>
       val memberEntity = sharding.entityRefFor(MemberEntityKey, id.id)
 
-      //Register the member
+      // Register the member
       memberEntity
         .ask[StatusReply[MemberResponse]](replyTo => MemberEnvelope(in, replyTo))
         .map { handleResponse(eventHandler) }

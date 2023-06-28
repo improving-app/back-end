@@ -64,7 +64,7 @@ object Store {
       val errors: Either[ReplyEffect[StoreEvent, StoreState], StoreRequestPB with StoreRequest] =
         envelope.request match {
           case r: StoreRequest => Right(r)
-          case _               => Left(Effect.reply(envelope.replyTo)(StatusReply.Error("Message was not a StoreRequest")))
+          case _ => Left(Effect.reply(envelope.replyTo)(StatusReply.Error("Message was not a StoreRequest")))
         }
 
       errors.map(storeCommandValidator) match {
