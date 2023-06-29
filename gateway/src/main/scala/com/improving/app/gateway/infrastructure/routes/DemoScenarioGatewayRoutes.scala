@@ -25,6 +25,7 @@ import com.improving.app.gateway.domain.tenant.{
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport
+import scalapb.json4s.JsonFormat
 
 import java.time.LocalDateTime
 import java.util.UUID
@@ -37,10 +38,10 @@ trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with Stric
 
   val config: Config
 
-  private val firstNamesFile = Source.fromFile("../../domain/common/firstNames.txt")
-  private val lastNamesFile = Source.fromFile("../../domain/common/lastNames.txt")
-  private val cityStatesFile = Source.fromFile("../../domain/common/fakariaCityStates.txt")
-  private val addressesFile = Source.fromFile("../../domain/common/addresses.txt")
+  private val firstNamesFile = Source.fromResource("firstNames.txt")
+  private val lastNamesFile = Source.fromResource("lastNames.txt")
+  private val cityStatesFile = Source.fromResource("fakariaCityStates.txt")
+  private val addressesFile = Source.fromResource("addresses.txt")
 
   private val firstNames: Seq[String] =
     try firstNamesFile.getLines().toSeq
@@ -59,15 +60,15 @@ trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with Stric
     finally cityStatesFile.close()
 
   def demoScenarioRoutes(handler: TenantGatewayHandler): Route = logRequestResult("DemoScenarioGateway") {
-    pathPrefix("demo") {
-      pathPrefix("startScenario") {
+    pathPrefix("demo-scenario") {
+      pathPrefix("start") {
         post {
           entity(as[String]) { command =>
-            val parsed = StartScenario.fromAscii(command)
+            val parsed = JsonFormat.fromJsonString[StartScenario](command)
 
             val creatingMemberId = Some(MemberId(UUID.randomUUID().toString))
             val orgId = OrganizationId(UUID.randomUUID().toString)
-
+            logger.debug(parsed.toProtoString)
             val establishTenantResponses: Seq[Future[TenantEstablished]] =
               Random
                 .shuffle(firstNames)

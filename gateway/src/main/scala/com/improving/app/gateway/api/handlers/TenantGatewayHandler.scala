@@ -20,7 +20,6 @@ import com.improving.app.gateway.domain.tenant.{
 import com.improving.app.tenant.api.TenantServiceClient
 import com.improving.app.tenant.domain.{ActivateTenant, EstablishTenant, TerminateTenant}
 import com.typesafe.scalalogging.StrictLogging
-import com.improving.app.gateway.api.handlers.errors.handlers.exceptionHandler
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
