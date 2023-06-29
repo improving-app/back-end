@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package com.improving.app.gateway.domain.demoScenario;
+
+import "com/improving/app/common/domain/ids.proto";
+import "com/improving/app/gateway/domain/member/memberGatewayDomainObjects.proto";
+import "com/improving/app/gateway/domain/tenant/tenantGatewayDomainObjects.proto";
+
+message Tenant {
+    common.domain.TenantId tenant_id = 1;
+    tenant.TenantInfo tenant_info = 2;
+    gateway.domain.tenant.TenantMetaInfo meta_info = 3;
+}
+
+message Member {
+    common.domain.MemberId member_id = 1;
+    member.MemberInfo member_info = 2;
+    gateway.domain.member.MemberMetaInfo meta_info = 3;
+}

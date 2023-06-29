@@ -63,18 +63,21 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
     )
 
   override def establishTenant(in: EstablishTenant): Future[TenantEstablished] =
-    handleRequest(in)
+    handleRequest[TenantEventResponse](in).map(_.tenantEvent.asMessage.getTenantEstablishedValue)
 
-  override def editInfo(in: EditInfo): Future[InfoEdited] = handleRequest(in)
+  override def editInfo(in: EditInfo): Future[InfoEdited] =
+    handleRequest[TenantEventResponse](in).map(_.tenantEvent.asMessage.getInfoEditedValue)
 
   override def activateTenant(in: ActivateTenant): Future[TenantActivated] =
-    handleRequest(in)
+    handleRequest[TenantEventResponse](in).map(_.tenantEvent.asMessage.getTenantActivatedValue)
 
   override def suspendTenant(in: SuspendTenant): Future[TenantSuspended] =
-    handleRequest(in)
+    handleRequest[TenantEventResponse](in).map(_.tenantEvent.asMessage.getTenantSuspendedValue)
 
   override def terminateTenant(in: TerminateTenant): Future[TenantTerminated] =
-    handleRequest(in)
+    handleRequest[TenantEventResponse](in).map(_.tenantEvent.asMessage.getTenantTerminatedValue)
 
-  override def getOrganizations(in: GetOrganizations): Future[TenantOrganizationData] = handleRequest(in)
+  override def getOrganizations(in: GetOrganizations): Future[TenantOrganizationData] =
+    handleRequest[TenantDataResponse](in).map(_.tenantData.asMessage.getOrganizationDataValue)
+
 }
