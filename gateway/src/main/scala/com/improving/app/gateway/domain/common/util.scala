@@ -10,6 +10,8 @@ object util {
     s"(${Random.nextInt(10)}${Random.nextInt(10)}${Random.nextInt(10)})-${Random.nextInt(10)}${Random.nextInt(10)}${Random
         .nextInt(10)}-${Random.nextInt(10)}${Random.nextInt(10)}${Random.nextInt(10)}${Random.nextInt(10)}"
 
+  def genPostalCode: String = Random.alphanumeric.toString().take(5)
+
   def getHostAndPortForService(serviceName: String): (String, Int) = {
     val config = ConfigFactory
       .load("application.conf")
