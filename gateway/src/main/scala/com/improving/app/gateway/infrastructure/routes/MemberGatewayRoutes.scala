@@ -17,7 +17,6 @@ trait MemberGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggi
 
   val config: Config
 
-
   def memberRoutes(handler: MemberGatewayHandler): Route = logRequestResult("MemberGateway") {
     pathPrefix("member") {
       post {

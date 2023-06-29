@@ -10,11 +10,11 @@ import com.improving.app.gateway.domain.common.tenantUtil.{
 }
 import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.gateway.domain.tenant.{
+  ActivateTenant => GatewayActivateTenant,
+  EstablishTenant => GatewayEstablishTenant,
   TenantActivated,
   TenantEstablished,
   TenantTerminated,
-  ActivateTenant => GatewayActivateTenant,
-  EstablishTenant => GatewayEstablishTenant,
   TerminateTenant => GatewayTerminateTenant
 }
 import com.improving.app.tenant.api.TenantServiceClient
