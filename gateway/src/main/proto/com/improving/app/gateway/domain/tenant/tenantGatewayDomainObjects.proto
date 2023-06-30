@@ -1,0 +1,51 @@
+syntax =  "proto3";
+
+package com.improving.app.gateway.domain.tenant;
+
+import "com/improving/app/common/domain/address.proto";
+import "com/improving/app/common/domain/ids.proto";
+import "google/protobuf/timestamp.proto";
+import "scalapb/scalapb.proto";
+import "validate/validate.proto";
+
+enum TenantStates {
+    TENANT_STATES_ACTIVE = 0;
+    TENANT_STATES_SUSPENDED = 1;
+}
+
+message TenantOrganizationList {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    repeated com.improving.app.common.domain.OrganizationId value = 1 [(validate.rules).repeated.min_items = 1];
+}
+
+message TenantInfo {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    string name = 1 [(validate.rules).string.min_len = 1];
+    com.improving.app.common.domain.Contact primary_contact = 2;
+    com.improving.app.common.domain.Address address = 3;
+    TenantOrganizationList organizations = 4;
+}
+
+message EditableTenantInfo {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    optional string name = 1 [(validate.rules).string.min_len = 1];
+    optional com.improving.app.common.domain.EditableContact primary_contact = 2;
+    optional com.improving.app.common.domain.EditableAddress address = 3;
+    optional TenantOrganizationList organizations = 4;
+}
+
+message TenantMetaInfo {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    google.protobuf.Timestamp created_on = 1;
+    com.improving.app.common.domain.MemberId created_by = 2;
+    google.protobuf.Timestamp last_updated = 3;
+    com.improving.app.common.domain.MemberId last_updated_by = 4;
+    TenantStates state = 5 [(validate.rules).string.ignore_empty = false];
+}
+
+message TenantInfoOrEditable {
+    oneof value {
+        TenantInfo info = 1;
+        EditableTenantInfo editable = 2;
+    }
+}

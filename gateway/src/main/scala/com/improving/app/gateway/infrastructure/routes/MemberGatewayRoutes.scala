@@ -3,14 +3,14 @@ package com.improving.app.gateway.infrastructure.routes
 import akka.grpc.GrpcServiceException
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
 import akka.http.scaladsl.model.StatusCodes.BadRequest
-import akka.http.scaladsl.server.Directives.{complete, entity, logRequestResult, pathPrefix, post}
+import akka.http.scaladsl.server.Directives.{as, complete, entity, logRequestResult, pathPrefix, post}
 import akka.http.scaladsl.server.{Directives, ExceptionHandler, Route}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport
 import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import com.improving.app.gateway.api.handlers.MemberGatewayHandler
-import com.improving.app.gateway.domain.{RegisterMember => GatewayRegisterMember}
+import com.improving.app.gateway.domain.member.{RegisterMember => GatewayRegisterMember}
 import io.circe.Json
 import io.circe.generic.codec.DerivedAsObjectCodec.deriveCodec
 import org.json4s.{JObject, JValue}
@@ -31,7 +31,7 @@ trait MemberGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggi
       )
     }
 
-  def routes(handler: MemberGatewayHandler): Route = logRequestResult("MemberGateway") {
+  def memberRoutes(handler: MemberGatewayHandler): Route = logRequestResult("MemberGateway") {
     pathPrefix("member") {
       post {
         entity(Directives.as[String]) { data =>

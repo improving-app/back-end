@@ -32,7 +32,13 @@ lazy val store = project
 lazy val gateway = project
   .in(file("gateway"))
   .configure(C.Compilation.service("improving-app-gateway", 8090))
-  .dependsOn(commonTypes, member % "compile->compile;test->test;it->test")
+  .dependsOn(
+    commonTypes,
+    tenant % "compile->compile;test->test;it->test",
+    organization % "compile->compile;test->test;it->test",
+    member % "compile->compile;test->test;it->test",
+    store % "compile->compile;test->test;it->test"
+  )
 
 lazy val gatling = project
   .in(file("gatling"))

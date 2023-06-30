@@ -66,7 +66,7 @@ object Tenant {
       val requestErrors: Either[ReplyEffect[TenantResponse, TenantState], TenantRequestPB with TenantRequest] =
         envelope.request match {
           case r: TenantRequest => Right(r)
-          case _                => Left(Effect.reply(envelope.replyTo)(StatusReply.Error("Message was not a TenantRequest")))
+          case _ => Left(Effect.reply(envelope.replyTo)(StatusReply.Error("Message was not a TenantRequest")))
         }
 
       requestErrors.map(tenantRequestValidator) match {

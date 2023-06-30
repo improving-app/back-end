@@ -3,16 +3,17 @@ package com.improving.app.gateway.api.handlers
 import akka.actor.typed.ActorSystem
 import akka.grpc.GrpcClientSettings
 import akka.util.Timeout
-import com.improving.app.gateway.domain.{MemberRegistered, RegisterMember => GatewayRegisterMember}
-import com.improving.app.gateway.domain.common.util.{
+import com.improving.app.gateway.domain.member.{MemberRegistered, RegisterMember => GatewayRegisterMember}
+import com.improving.app.gateway.domain.common.memberUtil.{
   editableMemberInfoToGatewayEditableInfo,
   gatewayEditableMemberInfoToEditableInfo,
-  getHostAndPortForService,
   memberMetaToGatewayMemberMeta
 }
+import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.member.api.MemberServiceClient
 import com.improving.app.member.domain.RegisterMember
 import com.typesafe.scalalogging.StrictLogging
+import com.improving.app.gateway.api.handlers.errors.handlers.exceptionHandler
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
@@ -34,14 +35,7 @@ class MemberGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = N
     )
   )
 
-  def registerMember(in: GatewayRegisterMember): Future[MemberRegistered] = {
-    logger.info(
-      RegisterMember(
-        in.memberId,
-        Some(gatewayEditableMemberInfoToEditableInfo(in.getMemberInfo)),
-        in.registeringMember
-      ).toProtoString
-    )
+  def registerMember(in: GatewayRegisterMember): Future[MemberRegistered] =
     memberClient
       .registerMember(
         RegisterMember(
@@ -51,18 +45,10 @@ class MemberGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = N
         )
       )
       .map { response =>
-        logger.info(
-          MemberRegistered(
-            response.memberId,
-            response.memberInfo.map(editableMemberInfoToGatewayEditableInfo),
-            response.meta.map(memberMetaToGatewayMemberMeta)
-          ).toProtoString
-        )
         MemberRegistered(
           response.memberId,
           response.memberInfo.map(editableMemberInfoToGatewayEditableInfo),
           response.meta.map(memberMetaToGatewayMemberMeta)
         )
       }
-  }
 }
