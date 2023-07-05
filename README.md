@@ -18,6 +18,11 @@ For running the services that are event sourced, it needs a database for persist
 
 ## Locally running on microk8s:
 
+### IMPORTANT NOTE
+For now, local scylla-db services can only be connected to in microk8s by changing a service's `application.conf` to use the *internal* `ClusterIP` of the `scylla-db` service
+For this, `scylla applyForInternalIP.yaml`, must be used in placy of `scyllaApply.yaml` in above steps.
+
+## Instructions
 1. Install microk8s if not already installed: see https://microk8s.io/docs/install-alternatives for instructions
 2. Install scylla
    1. Run command `docker run --name some-scylla -d scylladb/scylla` (from https://opensource.docs.scylladb.com/stable/operating-scylla/procedures/tips/best-practices-scylla-on-docker.html)
@@ -29,9 +34,6 @@ For running the services that are event sourced, it needs a database for persist
 6. Inspect services using `microk8s kubectl logs [pod-name] -c [service-name]`
 7. Expose deployment internally using `microk8s kubectl expose deployment improving-app --type=NodePort --port=9000`
 8. Expose node externally using port forwarding `microk8s port-forward services/improving-app 9000:9000`
-
-For now, local scylla-db services can only be connected to in microk8s by changing a service's `application.conf` to use the *internal* `ClusterIP` of the `scylla-db` service
-For this, `scylla ApplyForInternalIP.yaml` ,must be used in placy of `scyllaApply.yaml` in above steps.
 
 ## Testing on locally running server:
 
