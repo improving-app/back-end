@@ -27,8 +27,9 @@ For this, `scylla applyForInternalIP.yaml`, must be used in placy of `scyllaAppl
    - If on mac, just run `brew install microk8s`
 2. Enable dns with `microk8s enable dns`
 3. Install scylla
-   1. Run command `docker run --name some-scylla -d scylladb/scylla` (from https://opensource.docs.scylladb.com/stable/operating-scylla/procedures/tips/best-practices-scylla-on-docker.html)
-   2. Follow instructions for "Working with locally built images without a registry" using previously downloaded scylla-db docker image https://microk8s.io/docs/registry-images
+   1. Run command to download docker image (from https://opensource.docs.scylladb.com/stable/operating-scylla/procedures/tips/best-practices-scylla-on-docker.html)
+      - `docker run --name some-scylla -d scylladb/scylla`
+   2. Follow instructions for "Working with locally built images without a registry" using previously downloaded scylla-db docker image (from https://microk8s.io/docs/registry-images)
       1. `docker save scylladb/scylla > scylla.tar`
       2. `microk8s ctr image import scylladb/scylla.tar`
          - output should look like `      
