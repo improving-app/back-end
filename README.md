@@ -22,9 +22,11 @@ For running the services that are event sourced, it needs a database for persist
 For now, local scylla-db services can only be connected to in microk8s by changing a service's `application.conf` to use the *internal* `ClusterIP` of the `scylla-db` service
 For this, `scylla applyForInternalIP.yaml`, must be used in placy of `scyllaApply.yaml` in above steps.
 
-## Instructions
-1. Install microk8s if not already installed: see https://microk8s.io/docs/install-alternatives for instructions
-2. Install scylla
+## Installation Instructions
+1. Install microk8s if not already installed (: see https://microk8s.io/docs/install-alternatives for instructions)
+   - If on mac, just run `brew install microk8s`
+2. Enable dns with `microk8s enable dns`
+3. Install scylla
    1. Run command `docker run --name some-scylla -d scylladb/scylla` (from https://opensource.docs.scylladb.com/stable/operating-scylla/procedures/tips/best-practices-scylla-on-docker.html)
    2. Follow instructions for "Working with locally built images without a registry" using previously downloaded scylla-db docker image https://microk8s.io/docs/registry-images
       1. `docker save scylladb/scylla > scylla.tar`
@@ -34,12 +36,14 @@ For this, `scylla applyForInternalIP.yaml`, must be used in placy of `scyllaAppl
       3. `microk8s ctr images ls` to see if upload was successful
          - search for `scylla` (or `sha` hash from previous step) in output
    3. Run command `microk8s kubectl apply -f scyllaApply.yaml`
-3. Run command `microk8s kubectl apply -f microApply.yaml`
-4. Check status with `microk8s kubectl get pods -o wide`
-5. Inspect pod using `microk8s kubectl describe pod [pod-name]`
-6. Inspect services using `microk8s kubectl logs [pod-name] -c [service-name]`
-7. Expose deployment internally using `microk8s kubectl expose deployment improving-app --type=NodePort --port=9000`
-8. Expose node externally using port forwarding `microk8s port-forward services/improving-app 9000:9000`
+4. Run command `microk8s kubectl apply -f microApply.yaml`
+5. Check status with `microk8s kubectl get pods -o wide`
+
+## Exposing Services Instructions
+1. Inspect pod using `microk8s kubectl describe pod [pod-name]`
+2. Inspect services using `microk8s kubectl logs [pod-name] -c [service-name]`
+3. Expose deployment internally using `microk8s kubectl expose deployment improving-app --type=NodePort --port=9000`
+4. Expose node externally using port forwarding `microk8s port-forward services/improving-app 9000:9000`
 
 ## Testing on locally running server:
 
