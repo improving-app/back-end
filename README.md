@@ -27,6 +27,12 @@ For this, `scylla applyForInternalIP.yaml`, must be used in placy of `scyllaAppl
 2. Install scylla
    1. Run command `docker run --name some-scylla -d scylladb/scylla` (from https://opensource.docs.scylladb.com/stable/operating-scylla/procedures/tips/best-practices-scylla-on-docker.html)
    2. Follow instructions for "Working with locally built images without a registry" using previously downloaded scylla-db docker image https://microk8s.io/docs/registry-images
+      1. `docker save scylladb/scylla > scylla.tar`
+      2. `microk8s ctr image import scylladb/scylla.tar`
+         - output should look like `      
+           unpacking docker.io/scylladb/scylla:latest (sha256:[randomAlphaNumStr])...done`
+      3. `microk8s ctr images ls` to see if upload was successful
+         - search for `scylla` (or `sha` hash from previous step) in output
    3. Run command `microk8s kubectl apply -f scyllaApply.yaml`
 3. Run command `microk8s kubectl apply -f microApply.yaml`
 4. Check status with `microk8s kubectl get pods -o wide`
