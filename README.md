@@ -51,6 +51,8 @@ For this, `scylla applyForInternalIP.yaml`, must be used in placy of `scyllaAppl
 Present in each subproject is a `sample-requests.txt`. One example is on `./tenant/src/main/resources/sample-requests.txt`.
 This shows working examples of grpcurl requests on a running server. Simply run the request on a command line and it should respond appropriately.
 
+### NOTE: all below is very old and should possibly be removed
+
 ## To deploy to kubernetes:
 
 Be sure to create a postgres database and update the application.conf accordingly in the Slick section. You'll also need
