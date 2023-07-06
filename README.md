@@ -35,7 +35,7 @@ For this, `scylla applyForInternalIP.yaml`, must be used in place of `scyllaAppl
 1. Inspect pod using `microk8s kubectl describe pod [pod-name]`
 2. Inspect services using `microk8s kubectl logs [pod-name] -c [service-name]`
 3. Expose deployment internally using `microk8s kubectl expose deployment improving-app --type=NodePort --port=9000`
-4. Expose node externally using port forwarding `microk8s port-forward services/improving-app 9000:9000`
+4. Expose node externally using port forwarding `microk8s kubectl port-forward services/improving-app 9000:9000`
 
 ## Testing on locally running server:
 
