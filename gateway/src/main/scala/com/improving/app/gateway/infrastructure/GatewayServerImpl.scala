@@ -21,7 +21,7 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_]) extends MemberGatewayR
     .withFallback(ConfigFactory.defaultApplication())
 
   private val tenantHandler: TenantGatewayHandler = new TenantGatewayHandler()
-  private val organizationHandler:  OrganizationGatewayHandler = new OrganizationGatewayHandler()
+  private val organizationHandler: OrganizationGatewayHandler = new OrganizationGatewayHandler()
   private val memberHandler: MemberGatewayHandler = new MemberGatewayHandler()
 
   implicit val dispatcher: ExecutionContextExecutor = sys.dispatchers.lookup(DispatcherSelector.defaultDispatcher())
