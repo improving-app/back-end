@@ -4,8 +4,7 @@ import akka.actor.typed.{ActorSystem, DispatcherSelector}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.MediaType
 import akka.http.scaladsl.settings.{ParserSettings, ServerSettings}
-import com.improving.app.gateway.api.handlers.{MemberGatewayHandler, TenantGatewayHandler}
-import com.improving.app.gateway.infrastructure.routes.{DemoScenarioGatewayRoutes, MemberGatewayRoutes}
+import com.improving.app.gateway.api.handlers.{MemberGatewayHandler, OrganizationGatewayHandler, TenantGatewayHandler}
 import akka.http.scaladsl.server.Directives
 import com.improving.app.gateway.api.handlers.{MemberGatewayHandler, TenantGatewayHandler}
 import com.improving.app.gateway.infrastructure.routes.{DemoScenarioGatewayRoutes, MemberGatewayRoutes}
@@ -22,13 +21,14 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_]) extends MemberGatewayR
     .withFallback(ConfigFactory.defaultApplication())
 
   private val tenantHandler: TenantGatewayHandler = new TenantGatewayHandler()
+  private val organizationHandler:  OrganizationGatewayHandler = new OrganizationGatewayHandler()
   private val memberHandler: MemberGatewayHandler = new MemberGatewayHandler()
 
   implicit val dispatcher: ExecutionContextExecutor = sys.dispatchers.lookup(DispatcherSelector.defaultDispatcher())
 
   private val binding = Http()
     .newServerAt(config.getString("akka.http.interface"), config.getInt("akka.http.port"))
-    .bindFlow(Directives.concat(memberRoutes(memberHandler), demoScenarioRoutes(tenantHandler)))
+    .bindFlow(Directives.concat(memberRoutes(memberHandler), demoScenarioRoutes(tenantHandler, organizationHandler)))
 
   def start(): Unit = binding
     .onComplete {

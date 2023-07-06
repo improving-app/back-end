@@ -32,7 +32,6 @@ message OrganizationActivated {
 message OrganizationTerminated {
     option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     com.improving.app.common.domain.OrganizationId organization_id = 1;
-    OrganizationMetaInfo meta_info = 2;
 }
 
 message OrganizationEventResponse {

@@ -1,6 +1,6 @@
 syntax =  "proto3";
 
-package com.improving.app.gateway.domain.tenant;
+package com.improving.app.gateway.domain.organization;
 
 import "com/improving/app/gateway/domain/organization/organizationGatewayDomainObjects.proto";
 import "com/improving/app/common/domain/ids.proto";
