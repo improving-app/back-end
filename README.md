@@ -20,7 +20,7 @@ For running the services that are event sourced, it needs a database for persist
 
 ### IMPORTANT NOTE
 For now, local scylla-db services can only be connected to in microk8s by changing a service's `application.conf` to use the *internal* `ClusterIP` of the `scylla-db` service
-For this, `scylla applyForInternalIP.yaml`, must be used in placy of `scyllaApply.yaml` in above steps.
+For this, `scylla applyForInternalIP.yaml`, must be used in place of `scyllaApply.yaml` in above steps.
 
 ## Installation Instructions
 1. Install microk8s if not already installed (: see https://microk8s.io/docs/install-alternatives for instructions)
@@ -31,7 +31,7 @@ For this, `scylla applyForInternalIP.yaml`, must be used in placy of `scyllaAppl
       - `docker run --name some-scylla -d scylladb/scylla`
    2. Follow instructions for "Working with locally built images without a registry" using previously downloaded scylla-db docker image (from https://microk8s.io/docs/registry-images)
       1. `docker save scylladb/scylla > scylla.tar`
-      2. `microk8s ctr image import scylladb/scylla.tar`
+      2. `microk8s ctr image import scylla.tar`
          - output should look like `      
            unpacking docker.io/scylladb/scylla:latest (sha256:[randomAlphaNumStr])...done`
       3. `microk8s ctr images ls` to see if upload was successful
