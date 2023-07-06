@@ -31,7 +31,6 @@ import com.improving.app.gateway.domain.tenant.{
   TenantEstablished,
   TenantOrganizationList
 }
-import com.improving.app.organization.domain.OrganizationInfo
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport
@@ -174,6 +173,7 @@ trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with Stric
                         )
                       )
                     )
+                  case ((_, _), _) => Future.failed(new Exception("failed to match on data for creating org"))
                 }).flatMap { orgEstablished: OrganizationEstablished =>
                   orgHandler
                     .activateOrganization(ActivateOrganization(orgEstablished.organizationId, creatingMemberId))
