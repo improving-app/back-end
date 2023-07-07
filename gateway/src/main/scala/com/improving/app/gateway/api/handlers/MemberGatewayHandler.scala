@@ -4,7 +4,11 @@ import akka.actor.typed.ActorSystem
 import akka.grpc.GrpcClientSettings
 import akka.util.Timeout
 import com.improving.app.gateway.domain.member.{MemberRegistered, RegisterMember => GatewayRegisterMember}
-import com.improving.app.gateway.domain.memberUtil.{MemberMetaUtil, GatewayEditableMemberInfoUtil, EditableMemberInfoUtil}
+import com.improving.app.gateway.domain.memberUtil.{
+  EditableMemberInfoUtil,
+  GatewayEditableMemberInfoUtil,
+  MemberMetaUtil
+}
 import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.member.api.MemberServiceClient
 import com.improving.app.member.domain.RegisterMember

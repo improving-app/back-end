@@ -21,6 +21,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.testcontainers.containers.wait.strategy.Wait
+import scalapb.json4s.JsonFormat
 
 import java.io.File
 import java.util.UUID
@@ -101,7 +102,7 @@ class MemberGatewayServerSpec
             ),
             Some(MemberId.of(registeringMember))
           )
-          Post("/member", command.toProtoString) ~> Route.seal(
+          Post("/member", JsonFormat.toJsonString(command)) ~> Route.seal(
             memberRoutes(handler)
           ) ~> check {
             status shouldBe StatusCodes.OK
