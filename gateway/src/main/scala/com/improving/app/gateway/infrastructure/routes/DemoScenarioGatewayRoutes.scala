@@ -15,9 +15,15 @@ import com.improving.app.common.domain.{
 }
 import com.improving.app.gateway.api.handlers.TenantGatewayHandler
 import com.improving.app.gateway.api.handlers.{OrganizationGatewayHandler, TenantGatewayHandler}
-import com.improving.app.gateway.domain.common.tenantUtil.EstablishedTenantUtil
+import com.improving.app.gateway.domain.common.orgUtil.EstablishedOrganizationUtil
 import com.improving.app.gateway.domain.common.util.{genPhoneNumber, genPostalCode}
-import com.improving.app.gateway.domain.demoScenario.{ScenarioStarted, StartScenario, Tenant}
+import com.improving.app.gateway.domain.demoScenario.{Organization, ScenarioStarted, StartScenario, Tenant}
+import com.improving.app.gateway.domain.organization.{
+  ActivateOrganization,
+  EditableOrganizationInfo,
+  EstablishOrganization,
+  OrganizationEstablished
+}
 import com.improving.app.gateway.domain.tenant.{
   ActivateTenant,
   EditableTenantInfo,
@@ -25,6 +31,7 @@ import com.improving.app.gateway.domain.tenant.{
   TenantEstablished,
   TenantOrganizationList
 }
+import com.improving.app.gateway.domain.tenantUtil.EstablishedTenantUtil
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport
@@ -148,12 +155,12 @@ trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with Stric
                             tenant = tenant,
                             isPublic = Some(true),
                             address = Some(
-                              Address(
-                                line1 = address,
+                              EditableAddress(
+                                line1 = Some(address),
                                 line2 = None,
-                                city = city,
-                                stateProvince = state,
-                                country = "Fakaria",
+                                city = Some(city),
+                                stateProvince = Some(state),
+                                country = Some("Fakaria"),
                                 postalCode = Some(
                                   PostalCodeMessageImpl(
                                     UsPostalCodeImpl(genPostalCode)

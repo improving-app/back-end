@@ -28,7 +28,7 @@ object orgUtil {
       shortName = info.shortName,
       tenant = info.tenant,
       isPublic = info.getIsPublic,
-      address = info.address,
+      address = info.address.map(_.toAddress),
       url = info.url,
       logo = info.logo
     )
