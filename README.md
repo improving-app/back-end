@@ -18,17 +18,47 @@ For running the services that are event sourced, it needs a database for persist
 
 ## Locally running on microk8s:
 
-1. Install microk8s if not already installed: see https://microk8s.io/docs/install-alternatives for instructions
-2. Install scylla-operator on microk8s: see https://operator.docs.scylladb.com/stable/generic.html for instructions
-3. Run command `microk8s kubectl apply -f microApply.yaml`
-4. Check status with `microk8s kubectl get pods -o wide`
-5. Inspect pod using `microk8s kubectl describe pod [pod-name]`
-6. Inspect services using `microk8s kubectl logs [pod-name] -c [service-name]`
+### IMPORTANT NOTE
+For now, local scylla-db services can only be connected to in microk8s by changing a service's `application.conf` to use the *internal* `ClusterIP` of the `scylla-db` service
+For this, `applyForInternalIP.yaml`, will be used in place of `scyllaApply.yaml` in below steps.
+
+## Installation Instructions
+1. Install microk8s if not already installed (: see https://microk8s.io/docs/install-alternatives for instructions)
+   - If on mac, just run `brew install microk8s`
+2. Enable dns with `microk8s enable dns`
+3. Install scylla
+   - Run command `microk8s kubectl apply -f applyForInternalIP.yaml`
+4. Run command `microk8s kubectl apply -f microApply.yaml`
+5. Check status with `microk8s kubectl get pods -o wide`
+   - expected results should look like below. Use `NAME` column to fill in `[pod-name]` in steps to expose
+   ```
+   NAME                             READY   STATUS    RESTARTS       AGE     IP             NODE          NOMINATED NODE   READINESS GATES
+   improving-app-7c98699b4b-ptzmj   5/5     Running   0              6d23h   192.168.64.3   microk8s-vm   <none>           <none>
+   scylla-db-7bdb45445b-8skfx       1/1     Running   0              179m    192.168.64.3   microk8s-vm   <none>           <none>
+    ```
+
+## Exposing Services Instructions
+1. Expose deployment internally using `microk8s kubectl expose deployment improving-app --type=NodePort --port=9000`
+2. Inspect services using `microk8s kubectl get service -o wide`
+   - expected results should look like below.
+   ```
+   NAME            TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE    SELECTOR
+   kubernetes      ClusterIP   10.152.183.1     <none>        443/TCP          23d    <none>
+   nginx           NodePort    10.152.183.116   <none>        80:32756/TCP     23d    app=nginx
+   improving-app   NodePort    10.152.183.68    <none>        9000:30668/TCP   7d1h   app=improving-app
+   scylla-db       NodePort    10.152.183.240   <none>        9042:30900/TCP   7d1h   app=scylla-db
+   ```
+3. Expose node externally using port forwarding `microk8s kubectl port-forward services/improving-app 9000:9000`
+
+NOTE: You can inspect a pod's configuration using `microk8s kubectl describe pod pod-name`
+
 
 ## Testing on locally running server:
 
 Present in each subproject is a `sample-requests.txt`. One example is on `./tenant/src/main/resources/sample-requests.txt`.
 This shows working examples of grpcurl requests on a running server. Simply run the request on a command line and it should respond appropriately.
+
+### NOTE: all below is very old and should possibly be removed
 
 ## To deploy to kubernetes:
 
