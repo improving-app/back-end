@@ -41,7 +41,7 @@ message EditableMemberInfo {
     optional string first_name = 3 [(validate.rules).string.min_len = 1];
     optional string last_name = 4 [(validate.rules).string.min_len = 1];
     optional NotificationPreference notification_preference = 5;
-    optional common.domain.Contact contact = 7;
+    optional common.domain.EditableContact contact = 7;
     repeated common.domain.OrganizationId organization_membership = 8 [(validate.rules).repeated.min_items = 1];
     optional common.domain.TenantId tenant = 9;
 }

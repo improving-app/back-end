@@ -2,7 +2,7 @@ syntax = "proto3";
 package com.improving.app.store.domain;
 
 import "com/improving/app/common/domain/ids.proto";
-import "com/improving/app/store/domain/storeData.proto";
+import "com/improving/app/store/domain/storeDomainObjects.proto";
 import "scalapb/scalapb.proto";
 import "scalapb/validate.proto";
 import "validate/validate.proto";

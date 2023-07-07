@@ -13,7 +13,7 @@ import com.improving.app.common.domain.{
   UsPostalCodeImpl
 }
 import com.improving.app.gateway.api.handlers.TenantGatewayHandler
-import com.improving.app.gateway.domain.common.tenantUtil.EstablishedTenantUtil
+import com.improving.app.gateway.domain.tenantUtil.EstablishedTenantUtil
 import com.improving.app.gateway.domain.common.util.{genPhoneNumber, genPostalCode}
 import com.improving.app.gateway.domain.demoScenario.{ScenarioStarted, StartScenario}
 import com.improving.app.gateway.domain.tenant.{

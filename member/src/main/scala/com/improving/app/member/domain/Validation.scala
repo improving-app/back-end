@@ -2,13 +2,14 @@ package com.improving.app.member.domain
 
 import com.improving.app.common.errors.Validation.{
   applyAllValidators,
+  editableContactValidator,
   listHasLength,
-  memberIdValidator,
   required,
+  requiredThenValidate,
   Validator
 }
 
-object MemberValidation {
+object Validation {
 
   val draftTransitionMemberInfoValidator: Validator[EditableInfo] =
     applyAllValidators[EditableInfo](
@@ -16,7 +17,7 @@ object MemberValidation {
       memberInfo => required("avatarUrl")(memberInfo.avatarUrl),
       memberInfo => required("firstName")(memberInfo.firstName),
       memberInfo => required("lastName")(memberInfo.lastName),
-      memberInfo => required("contact")(memberInfo.contact),
+      memberInfo => requiredThenValidate("contact", editableContactValidator)(memberInfo.contact),
       memberInfo => listHasLength("organizationMembership")(memberInfo.organizationMembership),
       memberInfo => required("tenant")(memberInfo.tenant),
     )

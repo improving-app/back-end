@@ -1,5 +1,6 @@
 package com.improving.app.organization.domain
 
+import com.improving.app.common.domain.util.AddressUtil
 import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, PostalCodeMessageImpl, TenantId}
 
 object TestData {
@@ -25,7 +26,7 @@ object TestData {
     shortName = Some("Org"),
     tenant = Some(TenantId("tenant")),
     isPublic = Some(false),
-    address = Some(baseAddress),
+    address = Some(baseAddress.toEditable),
     url = None,
     logo = None
   )

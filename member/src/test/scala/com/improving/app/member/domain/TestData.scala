@@ -1,7 +1,8 @@
 package com.improving.app.member.domain
 
+import com.improving.app.common.domain.util.ContactUtil
 import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
-import com.improving.app.member.domain.Member.{editableInfoFromMemberInfo, memberInfoFromEditableInfo}
+import com.improving.app.member.domain.util.MemberInfoUtil
 
 import java.util.UUID
 
@@ -41,14 +42,14 @@ object TestData {
     firstName = Some("editFirstName"),
     lastName = Some("editLastName"),
     notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
-    contact = Some(editContact),
+    contact = Some(editContact.toEditable),
     organizationMembership = Seq(OrganizationId("editOrg1")),
     tenant = Some(TenantId("editTenantId"))
   )
 
   val baseRegisterMember: RegisterMember = RegisterMember(
     memberId = Some(MemberId(testMemberIdString)),
-    memberInfo = Some(editableInfoFromMemberInfo(baseMemberInfo)),
+    memberInfo = Some(baseMemberInfo.toEditable),
     onBehalfOf = Some(MemberId("registeringMember"))
   )
 

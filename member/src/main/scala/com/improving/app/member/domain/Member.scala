@@ -10,11 +10,12 @@ import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.MemberId
 import com.improving.app.common.errors.{Error, StateError}
 import com.improving.app.member.domain.MemberState.{MEMBER_STATE_ACTIVE, MEMBER_STATE_DRAFT, MEMBER_STATE_SUSPENDED}
-import com.improving.app.member.domain.MemberValidation.{
+import com.improving.app.member.domain.Validation.{
   draftTransitionMemberInfoValidator,
   memberCommandValidator,
   memberQueryValidator
 }
+import com.improving.app.member.domain.util.{EditableMemberInfoUtil, MemberInfoUtil}
 import com.typesafe.scalalogging.StrictLogging
 
 import java.time.{Clock, Instant}
@@ -219,7 +220,7 @@ object Member extends StrictLogging {
             state match {
               case DraftMemberState(editableInfo, _) =>
                 ActivatedMemberState(
-                  info = memberInfoFromEditableInfo(editableInfo),
+                  info = editableInfo.toInfo,
                   meta = memberActivatedEvent.getMeta
                 )
               case x: SuspendedMemberState =>
@@ -254,7 +255,7 @@ object Member extends StrictLogging {
                 )
               case _: ActivatedMemberState =>
                 ActivatedMemberState(
-                  info = memberInfoFromEditableInfo(memberInfoEdited.getMemberInfo),
+                  info = memberInfoEdited.getMemberInfo.toInfo,
                   meta = memberInfoEdited.getMeta
                 )
               case _ => state
@@ -372,8 +373,8 @@ object Member extends StrictLogging {
         val event = MemberInfoEdited(
           editMemberInfoCommand.memberId,
           Some(info match {
-            case Right(i: MemberInfo)  => editableInfoFromMemberInfo(updateInfo(i, editable))
-            case Left(e: EditableInfo) => updateEditableInfo(e, editable)
+            case Right(i: MemberInfo)  => i.updateInfo(editable).toEditable
+            case Left(e: EditableInfo) => e.updateInfo(editable)
           }),
           Some(newMeta)
         )
@@ -398,61 +399,7 @@ object Member extends StrictLogging {
       getMemberInfoQuery: GetMemberInfo,
   ): Either[Error, MemberResponse] = info match {
     case Left(editable) =>
-      Right(MemberData(getMemberInfoQuery.memberId, Some(memberInfoFromEditableInfo(editable)), Some(meta)))
+      Right(MemberData(getMemberInfoQuery.memberId, Some(editable.toInfo), Some(meta)))
     case Right(i) => Right(MemberData(getMemberInfoQuery.memberId, Some(i), Some(meta)))
   }
-
-  // Helpers
-
-  private[domain] def updateInfo(info: MemberInfo, editableInfo: EditableInfo): MemberInfo = {
-    info.copy(
-      handle = editableInfo.handle.getOrElse(info.handle),
-      avatarUrl = editableInfo.avatarUrl.getOrElse(info.avatarUrl),
-      firstName = editableInfo.firstName.getOrElse(info.firstName),
-      lastName = editableInfo.lastName.getOrElse(info.lastName),
-      notificationPreference = editableInfo.notificationPreference.orElse(info.notificationPreference),
-      contact = editableInfo.contact.orElse(info.contact),
-      organizationMembership =
-        if (editableInfo.organizationMembership.nonEmpty) editableInfo.organizationMembership
-        else info.organizationMembership,
-      tenant = editableInfo.tenant.orElse(info.tenant)
-    )
-  }
-
-  private[domain] def updateEditableInfo(info: EditableInfo, editableInfo: EditableInfo): EditableInfo = {
-    info.copy(
-      handle = editableInfo.handle.orElse(info.handle),
-      avatarUrl = editableInfo.avatarUrl.orElse(info.avatarUrl),
-      firstName = editableInfo.firstName.orElse(info.firstName),
-      lastName = editableInfo.lastName.orElse(info.lastName),
-      notificationPreference = editableInfo.notificationPreference,
-      contact = editableInfo.contact.orElse(info.contact),
-      organizationMembership =
-        if (editableInfo.organizationMembership.isEmpty) info.organizationMembership
-        else editableInfo.organizationMembership,
-      tenant = editableInfo.tenant.orElse(info.tenant)
-    )
-  }
-
-  private[domain] def editableInfoFromMemberInfo(memberInfo: MemberInfo): EditableInfo = EditableInfo(
-    contact = memberInfo.contact,
-    handle = Some(memberInfo.handle),
-    avatarUrl = Some(memberInfo.avatarUrl),
-    firstName = Some(memberInfo.firstName),
-    lastName = Some(memberInfo.lastName),
-    tenant = memberInfo.tenant,
-    notificationPreference = memberInfo.notificationPreference,
-    organizationMembership = memberInfo.organizationMembership
-  )
-
-  private[domain] def memberInfoFromEditableInfo(editableInfo: EditableInfo): MemberInfo = MemberInfo(
-    contact = editableInfo.contact,
-    handle = editableInfo.getHandle,
-    avatarUrl = editableInfo.getAvatarUrl,
-    firstName = editableInfo.getFirstName,
-    lastName = editableInfo.getLastName,
-    tenant = editableInfo.tenant,
-    notificationPreference = editableInfo.notificationPreference,
-    organizationMembership = editableInfo.organizationMembership
-  )
 }

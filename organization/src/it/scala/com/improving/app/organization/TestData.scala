@@ -1,5 +1,6 @@
 package com.improving.app.organization
 
+import com.improving.app.common.domain.util.{AddressUtil, EditableAddressUtil}
 import com.improving.app.common.domain.{Address, CaPostalCodeImpl, Contact, PostalCodeMessageImpl, TenantId}
 import com.improving.app.organization.domain.{EditableOrganizationInfo, OrganizationInfo}
 
@@ -25,14 +26,14 @@ object TestData {
     name = Some("Organization Name"),
     shortName = Some("OrgName"),
     tenant = Some(TenantId("tenant")),
-    address = Some(baseAddress),
+    address = Some(baseAddress.toEditable),
   )
 
   def organizationInfoFromEditableInfo(editableInfo: EditableOrganizationInfo): OrganizationInfo = OrganizationInfo(
     name = editableInfo.getName,
     shortName = editableInfo.shortName,
     isPublic = editableInfo.getIsPublic,
-    address = editableInfo.address,
+    address = editableInfo.address.map(_.toAddress),
     tenant = editableInfo.tenant,
     url = editableInfo.url,
     logo = editableInfo.logo
