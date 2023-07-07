@@ -1,18 +1,9 @@
 package com.improving.app.gateway.domain.common
 
-import com.improving.app.member.domain.{
-  EditableInfo => EditableMemberInfo,
-  MemberMetaInfo,
-  MemberState,
-  NotificationPreference
-}
+import com.improving.app.common.domain.util.{ContactUtil, EditableContactUtil}
+import com.improving.app.member.domain.{MemberMetaInfo, MemberState, NotificationPreference, EditableInfo => EditableMemberInfo}
 import com.typesafe.config.ConfigFactory
-import com.improving.app.gateway.domain.member.{
-  EditableMemberInfo => GatewayEditableMemberInfo,
-  MemberMetaInfo => GatewayMemberMetaInfo,
-  MemberStates => GatewayMemberStates,
-  NotificationPreference => GatewayNotificationPreference
-}
+import com.improving.app.gateway.domain.member.{EditableMemberInfo => GatewayEditableMemberInfo, MemberMetaInfo => GatewayMemberMetaInfo, MemberStates => GatewayMemberStates, NotificationPreference => GatewayNotificationPreference}
 
 object memberUtil {
 
@@ -22,7 +13,7 @@ object memberUtil {
     info.firstName,
     info.lastName,
     info.notificationPreference.map(gatewayNotificationPreferenceToNotificationPreference),
-    info.contact,
+    info.contact.map(_.toEditable),
     info.organizationMembership,
     info.tenant
   )
@@ -34,7 +25,7 @@ object memberUtil {
       info.firstName,
       info.lastName,
       info.notificationPreference.map(notificationPreferenceToGatewayNotificationPreference),
-      info.contact,
+      info.contact.map(_.toContact),
       info.organizationMembership,
       info.tenant
     )

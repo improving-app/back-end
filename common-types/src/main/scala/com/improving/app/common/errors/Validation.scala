@@ -4,6 +4,7 @@ import com.improving.app.common.domain.{
   CaPostalCodeImpl,
   Contact,
   EditableAddress,
+  EditableContact,
   MemberId,
   OrganizationId,
   StoreId,
@@ -111,19 +112,13 @@ object Validation {
     }
   }
 
-  val contactValidator: Validator[Contact] = contact => {
-    if (
-      contact.firstName.isEmpty ||
-      contact.lastName.isEmpty ||
-      contact.emailAddress.forall(_.isEmpty) ||
-      contact.phone.forall(_.isEmpty) ||
-      contact.userName.isEmpty
-    ) {
-      Some(ValidationError("Primary contact info is not complete"))
-    } else {
-      None
-    }
-  }
+  val editableContactValidator: Validator[EditableContact] = applyAllValidators[EditableContact](
+    contact => required("firstName")(contact.firstName),
+    contact => required("lastName")(contact.lastName),
+    contact => required("emailAddress")(contact.emailAddress),
+    contact => required("phone")(contact.phone),
+    contact => required("userName")(contact.userName)
+  )
 
   val editableAddressValidator: Validator[EditableAddress] =
     applyAllValidators[EditableAddress](
