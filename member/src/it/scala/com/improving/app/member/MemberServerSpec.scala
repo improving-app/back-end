@@ -2,7 +2,7 @@ package com.improving.app.member
 
 import akka.grpc.GrpcClientSettings
 import com.dimafeng.testcontainers.DockerComposeContainer
-import com.improving.app.common.domain.{Contact, MemberId, OrganizationId, TenantId}
+import com.improving.app.common.domain.{Contact, EditableContact, MemberId, OrganizationId, TenantId}
 import com.improving.app.common.test.ServiceTestContainerSpec
 import com.improving.app.member.api.{MemberService, MemberServiceClient}
 import com.improving.app.member.domain.MemberState._
@@ -28,6 +28,7 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
 
   val memberInfo: MemberInfo = MemberInfo(
     handle = "SomeHandle",
+    avatarUrl = "url.com/avatar",
     firstName = "FirstName",
     lastName = "LastName",
     notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_EMAIL),
@@ -46,12 +47,12 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
 
   protected val editableInfo: EditableInfo = EditableInfo(
     contact = Some(
-      Contact(
-        firstName = memberInfo.firstName,
-        lastName = memberInfo.lastName,
+      EditableContact(
+        firstName = Some(memberInfo.firstName),
+        lastName = Some(memberInfo.lastName),
         emailAddress = memberInfo.contact.flatMap(_.emailAddress),
         phone = Some("123-456-7890"),
-        userName = memberInfo.contact.getOrElse(Contact.defaultInstance).userName
+        userName = Some(memberInfo.contact.getOrElse(Contact.defaultInstance).userName)
       )
     )
   )
@@ -130,12 +131,13 @@ class MemberServerSpec extends ServiceTestContainerSpec(8081, "member-service") 
           avatarUrl should equal("")
           firstName should equal("FirstName")
           lastName should equal("LastName")
-          inside(contact) { case Contact(fName, lName, email, phone, userName, _) =>
-            fName should equal("FirstName")
-            lName should equal("LastName")
-            email should equal(Some("someone@somewhere.com"))
-            phone should equal(None)
-            userName should equal("SomeUserName")
+          inside(contact) {
+            case EditableContact(Some(fName), Some(lName), Some(email), Some(phone), Some(userName), _) =>
+              fName should equal("FirstName")
+              lName should equal("LastName")
+              email should equal(Some("someone@somewhere.com"))
+              phone should equal(None)
+              userName should equal("SomeUserName")
           }
           notificationPreference should equal(Some(NOTIFICATION_PREFERENCE_EMAIL))
           orgs shouldEqual Seq(OrganizationId("SomeOrganization"))

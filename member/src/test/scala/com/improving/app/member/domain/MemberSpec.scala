@@ -4,9 +4,9 @@ import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.pattern.StatusReply
 import akka.persistence.testkit.scaladsl.EventSourcedBehaviorTestKit
 import akka.persistence.testkit.scaladsl.EventSourcedBehaviorTestKit.SerializationSettings
+import com.improving.app.common.domain.util.ContactUtil
 import com.improving.app.common.domain.{MemberId, OrganizationId, TenantId}
 import com.improving.app.member.domain.Member.{
-  editableInfoFromMemberInfo,
   DefinedMemberState,
   DraftMemberState,
   MemberEnvelope,
@@ -16,6 +16,7 @@ import com.improving.app.member.domain.Member.{
 }
 import com.improving.app.member.domain.MemberState.{MEMBER_STATE_ACTIVE, MEMBER_STATE_DRAFT, MEMBER_STATE_SUSPENDED}
 import com.improving.app.member.domain.TestData._
+import com.improving.app.member.domain.util.MemberInfoUtil
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -52,8 +53,8 @@ class MemberSpec
           result.reply.getError.getMessage shouldBe "User is not authorized to modify Member"
         }
 
-        //TODO: Determine how to process names with special characters
-        //"error for invalid MemberInfo" in {
+        // TODO: Determine how to process names with special characters
+        // "error for invalid MemberInfo" in {
         //  val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
         //    MemberEnvelope(
         //      baseRegisterMember.copy(
@@ -67,7 +68,7 @@ class MemberSpec
         //    result.reply.getError.getMessage
         //      .contains("First name cannot contain spaces, numbers or special characters.")
         //  )
-        //}
+        // }
 
         "succeed for golden path" in {
           val result = eventSourcedTestKit.runCommand[StatusReply[MemberResponse]](
@@ -81,20 +82,20 @@ class MemberSpec
             result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.sealedValue.memberRegisteredValue.get
 
           memberRegistered.memberId shouldBe Some(MemberId(testMemberIdString))
-          memberRegistered.memberInfo shouldBe Some(editableInfoFromMemberInfo(baseMemberInfo))
+          memberRegistered.memberInfo shouldBe Some(baseMemberInfo.toEditable)
           memberRegistered.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_DRAFT)
           memberRegistered.meta.flatMap(_.createdBy) shouldBe Some(MemberId("registeringMember"))
 
           val event = result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.getMemberRegisteredValue
           event.memberId.map(_.id) shouldBe Some(testMemberIdString)
-          event.memberInfo shouldBe Some(editableInfoFromMemberInfo(baseMemberInfo))
+          event.memberInfo shouldBe Some(baseMemberInfo.toEditable)
           event.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_DRAFT)
           event.meta.flatMap(_.createdBy.map(_.id)) shouldBe Some("registeringMember")
 
           val state = result.stateOfType[DraftMemberState]
 
           state.editableInfo.getFirstName shouldBe "firstName"
-          state.editableInfo.getContact shouldBe baseContact
+          state.editableInfo.getContact shouldBe baseContact.toEditable
           state.editableInfo.getHandle shouldBe "handle"
           state.editableInfo.organizationMembership shouldBe baseMemberInfo.organizationMembership
           state.meta.createdBy.map(_.id) shouldBe Some("registeringMember")
@@ -270,7 +271,7 @@ class MemberSpec
           val state = result.stateOfType[DraftMemberState]
 
           state.editableInfo.getFirstName shouldBe "firstName"
-          state.editableInfo.getContact shouldBe editContact
+          state.editableInfo.getContact shouldBe editContact.toEditable
           state.editableInfo.getHandle shouldBe "editHandle"
           state.editableInfo.getAvatarUrl shouldBe "editAvatarUrl"
           state.editableInfo.getLastName shouldBe "editLastName"
@@ -313,7 +314,7 @@ class MemberSpec
           val state = result.stateOfType[DraftMemberState]
 
           state.editableInfo.getFirstName shouldBe "editFirstName"
-          state.editableInfo.contact shouldBe Some(editContact)
+          state.editableInfo.contact shouldBe Some(editContact.toEditable)
           state.editableInfo.getHandle shouldBe "editHandle"
           state.editableInfo.getAvatarUrl shouldBe "editAvatarUrl"
           state.editableInfo.getLastName shouldBe "editLastName"
@@ -358,7 +359,7 @@ class MemberSpec
           val state = result.stateOfType[DraftMemberState]
 
           state.editableInfo shouldBe EditableInfo(
-            contact = Some(baseContact),
+            contact = Some(baseContact.toEditable),
             handle = Some(baseMemberInfo.handle),
             avatarUrl = Some(baseMemberInfo.avatarUrl),
             firstName = Some(baseMemberInfo.firstName),
@@ -530,7 +531,7 @@ class MemberSpec
                 firstName = Some("editFirstName"),
                 lastName = Some("editLastName"),
                 notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
-                contact = Some(editContact),
+                contact = Some(editContact.toEditable),
                 tenant = Some(TenantId("editTenantId")),
                 organizationMembership = baseEditableInfo.organizationMembership
               )

@@ -1,14 +1,21 @@
 package com.improving.app.organization.domain
 
-import com.improving.app.common.errors.Validation.{applyAllValidators, listHasLength, required, Validator}
+import com.improving.app.common.errors.Validation.{
+  applyAllValidators,
+  editableAddressValidator,
+  listHasLength,
+  required,
+  requiredThenValidate,
+  Validator
+}
 
-object OrganizationValidation {
+object Validation {
 
   val draftTransitionOrganizationInfoValidator: Validator[EditableOrganizationInfo] =
     applyAllValidators[EditableOrganizationInfo](
       organizationInfo => required("name")(organizationInfo.name),
       organizationInfo => required("isPublic")(organizationInfo.isPublic),
-      organizationInfo => required("address")(organizationInfo.address),
+      organizationInfo => requiredThenValidate("address", editableAddressValidator)(organizationInfo.address),
     )
 
   val organizationCommandValidator: Validator[OrganizationCommand] =

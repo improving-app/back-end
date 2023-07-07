@@ -4,10 +4,10 @@ import akka.actor.typed.ActorSystem
 import akka.grpc.GrpcClientSettings
 import akka.util.Timeout
 import com.improving.app.gateway.domain.member.{MemberRegistered, RegisterMember => GatewayRegisterMember}
-import com.improving.app.gateway.domain.common.memberUtil.{
-  editableMemberInfoToGatewayEditableInfo,
-  gatewayEditableMemberInfoToEditableInfo,
-  memberMetaToGatewayMemberMeta
+import com.improving.app.gateway.domain.memberUtil.{
+  EditableMemberInfoUtil,
+  GatewayEditableMemberInfoUtil,
+  MemberMetaUtil
 }
 import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.member.api.MemberServiceClient
@@ -40,15 +40,15 @@ class MemberGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = N
       .registerMember(
         RegisterMember(
           in.memberId,
-          Some(gatewayEditableMemberInfoToEditableInfo(in.getMemberInfo)),
+          Some(in.getMemberInfo.toEditableInfo),
           in.registeringMember
         )
       )
       .map { response =>
         MemberRegistered(
           response.memberId,
-          response.memberInfo.map(editableMemberInfoToGatewayEditableInfo),
-          response.meta.map(memberMetaToGatewayMemberMeta)
+          response.memberInfo.map(_.toGatewayEditableInfo),
+          response.meta.map(_.toGatewayMemberMeta)
         )
       }
 }

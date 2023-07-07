@@ -13,17 +13,11 @@ import com.improving.app.common.domain.{
   TenantId,
   UsPostalCodeImpl
 }
+import com.improving.app.gateway.api.handlers.TenantGatewayHandler
 import com.improving.app.gateway.api.handlers.{OrganizationGatewayHandler, TenantGatewayHandler}
-import com.improving.app.gateway.domain.common.orgUtil.EstablishedOrganizationUtil
 import com.improving.app.gateway.domain.common.tenantUtil.EstablishedTenantUtil
 import com.improving.app.gateway.domain.common.util.{genPhoneNumber, genPostalCode}
-import com.improving.app.gateway.domain.demoScenario.{Organization, ScenarioStarted, StartScenario, Tenant}
-import com.improving.app.gateway.domain.organization.{
-  ActivateOrganization,
-  EditableOrganizationInfo,
-  EstablishOrganization,
-  OrganizationEstablished
-}
+import com.improving.app.gateway.domain.demoScenario.{ScenarioStarted, StartScenario, Tenant}
 import com.improving.app.gateway.domain.tenant.{
   ActivateTenant,
   EditableTenantInfo,
