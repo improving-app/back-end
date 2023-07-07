@@ -92,11 +92,6 @@ class DemoScenarioGatewayServerSpec
               Some(getClient(container, "organization-service", 8082))
             )
 
-          val memberId = UUID.randomUUID().toString
-          val registeringMember = UUID.randomUUID().toString
-
-          val info = baseEditableInfo
-
           val command = StartScenario(
             numTenants = 1,
             numMembersPerOrg = 1
