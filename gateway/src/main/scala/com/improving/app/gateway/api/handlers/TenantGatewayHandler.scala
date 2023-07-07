@@ -3,7 +3,7 @@ package com.improving.app.gateway.api.handlers
 import akka.actor.typed.ActorSystem
 import akka.grpc.GrpcClientSettings
 import akka.util.Timeout
-import com.improving.app.gateway.domain.common.tenantUtil.{
+import com.improving.app.gateway.domain.tenantUtil.{
   editableTenantInfoToGatewayEditableInfo,
   gatewayEditableTenantInfoToEditableInfo,
   tenantMetaToGatewayTenantMeta

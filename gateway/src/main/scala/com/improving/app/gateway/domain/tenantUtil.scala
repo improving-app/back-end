@@ -1,15 +1,8 @@
-package com.improving.app.gateway.domain.common
+package com.improving.app.gateway.domain
 
 import com.improving.app.common.domain.util.{EditableAddressUtil, EditableContactUtil}
 import com.improving.app.gateway.domain.demoScenario.Tenant
-import com.improving.app.gateway.domain.tenant.{
-  EditableTenantInfo => GatewayEditableTenantInfo,
-  TenantEstablished,
-  TenantInfo,
-  TenantMetaInfo => GatewayTenantMetaInfo,
-  TenantOrganizationList => GatewayTenantOrganizationList,
-  TenantStates => GatewayTenantStates
-}
+import com.improving.app.gateway.domain.tenant.{TenantEstablished, TenantInfo, EditableTenantInfo => GatewayEditableTenantInfo, TenantMetaInfo => GatewayTenantMetaInfo, TenantOrganizationList => GatewayTenantOrganizationList, TenantStates => GatewayTenantStates}
 import com.improving.app.tenant.domain.{EditableTenantInfo, TenantMetaInfo, TenantOrganizationList}
 
 object tenantUtil {

@@ -82,7 +82,7 @@ message EditMemberInfo {
     };
     option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
     common.domain.MemberId member_id = 1;
-    EditableInfo member_info = 2;
+    EditableInfo member_info = 2 [(validate.rules).message.required = true];
     common.domain.MemberId on_behalf_of = 3;
 }
 

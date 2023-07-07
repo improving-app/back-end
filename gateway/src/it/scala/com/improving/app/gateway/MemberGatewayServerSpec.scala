@@ -10,10 +10,8 @@ import com.dimafeng.testcontainers.scalatest.TestContainerForAll
 import com.dimafeng.testcontainers.{DockerComposeContainer, ExposedService}
 import com.improving.app.common.domain.MemberId
 import com.improving.app.gateway.api.handlers.MemberGatewayHandler
-import com.improving.app.gateway.domain.common.memberUtil.{
-  editableMemberInfoToGatewayEditableInfo,
-  notificationPreferenceToGatewayNotificationPreference
-}
+import com.improving.app.gateway.domain.memberUtil.{EditableMemberInfoUtil, NotificationPreferenceUtil}
+import com.improving.app.member.domain.util.MemberInfoUtil
 import com.improving.app.gateway.domain.member.{EditableMemberInfo, MemberRegistered, RegisterMember}
 import com.improving.app.gateway.infrastructure.routes.MemberGatewayRoutes
 import com.improving.app.member.domain.TestData.baseEditableInfo
@@ -95,7 +93,7 @@ class MemberGatewayServerSpec
                 info.avatarUrl,
                 info.firstName,
                 info.lastName,
-                info.notificationPreference.map(notificationPreferenceToGatewayNotificationPreference),
+                info.notificationPreference.map(_.toGatewayNotificationPreference),
                 info.contact,
                 info.organizationMembership,
                 info.tenant
@@ -109,7 +107,7 @@ class MemberGatewayServerSpec
             status shouldBe StatusCodes.OK
             val response = MemberRegistered.fromAscii(responseAs[String])
             response.memberId.map(_.id) shouldEqual Some(memberId)
-            response.memberInfo shouldEqual Some(editableMemberInfoToGatewayEditableInfo(info))
+            response.memberInfo shouldEqual Some(info.toGatewayEditableInfo)
             response.meta.flatMap(_.createdBy.map(_.id)) shouldEqual Some(registeringMember)
           }
         }
