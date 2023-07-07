@@ -1,9 +1,9 @@
 package com.improving.app.common.errors
 
 import com.improving.app.common.domain.{
-  Address,
   CaPostalCodeImpl,
   Contact,
+  EditableAddress,
   MemberId,
   OrganizationId,
   StoreId,
@@ -21,40 +21,36 @@ object Validation {
         maybeAlreadyError.orElse(validator(validatee))
       )
 
-  def requiredThenValidate[T]: (String, Validator[T]) => Validator[Option[T]] = (fieldName, validator) => {
-    opt =>
-      if (opt.isEmpty) {
-        Some(ValidationError("No associated " + fieldName))
-      } else {
-        validator(opt.get)
-      }
+  def requiredThenValidate[T]: (String, Validator[T]) => Validator[Option[T]] = (fieldName, validator) => { opt =>
+    if (opt.isEmpty) {
+      Some(ValidationError("No associated " + fieldName))
+    } else {
+      validator(opt.get)
+    }
   }
 
-  def required[T]: String => Validator[Option[T]] = fieldName => {
-    opt =>
-      if (opt.isEmpty) {
-        Some(ValidationError("No associated " + fieldName))
-      } else {
-        None
-      }
+  def required[T]: String => Validator[Option[T]] = fieldName => { opt =>
+    if (opt.isEmpty) {
+      Some(ValidationError("No associated " + fieldName))
+    } else {
+      None
+    }
   }
 
-  def listHasLength[T]: String => Validator[Seq[T]] = fieldName => {
-    list =>
-      if (list.isEmpty) {
-        Some(ValidationError("List " + fieldName + "has no length"))
-      } else {
-        None
-      }
+  def listHasLength[T]: String => Validator[Seq[T]] = fieldName => { list =>
+    if (list.isEmpty) {
+      Some(ValidationError("List " + fieldName + "has no length"))
+    } else {
+      None
+    }
   }
 
-  def nonEmpty: String => Validator[Seq[_]] = fieldName => {
-    seq =>
-      if (seq.isEmpty) {
-        Some(ValidationError("Empty " + fieldName))
-      } else {
-        None
-      }
+  def nonEmpty: String => Validator[Seq[_]] = fieldName => { seq =>
+    if (seq.isEmpty) {
+      Some(ValidationError("Empty " + fieldName))
+    } else {
+      None
+    }
   }
 
   def optional[T]: Validator[T] => Validator[Option[T]] = validator => opt => opt.flatMap(validator)
@@ -129,23 +125,12 @@ object Validation {
     }
   }
 
-  val addressValidator: Validator[Address] = address => {
-    val isPostalCodeMissing = address.postalCode.fold(true) { postalCode =>
-      postalCode.postalCodeValue match {
-        case UsPostalCodeImpl(code) => code.isEmpty
-        case CaPostalCodeImpl(code) => code.isEmpty
-      }
-    }
-    if (
-      address.line1.isEmpty ||
-      address.city.isEmpty ||
-      address.stateProvince.isEmpty ||
-      address.country.isEmpty ||
-      isPostalCodeMissing
-    ) {
-      Some(ValidationError("Address information is not complete"))
-    } else {
-      None
-    }
-  }
+  val editableAddressValidator: Validator[EditableAddress] =
+    applyAllValidators[EditableAddress](
+      address => required("line1")(address.line1),
+      address => required("city")(address.city),
+      address => required("stateProvince")(address.stateProvince),
+      address => required("country")(address.country),
+      address => required("postalCode")(address.postalCode)
+    )
 }

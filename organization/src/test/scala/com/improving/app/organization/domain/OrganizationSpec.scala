@@ -5,11 +5,10 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
+import com.improving.app.common.domain.util.{AddressUtil, EditableAddressUtil}
 import com.improving.app.common.domain.{MemberId, OrganizationId}
-import com.improving.app.organization.domain.Organization.{
-  organizationInfoFromEditableInfo,
-  OrganizationRequestEnvelope
-}
+import com.improving.app.organization.domain.Organization.OrganizationRequestEnvelope
+import com.improving.app.organization.domain.util.EditableOrganizationInfoUtil
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
@@ -258,7 +257,7 @@ class OrganizationSpec
             EditOrganizationInfo(
               Some(OrganizationId(organizationId)),
               Some(MemberId("someUser")),
-              Some(EditableOrganizationInfo()),
+              Some(EditableOrganizationInfo.defaultInstance),
             ),
             probe.ref
           )
@@ -276,7 +275,7 @@ class OrganizationSpec
 
           establishOrganization(organizationId, p, probe)
 
-          val newAddress = baseAddress.copy(city = "Timbuktu")
+          val newAddress = baseAddress.copy(city = "Timbuktu").toEditable
           val newName = "A new name"
 
           val updateInfo = EditableOrganizationInfo(
@@ -680,7 +679,7 @@ class OrganizationSpec
           establishOrganization(organizationId, p, probe)
           activateOrganization(organizationId, p, probe)
 
-          val newAddress = baseAddress.copy(city = "Timbuktu")
+          val newAddress = baseAddress.copy(city = "Timbuktu").toEditable
           val newName = "A new name"
 
           val updateInfo = EditableOrganizationInfo(
@@ -757,7 +756,7 @@ class OrganizationSpec
 
           val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
           infoResponse.organizationId.map(_.id) shouldEqual Some(organizationId)
-          infoResponse.getInfo shouldEqual organizationInfoFromEditableInfo(baseOrganizationInfo)
+          infoResponse.getInfo shouldEqual baseOrganizationInfo.toInfo
         }
       }
 
@@ -1143,7 +1142,7 @@ class OrganizationSpec
         establishOrganization(organizationId, p, probe)
         suspendOrganization(organizationId, p, probe)
 
-        val newAddress = baseAddress.copy(city = "Timbuktu")
+        val newAddress = baseAddress.copy(city = "Timbuktu").toEditable
         val newName = "A new name"
 
         val updateInfo = EditableOrganizationInfo(
@@ -1221,14 +1220,14 @@ class OrganizationSpec
 
         val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
         infoResponse.organizationId.map(_.id) shouldEqual Some(organizationId)
-        infoResponse.getInfo shouldEqual organizationInfoFromEditableInfo(baseOrganizationInfo)
+        infoResponse.getInfo shouldEqual baseOrganizationInfo.toInfo
       }
 
       "return the correct organization info for an edited suspended organization" in {
         val (organizationId, p, probe) = createTestVariables()
 
         establishOrganization(organizationId, p, probe)
-        val newAddress = baseAddress.copy(city = "Timbuktu")
+        val newAddress = baseAddress.copy(city = "Timbuktu").toEditable
         val newName = "A new name"
 
         val updateInfo = EditableOrganizationInfo(
@@ -1273,7 +1272,7 @@ class OrganizationSpec
         val infoResponse = response.getValue.asInstanceOf[OrganizationInfoResponse]
         infoResponse.organizationId.map(_.id) shouldEqual Some(organizationId)
         infoResponse.info.map(_.name) shouldEqual Some(newName)
-        infoResponse.info.flatMap(_.address) shouldEqual Some(newAddress)
+        infoResponse.info.flatMap(_.address) shouldEqual Some(newAddress.toAddress)
       }
     }
 

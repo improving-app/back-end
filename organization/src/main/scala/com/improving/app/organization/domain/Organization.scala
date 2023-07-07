@@ -10,11 +10,12 @@ import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.{Contact, MemberId}
 import com.improving.app.common.errors._
 import com.improving.app.organization.domain.OrganizationState._
-import com.improving.app.organization.domain.OrganizationValidation.{
+import com.improving.app.organization.domain.Validation.{
   draftTransitionOrganizationInfoValidator,
   organizationCommandValidator,
   organizationQueryValidator
 }
+import com.improving.app.organization.domain.util.{EditableOrganizationInfoUtil, OrganizationInfoUtil}
 
 import java.time.{Clock, Instant}
 
@@ -126,7 +127,7 @@ object Organization {
       case event: OrganizationActivated =>
         state match {
           case x: DraftState =>
-            ActiveState(organizationInfoFromEditableInfo(x.info), event.getMetaInfo, x.members, x.owners, x.contacts)
+            ActiveState(x.info.toInfo, event.getMetaInfo, x.members, x.owners, x.contacts)
           case _: ActiveState     => state
           case x: SuspendedState  => ActiveState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
           case UninitializedState => UninitializedState
@@ -134,7 +135,7 @@ object Organization {
       case event: OrganizationSuspended =>
         state match {
           case x: DraftState =>
-            SuspendedState(organizationInfoFromEditableInfo(x.info), event.getMetaInfo, x.members, x.owners, x.contacts)
+            SuspendedState(x.info.toInfo, event.getMetaInfo, x.members, x.owners, x.contacts)
           case x: ActiveState     => SuspendedState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
           case x: SuspendedState  => SuspendedState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
           case UninitializedState => UninitializedState
@@ -144,9 +145,9 @@ object Organization {
         state match {
           case x: DraftState => x.copy(metaInfo = event.getMetaInfo, info = event.getInfo)
           case x: ActiveState =>
-            x.copy(metaInfo = event.getMetaInfo, info = organizationInfoFromEditableInfo(event.getInfo))
+            x.copy(metaInfo = event.getMetaInfo, info = event.getInfo.toInfo)
           case x: SuspendedState =>
-            x.copy(metaInfo = event.getMetaInfo, info = organizationInfoFromEditableInfo(event.getInfo))
+            x.copy(metaInfo = event.getMetaInfo, info = event.getInfo.toInfo)
           case UninitializedState => UninitializedState
         }
       case event: MembersAddedToOrganization =>
@@ -347,8 +348,8 @@ object Organization {
         val event = OrganizationInfoEdited(
           command.organizationId,
           Some(info match {
-            case Right(i: OrganizationInfo)        => editableInfoFromOrganizationInfo(updateInfo(i, editable))
-            case Left(e: EditableOrganizationInfo) => updateEditableInfo(e, editable)
+            case Right(i: OrganizationInfo)        => i.updateInfo(editable).toEditable
+            case Left(e: EditableOrganizationInfo) => e.updateInfo(editable)
           }),
           Some(newMeta)
         )
@@ -358,7 +359,10 @@ object Organization {
         Right(
           OrganizationInfoEdited(
             command.organizationId,
-            None,
+            Some(info match {
+              case Right(i: OrganizationInfo)        => i.toEditable
+              case Left(e: EditableOrganizationInfo) => e
+            }),
             Some(newMeta)
           )
         )
@@ -441,51 +445,4 @@ object Organization {
       )
     )
   }
-
-  private[domain] def editableInfoFromOrganizationInfo(orgInfo: OrganizationInfo): EditableOrganizationInfo =
-    EditableOrganizationInfo(
-      name = Some(orgInfo.name),
-      shortName = orgInfo.shortName,
-      isPublic = Some(orgInfo.isPublic),
-      address = orgInfo.address,
-      tenant = orgInfo.tenant,
-      url = orgInfo.url,
-      logo = orgInfo.logo
-    )
-
-  private[domain] def organizationInfoFromEditableInfo(editableInfo: EditableOrganizationInfo): OrganizationInfo =
-    OrganizationInfo(
-      name = editableInfo.getName,
-      shortName = editableInfo.shortName,
-      isPublic = editableInfo.getIsPublic,
-      address = editableInfo.address,
-      tenant = editableInfo.tenant,
-      url = editableInfo.url,
-      logo = editableInfo.logo
-    )
-
-  private[domain] def updateInfo(info: OrganizationInfo, editableInfo: EditableOrganizationInfo): OrganizationInfo =
-    info.copy(
-      name = editableInfo.name.getOrElse(info.name),
-      shortName = editableInfo.shortName.orElse(info.shortName),
-      isPublic = editableInfo.isPublic.getOrElse(info.isPublic),
-      address = editableInfo.address.orElse(info.address),
-      tenant = editableInfo.tenant.orElse(info.tenant),
-      url = editableInfo.url.orElse(info.url),
-      logo = editableInfo.logo.orElse(info.logo)
-    )
-
-  private[domain] def updateEditableInfo(
-      info: EditableOrganizationInfo,
-      editableInfo: EditableOrganizationInfo
-  ): EditableOrganizationInfo =
-    info.copy(
-      name = editableInfo.name.orElse(info.name),
-      shortName = editableInfo.shortName.orElse(info.shortName),
-      isPublic = editableInfo.isPublic.orElse(info.isPublic),
-      address = editableInfo.address.orElse(info.address),
-      tenant = editableInfo.tenant.orElse(info.tenant),
-      url = editableInfo.url.orElse(info.url),
-      logo = editableInfo.logo.orElse(info.logo)
-    )
 }
