@@ -3,6 +3,7 @@ addSbtPlugin("com.dwijnand" % "sbt-dynver" % "4.1.1")
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.0")
 addSbtPlugin("com.lightbend.akka.grpc" % "sbt-akka-grpc" % "2.3.0")
 addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.3")
+addSbtPlugin("io.gatling" % "gatling-sbt" % "4.3.3")
 
 libraryDependencies ++= Seq(
   "com.thesamet.scalapb" %% "compilerplugin"           % "0.11.13",

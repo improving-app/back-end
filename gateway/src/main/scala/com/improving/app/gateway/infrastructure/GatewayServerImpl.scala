@@ -2,13 +2,9 @@ package com.improving.app.gateway.infrastructure
 
 import akka.actor.typed.{ActorSystem, DispatcherSelector}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.MediaType
-import akka.http.scaladsl.settings.{ParserSettings, ServerSettings}
 import com.improving.app.gateway.api.handlers.{MemberGatewayHandler, TenantGatewayHandler}
 import com.improving.app.gateway.infrastructure.routes.{DemoScenarioGatewayRoutes, MemberGatewayRoutes}
 import akka.http.scaladsl.server.Directives
-import com.improving.app.gateway.api.handlers.{MemberGatewayHandler, TenantGatewayHandler}
-import com.improving.app.gateway.infrastructure.routes.{DemoScenarioGatewayRoutes, MemberGatewayRoutes}
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.duration.DurationInt
