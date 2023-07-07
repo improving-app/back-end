@@ -2,7 +2,7 @@ package com.improving.app.store.domain
 
 import com.improving.app.common.errors.Validation._
 
-object StoreValidation {
+object Validation {
   val draftTransitionStoreInfoValidator: Validator[EditableStoreInfo] =
     applyAllValidators[EditableStoreInfo](
       storeInfo => required("name")(storeInfo.name),

@@ -9,7 +9,8 @@ import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffec
 import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.MemberId
 import com.improving.app.common.errors._
-import com.improving.app.store.domain.StoreValidation.{draftTransitionStoreInfoValidator, storeCommandValidator}
+import com.improving.app.store.domain.Validation.{draftTransitionStoreInfoValidator, storeCommandValidator}
+import com.improving.app.store.domain.util.EditableStoreInfoUtil
 
 import java.time.Instant
 
@@ -212,7 +213,7 @@ object Store {
   ): Either[Error, StoreEvent] = {
     val validationErrorsOpt = draftTransitionStoreInfoValidator(state.info)
     if (validationErrorsOpt.isEmpty) {
-      val info = updateDraftInfo(state.info, command.info)
+      val info = state.info.updateInfo(command.getInfo)
       val newMetaInfo = updateMetaInfo(metaInfo = Some(state.metaInfo), lastUpdatedByOpt = command.onBehalfOf)
       Right(
         StoreIsReady(
@@ -307,21 +308,6 @@ object Store {
     }
   }
 
-  private def updateDraftInfo(
-      stateInfo: EditableStoreInfo,
-      newInfoOpt: Option[EditableStoreInfo]
-  ): EditableStoreInfo = {
-    newInfoOpt match {
-      case Some(fieldsToUpdate) =>
-        stateInfo.copy(
-          name = fieldsToUpdate.name.orElse(stateInfo.name),
-          description = fieldsToUpdate.description.orElse(stateInfo.description),
-          sponsoringOrg = fieldsToUpdate.sponsoringOrg.orElse(stateInfo.sponsoringOrg),
-        )
-      case None => stateInfo
-    }
-  }
-
   private def editStoreInfo(
       state: InitializedState,
       command: EditStoreInfo
@@ -358,7 +344,7 @@ object Store {
           storeId = command.storeId,
           info = Some(
             StoreOrEditableInfo(
-              StoreOrEditableInfo.InfoOrEditable.EditableInfo(updateDraftInfo(editableInfo, command.newInfo))
+              StoreOrEditableInfo.InfoOrEditable.EditableInfo(editableInfo.updateInfo(command.getNewInfo))
             )
           ),
           metaInfo = Some(updatedMetaInfo)
