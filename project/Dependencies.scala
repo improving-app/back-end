@@ -125,3 +125,4 @@ object Dependencies {
     "com.github.phisgr" % "gatling-grpc" % "0.16.0" % "test"
   )
 }
+

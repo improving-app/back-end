@@ -9,6 +9,11 @@ lazy val commonTypes = project
   .in(file("common-types"))
   .configure(C.protobufsLib("improving-app-common-types"))
 
+lazy val commonUtils = project
+  .in(file("common-utils"))
+  .configure(C.Compilation.scala, C.Testing.scalaTest)
+  .configure(C.openTelemetry)
+
 lazy val tenant = project
   .in(file("tenant"))
   .configure(C.akkaPersistentEntity("improving-app-tenant", 8080))

@@ -4,6 +4,7 @@ import akka.grpc.sbt.AkkaGrpcPlugin.autoImport.akkaGrpcCodeGeneratorSettings
 import com.typesafe.sbt.packager.Keys._
 import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
 import com.typesafe.sbt.packager.docker.DockerPlugin
+import com.lightbend.sbt.javaagent.JavaAgent
 import sbt.Keys.{libraryDependencies, _}
 import sbt.{Def, Project, Test, Tests, _}
 import sbtprotoc.ProtocPlugin.autoImport.PB
@@ -236,5 +237,31 @@ object C {
         ) -> (Compile / sourceManaged).value / "scalapb"
       ),
     )
+  }
+  def openTelemetry(proj: Project): Project = {
+    val version = "1.27.0"
+    val alphaVersion = s"$version-alpha"
+    lazy val javaAgent = "io.opentelemetry.javaagent" % "opentelemetry-javaagent" % version % "runtime"
+    lazy val libs: Seq[ModuleID] = Seq(
+      "io.opentelemetry" % "opentelemetry-bom" % version pomOnly(),
+      "io.opentelemetry" % "opentelemetry-api" % version,
+      "io.opentelemetry" % "opentelemetry-sdk" % version,
+      "io.opentelemetry" % "opentelemetry-exporter-jaeger" % version,
+      "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % alphaVersion,
+      "io.opentelemetry" % "opentelemetry-exporter-prometheus" % alphaVersion,
+      "io.opentelemetry" % "opentelemetry-exporter-zipkin" % version,
+      "io.opentelemetry" % "opentelemetry-exporter-jaeger" % version,
+      "io.opentelemetry" % "opentelemetry-exporter-otlp" % version,
+      "io.opentelemetry" % "opentelemetry-exporter-logging" % version % Test,
+      javaAgent
+    )
+    proj
+      .enablePlugins(JavaAgent,JavaAppPackaging)
+      .settings(
+        libraryDependencies ++= libs,
+        // javaAgents += javaAgent,
+        // javaOptions += "-Dotel.javaagent.debug=true"
+        //Debug OpenTelemetry Java agent
+      )
   }
 }
