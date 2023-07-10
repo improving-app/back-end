@@ -256,14 +256,14 @@ class MemberSpec
             result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.sealedValue.memberInfoEdited.get
 
           memberInfoEdited.memberId shouldBe Some(MemberId(testMemberIdString))
-          memberInfoEdited.memberInfo shouldBe Some(resultInfo)
+          memberInfoEdited.newInfo shouldBe Some(resultInfo)
           memberInfoEdited.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_DRAFT)
           memberInfoEdited.meta.flatMap(_.createdBy) shouldBe Some(MemberId("registeringMember"))
           memberInfoEdited.meta.flatMap(_.lastModifiedBy) shouldBe Some(MemberId("editingMember"))
 
           val event = result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.getMemberInfoEdited
           event.memberId.map(_.id) shouldBe Some(testMemberIdString)
-          event.memberInfo shouldBe Some(resultInfo)
+          event.newInfo shouldBe Some(resultInfo)
           event.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_DRAFT)
           event.meta.flatMap(_.createdBy.map(_.id)) shouldBe Some("registeringMember")
           event.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("editingMember")
@@ -295,7 +295,7 @@ class MemberSpec
             result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.sealedValue.memberInfoEdited.get
 
           memberInfoEdited.memberId shouldBe Some(MemberId(testMemberIdString))
-          memberInfoEdited.memberInfo shouldBe Some(
+          memberInfoEdited.newInfo shouldBe Some(
             baseEditableInfo
           )
           memberInfoEdited.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_DRAFT)
@@ -304,7 +304,7 @@ class MemberSpec
 
           val event = result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.getMemberInfoEdited
           event.memberId.map(_.id) shouldBe Some(testMemberIdString)
-          event.memberInfo shouldBe Some(
+          event.newInfo shouldBe Some(
             baseEditableInfo
           )
           event.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_DRAFT)
@@ -524,7 +524,7 @@ class MemberSpec
               result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.sealedValue.memberInfoEdited.get
 
             memberInfoEdited.memberId shouldBe Some(MemberId(testMemberIdString))
-            memberInfoEdited.memberInfo shouldBe Some(
+            memberInfoEdited.newInfo shouldBe Some(
               baseEditableInfo.copy(
                 handle = Some("editHandle"),
                 avatarUrl = Some("editAvatarUrl"),
@@ -542,7 +542,7 @@ class MemberSpec
 
             val event = result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.getMemberInfoEdited
             event.memberId.map(_.id) shouldBe Some(testMemberIdString)
-            event.memberInfo shouldBe Some(baseEditableInfo)
+            event.newInfo shouldBe Some(baseEditableInfo)
             event.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_ACTIVE)
             event.meta.flatMap(_.createdBy.map(_.id)) shouldBe Some("registeringMember")
             event.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("editingMember")
