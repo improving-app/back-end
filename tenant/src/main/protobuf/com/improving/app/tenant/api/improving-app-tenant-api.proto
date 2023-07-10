@@ -8,7 +8,7 @@ import "com/improving/app/tenant/domain/tenantRequests.proto";
 service TenantService {
   rpc EstablishTenant (domain.EstablishTenant) returns (domain.TenantEstablished) {}
 
-  rpc EditInfo (domain.EditInfo) returns (domain.InfoEdited) {}
+  rpc EditInfo (domain.EditInfo) returns (domain.TenantInfoEdited) {}
 
   rpc ActivateTenant (domain.ActivateTenant) returns (domain.TenantActivated) {}
 

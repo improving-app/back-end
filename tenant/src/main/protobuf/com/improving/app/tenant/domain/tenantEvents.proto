@@ -34,12 +34,11 @@ message TenantSuspended {
     string suspension_reason = 3 [(validate.rules).string.ignore_empty = true];
 }
 
-message InfoEdited {
+message TenantInfoEdited {
     option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     com.improving.app.common.domain.TenantId tenant_id = 1;
     TenantMetaInfo meta_info = 2;
-    TenantInfoOrEditable old_info = 3;
-    TenantInfoOrEditable new_info = 4;
+    TenantInfoOrEditable new_info = 3;
 }
 
 message TenantTerminated {
@@ -59,7 +58,7 @@ message TenantEvent {
         TenantEstablished tenant_established_value = 1;
         TenantActivated tenant_activated_value = 2;
         TenantSuspended tenant_suspended_value = 3;
-        InfoEdited info_edited_value = 4;
+        TenantInfoEdited info_edited_value = 4;
         TenantTerminated tenant_terminated_value = 5;
     }
 }

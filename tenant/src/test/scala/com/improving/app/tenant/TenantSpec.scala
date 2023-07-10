@@ -262,7 +262,6 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo.map(_.getEditable) shouldBe Some(baseTenantInfo)
           successVal.newInfo.map(_.getEditable) shouldBe Some(baseTenantInfo)
         }
 
@@ -299,7 +298,6 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo.map(_.getEditable) shouldBe Some(baseTenantInfo)
           successVal.newInfo.map(_.getEditable) shouldBe Some(updatedInfo)
         }
 
@@ -332,7 +330,6 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo.map(_.getEditable) shouldBe Some(baseTenantInfo)
           successVal.newInfo.map(_.getEditable) shouldBe Some(
             baseTenantInfo.copy(
               name = Some(newName),
@@ -667,7 +664,6 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo.map(_.getInfo) shouldEqual Some(baseTenantInfo.toInfo)
           successVal.newInfo.map(_.getInfo) shouldEqual Some(baseTenantInfo.toInfo)
         }
 
@@ -716,7 +712,6 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo.map(_.getInfo) shouldEqual Some(baseTenantInfo.toInfo)
           successVal.newInfo.map(_.getInfo) shouldEqual Some(updatedInfo.toInfo)
         }
 
@@ -761,7 +756,6 @@ class TenantSpec
 
           val successVal = response.getValue.asMessage.getTenantEventValue.tenantEvent.asMessage.getInfoEditedValue
 
-          successVal.oldInfo.map(_.getInfo) shouldEqual Some(baseTenantInfo.toInfo)
           successVal.newInfo.map(_.getInfo) shouldEqual Some(
             baseTenantInfo
               .copy(

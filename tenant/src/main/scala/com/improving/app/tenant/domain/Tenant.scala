@@ -172,7 +172,7 @@ object Tenant {
               case x: InitializedTenant => SuspendedTenant(x.info, e.getMetaInfo, e.suspensionReason)
               case x                    => x
             }
-          case e: InfoEdited =>
+          case e: TenantInfoEdited =>
             state match {
               case x: DraftTenant => x.copy(info = e.getNewInfo.getEditable, metaInfo = e.getMetaInfo)
               case x: ActiveTenant =>
@@ -315,10 +315,9 @@ object Tenant {
 
       Right(
         TenantEventResponse(
-          InfoEdited(
+          TenantInfoEdited(
             tenantId = editInfoCommand.tenantId,
             metaInfo = Some(newMetaInfo),
-            oldInfo = Some(TenantInfoOrEditable(TenantInfoOrEditable.Value.Editable(draftState.info))),
             newInfo = Some(TenantInfoOrEditable(TenantInfoOrEditable.Value.Editable(updatedInfo)))
           )
         )
@@ -369,10 +368,9 @@ object Tenant {
 
       Right(
         TenantEventResponse(
-          InfoEdited(
+          TenantInfoEdited(
             tenantId = editInfoCommand.tenantId,
             metaInfo = Some(newMetaInfo),
-            oldInfo = Some(TenantInfoOrEditable(TenantInfoOrEditable.Value.Info(initializedState.info))),
             newInfo = Some(TenantInfoOrEditable(TenantInfoOrEditable.Value.Info(updatedInfo)))
           )
         )
