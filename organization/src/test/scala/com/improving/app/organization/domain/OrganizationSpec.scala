@@ -267,7 +267,7 @@ class OrganizationSpec
 
           val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-          successVal.getInfo shouldBe baseOrganizationInfo
+          successVal.getNewInfo shouldBe baseOrganizationInfo
         }
 
         "succeed for an edit of all fields and return the proper response" in {
@@ -299,7 +299,7 @@ class OrganizationSpec
 
           val updatedInfo = baseOrganizationInfo.copy(name = Some(newName), address = Some(newAddress))
 
-          successVal.getInfo shouldBe updatedInfo
+          successVal.getNewInfo shouldBe updatedInfo
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -327,7 +327,7 @@ class OrganizationSpec
 
           val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-          successVal.getInfo shouldBe baseOrganizationInfo.copy(name = Some(newName))
+          successVal.getNewInfo shouldBe baseOrganizationInfo.copy(name = Some(newName))
         }
       }
 
@@ -670,7 +670,7 @@ class OrganizationSpec
 
           val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-          successVal.getInfo shouldBe baseOrganizationInfo
+          successVal.getNewInfo shouldBe baseOrganizationInfo
         }
 
         "succeed for an edit of all fields and return the proper response" in {
@@ -703,7 +703,7 @@ class OrganizationSpec
 
           val updatedInfo = baseOrganizationInfo.copy(name = Some(newName), address = Some(newAddress))
 
-          successVal.getInfo shouldBe updatedInfo
+          successVal.getNewInfo shouldBe updatedInfo
         }
 
         "succeed for a partial edit and return the proper response" in {
@@ -732,7 +732,7 @@ class OrganizationSpec
 
           val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-          successVal.getInfo shouldBe baseOrganizationInfo.copy(name = Some(newName))
+          successVal.getNewInfo shouldBe baseOrganizationInfo.copy(name = Some(newName))
         }
       }
 
@@ -1132,7 +1132,7 @@ class OrganizationSpec
 
         val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-        successVal.getInfo shouldBe baseOrganizationInfo
+        successVal.getNewInfo shouldBe baseOrganizationInfo
       }
 
       "succeed for an edit of all fields and return the proper response" in {
@@ -1166,7 +1166,7 @@ class OrganizationSpec
 
         val updatedInfo = baseOrganizationInfo.copy(name = Some(newName), address = Some(newAddress))
 
-        successVal.getInfo shouldBe updatedInfo
+        successVal.getNewInfo shouldBe updatedInfo
       }
 
       "succeed for a partial edit and return the proper response" in {
@@ -1196,7 +1196,7 @@ class OrganizationSpec
 
         val successVal = response.getValue.asInstanceOf[OrganizationInfoEdited]
 
-        successVal.getInfo shouldBe baseOrganizationInfo.copy(name = Some(newName))
+        successVal.getNewInfo shouldBe baseOrganizationInfo.copy(name = Some(newName))
       }
     }
 

@@ -143,11 +143,11 @@ object Organization {
       case _: OrganizationTerminated => state
       case event: OrganizationInfoEdited =>
         state match {
-          case x: DraftState => x.copy(metaInfo = event.getMetaInfo, info = event.getInfo)
+          case x: DraftState => x.copy(metaInfo = event.getMetaInfo, info = event.getNewInfo)
           case x: ActiveState =>
-            x.copy(metaInfo = event.getMetaInfo, info = event.getInfo.toInfo)
+            x.copy(metaInfo = event.getMetaInfo, info = event.getNewInfo.toInfo)
           case x: SuspendedState =>
-            x.copy(metaInfo = event.getMetaInfo, info = event.getInfo.toInfo)
+            x.copy(metaInfo = event.getMetaInfo, info = event.getNewInfo.toInfo)
           case UninitializedState => UninitializedState
         }
       case event: MembersAddedToOrganization =>
