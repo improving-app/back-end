@@ -93,7 +93,6 @@ class TenantServerSpec extends ServiceTestContainerSpec(8080, "tenant-service") 
         .futureValue
 
       response.getTenantId shouldBe TenantId(tenantId)
-      response.oldInfo shouldBe itBaseTenantInfo
       response.newInfo shouldBe updateInfo.toInfo
       response.getMetaInfo.getLastUpdatedBy shouldBe MemberId("updatingUser")
     }

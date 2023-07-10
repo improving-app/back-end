@@ -84,7 +84,7 @@ message OrganizationTerminated {
 message OrganizationInfoEdited {
   option (scalapb.message).extends = "OrganizationEvent";
   com.improving.app.common.domain.OrganizationId organization_id = 1;
-  EditableOrganizationInfo info = 2;
+  EditableOrganizationInfo new_info = 2;
   OrganizationMetaInfo meta_info = 3;
 }
 
