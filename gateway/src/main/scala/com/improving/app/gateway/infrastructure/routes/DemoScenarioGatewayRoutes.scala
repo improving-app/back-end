@@ -4,6 +4,7 @@ import akka.http.scaladsl.server.Directives.{as, complete, entity, logRequestRes
 import akka.http.scaladsl.server.Route
 import com.github.dockerjava.api.exception.InternalServerErrorException
 import com.improving.app.common.domain.{
+  Address,
   EditableAddress,
   EditableContact,
   MemberId,
@@ -13,15 +14,24 @@ import com.improving.app.common.domain.{
   UsPostalCodeImpl
 }
 import com.improving.app.gateway.api.handlers.TenantGatewayHandler
-import com.improving.app.gateway.domain.tenantUtil.EstablishedTenantUtil
+import com.improving.app.gateway.api.handlers.{OrganizationGatewayHandler, TenantGatewayHandler}
+import com.improving.app.gateway.domain.common.orgUtil.EstablishedOrganizationUtil
 import com.improving.app.gateway.domain.common.util.{genPhoneNumber, genPostalCode}
-import com.improving.app.gateway.domain.demoScenario.{ScenarioStarted, StartScenario}
+import com.improving.app.gateway.domain.demoScenario.{Organization, ScenarioStarted, StartScenario, Tenant}
+import com.improving.app.gateway.domain.organization.{
+  ActivateOrganization,
+  EditableOrganizationInfo,
+  EstablishOrganization,
+  OrganizationEstablished
+}
 import com.improving.app.gateway.domain.tenant.{
+  ActivateTenant,
   EditableTenantInfo,
   EstablishTenant,
   TenantEstablished,
   TenantOrganizationList
 }
+import com.improving.app.gateway.domain.tenantUtil.EstablishedTenantUtil
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport
@@ -59,78 +69,129 @@ trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with Stric
     try cityStatesFile.getLines().toSeq.map(_.split(",").toSeq)
     finally cityStatesFile.close()
 
-  def demoScenarioRoutes(handler: TenantGatewayHandler): Route = logRequestResult("DemoScenarioGateway") {
-    pathPrefix("demo-scenario") {
-      pathPrefix("start") {
-        post {
-          entity(as[String]) { command =>
-            val parsed = JsonFormat.fromJsonString[StartScenario](command)
+  def demoScenarioRoutes(tenantHandler: TenantGatewayHandler, orgHandler: OrganizationGatewayHandler): Route =
+    logRequestResult("DemoScenarioGateway") {
+      pathPrefix("demo-scenario") {
+        pathPrefix("start") {
+          post {
+            entity(as[String]) { command =>
+              val parsed = JsonFormat.fromJsonString[StartScenario](command)
 
-            val creatingMemberId = Some(MemberId(UUID.randomUUID().toString))
-            val orgId = OrganizationId(UUID.randomUUID().toString)
-            logger.debug(parsed.toProtoString)
-            val establishTenantResponses: Seq[Future[TenantEstablished]] =
-              Random
-                .shuffle(firstNames)
-                .zip(Random.shuffle(lastNames))
-                .zip(Random.shuffle(addresses))
-                .zip(Random.shuffle(cityStates))
-                .take(parsed.numTenants)
-                .map {
-                  case (((first, last), address), Seq(city, state)) =>
-                    handler
-                      .establishTenant(
-                        EstablishTenant(
-                          Some(TenantId(UUID.randomUUID().toString)),
-                          creatingMemberId,
-                          Some(
-                            EditableTenantInfo(
-                              Some("Demo-" + LocalDateTime.now().toString),
-                              Some(
-                                EditableContact(
-                                  Some(first),
-                                  Some(last),
-                                  Some(s"$first.$last@orgorg.com"),
-                                  Some(genPhoneNumber),
-                                  Some(first.take(1) + last)
-                                )
-                              ),
-                              Some(
-                                EditableAddress(
-                                  line1 = Some(address),
-                                  line2 = None,
-                                  city = Some(city),
-                                  stateProvince = Some(state),
-                                  country = Some("Fakaria"),
-                                  postalCode = Some(
-                                    PostalCodeMessageImpl(
-                                      UsPostalCodeImpl(genPostalCode)
-                                    )
+              val creatingMemberId = Some(MemberId(UUID.randomUUID().toString))
+              val orgId = OrganizationId(UUID.randomUUID().toString)
+              logger.debug(parsed.toProtoString)
+              val tenantResponses: Future[Seq[Tenant]] =
+                Future
+                  .sequence(
+                    Random
+                      .shuffle(firstNames)
+                      .zip(Random.shuffle(lastNames))
+                      .zip(Random.shuffle(addresses))
+                      .zip(Random.shuffle(cityStates))
+                      .take(parsed.numTenants)
+                      .map {
+                        case (((first, last), address), Seq(city, state)) =>
+                          tenantHandler
+                            .establishTenant(
+                              EstablishTenant(
+                                Some(TenantId(UUID.randomUUID().toString)),
+                                creatingMemberId,
+                                Some(
+                                  EditableTenantInfo(
+                                    Some("Demo-" + LocalDateTime.now().toString),
+                                    Some(
+                                      EditableContact(
+                                        Some(first),
+                                        Some(last),
+                                        Some(s"$first.$last@orgorg.com"),
+                                        Some(genPhoneNumber),
+                                        Some(first.take(1) + last)
+                                      )
+                                    ),
+                                    Some(
+                                      EditableAddress(
+                                        line1 = Some(address),
+                                        line2 = None,
+                                        city = Some(city),
+                                        stateProvince = Some(state),
+                                        country = Some("Fakaria"),
+                                        postalCode = Some(
+                                          PostalCodeMessageImpl(
+                                            UsPostalCodeImpl(genPostalCode)
+                                          )
+                                        )
+                                      )
+                                    ),
+                                    Some(TenantOrganizationList(Seq(orgId)))
                                   )
                                 )
-                              ),
-                              Some(TenantOrganizationList(Seq(orgId)))
+                              )
                             )
+                        case (((_, _), _), _) =>
+                          Future.failed(new InternalServerErrorException("Could not generate all appropriate data"))
+                      }
+                      .map(_.flatMap { tenantEstablished: TenantEstablished =>
+                        tenantHandler
+                          .activateTenant(ActivateTenant(tenantEstablished.tenantId, creatingMemberId))
+                          .map(_ => tenantEstablished.toTenant)
+                      })
+                  )
+
+              val orgResponse: Future[Organization] = tenantResponses.flatMap { tenants =>
+                (Random
+                  .shuffle(addresses)
+                  .zip(Random.shuffle(cityStates))
+                  .zip(Random.shuffle(tenants.map(_.tenantId)))
+                  .head match {
+                  case ((address, Seq(city, state)), tenant) =>
+                    orgHandler.establishOrganization(
+                      EstablishOrganization(
+                        Some(orgId),
+                        creatingMemberId,
+                        Some(
+                          EditableOrganizationInfo(
+                            name = Some("The Demo Corporation"),
+                            shortName = Some("DemoCorp"),
+                            tenant = tenant,
+                            isPublic = Some(true),
+                            address = Some(
+                              EditableAddress(
+                                line1 = Some(address),
+                                line2 = None,
+                                city = Some(city),
+                                stateProvince = Some(state),
+                                country = Some("Fakaria"),
+                                postalCode = Some(
+                                  PostalCodeMessageImpl(
+                                    UsPostalCodeImpl(genPostalCode)
+                                  )
+                                )
+                              )
+                            ),
+                            url = Some("demo.corp"),
+                            logo = None
                           )
                         )
                       )
-                  case (((_, _), _), _) =>
-                    Future.failed(new InternalServerErrorException("Could not generate all appropriate data"))
+                    )
+                  case ((_, _), _) => Future.failed(new Exception("failed to match on data for creating org"))
+                }).flatMap { orgEstablished: OrganizationEstablished =>
+                  orgHandler
+                    .activateOrganization(ActivateOrganization(orgEstablished.organizationId, creatingMemberId))
+                    .map(_ => orgEstablished.toOrganization)
                 }
+              }
 
-            val requestsFut = Future
-              .sequence(
-                establishTenantResponses
-              )
-
-            complete {
-              requestsFut.map { reqs =>
-                ScenarioStarted(tenants = reqs.map(_.toTenant)).toProtoString
+              complete {
+                orgResponse.map { org =>
+                  tenantResponses.map { tenants =>
+                    ScenarioStarted(tenants = tenants, organizations = Seq(org)).toProtoString
+                  }
+                }
               }
             }
           }
         }
       }
     }
-  }
 }

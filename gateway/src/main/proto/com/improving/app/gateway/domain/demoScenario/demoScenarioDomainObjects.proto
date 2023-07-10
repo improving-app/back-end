@@ -4,12 +4,19 @@ package com.improving.app.gateway.domain.demoScenario;
 
 import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/gateway/domain/member/memberGatewayDomainObjects.proto";
+import "com/improving/app/gateway/domain/organization/organizationGatewayDomainObjects.proto";
 import "com/improving/app/gateway/domain/tenant/tenantGatewayDomainObjects.proto";
 
 message Tenant {
     common.domain.TenantId tenant_id = 1;
     tenant.TenantInfo tenant_info = 2;
     gateway.domain.tenant.TenantMetaInfo meta_info = 3;
+}
+
+message Organization {
+    common.domain.OrganizationId organization_id = 1;
+    organization.OrganizationInfo organization_info = 2;
+    gateway.domain.organization.OrganizationMetaInfo meta_info = 3;
 }
 
 message Member {

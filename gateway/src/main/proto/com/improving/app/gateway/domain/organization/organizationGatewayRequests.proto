@@ -1,0 +1,34 @@
+syntax =  "proto3";
+
+package com.improving.app.gateway.domain.organization;
+
+import "com/improving/app/gateway/domain/organization/organizationGatewayDomainObjects.proto";
+import "com/improving/app/common/domain/ids.proto";
+import "scalapb/scalapb.proto";
+
+//Requests
+message EstablishOrganization {
+    com.improving.app.common.domain.OrganizationId organization_id = 1;
+    com.improving.app.common.domain.MemberId on_behalf_of = 2;
+    optional organization.EditableOrganizationInfo organization_info = 3;
+}
+
+message ActivateOrganization {
+    com.improving.app.common.domain.OrganizationId organization_id = 1;
+    com.improving.app.common.domain.MemberId on_behalf_of = 2;
+}
+
+message TerminateOrganization {
+    com.improving.app.common.domain.OrganizationId organization_id = 1;
+    com.improving.app.common.domain.MemberId on_behalf_of = 2;
+}
+
+message OrganizationRequest{
+  option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
+
+  oneof sealed_value {
+    EstablishOrganization establish_tenant_value = 1;
+    ActivateOrganization activate_tenant_value = 2;
+    TerminateOrganization terminate_tenant_value = 3;
+  }
+}
