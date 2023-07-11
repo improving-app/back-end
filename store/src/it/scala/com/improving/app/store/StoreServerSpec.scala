@@ -10,17 +10,15 @@ import com.improving.app.store.domain.TestData.baseStoreInfo
 import com.improving.app.common.domain._
 import org.scalatest.tagobjects.Retryable
 
-
 import scala.util.Random
 
 class StoreServerSpec extends ServiceTestContainerSpec(8083, "store-service") {
 
   val storeId = Random.nextString(31)
-  val storeInfo: EditableStoreInfo
-  = EditableStoreInfo(
-    Some(baseStoreInfo.getInfo.name),
-    Some(baseStoreInfo.getInfo.description),
-    baseStoreInfo.getInfo.sponsoringOrg
+  val storeInfo: EditableStoreInfo = EditableStoreInfo(
+    Some(baseStoreInfo.name),
+    Some(baseStoreInfo.description),
+    baseStoreInfo.sponsoringOrg
   )
 
   private def getClient(containers: Containers): StoreService = {
@@ -45,7 +43,6 @@ class StoreServerSpec extends ServiceTestContainerSpec(8083, "store-service") {
     withContainers { containers => }
   }
 
-
   it should "properly process createStore" taggedAs Retryable in {
 
     withContainers { containers =>
@@ -57,7 +54,8 @@ class StoreServerSpec extends ServiceTestContainerSpec(8083, "store-service") {
             onBehalfOf = Some(MemberId("creatingUser")),
             info = Some(storeInfo)
           )
-        ).futureValue
+        )
+        .futureValue
 
       createdResponse.storeId shouldBe Some(StoreId(storeId))
     }
@@ -72,18 +70,20 @@ class StoreServerSpec extends ServiceTestContainerSpec(8083, "store-service") {
           CreateStore(
             storeId = Some(StoreId(storeId)),
             onBehalfOf = Some(MemberId("creatingUser")),
-            info =  Some(storeInfo)
+            info = Some(storeInfo)
           )
-        ).futureValue
+        )
+        .futureValue
 
       val storeReadyResponse = client
         .makeStoreReady(
           MakeStoreReady(
             storeId = Some(StoreId(storeId)),
             onBehalfOf = Some(MemberId("readyingUser")),
-            info =  Some(storeInfo)
+            info = Some(storeInfo)
           )
-        ).futureValue
+        )
+        .futureValue
 
       val storeReadyMeta: StoreMetaInfo = storeReadyResponse.getMetaInfo
       storeReadyMeta.getCreatedBy shouldEqual MemberId("creatingUser")
@@ -103,7 +103,8 @@ class StoreServerSpec extends ServiceTestContainerSpec(8083, "store-service") {
             onBehalfOf = Some(MemberId("creatingUser")),
             info = Some(storeInfo)
           )
-        ).futureValue
+        )
+        .futureValue
 
       val storeReadyResponse = client
         .makeStoreReady(
@@ -112,7 +113,8 @@ class StoreServerSpec extends ServiceTestContainerSpec(8083, "store-service") {
             onBehalfOf = Some(MemberId("readyingUser")),
             info = Some(storeInfo)
           )
-        ).futureValue
+        )
+        .futureValue
 
       val openStoreResponse = client
         .openStore(
@@ -120,7 +122,8 @@ class StoreServerSpec extends ServiceTestContainerSpec(8083, "store-service") {
             storeId = Some(StoreId(storeId)),
             onBehalfOf = Some(MemberId("openingUser")),
           )
-        ).futureValue
+        )
+        .futureValue
 
       val storeOpenMeta: StoreMetaInfo = openStoreResponse.getMetaInfo
 
@@ -140,7 +143,8 @@ class StoreServerSpec extends ServiceTestContainerSpec(8083, "store-service") {
             onBehalfOf = Some(MemberId("creatingUser")),
             info = Some(storeInfo)
           )
-        ).futureValue
+        )
+        .futureValue
 
       val storeReadyResponse = client
         .makeStoreReady(
@@ -149,7 +153,8 @@ class StoreServerSpec extends ServiceTestContainerSpec(8083, "store-service") {
             onBehalfOf = Some(MemberId("readyingUser")),
             info = Some(storeInfo)
           )
-        ).futureValue
+        )
+        .futureValue
 
       val openStoreResponse = client
         .openStore(
@@ -157,7 +162,8 @@ class StoreServerSpec extends ServiceTestContainerSpec(8083, "store-service") {
             storeId = Some(StoreId(storeId)),
             onBehalfOf = Some(MemberId("openingUser"))
           )
-        ).futureValue
+        )
+        .futureValue
 
       val closeStoreResponse = client
         .closeStore(
@@ -165,7 +171,8 @@ class StoreServerSpec extends ServiceTestContainerSpec(8083, "store-service") {
             storeId = Some(StoreId(storeId)),
             onBehalfOf = Some(MemberId("closingUser"))
           )
-        ).futureValue
+        )
+        .futureValue
 
       val closeStoreMeta: StoreMetaInfo = closeStoreResponse.getMetaInfo
 
@@ -184,7 +191,8 @@ class StoreServerSpec extends ServiceTestContainerSpec(8083, "store-service") {
             onBehalfOf = Some(MemberId("creatingUser")),
             info = Some(storeInfo)
           )
-        ).futureValue
+        )
+        .futureValue
 
       val storeReadyResponse = client
         .makeStoreReady(
@@ -193,7 +201,8 @@ class StoreServerSpec extends ServiceTestContainerSpec(8083, "store-service") {
             onBehalfOf = Some(MemberId("readyingUser")),
             info = Some(storeInfo)
           )
-        ).futureValue
+        )
+        .futureValue
 
       val openStoreResponse = client
         .openStore(
@@ -201,7 +210,8 @@ class StoreServerSpec extends ServiceTestContainerSpec(8083, "store-service") {
             storeId = Some(StoreId(storeId)),
             onBehalfOf = Some(MemberId("openingUser"))
           )
-        ).futureValue
+        )
+        .futureValue
 
       val closeStoreResponse = client
         .closeStore(
@@ -209,7 +219,8 @@ class StoreServerSpec extends ServiceTestContainerSpec(8083, "store-service") {
             storeId = Some(StoreId(storeId)),
             onBehalfOf = Some(MemberId("closingUser"))
           )
-        ).futureValue
+        )
+        .futureValue
 
       val terminateStoreResponse = client
         .terminateStore(
@@ -217,7 +228,8 @@ class StoreServerSpec extends ServiceTestContainerSpec(8083, "store-service") {
             storeId = Some(StoreId(storeId)),
             onBehalfOf = Some(MemberId("terminatingUser"))
           )
-        ).futureValue
+        )
+        .futureValue
 
       val terminateStoreMeta: StoreMetaInfo = terminateStoreResponse.getMetaInfo
 
