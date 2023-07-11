@@ -27,7 +27,7 @@ enum EventState{
 
 message EventStateInfo{
     oneof value {
-    ScheduledEventInfo scheduled_event_info = 1;
+        ScheduledEventInfo scheduled_event_info = 1;
         InProgressEventInfo in_progress_event_info = 2;
         DelayedEventInfo delayed_event_info = 3;
         PastEventInfo past_event_info = 4;
