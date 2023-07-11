@@ -10,7 +10,7 @@ import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.MemberId
 import com.improving.app.common.errors._
 import com.improving.app.store.domain.Validation.{draftTransitionStoreInfoValidator, storeCommandValidator}
-import com.improving.app.store.domain.util.EditableStoreInfoUtil
+import com.improving.app.store.domain.util.{EditableStoreInfoUtil, StoreInfoUtil}
 
 import java.time.Instant
 
@@ -167,15 +167,15 @@ object Store {
         }
       case StoreInfoEdited(
             _,
-            Some(infoOrEditable: StoreOrEditableInfo),
+            Some(newInfo),
             Some(metaInfo),
             _
           ) =>
         state match {
-          case _: DraftState  => DraftState(infoOrEditable.getEditableInfo, metaInfo)
-          case _: ReadyState  => ReadyState(infoOrEditable.getInfo, metaInfo)
-          case _: OpenState   => OpenState(infoOrEditable.getInfo, metaInfo)
-          case _: ClosedState => ClosedState(infoOrEditable.getInfo, metaInfo)
+          case _: DraftState  => DraftState(newInfo, metaInfo)
+          case _: ReadyState  => ReadyState(newInfo.toInfo, metaInfo)
+          case _: OpenState   => OpenState(newInfo.toInfo, metaInfo)
+          case _: ClosedState => ClosedState(newInfo.toInfo, metaInfo)
           case x: StoreState  => x
         }
       case _ => state
@@ -332,7 +332,7 @@ object Store {
       Right(
         StoreInfoEdited(
           storeId = command.storeId,
-          info = Some(StoreOrEditableInfo(StoreOrEditableInfo.InfoOrEditable.Info(updatedInfo.getOrElse(state.info)))),
+          newInfo = Some(updatedInfo.getOrElse(state.info).toEditable),
           metaInfo = Some(updatedMetaInfo)
         )
       )
@@ -342,10 +342,8 @@ object Store {
       Right(
         StoreInfoEdited(
           storeId = command.storeId,
-          info = Some(
-            StoreOrEditableInfo(
-              StoreOrEditableInfo.InfoOrEditable.EditableInfo(editableInfo.updateInfo(command.getNewInfo))
-            )
+          newInfo = Some(
+            editableInfo.updateInfo(command.getNewInfo)
           ),
           metaInfo = Some(updatedMetaInfo)
         )

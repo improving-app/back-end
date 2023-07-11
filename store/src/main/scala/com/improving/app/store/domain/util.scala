@@ -12,6 +12,12 @@ object util {
         sponsoringOrg = newInfo.sponsoringOrg.orElse(info.sponsoringOrg)
       )
     }
+
+    private[domain] def toEditable: EditableStoreInfo = EditableStoreInfo(
+      name = Some(info.name),
+      description = Some(info.description),
+      sponsoringOrg = info.sponsoringOrg
+    )
   }
 
   implicit class EditableStoreInfoUtil(info: EditableStoreInfo) {
@@ -24,5 +30,11 @@ object util {
         sponsoringOrg = newInfo.sponsoringOrg.orElse(info.sponsoringOrg)
       )
     }
+
+    private[domain] def toInfo: StoreInfo = StoreInfo(
+      name = info.getName,
+      description = info.getDescription,
+      sponsoringOrg = info.sponsoringOrg
+    )
   }
 }

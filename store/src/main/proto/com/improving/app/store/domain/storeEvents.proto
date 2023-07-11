@@ -72,7 +72,7 @@ message StoreTerminated {
 message StoreInfoEdited {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   common.domain.StoreId store_id = 1;
-  StoreOrEditableInfo info = 2;
+  EditableStoreInfo new_info = 2;
   StoreMetaInfo meta_info = 3;
 }
 

@@ -39,7 +39,7 @@ message MemberTerminated {
 
 message MemberInfoEdited {
     common.domain.MemberId member_id = 1;
-    EditableInfo member_info = 2;
+    EditableInfo new_info = 2;
     MemberMetaInfo meta = 3;
 }
 
