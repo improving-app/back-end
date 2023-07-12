@@ -1,25 +1,56 @@
 package com.improving.app.event.api
 
+import akka.actor.Cancellable
 import akka.actor.typed.ActorSystem
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.grpc.GrpcServiceException
 import akka.pattern.StatusReply
 import akka.util.Timeout
+import com.google.protobuf.timestamp.Timestamp
 import com.google.rpc.Code
+import com.improving.app.common.domain.EventId
 import com.improving.app.event.domain.Event.{EventEntityKey, EventEnvelope}
 import com.improving.app.event.domain._
 
-import scala.concurrent.duration.DurationInt
+import java.time.Instant
+import scala.concurrent.duration.{DurationInt, DurationLong}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.postfixOps
+import scala.language.{existentials, postfixOps}
 
-class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService {
+class EventServiceImpl()(implicit val system: ActorSystem[_]) extends EventService {
 
   implicit val ec: ExecutionContext = system.executionContext
   implicit val timeout: Timeout = Timeout(5 minute)
 
-  // Create a new member
+  private var cancellableStartTimers: Map[String, Cancellable] = Map()
+  private var cancellableEndTimers: Map[String, Cancellable] = Map()
+
+  def startStartTimer(in: EventRequestPB with EventCommand, expectedStart: Timestamp, id: EventId): Unit =
+    cancellableStartTimers += id.id ->
+      system.scheduler.scheduleOnce(
+        (expectedStart.seconds - Instant.now().getEpochSecond).seconds,
+        () => StartEvent(Some(id), in.onBehalfOf)
+      )
+
+  def cancelStartTimer(id: EventId): Unit = {
+    cancellableStartTimers.filter(_._1 == id.id).map(_._2.cancel())
+    cancellableStartTimers = cancellableStartTimers.filter(_._1 != id.id)
+  }
+
+  def startEndTimer(in: EventRequestPB with EventCommand, expectedEnd: Timestamp, id: EventId): Unit =
+    cancellableEndTimers += id.id ->
+      system.scheduler.scheduleOnce(
+        (expectedEnd.seconds - Instant.now().getEpochSecond).seconds,
+        () => StartEvent(Some(id), in.onBehalfOf)
+      )
+
+  def cancelEndTimer(id: EventId): Unit = {
+    cancellableEndTimers.filter(_._1 == id.id).map(_._2.cancel())
+    cancellableEndTimers = cancellableEndTimers.filter(_._1 != id.id)
+  }
+
+  // Create a new event
   val sharding: ClusterSharding = ClusterSharding(system)
   ClusterSharding(system).init(
     Entity(EventEntityKey)(entityContext => Event(entityContext.entityTypeKey.name, entityContext.entityId))
@@ -65,10 +96,10 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
       eventHandler: PartialFunction[StatusReply[EventResponse], T]
   ): Future[T] = in.eventId
     .map { id =>
-      val memberEntity = sharding.entityRefFor(EventEntityKey, id.id)
+      val eventEntity = sharding.entityRefFor(EventEntityKey, id.id)
 
       // Register the member
-      memberEntity
+      eventEntity
         .ask[StatusReply[EventResponse]](replyTo => EventEnvelope(in, replyTo))
         .map { handleResponse(eventHandler) }
     }
@@ -108,8 +139,21 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
    */
   override def scheduleEvent(in: ScheduleEvent): Future[EventScheduled] = handleCommand(
     in,
-    { case StatusReply.Success(EventEventResponse(response @ EventScheduled(_, _, _, _), _)) =>
-      response
+    {
+      case StatusReply.Success(
+            EventEventResponse(
+              response @ EventScheduled(
+                Some(id),
+                Some(_ @EventInfo(_, _, _, _, Some(expectedStart), _, _, _, _)),
+                _,
+                _
+              ),
+              _
+            )
+          ) =>
+        startStartTimer(in, expectedStart, id)
+
+        response
     }
   )
 
@@ -118,7 +162,9 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
    */
   override def cancelEvent(in: CancelEvent): Future[EventCancelled] = handleCommand(
     in,
-    { case StatusReply.Success(EventEventResponse(response @ EventCancelled(_, _, _), _)) =>
+    { case StatusReply.Success(EventEventResponse(response @ EventCancelled(Some(id), _, _), _)) =>
+      cancelStartTimer(id)
+      cancelEndTimer(id)
       response
     }
   )
@@ -128,8 +174,21 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
    */
   override def rescheduleEvent(in: RescheduleEvent): Future[EventRescheduled] = handleCommand(
     in,
-    { case StatusReply.Success(EventEventResponse(response @ EventRescheduled(_, _, _, _), _)) =>
-      response
+    {
+      case StatusReply.Success(
+            EventEventResponse(
+              response @ EventRescheduled(
+                Some(id),
+                Some(_ @EventInfo(_, _, _, _, Some(expectedStart), _, _, _, _)),
+                _,
+                _
+              ),
+              _
+            )
+          ) =>
+        cancelStartTimer(id)
+        startStartTimer(in, expectedStart, id)
+        response
     }
   )
 
@@ -138,8 +197,18 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
    */
   override def delayEvent(in: DelayEvent): Future[EventDelayed] = handleCommand(
     in,
-    { case StatusReply.Success(EventEventResponse(response @ EventDelayed(_, _, _, _), _)) =>
-      response
+    {
+      case StatusReply.Success(
+            EventEventResponse(
+              response @ EventDelayed(Some(id), Some(_ @EventInfo(_, _, _, _, Some(expectedStart), _, _, _, _)), _, _),
+              _
+            )
+          ) =>
+        if (cancellableStartTimers.contains(id.id)) cancelStartTimer(id)
+        if (cancellableEndTimers.contains(id.id)) cancelEndTimer(id)
+        startStartTimer(in, expectedStart, id)
+
+        response
     }
   )
 
@@ -148,8 +217,17 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
    */
   override def startEvent(in: StartEvent): Future[EventStarted] = handleCommand(
     in,
-    { case StatusReply.Success(EventEventResponse(response @ EventStarted(_, _, _), _)) =>
-      response
+    {
+      case StatusReply.Success(
+            EventEventResponse(
+              response @ EventStarted(Some(id), Some(_ @EventInfo(_, _, _, _, _, Some(expectedEnd), _, _, _)), _, _),
+              _
+            )
+          ) =>
+        cancelStartTimer(id)
+        startEndTimer(in, expectedEnd, id)
+
+        response
     }
   )
 
@@ -158,7 +236,8 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
    */
   override def endEvent(in: EndEvent): Future[EventEnded] = handleCommand(
     in,
-    { case StatusReply.Success(EventEventResponse(response @ EventEnded(_, _, _), _)) =>
+    { case StatusReply.Success(EventEventResponse(response @ EventEnded(Some(id), _, _), _)) =>
+      cancelEndTimer(id)
       response
     }
   )

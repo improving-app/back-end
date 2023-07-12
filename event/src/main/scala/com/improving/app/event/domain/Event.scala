@@ -1,6 +1,6 @@
 package com.improving.app.event.domain
 
-import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.{Behaviors, TimerScheduler}
 import akka.actor.typed.{ActorRef, Behavior, PostStop}
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.pattern.StatusReply
@@ -21,6 +21,8 @@ import com.improving.app.event.domain.util.{EditableEventInfoUtil, EventInfoUtil
 import com.typesafe.scalalogging.StrictLogging
 
 import java.time.{Clock, Instant}
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
 
 object Event extends StrictLogging {
 
@@ -52,10 +54,6 @@ object Event extends StrictLogging {
       extends CreatedEventState
       with DefinedEventState
 
-  private[domain] case class RescheduledEventState(info: EventInfo, meta: EventMetaInfo)
-      extends CreatedEventState
-      with DefinedEventState
-
   private[domain] case class InProgressEventState(info: EventInfo, meta: EventMetaInfo)
       extends CreatedEventState
       with DefinedEventState
@@ -73,12 +71,12 @@ object Event extends StrictLogging {
     def memberId: Option[EventId]
   }
 
-  def apply(entityTypeHint: String, memberId: String): Behavior[EventEnvelope] =
+  def apply(entityTypeHint: String, eventId: String): Behavior[EventEnvelope] =
     Behaviors.setup { context =>
-      context.log.info("Starting Event {}", memberId)
+      context.log.info("Starting Event {}", eventId)
       EventSourcedBehavior
         .withEnforcedReplies[EventEnvelope, EventResponse, EventState](
-          persistenceId = PersistenceId(entityTypeHint, memberId),
+          persistenceId = PersistenceId(entityTypeHint, eventId),
           emptyState = emptyState(),
           commandHandler = commandHandler,
           eventHandler = eventHandler
@@ -88,7 +86,7 @@ object Event extends StrictLogging {
           case (state, RecoveryCompleted) =>
             context.log.debug("onRecoveryCompleted: [{}]", state)
           case (_, PostStop) =>
-            context.log.info("Event {} stopped", memberId)
+            context.log.info("Event {} stopped", eventId)
         }
     }
 
@@ -367,15 +365,16 @@ object Event extends StrictLogging {
       meta: EventMetaInfo,
       scheduleEventCommand: ScheduleEvent
   ): Either[Error, EventResponse] = {
-    val now = Some(Timestamp(Instant.now(clock)))
+    val now = Timestamp(Instant.now(clock))
     val newMeta = meta.copy(
-      lastModifiedOn = now,
+      lastModifiedOn = Some(now),
       lastModifiedBy = scheduleEventCommand.onBehalfOf,
-      scheduledOn = now,
+      scheduledOn = Some(now),
       scheduledBy = scheduleEventCommand.onBehalfOf,
       currentState = EVENT_STATE_SCHEDULED,
       eventStateInfo = Some(EventStateInfo(EventStateInfo.Value.ScheduledEventInfo(ScheduledEventInfo())))
     )
+
     info match {
       case Left(e: EditableEventInfo) =>
         val updatedInfo =
