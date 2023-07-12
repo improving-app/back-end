@@ -1,11 +1,8 @@
 package com.improving.app.event.domain
 
-import akka.cluster.Gossip.Timestamp
 import com.improving.app.common.errors.Validation.{
   applyAllValidators,
-  editableContactValidator,
   endBeforeStartValidator,
-  listHasLength,
   required,
   requiredThenValidate,
   Validator
@@ -24,7 +21,6 @@ object Validation {
         requiredThenValidate("expectedEnd", endBeforeStartValidator(eventInfo.expectedStart))(
           eventInfo.expectedEnd
         ),
-      eventInfo => required("eventStatusInfo")(eventInfo.eventStatusInfo),
     )
 
   val eventCommandValidator: Validator[EventCommand] =

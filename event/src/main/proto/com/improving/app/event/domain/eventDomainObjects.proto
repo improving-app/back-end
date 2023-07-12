@@ -54,7 +54,6 @@ message PastEventInfo {
 message CancelledEventInfo {
     string reason = 1;
     optional google.protobuf.Timestamp time_started_opt = 2;
-    optional google.protobuf.Timestamp time_ended_opt = 3;
 }
 
 message EventInfo {
@@ -76,15 +75,17 @@ message EditableEventInfo {
     optional google.protobuf.Timestamp expected_start = 5;
     optional google.protobuf.Timestamp expected_end = 6;
     bool is_private = 7;
-    optional EventStateInfo event_status_info = 8;
 }
 
 message EventMetaInfo {
-    common.domain.MemberId scheduled_by = 1;
-    google.protobuf.Timestamp scheduled_on = 2;
-    common.domain.MemberId last_modified_by = 3;
-    google.protobuf.Timestamp last_modified_on = 4;
-    google.protobuf.Timestamp actual_start = 5;
-    google.protobuf.Timestamp actual_end = 6;
-    EventState state = 7;
+    common.domain.MemberId created_by = 1;
+    google.protobuf.Timestamp created_on = 2;
+    common.domain.MemberId scheduled_by = 3;
+    google.protobuf.Timestamp scheduled_on = 4;
+    common.domain.MemberId last_modified_by = 5;
+    google.protobuf.Timestamp last_modified_on = 6;
+    google.protobuf.Timestamp actual_start = 7;
+    google.protobuf.Timestamp actual_end = 8;
+    EventState current_state = 9;
+    optional EventStateInfo event_state_info = 10;
 }

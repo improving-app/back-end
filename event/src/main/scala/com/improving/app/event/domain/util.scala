@@ -13,7 +13,6 @@ object util {
         expectedStart = editableInfo.expectedStart.orElse(info.expectedStart),
         expectedEnd = editableInfo.expectedEnd.orElse(info.expectedEnd),
         isPrivate = editableInfo.isPrivate,
-        eventStatusInfo = editableInfo.eventStatusInfo.orElse(info.eventStatusInfo)
       )
     }
 
@@ -25,7 +24,6 @@ object util {
       expectedStart = info.expectedStart,
       expectedEnd = info.expectedEnd,
       isPrivate = info.isPrivate,
-      eventStatusInfo = info.eventStatusInfo
     )
   }
 
@@ -39,7 +37,6 @@ object util {
         expectedStart = editableInfo.expectedStart,
         expectedEnd = editableInfo.expectedEnd.orElse(info.expectedEnd),
         isPrivate = editableInfo.isPrivate,
-        eventStatusInfo = editableInfo.eventStatusInfo.orElse(info.eventStatusInfo)
       )
     }
 
@@ -51,7 +48,6 @@ object util {
       expectedStart = info.expectedStart,
       expectedEnd = info.expectedEnd,
       isPrivate = info.isPrivate,
-      eventStatusInfo = info.eventStatusInfo
     )
   }
 }

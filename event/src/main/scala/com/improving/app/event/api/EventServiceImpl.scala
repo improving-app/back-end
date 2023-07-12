@@ -118,7 +118,7 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
    */
   override def cancelEvent(in: CancelEvent): Future[EventCancelled] = handleCommand(
     in,
-    { case StatusReply.Success(EventEventResponse(response @ EventCancelled(_, _), _)) =>
+    { case StatusReply.Success(EventEventResponse(response @ EventCancelled(_, _, _), _)) =>
       response
     }
   )
@@ -144,7 +144,7 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
   )
 
   /**
-   * get:"event/{eventId}/delay"
+   * get:"event/{eventId}/start"
    */
   override def startEvent(in: StartEvent): Future[EventStarted] = handleCommand(
     in,
@@ -154,21 +154,11 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
   )
 
   /**
-   * get:"event/{eventId}/delay"
+   * get:"event/{eventId}/end"
    */
   override def endEvent(in: EndEvent): Future[EventEnded] = handleCommand(
     in,
     { case StatusReply.Success(EventEventResponse(response @ EventEnded(_, _, _), _)) =>
-      response
-    }
-  )
-
-  /**
-   * get:"event/{eventId}/delay"
-   */
-  override def terminateEvent(in: TerminateEvent): Future[EventTerminated] = handleCommand(
-    in,
-    { case StatusReply.Success(EventEventResponse(response @ EventTerminated(_, _, _), _)) =>
       response
     }
   )

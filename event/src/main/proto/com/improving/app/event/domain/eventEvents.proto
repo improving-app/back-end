@@ -35,6 +35,7 @@ message EventScheduled {
 
 message EventCancelled {
     common.domain.EventId event_id = 1;
+    EventMetaInfo meta = 2;
 }
 
 message EventRescheduled {
@@ -59,12 +60,6 @@ message EventEnded {
     EventMetaInfo meta = 2;
 }
 
-message EventTerminated {
-    common.domain.EventId event_id = 1;
-    EventMetaInfo last_meta = 2;
-}
-
-
 message EventEvent{
   option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
 
@@ -77,7 +72,6 @@ message EventEvent{
       EventDelayed event_delayed = 6;
       EventStarted event_started = 7;
       EventEnded event_ended = 8;
-      EventTerminated event_terminated = 9;
   }
 }
 

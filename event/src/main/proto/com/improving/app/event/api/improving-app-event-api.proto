@@ -37,15 +37,11 @@ service EventService {
   }
 
   rpc StartEvent(domain.StartEvent) returns (domain.EventStarted) {
-      //get:"event/{eventId}/delay"
+      //get:"event/{eventId}/start"
   }
 
   rpc EndEvent(domain.EndEvent) returns (domain.EventEnded) {
-      //get:"event/{eventId}/delay"
-  }
-
-  rpc TerminateEvent(domain.TerminateEvent) returns (domain.EventTerminated) {
-      //get:"event/{eventId}/delay"
+      //get:"event/{eventId}/end"
   }
 
 }

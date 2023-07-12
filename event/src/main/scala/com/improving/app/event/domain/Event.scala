@@ -7,15 +7,17 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import akka.persistence.typed.{PersistenceId, RecoveryCompleted}
 import com.google.protobuf.timestamp.Timestamp
-import com.improving.app.common.domain.MemberId
+import com.improving.app.common.domain.EventId
 import com.improving.app.common.errors.{Error, StateError}
-import com.improving.app.member.domain.MemberState.{MEMBER_STATE_ACTIVE, MEMBER_STATE_DRAFT, MEMBER_STATE_SUSPENDED}
-import com.improving.app.member.domain.Validation.{
-  draftTransitionMemberInfoValidator,
-  memberCommandValidator,
-  memberQueryValidator
+import com.improving.app.event.domain.EventState.{
+  EVENT_STATE_CANCELLED,
+  EVENT_STATE_DELAYED,
+  EVENT_STATE_DRAFT,
+  EVENT_STATE_INPROGRESS,
+  EVENT_STATE_SCHEDULED
 }
-import com.improving.app.member.domain.util.{EditableMemberInfoUtil, MemberInfoUtil}
+import com.improving.app.event.domain.Validation.{draftTransitionEventInfoValidator, eventCommandValidator}
+import com.improving.app.event.domain.util.{EditableEventInfoUtil, EventInfoUtil}
 import com.typesafe.scalalogging.StrictLogging
 
 import java.time.{Clock, Instant}
@@ -32,12 +34,7 @@ object Event extends StrictLogging {
   private def emptyState(): EventState = {
     UninitializedEventState
   }
-  EVENT_STATE_DRAFT
-  EVENT_STATE_SCHEDULED
-  EVENT_STATE_INPROGRESS
-  EVENT_STATE_DELAYED
-  EVENT_STATE_PAST
-  EVENT_STATE_CANCELLED
+
   sealed private[domain] trait EventState
   private[domain] object UninitializedEventState extends EventState
   sealed private[domain] trait CreatedEventState extends EventState {
@@ -54,15 +51,31 @@ object Event extends StrictLogging {
   private[domain] case class ScheduledEventState(info: EventInfo, meta: EventMetaInfo)
       extends CreatedEventState
       with DefinedEventState
-  private[domain] case class TerminatedMemberState(lastMeta: EventMetaInfo) extends EventState
 
-  trait HasMemberId {
-    def memberId: Option[MemberId]
+  private[domain] case class RescheduledEventState(info: EventInfo, meta: EventMetaInfo)
+      extends CreatedEventState
+      with DefinedEventState
+
+  private[domain] case class InProgressEventState(info: EventInfo, meta: EventMetaInfo)
+      extends CreatedEventState
+      with DefinedEventState
+
+  private[domain] case class DelayedEventState(info: EventInfo, meta: EventMetaInfo)
+      extends CreatedEventState
+      with DefinedEventState
+
+  private[domain] case class CancelledEventState(info: EventInfo, meta: EventMetaInfo)
+      extends CreatedEventState
+      with DefinedEventState
+  private[domain] case class PastEventState(info: EventInfo, lastMeta: EventMetaInfo) extends EventState
+
+  trait HasEventId {
+    def memberId: Option[EventId]
   }
 
   def apply(entityTypeHint: String, memberId: String): Behavior[EventEnvelope] =
     Behaviors.setup { context =>
-      context.log.info("Starting Member {}", memberId)
+      context.log.info("Starting Event {}", memberId)
       EventSourcedBehavior
         .withEnforcedReplies[EventEnvelope, EventResponse, EventState](
           persistenceId = PersistenceId(entityTypeHint, memberId),
@@ -75,7 +88,7 @@ object Event extends StrictLogging {
           case (state, RecoveryCompleted) =>
             context.log.debug("onRecoveryCompleted: [{}]", state)
           case (_, PostStop) =>
-            context.log.info("Member {} stopped", memberId)
+            context.log.info("Event {} stopped", memberId)
         }
     }
 
@@ -100,60 +113,94 @@ object Event extends StrictLogging {
         case c: EventCommand =>
           eventCommandValidator(c) match {
             case None =>
-              val result: Either[Error, MemberResponse] = state match {
-                case UninitializedMemberState =>
+              val result: Either[Error, EventResponse] = state match {
+                case UninitializedEventState =>
                   command.request match {
-                    case registerMemberCommand: RegisterMember => registerMember(registerMemberCommand)
+                    case createEventCommand: CreateEvent => createEvent(createEventCommand)
                     case _ =>
                       Left(
                         StateError(
-                          s"${command.request.productPrefix} command cannot be used on an uninitialized Member"
+                          s"${command.request.productPrefix} command cannot be used on an uninitialized Event"
                         )
                       )
                   }
-                case DraftMemberState(editableInfo, meta) =>
+                case DraftEventState(editableInfo, meta) =>
                   command.request match {
-                    case activateMemberCommand: ActivateMember =>
-                      activateMember(Left(editableInfo), meta, activateMemberCommand)
-                    case editMemberInfoCommand: EditMemberInfo =>
-                      editMemberInfo(Left(editableInfo), meta, editMemberInfoCommand)
+                    case scheduleEventCommand: ScheduleEvent =>
+                      scheduleEvent(Left(editableInfo), meta, scheduleEventCommand)
+                    case editEventInfoCommand: EditEventInfo =>
+                      editEventInfo(Left(editableInfo), meta, editEventInfoCommand)
+                    case delayEventCommand: DelayEvent =>
+                      delayEvent(Left(editableInfo), meta, delayEventCommand)
+                    case cancelEventCommand: CancelEvent =>
+                      cancelEvent(Left(editableInfo), meta, cancelEventCommand)
                     case _ =>
-                      Left(StateError(s"${command.request.productPrefix} command cannot be used on a draft Member"))
+                      Left(StateError(s"${command.request.productPrefix} command cannot be used on a draft Event"))
                   }
                 case x: DefinedEventState =>
-                  x.meta.currentState match {
-                    case MemberState.MEMBER_STATE_ACTIVE =>
+                  x match {
+                    case ScheduledEventState(info, meta) =>
                       command.request match {
-                        case suspendMemberCommand: SuspendMember     => suspendMember(x.meta, suspendMemberCommand)
-                        case terminateMemberCommand: TerminateMember => terminateMember(x.meta, terminateMemberCommand)
-                        case editMemberInfoCommand: EditMemberInfo =>
-                          editMemberInfo(Right(x.info), x.meta, editMemberInfoCommand)
+                        case startEventCommand: StartEvent => startEvent(info, meta, startEventCommand)
+                        case delayEventCommand: DelayEvent => delayEvent(Right(info), meta, delayEventCommand)
+                        case rescheduleEventCommand: RescheduleEvent =>
+                          rescheduleEvent(info, meta, rescheduleEventCommand)
+                        case editEventInfoCommand: EditEventInfo =>
+                          editEventInfo(Right(info), meta, editEventInfoCommand)
                         case _ =>
                           Left(
-                            StateError(s"${command.request.productPrefix} command cannot be used on an active Member")
+                            StateError(s"${command.request.productPrefix} command cannot be used on an active Event")
                           )
                       }
-                    case MemberState.MEMBER_STATE_SUSPENDED =>
+                    case InProgressEventState(info, meta) =>
                       command.request match {
-                        case activateMemberCommand: ActivateMember =>
-                          activateMember(Right(x.info), x.meta, activateMemberCommand)
-                        case suspendMemberCommand: SuspendMember     => suspendMember(x.meta, suspendMemberCommand)
-                        case terminateMemberCommand: TerminateMember => terminateMember(x.meta, terminateMemberCommand)
+                        case delayEventCommand: DelayEvent =>
+                          delayEvent(Right(info), meta, delayEventCommand)
+                        case endEventCommand: EndEvent =>
+                          endEvent(meta, endEventCommand)
                         case _ =>
                           Left(
                             StateError(
-                              s"${command.request.productPrefix} command cannot be used on a suspended Member"
+                              s"${command.request.productPrefix} command cannot be used on a suspended Event"
+                            )
+                          )
+                      }
+                    case DelayedEventState(info, meta) =>
+                      command.request match {
+                        case startEventCommand: StartEvent =>
+                          startEvent(info, meta, startEventCommand)
+                        case cancelEventCommand: CancelEvent =>
+                          cancelEvent(Right(info), meta, cancelEventCommand)
+                        case rescheduleEventCommand: RescheduleEvent =>
+                          rescheduleEvent(info, meta, rescheduleEventCommand)
+                        case editEventInfoCommand: EditEventInfo =>
+                          editEventInfo(Right(info), meta, editEventInfoCommand)
+                        case _ =>
+                          Left(
+                            StateError(
+                              s"${command.request.productPrefix} command cannot be used on a suspended Event"
+                            )
+                          )
+                      }
+                    case CancelledEventState(info, meta) =>
+                      command.request match {
+                        case rescheduleEventCommand: RescheduleEvent =>
+                          rescheduleEvent(info, meta, rescheduleEventCommand)
+                        case _ =>
+                          Left(
+                            StateError(
+                              s"${command.request.productPrefix} command cannot be used on a suspended Event"
                             )
                           )
                       }
                     case _ =>
                       Left(StateError(s"Registered member has an invalid state ${x.meta.currentState.productPrefix}"))
                   }
-                case _: TerminatedMemberState =>
+                case _: PastEventState =>
                   command.request match {
                     case _ =>
                       Left(
-                        StateError(s"${command.request.productPrefix} command cannot be used on a terminated Member")
+                        StateError(s"Event is past, no commands available")
                       )
                   }
               }
@@ -164,162 +211,196 @@ object Event extends StrictLogging {
               }
             case Some(errors) => Effect.reply(command.replyTo)(StatusReply.Error(errors.message))
           }
-        case q: MemberQuery =>
-          memberQueryValidator(q) match {
-            case None =>
-              q match {
-                case request: GetMemberInfo =>
-                  state match {
-                    case x: DefinedEventState =>
-                      getMemberInfo(Right(x.info), x.meta, request) match {
-                        case Left(error)  => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
-                        case Right(event) => replyWithResponseEvent(event)
-                      }
-                    case x: DraftMemberState =>
-                      getMemberInfo(Left(x.editableInfo), x.meta, request) match {
-                        case Left(error)  => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
-                        case Right(event) => replyWithResponseEvent(event)
-
-                      }
-                    case UninitializedMemberState =>
-                      Effect.reply(command.replyTo)(
-                        StatusReply.Error(
-                          s"${command.request.productPrefix} command cannot be used on an uninitialized Member"
-                        )
-                      )
-                    case _: TerminatedMemberState =>
-                      Effect.reply(command.replyTo)(
-                        StatusReply.Error(
-                          s"${command.request.productPrefix} command cannot be used on a terminated Member"
-                        )
-                      )
-                  }
-                case _ => Effect.reply(command.replyTo)(StatusReply.Error("Message was not a StoreRequest"))
-              }
-            case Some(errors) => Effect.reply(command.replyTo)(StatusReply.Error(errors.toString))
-          }
-        case MemberRequestPB.Empty => Effect.reply(command.replyTo)(StatusReply.Error("Message was not a StoreRequest"))
+        case EventRequestPB.Empty => Effect.reply(command.replyTo)(StatusReply.Error("Message was not an EventRequest"))
       }
   }
 
   // EventHandler
   private val eventHandler: (EventState, EventResponse) => EventState = { (state, response) =>
     response match {
-      case eventResponse: MemberEventResponse =>
-        eventResponse.memberEvent match {
-          case memberRegisteredEvent: MemberRegistered =>
+      case eventResponse: EventEventResponse =>
+        eventResponse.eventEvent match {
+          case eventCreatedEvent: EventCreated =>
             state match {
-              case UninitializedMemberState =>
-                DraftMemberState(
-                  editableInfo = memberRegisteredEvent.getMemberInfo,
-                  meta = memberRegisteredEvent.getMeta
+              case UninitializedEventState =>
+                DraftEventState(
+                  editableInfo = eventCreatedEvent.getInfo,
+                  meta = eventCreatedEvent.getMeta
                 )
               case _ => state
             }
 
-          case memberActivatedEvent: MemberActivated =>
+          case eventScheduledEvent: EventScheduled =>
             state match {
-              case DraftMemberState(editableInfo, _) =>
-                ActivatedMemberState(
+              case DraftEventState(editableInfo, _) =>
+                ScheduledEventState(
                   info = editableInfo.toInfo,
-                  meta = memberActivatedEvent.getMeta
-                )
-              case x: SuspendedMemberState =>
-                ActivatedMemberState(info = x.info, meta = memberActivatedEvent.getMeta)
-              case _ => state
-            }
-
-          case memberSuspendedEvent: MemberSuspended =>
-            state match {
-              case x: DefinedEventState =>
-                SuspendedMemberState(
-                  info = x.info,
-                  meta = memberSuspendedEvent.getMeta,
-                  suspensionReason = memberSuspendedEvent.suspensionReason
+                  meta = eventScheduledEvent.getMeta
                 )
               case _ => state
             }
 
-          case memberTerminatedEvent: MemberTerminated =>
+          case eventRescheduledEvent: EventRescheduled =>
             state match {
-              case _: RegisteredMemberState => TerminatedMemberState(lastMeta = memberTerminatedEvent.getLastMeta)
-              case _                        => state
+              case DraftEventState(editableInfo, _) =>
+                ScheduledEventState(
+                  info = editableInfo.toInfo,
+                  meta = eventRescheduledEvent.getMeta
+                )
+              case ScheduledEventState(info, _) =>
+                ScheduledEventState(
+                  info = info,
+                  meta = eventRescheduledEvent.getMeta
+                )
+              case InProgressEventState(info, _) =>
+                ScheduledEventState(
+                  info = info,
+                  meta = eventRescheduledEvent.getMeta
+                )
+              case CancelledEventState(info, _) =>
+                ScheduledEventState(
+                  info = info,
+                  meta = eventRescheduledEvent.getMeta
+                )
+              case _ => state
             }
 
-          case memberInfoEdited: MemberInfoEdited =>
+          case eventDelayedEvent: EventDelayed =>
             state match {
-              case _: DraftMemberState =>
-                val info = memberInfoEdited.getNewInfo
-                DraftMemberState(
-                  editableInfo = info,
-                  meta = memberInfoEdited.getMeta
+              case DraftEventState(editableInfo, _) =>
+                ScheduledEventState(
+                  info = editableInfo.toInfo,
+                  meta = eventDelayedEvent.getMeta
                 )
-              case _: ActivatedMemberState =>
-                ActivatedMemberState(
-                  info = memberInfoEdited.getNewInfo.toInfo,
-                  meta = memberInfoEdited.getMeta
+              case ScheduledEventState(info, _) =>
+                ScheduledEventState(
+                  info = info,
+                  meta = eventDelayedEvent.getMeta
+                )
+              case InProgressEventState(info, _) =>
+                ScheduledEventState(
+                  info = info,
+                  meta = eventDelayedEvent.getMeta
+                )
+              case _ => state
+            }
+
+          case eventCancelledEvent: EventCancelled =>
+            state match {
+              case DraftEventState(editableInfo, _) =>
+                ScheduledEventState(
+                  info = editableInfo.toInfo,
+                  meta = eventCancelledEvent.getMeta
+                )
+              case ScheduledEventState(info, _) =>
+                ScheduledEventState(
+                  info = info,
+                  meta = eventCancelledEvent.getMeta
+                )
+              case InProgressEventState(info, _) =>
+                ScheduledEventState(
+                  info = info,
+                  meta = eventCancelledEvent.getMeta
+                )
+              case _ => state
+            }
+
+          case eventEndedEvent: EventEnded =>
+            state match {
+              case InProgressEventState(info: EventInfo, _) =>
+                PastEventState(info = info, lastMeta = eventEndedEvent.getMeta)
+              case _ => state
+            }
+
+          case eventInfoEdited: EventInfoEdited =>
+            state match {
+              case _: DraftEventState =>
+                DraftEventState(
+                  editableInfo = eventInfoEdited.getInfo,
+                  meta = eventInfoEdited.getMeta
+                )
+              case _: ScheduledEventState =>
+                ScheduledEventState(
+                  info = eventInfoEdited.getInfo.toInfo,
+                  meta = eventInfoEdited.getMeta
+                )
+              case _: DelayedEventState =>
+                DelayedEventState(
+                  info = eventInfoEdited.getInfo.toInfo,
+                  meta = eventInfoEdited.getMeta
                 )
               case _ => state
             }
           case _ => state
         }
-      case _: MemberData        => state
-      case MemberResponse.Empty => state
+      case _: EventData        => state
+      case EventResponse.Empty => state
 
       case other =>
         throw new RuntimeException(s"Invalid/Unhandled event $other")
     }
   }
 
-  private def registerMember(
-      registerMemberCommand: RegisterMember
-  ): Either[Error, MemberResponse] = {
-    logger.info("registering")
+  private def createEvent(
+      createEventCommand: CreateEvent
+  ): Either[Error, EventResponse] = {
+    logger.info(s"creating for id ${createEventCommand.getEventId}")
     val now = Timestamp(Instant.now(clock))
-    val newMeta = MemberMetaInfo(
+    val newMeta = EventMetaInfo(
       lastModifiedOn = Some(now),
-      lastModifiedBy = registerMemberCommand.onBehalfOf,
+      lastModifiedBy = createEventCommand.onBehalfOf,
       createdOn = Some(now),
-      createdBy = registerMemberCommand.onBehalfOf,
-      currentState = MEMBER_STATE_DRAFT
+      createdBy = createEventCommand.onBehalfOf,
+      currentState = EVENT_STATE_DRAFT,
+      eventStateInfo = None
     )
-    val event = MemberRegistered(
-      registerMemberCommand.memberId,
-      registerMemberCommand.memberInfo,
+    val event = EventCreated(
+      createEventCommand.eventId,
+      createEventCommand.info,
       Some(newMeta)
     )
-    Right(MemberEventResponse(event))
+    Right(EventEventResponse(event))
   }
 
-  private def activateMember(
-      info: Either[EditableInfo, MemberInfo],
-      meta: MemberMetaInfo,
-      activateMemberCommand: ActivateMember
-  ): Either[Error, MemberResponse] = {
+  private def scheduleEvent(
+      info: Either[EditableEventInfo, EventInfo],
+      meta: EventMetaInfo,
+      scheduleEventCommand: ScheduleEvent
+  ): Either[Error, EventResponse] = {
+    val now = Some(Timestamp(Instant.now(clock)))
     val newMeta = meta.copy(
-      lastModifiedBy = activateMemberCommand.onBehalfOf,
-      lastModifiedOn = Some(Timestamp(Instant.now(clock))),
-      currentState = MEMBER_STATE_ACTIVE
+      lastModifiedOn = now,
+      lastModifiedBy = scheduleEventCommand.onBehalfOf,
+      scheduledOn = now,
+      scheduledBy = scheduleEventCommand.onBehalfOf,
+      currentState = EVENT_STATE_SCHEDULED,
+      eventStateInfo = Some(EventStateInfo(EventStateInfo.Value.ScheduledEventInfo(ScheduledEventInfo())))
     )
     info match {
-      case Left(e: EditableInfo) =>
-        val validationErrorsOpt = draftTransitionMemberInfoValidator(e)
+      case Left(e: EditableEventInfo) =>
+        val updatedInfo =
+          if (scheduleEventCommand.info.isDefined)
+            e.updateInfo(scheduleEventCommand.getInfo)
+          else e
+        val validationErrorsOpt = draftTransitionEventInfoValidator(updatedInfo)
         if (validationErrorsOpt.isEmpty) {
           Right(
-            MemberEventResponse(
-              MemberActivated(
-                activateMemberCommand.memberId,
+            EventEventResponse(
+              EventScheduled(
+                scheduleEventCommand.eventId,
+                Some(updatedInfo.toInfo),
                 Some(newMeta)
               )
             )
           )
         } else
           Left(StateError(validationErrorsOpt.get.message))
-      case Right(_: MemberInfo) =>
+      case Right(info: EventInfo) =>
         Right(
-          MemberEventResponse(
-            MemberActivated(
-              activateMemberCommand.memberId,
+          EventEventResponse(
+            EventScheduled(
+              scheduleEventCommand.eventId,
+              Some(info),
               Some(newMeta)
             )
           )
@@ -327,80 +408,199 @@ object Event extends StrictLogging {
     }
   }
 
-  private def suspendMember(
-      meta: MemberMetaInfo,
-      suspendMemberCommand: SuspendMember,
-  ): Either[Error, MemberResponse] = {
+  private def rescheduleEvent(
+      info: EventInfo,
+      meta: EventMetaInfo,
+      rescheduleEventCommand: RescheduleEvent
+  ): Either[Error, EventResponse] = {
+    val now = Some(Timestamp(Instant.now(clock)))
     val newMeta = meta.copy(
-      lastModifiedBy = suspendMemberCommand.onBehalfOf,
-      lastModifiedOn = Some(Timestamp(Instant.now(clock))),
-      currentState = MEMBER_STATE_SUSPENDED
+      lastModifiedOn = now,
+      lastModifiedBy = rescheduleEventCommand.onBehalfOf,
+      scheduledOn = now,
+      scheduledBy = rescheduleEventCommand.onBehalfOf,
+      currentState = EVENT_STATE_SCHEDULED,
+      eventStateInfo = Some(EventStateInfo(EventStateInfo.Value.ScheduledEventInfo(ScheduledEventInfo())))
     )
+
     Right(
-      MemberEventResponse(
-        MemberSuspended(
-          suspendMemberCommand.memberId,
-          Some(newMeta),
-          suspendMemberCommand.suspensionReason
+      EventEventResponse(
+        EventScheduled(
+          rescheduleEventCommand.eventId,
+          Some(info.copy(expectedStart = rescheduleEventCommand.start, expectedEnd = rescheduleEventCommand.end)),
+          Some(newMeta)
         )
       )
     )
   }
 
-  private def terminateMember(
-      meta: MemberMetaInfo,
-      terminateMemberCommand: TerminateMember
-  ): Either[Error, MemberResponse] = {
+  private def startEvent(
+      info: EventInfo,
+      meta: EventMetaInfo,
+      startEventCommand: StartEvent
+  ): Either[Error, EventResponse] = {
+    val now = Some(Timestamp(Instant.now(clock)))
     val newMeta = meta.copy(
-      lastModifiedBy = terminateMemberCommand.onBehalfOf,
-      lastModifiedOn = Some(Timestamp(Instant.now(clock)))
+      lastModifiedOn = now,
+      lastModifiedBy = startEventCommand.onBehalfOf,
+      scheduledOn = now,
+      scheduledBy = startEventCommand.onBehalfOf,
+      currentState = EVENT_STATE_INPROGRESS,
+      eventStateInfo = Some(EventStateInfo(EventStateInfo.Value.InProgressEventInfo(InProgressEventInfo(now)))),
+      actualStart = now
     )
-    val event = MemberTerminated(terminateMemberCommand.memberId, Some(newMeta))
-    Right(MemberEventResponse(event))
+
+    Right(
+      EventEventResponse(
+        EventScheduled(
+          startEventCommand.eventId,
+          Some(info),
+          Some(newMeta)
+        )
+      )
+    )
   }
 
-  private def editMemberInfo(
-      info: Either[EditableInfo, MemberInfo],
-      meta: MemberMetaInfo,
-      editMemberInfoCommand: EditMemberInfo
-  ): Either[Error, MemberResponse] = {
+  private def delayEvent(
+      info: Either[EditableEventInfo, EventInfo],
+      meta: EventMetaInfo,
+      delayEventCommand: DelayEvent
+  ): Either[Error, EventResponse] = {
+    val now = Some(Timestamp(Instant.now(clock)))
     val newMeta = meta.copy(
-      lastModifiedBy = editMemberInfoCommand.onBehalfOf,
+      lastModifiedOn = now,
+      lastModifiedBy = delayEventCommand.onBehalfOf,
+      scheduledOn = now,
+      scheduledBy = delayEventCommand.onBehalfOf,
+      currentState = EVENT_STATE_DELAYED,
+      eventStateInfo = Some(
+        EventStateInfo(
+          EventStateInfo.Value.DelayedEventInfo(
+            DelayedEventInfo(reason = delayEventCommand.reason, timeStartedOpt = meta.actualStart)
+          )
+        )
+      )
+    )
+    info match {
+      case Left(e: EditableEventInfo) =>
+        val validationErrorsOpt = draftTransitionEventInfoValidator(e)
+        if (validationErrorsOpt.isEmpty) {
+          Right(
+            EventEventResponse(
+              EventScheduled(
+                delayEventCommand.eventId,
+                Some(e.toInfo),
+                Some(newMeta)
+              )
+            )
+          )
+        } else
+          Left(StateError(validationErrorsOpt.get.message))
+      case Right(info: EventInfo) =>
+        Right(
+          EventEventResponse(
+            EventScheduled(
+              delayEventCommand.eventId,
+              Some(info),
+              Some(newMeta)
+            )
+          )
+        )
+    }
+  }
+
+  private def cancelEvent(
+      info: Either[EditableEventInfo, EventInfo],
+      meta: EventMetaInfo,
+      cancelEventCommand: CancelEvent
+  ): Either[Error, EventResponse] = {
+    val now = Some(Timestamp(Instant.now(clock)))
+    val newMeta = meta.copy(
+      lastModifiedOn = now,
+      lastModifiedBy = cancelEventCommand.onBehalfOf,
+      scheduledOn = now,
+      scheduledBy = cancelEventCommand.onBehalfOf,
+      currentState = EVENT_STATE_CANCELLED,
+      eventStateInfo = Some(
+        EventStateInfo(
+          EventStateInfo.Value.CancelledEventInfo(
+            CancelledEventInfo(reason = cancelEventCommand.reason, timeStartedOpt = meta.actualStart)
+          )
+        )
+      )
+    )
+    info match {
+      case Left(e: EditableEventInfo) =>
+        val validationErrorsOpt = draftTransitionEventInfoValidator(e)
+        if (validationErrorsOpt.isEmpty) {
+          Right(
+            EventEventResponse(
+              EventScheduled(
+                cancelEventCommand.eventId,
+                Some(e.toInfo),
+                Some(newMeta)
+              )
+            )
+          )
+        } else
+          Left(StateError(validationErrorsOpt.get.message))
+      case Right(info: EventInfo) =>
+        Right(
+          EventEventResponse(
+            EventScheduled(
+              cancelEventCommand.eventId,
+              Some(info),
+              Some(newMeta)
+            )
+          )
+        )
+    }
+  }
+
+  private def endEvent(
+      meta: EventMetaInfo,
+      endEventCommand: EndEvent
+  ): Either[Error, EventResponse] = {
+    val newMeta = meta.copy(
+      lastModifiedBy = endEventCommand.onBehalfOf,
+      lastModifiedOn = Some(Timestamp(Instant.now(clock)))
+    )
+    val event = EventEnded(endEventCommand.eventId, Some(newMeta))
+    Right(EventEventResponse(event))
+  }
+
+  private def editEventInfo(
+      info: Either[EditableEventInfo, EventInfo],
+      meta: EventMetaInfo,
+      editEventInfoCommand: EditEventInfo
+  ): Either[Error, EventResponse] = {
+    val newMeta = meta.copy(
+      lastModifiedBy = editEventInfoCommand.onBehalfOf,
       lastModifiedOn = Some(Timestamp(Instant.now(clock)))
     )
 
-    editMemberInfoCommand.memberInfo
+    editEventInfoCommand.info
       .map { editable =>
-        val event = MemberInfoEdited(
-          editMemberInfoCommand.memberId,
+        val event = EventInfoEdited(
+          editEventInfoCommand.eventId,
           Some(info match {
-            case Right(i: MemberInfo)  => i.updateInfo(editable).toEditable
-            case Left(e: EditableInfo) => e.updateInfo(editable)
+            case Right(i: EventInfo)        => i.updateInfo(editable).toEditable
+            case Left(e: EditableEventInfo) => e.updateInfo(editable)
           }),
           Some(newMeta)
         )
-        Right(MemberEventResponse(event))
+        Right(EventEventResponse(event))
       }
       .getOrElse(
         Right(
-          MemberEventResponse(
-            MemberInfoEdited(
-              editMemberInfoCommand.memberId,
+          EventEventResponse(
+            EventInfoEdited(
+              editEventInfoCommand.eventId,
               None,
               Some(newMeta)
             )
           )
         )
       )
-  }
-
-  private def getMemberInfo(
-      info: Either[EditableInfo, MemberInfo],
-      meta: MemberMetaInfo,
-      getMemberInfoQuery: GetMemberInfo,
-  ): Either[Error, MemberResponse] = info match {
-    case Left(editable) =>
-      Right(MemberData(getMemberInfoQuery.memberId, Some(editable.toInfo), Some(meta)))
-    case Right(i) => Right(MemberData(getMemberInfoQuery.memberId, Some(i), Some(meta)))
   }
 }

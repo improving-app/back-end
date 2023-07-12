@@ -39,7 +39,6 @@ message EventRequestPB{
         DelayEvent delay_event = 6;
         StartEvent start_event = 7;
         EndEvent end_event = 8;
-        TerminateEvent terminate_event = 9;
     }
 }
 
@@ -66,7 +65,7 @@ message ScheduleEvent {
         extends: [ "EventCommand" ]
     };
     common.domain.EventId event_id = 1;
-    EventInfo info = 2;
+    EditableEventInfo info = 2;
     common.domain.MemberId on_behalf_of = 3;
 }
 
@@ -108,14 +107,6 @@ message StartEvent {
 }
 
 message EndEvent {
-    option (scalapb.message) = {
-        extends: [ "EventCommand" ]
-    };
-    common.domain.EventId event_id = 1; 
-    common.domain.MemberId on_behalf_of = 2;
-}
-
-message TerminateEvent {
     option (scalapb.message) = {
         extends: [ "EventCommand" ]
     };
