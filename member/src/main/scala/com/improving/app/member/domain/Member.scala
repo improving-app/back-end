@@ -197,7 +197,8 @@ object Member extends StrictLogging {
               }
             case Some(errors) => Effect.reply(command.replyTo)(StatusReply.Error(errors.toString))
           }
-        case MemberRequestPB.Empty => Effect.reply(command.replyTo)(StatusReply.Error("Message was not a MemberRequest"))
+        case MemberRequestPB.Empty =>
+          Effect.reply(command.replyTo)(StatusReply.Error("Message was not a MemberRequest"))
       }
   }
 
