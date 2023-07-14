@@ -193,11 +193,12 @@ object Member extends StrictLogging {
                         )
                       )
                   }
-                case _ => Effect.reply(command.replyTo)(StatusReply.Error("Message was not a StoreRequest"))
+                case _ => Effect.reply(command.replyTo)(StatusReply.Error("Message was not a MemberRequest"))
               }
             case Some(errors) => Effect.reply(command.replyTo)(StatusReply.Error(errors.toString))
           }
-        case MemberRequestPB.Empty => Effect.reply(command.replyTo)(StatusReply.Error("Message was not a StoreRequest"))
+        case MemberRequestPB.Empty =>
+          Effect.reply(command.replyTo)(StatusReply.Error("Message was not a MemberRequest"))
       }
   }
 

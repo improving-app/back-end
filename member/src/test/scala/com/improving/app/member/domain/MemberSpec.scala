@@ -86,12 +86,6 @@ class MemberSpec
           memberRegistered.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_DRAFT)
           memberRegistered.meta.flatMap(_.createdBy) shouldBe Some(MemberId("registeringMember"))
 
-          val event = result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.getMemberRegisteredValue
-          event.memberId.map(_.id) shouldBe Some(testMemberIdString)
-          event.memberInfo shouldBe Some(baseMemberInfo.toEditable)
-          event.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_DRAFT)
-          event.meta.flatMap(_.createdBy.map(_.id)) shouldBe Some("registeringMember")
-
           val state = result.stateOfType[DraftMemberState]
 
           state.editableInfo.getFirstName shouldBe "firstName"
@@ -155,13 +149,6 @@ class MemberSpec
               _
             )
           )
-
-          val memberActivated =
-            result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.sealedValue.memberActivatedValue.get
-
-          memberActivated.memberId shouldBe Some(MemberId(testMemberIdString))
-          memberActivated.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_ACTIVE)
-          memberActivated.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("activatingMember")
 
           val event = result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.getMemberActivatedValue
           event.memberId.map(_.id) shouldBe Some(testMemberIdString)
@@ -252,15 +239,6 @@ class MemberSpec
             )
           )
 
-          val memberInfoEdited =
-            result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.sealedValue.memberInfoEdited.get
-
-          memberInfoEdited.memberId shouldBe Some(MemberId(testMemberIdString))
-          memberInfoEdited.newInfo shouldBe Some(resultInfo)
-          memberInfoEdited.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_DRAFT)
-          memberInfoEdited.meta.flatMap(_.createdBy) shouldBe Some(MemberId("registeringMember"))
-          memberInfoEdited.meta.flatMap(_.lastModifiedBy) shouldBe Some(MemberId("editingMember"))
-
           val event = result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.getMemberInfoEdited
           event.memberId.map(_.id) shouldBe Some(testMemberIdString)
           event.newInfo shouldBe Some(resultInfo)
@@ -290,17 +268,6 @@ class MemberSpec
               _
             )
           )
-
-          val memberInfoEdited =
-            result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.sealedValue.memberInfoEdited.get
-
-          memberInfoEdited.memberId shouldBe Some(MemberId(testMemberIdString))
-          memberInfoEdited.newInfo shouldBe Some(
-            baseEditableInfo
-          )
-          memberInfoEdited.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_DRAFT)
-          memberInfoEdited.meta.flatMap(_.createdBy) shouldBe Some(MemberId("registeringMember"))
-          memberInfoEdited.meta.flatMap(_.lastModifiedBy) shouldBe Some(MemberId("editingMember"))
 
           val event = result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.getMemberInfoEdited
           event.memberId.map(_.id) shouldBe Some(testMemberIdString)
@@ -437,13 +404,6 @@ class MemberSpec
               )
             )
 
-            val memberSuspended =
-              result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.sealedValue.memberSuspendedValue.get
-
-            memberSuspended.memberId shouldBe Some(MemberId(testMemberIdString))
-            memberSuspended.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_SUSPENDED)
-            memberSuspended.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("suspendingMember")
-
             val event =
               result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.getMemberSuspendedValue
             event.memberId.map(_.id) shouldBe Some(testMemberIdString)
@@ -488,13 +448,6 @@ class MemberSpec
               )
             )
 
-            val memberTerminated =
-              result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.sealedValue.memberTerminated.get
-
-            memberTerminated.memberId shouldBe Some(MemberId(testMemberIdString))
-            memberTerminated.lastMeta.map(_.currentState) shouldBe Some(MEMBER_STATE_ACTIVE)
-            memberTerminated.lastMeta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("terminatingMember")
-
             val event = result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.getMemberTerminated
             event.memberId.map(_.id) shouldBe Some(testMemberIdString)
             event.lastMeta.map(_.currentState) shouldBe Some(MEMBER_STATE_ACTIVE)
@@ -519,26 +472,6 @@ class MemberSpec
                 _
               )
             )
-
-            val memberInfoEdited =
-              result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.sealedValue.memberInfoEdited.get
-
-            memberInfoEdited.memberId shouldBe Some(MemberId(testMemberIdString))
-            memberInfoEdited.newInfo shouldBe Some(
-              baseEditableInfo.copy(
-                handle = Some("editHandle"),
-                avatarUrl = Some("editAvatarUrl"),
-                firstName = Some("editFirstName"),
-                lastName = Some("editLastName"),
-                notificationPreference = Some(NotificationPreference.NOTIFICATION_PREFERENCE_SMS),
-                contact = Some(editContact.toEditable),
-                tenant = Some(TenantId("editTenantId")),
-                organizationMembership = baseEditableInfo.organizationMembership
-              )
-            )
-            memberInfoEdited.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_ACTIVE)
-            memberInfoEdited.meta.flatMap(_.createdBy) shouldBe Some(MemberId("registeringMember"))
-            memberInfoEdited.meta.flatMap(_.lastModifiedBy) shouldBe Some(MemberId("editingMember"))
 
             val event = result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.getMemberInfoEdited
             event.memberId.map(_.id) shouldBe Some(testMemberIdString)
@@ -624,13 +557,6 @@ class MemberSpec
               )
             )
 
-            val memberActivated =
-              result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.sealedValue.memberActivatedValue.get
-
-            memberActivated.memberId shouldBe Some(MemberId(testMemberIdString))
-            memberActivated.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_ACTIVE)
-            memberActivated.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("activatingMember2")
-
             val event =
               result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.getMemberActivatedValue
             event.memberId.map(_.id) shouldBe Some(testMemberIdString)
@@ -660,13 +586,6 @@ class MemberSpec
                 _
               )
             )
-
-            val memberSuspended =
-              result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.sealedValue.memberSuspendedValue.get
-
-            memberSuspended.memberId shouldBe Some(MemberId(testMemberIdString))
-            memberSuspended.meta.map(_.currentState) shouldBe Some(MEMBER_STATE_SUSPENDED)
-            memberSuspended.meta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("suspendingMember")
 
             val event =
               result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.getMemberSuspendedValue
@@ -698,14 +617,6 @@ class MemberSpec
                 _
               )
             )
-
-            val memberTerminated =
-              result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.sealedValue.memberTerminated.get
-
-            memberTerminated.memberId shouldBe Some(MemberId(testMemberIdString))
-            memberTerminated.lastMeta.map(_.currentState) shouldBe Some(MEMBER_STATE_SUSPENDED)
-            memberTerminated.lastMeta.flatMap(_.lastModifiedBy.map(_.id)) shouldBe Some("terminatingMember")
-
             val event = result.reply.getValue.asMessage.getMemberEventValue.memberEvent.asMessage.getMemberTerminated
             event.memberId.map(_.id) shouldBe Some(testMemberIdString)
             event.lastMeta.map(_.currentState) shouldBe Some(MEMBER_STATE_SUSPENDED)
