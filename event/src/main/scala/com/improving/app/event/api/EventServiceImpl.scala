@@ -58,8 +58,6 @@ class EventServiceImpl()(implicit val system: ActorSystem[_]) extends EventServi
 
   Cluster(system).manager ! Join(Cluster(system).selfMember.address)
 
-  // Do not use for RegisterEvent
-
   private def handleResponse[T](
       eventHandler: PartialFunction[StatusReply[EventResponse], T]
   ): PartialFunction[StatusReply[EventResponse], T] = {
@@ -76,7 +74,6 @@ class EventServiceImpl()(implicit val system: ActorSystem[_]) extends EventServi
     .map { id =>
       val eventEntity = sharding.entityRefFor(EventEntityKey, id.id)
 
-      // Register the member
       eventEntity
         .ask[StatusReply[EventResponse]](replyTo => EventEnvelope(in, replyTo))
         .map { handleResponse(eventHandler) }
@@ -98,7 +95,6 @@ class EventServiceImpl()(implicit val system: ActorSystem[_]) extends EventServi
     .map { id =>
       val eventEntity = sharding.entityRefFor(EventEntityKey, id.id)
 
-      // Register the member
       eventEntity
         .ask[StatusReply[EventResponse]](replyTo => EventEnvelope(in, replyTo))
         .map { handleResponse(eventHandler) }
@@ -143,6 +139,7 @@ class EventServiceImpl()(implicit val system: ActorSystem[_]) extends EventServi
       case StatusReply.Success(
             EventEventResponse(response @ EventScheduled(_, _, _, _), _)
           ) =>
+        // To be implemented when we want automatic timers for start and end
         // startStartTimer(in, expectedStart, id)
 
         response
@@ -155,8 +152,10 @@ class EventServiceImpl()(implicit val system: ActorSystem[_]) extends EventServi
   override def cancelEvent(in: CancelEvent): Future[EventCancelled] = handleCommand(
     in,
     { case StatusReply.Success(EventEventResponse(response @ EventCancelled(_, _, _), _)) =>
+      // To be implemented when we want automatic timers for start and end
       // cancelStartTimer(id)
       // cancelEndTimer(id)
+
       response
     }
   )
@@ -170,8 +169,10 @@ class EventServiceImpl()(implicit val system: ActorSystem[_]) extends EventServi
       case StatusReply.Success(
             EventEventResponse(response @ EventRescheduled(_, _, _, _), _)
           ) =>
+        // To be implemented when we want automatic timers for start and end
         // cancelStartTimer(id)
         // startStartTimer(in, expectedStart, id)
+
         response
     }
   )
@@ -188,6 +189,7 @@ class EventServiceImpl()(implicit val system: ActorSystem[_]) extends EventServi
               _
             )
           ) =>
+        // To be implemented when we want automatic timers for start and end
         // if (cancellableStartTimers.contains(id.id)) cancelStartTimer(id)
         // if (cancellableEndTimers.contains(id.id)) cancelEndTimer(id)
         // startStartTimer(in, expectedStart, id)
@@ -208,6 +210,7 @@ class EventServiceImpl()(implicit val system: ActorSystem[_]) extends EventServi
               _
             )
           ) =>
+        // To be implemented when we want automatic timers for start and end
         // cancelStartTimer(id)
         // startEndTimer(in, expectedEnd, id)
 
@@ -221,7 +224,9 @@ class EventServiceImpl()(implicit val system: ActorSystem[_]) extends EventServi
   override def endEvent(in: EndEvent): Future[EventEnded] = handleCommand(
     in,
     { case StatusReply.Success(EventEventResponse(response @ EventEnded(Some(id), _, _), _)) =>
-      cancelEndTimer(id)
+      // To be implemented when we want automatic timers for start and end
+      // cancelEndTimer(id)
+
       response
     }
   )
