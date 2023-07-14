@@ -34,7 +34,7 @@ object util {
         description = editableInfo.description.orElse(info.description),
         eventUrl = editableInfo.eventUrl.orElse(info.eventUrl),
         sponsoringOrg = editableInfo.sponsoringOrg.orElse(info.sponsoringOrg),
-        expectedStart = editableInfo.expectedStart,
+        expectedStart = editableInfo.expectedStart.orElse(info.expectedStart),
         expectedEnd = editableInfo.expectedEnd.orElse(info.expectedEnd),
         isPrivate = editableInfo.isPrivate,
       )

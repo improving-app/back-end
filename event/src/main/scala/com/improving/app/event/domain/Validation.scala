@@ -25,10 +25,7 @@ object Validation {
 
   val eventCommandValidator: Validator[EventCommand] =
     applyAllValidators[EventCommand](
-      eventCommand => required("memberId")(eventCommand.eventId),
+      eventCommand => required("eventId")(eventCommand.eventId),
       eventCommand => required("on_behalf_of")(eventCommand.onBehalfOf)
     )
-
-  val eventQueryValidator: Validator[EventQuery] =
-    applyAllValidators[EventQuery](eventQuery => required("memberId")(eventQuery.eventId))
 }

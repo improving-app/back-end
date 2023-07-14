@@ -64,7 +64,6 @@ message EventInfo {
     google.protobuf.Timestamp expected_start = 5;
     google.protobuf.Timestamp expected_end = 6;
     bool is_private = 7;
-    EventStateInfo event_status_info = 8;
 }
 
 message EditableEventInfo {

@@ -141,17 +141,9 @@ class EventServiceImpl()(implicit val system: ActorSystem[_]) extends EventServi
     in,
     {
       case StatusReply.Success(
-            EventEventResponse(
-              response @ EventScheduled(
-                Some(id),
-                Some(_ @EventInfo(_, _, _, _, Some(expectedStart), _, _, _, _)),
-                _,
-                _
-              ),
-              _
-            )
+            EventEventResponse(response @ EventScheduled(_, _, _, _), _)
           ) =>
-        startStartTimer(in, expectedStart, id)
+        // startStartTimer(in, expectedStart, id)
 
         response
     }
@@ -162,9 +154,9 @@ class EventServiceImpl()(implicit val system: ActorSystem[_]) extends EventServi
    */
   override def cancelEvent(in: CancelEvent): Future[EventCancelled] = handleCommand(
     in,
-    { case StatusReply.Success(EventEventResponse(response @ EventCancelled(Some(id), _, _), _)) =>
-      cancelStartTimer(id)
-      cancelEndTimer(id)
+    { case StatusReply.Success(EventEventResponse(response @ EventCancelled(_, _, _), _)) =>
+      // cancelStartTimer(id)
+      // cancelEndTimer(id)
       response
     }
   )
@@ -176,18 +168,10 @@ class EventServiceImpl()(implicit val system: ActorSystem[_]) extends EventServi
     in,
     {
       case StatusReply.Success(
-            EventEventResponse(
-              response @ EventRescheduled(
-                Some(id),
-                Some(_ @EventInfo(_, _, _, _, Some(expectedStart), _, _, _, _)),
-                _,
-                _
-              ),
-              _
-            )
+            EventEventResponse(response @ EventRescheduled(_, _, _, _), _)
           ) =>
-        cancelStartTimer(id)
-        startStartTimer(in, expectedStart, id)
+        // cancelStartTimer(id)
+        // startStartTimer(in, expectedStart, id)
         response
     }
   )
@@ -200,13 +184,13 @@ class EventServiceImpl()(implicit val system: ActorSystem[_]) extends EventServi
     {
       case StatusReply.Success(
             EventEventResponse(
-              response @ EventDelayed(Some(id), Some(_ @EventInfo(_, _, _, _, Some(expectedStart), _, _, _, _)), _, _),
+              response @ EventDelayed(_, _, _, _),
               _
             )
           ) =>
-        if (cancellableStartTimers.contains(id.id)) cancelStartTimer(id)
-        if (cancellableEndTimers.contains(id.id)) cancelEndTimer(id)
-        startStartTimer(in, expectedStart, id)
+        // if (cancellableStartTimers.contains(id.id)) cancelStartTimer(id)
+        // if (cancellableEndTimers.contains(id.id)) cancelEndTimer(id)
+        // startStartTimer(in, expectedStart, id)
 
         response
     }
@@ -220,12 +204,12 @@ class EventServiceImpl()(implicit val system: ActorSystem[_]) extends EventServi
     {
       case StatusReply.Success(
             EventEventResponse(
-              response @ EventStarted(Some(id), Some(_ @EventInfo(_, _, _, _, _, Some(expectedEnd), _, _, _)), _, _),
+              response @ EventStarted(_, _, _, _),
               _
             )
           ) =>
-        cancelStartTimer(id)
-        startEndTimer(in, expectedEnd, id)
+        // cancelStartTimer(id)
+        // startEndTimer(in, expectedEnd, id)
 
         response
     }

@@ -1,6 +1,6 @@
 package com.improving.app.event.domain
 
-import akka.actor.typed.scaladsl.{Behaviors, TimerScheduler}
+import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior, PostStop}
 import akka.cluster.sharding.typed.scaladsl.EntityTypeKey
 import akka.pattern.StatusReply
@@ -9,20 +9,12 @@ import akka.persistence.typed.{PersistenceId, RecoveryCompleted}
 import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.EventId
 import com.improving.app.common.errors.{Error, StateError}
-import com.improving.app.event.domain.EventState.{
-  EVENT_STATE_CANCELLED,
-  EVENT_STATE_DELAYED,
-  EVENT_STATE_DRAFT,
-  EVENT_STATE_INPROGRESS,
-  EVENT_STATE_SCHEDULED
-}
+import com.improving.app.event.domain.EventState._
 import com.improving.app.event.domain.Validation.{draftTransitionEventInfoValidator, eventCommandValidator}
 import com.improving.app.event.domain.util.{EditableEventInfoUtil, EventInfoUtil}
 import com.typesafe.scalalogging.StrictLogging
 
 import java.time.{Clock, Instant}
-import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.FiniteDuration
 
 object Event extends StrictLogging {
 
@@ -107,6 +99,7 @@ object Event extends StrictLogging {
             StatusReply.Error(s"${response.productPrefix} is not a supported event response")
           )
       }
+
       command.request match {
         case c: EventCommand =>
           eventCommandValidator(c) match {
@@ -139,15 +132,24 @@ object Event extends StrictLogging {
                   x match {
                     case ScheduledEventState(info, meta) =>
                       command.request match {
-                        case startEventCommand: StartEvent => startEvent(info, meta, startEventCommand)
-                        case delayEventCommand: DelayEvent => delayEvent(Right(info), meta, delayEventCommand)
+                        case startEventCommand: StartEvent =>
+                          if (Instant.now().getEpochSecond > info.getExpectedStart.seconds)
+                            startEvent(info, meta, startEventCommand)
+                          else
+                            Left(
+                              StateError(
+                                s"${command.request.productPrefix} command cannot be used before an Event has started"
+                              )
+                            )
                         case rescheduleEventCommand: RescheduleEvent =>
                           rescheduleEvent(info, meta, rescheduleEventCommand)
+                        case delayEventCommand: DelayEvent   => delayEvent(Right(info), meta, delayEventCommand)
+                        case cancelEventCommand: CancelEvent => cancelEvent(Right(info), meta, cancelEventCommand)
                         case editEventInfoCommand: EditEventInfo =>
                           editEventInfo(Right(info), meta, editEventInfoCommand)
                         case _ =>
                           Left(
-                            StateError(s"${command.request.productPrefix} command cannot be used on an active Event")
+                            StateError(s"${command.request.productPrefix} command cannot be used on a scheduled Event")
                           )
                       }
                     case InProgressEventState(info, meta) =>
@@ -155,18 +157,32 @@ object Event extends StrictLogging {
                         case delayEventCommand: DelayEvent =>
                           delayEvent(Right(info), meta, delayEventCommand)
                         case endEventCommand: EndEvent =>
-                          endEvent(meta, endEventCommand)
+                          if (Instant.now().getEpochSecond > info.getExpectedEnd.seconds)
+                            endEvent(meta, endEventCommand)
+                          else
+                            Left(
+                              StateError(
+                                s"${command.request.productPrefix} command cannot be used before an Event has started"
+                              )
+                            )
                         case _ =>
                           Left(
                             StateError(
-                              s"${command.request.productPrefix} command cannot be used on a suspended Event"
+                              s"${command.request.productPrefix} command cannot be used on an in-progress Event"
                             )
                           )
                       }
                     case DelayedEventState(info, meta) =>
                       command.request match {
                         case startEventCommand: StartEvent =>
-                          startEvent(info, meta, startEventCommand)
+                          if (Instant.now().getEpochSecond > info.getExpectedStart.seconds)
+                            startEvent(info, meta, startEventCommand)
+                          else
+                            Left(
+                              StateError(
+                                s"${command.request.productPrefix} command cannot be used before an Event has started"
+                              )
+                            )
                         case cancelEventCommand: CancelEvent =>
                           cancelEvent(Right(info), meta, cancelEventCommand)
                         case rescheduleEventCommand: RescheduleEvent =>
@@ -176,7 +192,7 @@ object Event extends StrictLogging {
                         case _ =>
                           Left(
                             StateError(
-                              s"${command.request.productPrefix} command cannot be used on a suspended Event"
+                              s"${command.request.productPrefix} command cannot be used on a delayed Event"
                             )
                           )
                       }
@@ -187,7 +203,7 @@ object Event extends StrictLogging {
                         case _ =>
                           Left(
                             StateError(
-                              s"${command.request.productPrefix} command cannot be used on a suspended Event"
+                              s"${command.request.productPrefix} command cannot be used on a cancelled Event"
                             )
                           )
                       }
@@ -230,9 +246,9 @@ object Event extends StrictLogging {
 
           case eventScheduledEvent: EventScheduled =>
             state match {
-              case DraftEventState(editableInfo, _) =>
+              case DraftEventState(_, _) =>
                 ScheduledEventState(
-                  info = editableInfo.toInfo,
+                  info = eventScheduledEvent.getInfo,
                   meta = eventScheduledEvent.getMeta
                 )
               case _ => state
@@ -250,7 +266,7 @@ object Event extends StrictLogging {
                   info = info,
                   meta = eventRescheduledEvent.getMeta
                 )
-              case InProgressEventState(info, _) =>
+              case DelayedEventState(info, _) =>
                 ScheduledEventState(
                   info = info,
                   meta = eventRescheduledEvent.getMeta
@@ -266,17 +282,17 @@ object Event extends StrictLogging {
           case eventDelayedEvent: EventDelayed =>
             state match {
               case DraftEventState(editableInfo, _) =>
-                ScheduledEventState(
+                DelayedEventState(
                   info = editableInfo.toInfo,
                   meta = eventDelayedEvent.getMeta
                 )
               case ScheduledEventState(info, _) =>
-                ScheduledEventState(
+                DelayedEventState(
                   info = info,
                   meta = eventDelayedEvent.getMeta
                 )
               case InProgressEventState(info, _) =>
-                ScheduledEventState(
+                DelayedEventState(
                   info = info,
                   meta = eventDelayedEvent.getMeta
                 )
@@ -286,20 +302,24 @@ object Event extends StrictLogging {
           case eventCancelledEvent: EventCancelled =>
             state match {
               case DraftEventState(editableInfo, _) =>
-                ScheduledEventState(
+                CancelledEventState(
                   info = editableInfo.toInfo,
                   meta = eventCancelledEvent.getMeta
                 )
               case ScheduledEventState(info, _) =>
-                ScheduledEventState(
+                CancelledEventState(
                   info = info,
                   meta = eventCancelledEvent.getMeta
                 )
-              case InProgressEventState(info, _) =>
-                ScheduledEventState(
-                  info = info,
-                  meta = eventCancelledEvent.getMeta
-                )
+              case _ => state
+            }
+
+          case eventStartedEvent: EventStarted =>
+            state match {
+              case ScheduledEventState(_, _) =>
+                InProgressEventState(info = eventStartedEvent.getInfo, meta = eventStartedEvent.getMeta)
+              case DelayedEventState(_, _) =>
+                InProgressEventState(info = eventStartedEvent.getInfo, meta = eventStartedEvent.getMeta)
               case _ => state
             }
 
@@ -424,7 +444,7 @@ object Event extends StrictLogging {
 
     Right(
       EventEventResponse(
-        EventScheduled(
+        EventRescheduled(
           rescheduleEventCommand.eventId,
           Some(info.copy(expectedStart = rescheduleEventCommand.start, expectedEnd = rescheduleEventCommand.end)),
           Some(newMeta)
@@ -442,8 +462,6 @@ object Event extends StrictLogging {
     val newMeta = meta.copy(
       lastModifiedOn = now,
       lastModifiedBy = startEventCommand.onBehalfOf,
-      scheduledOn = now,
-      scheduledBy = startEventCommand.onBehalfOf,
       currentState = EVENT_STATE_INPROGRESS,
       eventStateInfo = Some(EventStateInfo(EventStateInfo.Value.InProgressEventInfo(InProgressEventInfo(now)))),
       actualStart = now
@@ -451,7 +469,7 @@ object Event extends StrictLogging {
 
     Right(
       EventEventResponse(
-        EventScheduled(
+        EventStarted(
           startEventCommand.eventId,
           Some(info),
           Some(newMeta)
@@ -465,6 +483,45 @@ object Event extends StrictLogging {
       meta: EventMetaInfo,
       delayEventCommand: DelayEvent
   ): Either[Error, EventResponse] = {
+    val infoWithDelayedTimes: Either[EditableEventInfo, EventInfo] = info match {
+      case Right(e) =>
+        Right(
+          e.copy(
+            expectedStart = e.expectedStart
+              .map(start =>
+                Timestamp.of(
+                  start.seconds + delayEventCommand.getExpectedDuration.seconds,
+                  start.nanos + delayEventCommand.getExpectedDuration.nanos
+                )
+              ),
+            expectedEnd = e.expectedEnd.map(end =>
+              Timestamp.of(
+                end.seconds + delayEventCommand.getExpectedDuration.seconds,
+                end.nanos + delayEventCommand.getExpectedDuration.nanos
+              )
+            )
+          )
+        )
+      case Left(e) =>
+        Left(
+          e.copy(
+            expectedStart = e.expectedStart
+              .map(start =>
+                Timestamp.of(
+                  start.seconds + delayEventCommand.getExpectedDuration.seconds,
+                  start.nanos + delayEventCommand.getExpectedDuration.nanos
+                )
+              ),
+            expectedEnd = e.expectedEnd.map(end =>
+              Timestamp.of(
+                end.seconds + delayEventCommand.getExpectedDuration.seconds,
+                end.nanos + delayEventCommand.getExpectedDuration.nanos
+              )
+            )
+          )
+        )
+    }
+
     val now = Some(Timestamp(Instant.now(clock)))
     val newMeta = meta.copy(
       lastModifiedOn = now,
@@ -480,13 +537,14 @@ object Event extends StrictLogging {
         )
       )
     )
-    info match {
+
+    infoWithDelayedTimes match {
       case Left(e: EditableEventInfo) =>
         val validationErrorsOpt = draftTransitionEventInfoValidator(e)
         if (validationErrorsOpt.isEmpty) {
           Right(
             EventEventResponse(
-              EventScheduled(
+              EventDelayed(
                 delayEventCommand.eventId,
                 Some(e.toInfo),
                 Some(newMeta)
@@ -498,7 +556,7 @@ object Event extends StrictLogging {
       case Right(info: EventInfo) =>
         Right(
           EventEventResponse(
-            EventScheduled(
+            EventDelayed(
               delayEventCommand.eventId,
               Some(info),
               Some(newMeta)
@@ -534,21 +592,19 @@ object Event extends StrictLogging {
         if (validationErrorsOpt.isEmpty) {
           Right(
             EventEventResponse(
-              EventScheduled(
+              EventCancelled(
                 cancelEventCommand.eventId,
-                Some(e.toInfo),
                 Some(newMeta)
               )
             )
           )
         } else
           Left(StateError(validationErrorsOpt.get.message))
-      case Right(info: EventInfo) =>
+      case Right(_: EventInfo) =>
         Right(
           EventEventResponse(
-            EventScheduled(
+            EventCancelled(
               cancelEventCommand.eventId,
-              Some(info),
               Some(newMeta)
             )
           )
@@ -560,9 +616,13 @@ object Event extends StrictLogging {
       meta: EventMetaInfo,
       endEventCommand: EndEvent
   ): Either[Error, EventResponse] = {
+    val now = Some(Timestamp(Instant.now(clock)))
     val newMeta = meta.copy(
+      lastModifiedOn = now,
       lastModifiedBy = endEventCommand.onBehalfOf,
-      lastModifiedOn = Some(Timestamp(Instant.now(clock)))
+      actualEnd = now,
+      currentState = EVENT_STATE_PAST,
+      eventStateInfo = Some(EventStateInfo(EventStateInfo.Value.PastEventInfo(PastEventInfo(meta.actualStart, now))))
     )
     val event = EventEnded(endEventCommand.eventId, Some(newMeta))
     Right(EventEventResponse(event))
