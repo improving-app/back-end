@@ -34,6 +34,11 @@ lazy val event = project
   .configure(C.akkaPersistentEntity("improving-app-event", 8084))
   .dependsOn(commonTypes)
 
+lazy val product = project
+  .in(file("product"))
+  .configure(C.akkaPersistentEntity("improving-app-product", 8085))
+  .dependsOn(commonTypes)
+
 lazy val gateway = project
   .in(file("gateway"))
   .configure(C.Compilation.service("improving-app-gateway", 8090))
