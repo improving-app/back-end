@@ -45,7 +45,7 @@ object Product extends StrictLogging {
 
   private[domain] case class DraftProductState(editableInfo: EditableProductInfo, meta: ProductMetaInfo)
       extends CreatedProductState
-  private[domain] case class ActivatedProductState(info: ProductInfo, meta: ProductMetaInfo)
+  private[domain] case class ActiveProductState(info: ProductInfo, meta: ProductMetaInfo)
       extends CreatedProductState
       with DefinedProductState
 
@@ -120,7 +120,7 @@ object Product extends StrictLogging {
                   }
                 case x: DefinedProductState =>
                   x match {
-                    case ActivatedProductState(info, meta) =>
+                    case ActiveProductState(info, meta) =>
                       command.request match {
                         case inactivateProductCommand: InactivateProduct =>
                           inactivateProduct(Right(info), meta, inactivateProductCommand)
@@ -131,7 +131,7 @@ object Product extends StrictLogging {
                         case _ =>
                           Left(
                             StateError(
-                              s"${command.request.productPrefix} command cannot be used on a active Product"
+                              s"${command.request.productPrefix} command cannot be used on an active Product"
                             )
                           )
                       }
@@ -207,12 +207,12 @@ object Product extends StrictLogging {
           case productActivatedEvent: ProductActivated =>
             state match {
               case DraftProductState(_, _) =>
-                ActivatedProductState(
+                ActiveProductState(
                   info = productActivatedEvent.getInfo,
                   meta = productActivatedEvent.getMeta
                 )
               case InactiveProductState(_, _) =>
-                ActivatedProductState(
+                ActiveProductState(
                   info = productActivatedEvent.getInfo,
                   meta = productActivatedEvent.getMeta
                 )
@@ -226,7 +226,7 @@ object Product extends StrictLogging {
                   info = editableInfo.toInfo,
                   meta = productInactivatedEvent.getMeta
                 )
-              case ActivatedProductState(info, _) =>
+              case ActiveProductState(info, _) =>
                 InactiveProductState(
                   info = info,
                   meta = productInactivatedEvent.getMeta
@@ -237,14 +237,14 @@ object Product extends StrictLogging {
           case productDeleteProduct: ProductDeleted =>
             state match {
               case DraftProductState(editableInfo, _) =>
-                InactiveProductState(
+                DeletedProductState(
                   info = editableInfo.toInfo,
-                  meta = productDeleteProduct.getMeta
+                  lastMeta = productDeleteProduct.getMeta
                 )
-              case ActivatedProductState(info, _) =>
-                InactiveProductState(
+              case ActiveProductState(info, _) =>
+                DeletedProductState(
                   info = info,
-                  meta = productDeleteProduct.getMeta
+                  lastMeta = productDeleteProduct.getMeta
                 )
               case InactiveProductState(info: ProductInfo, _) =>
                 DeletedProductState(info = info, lastMeta = productDeleteProduct.getMeta)
@@ -258,8 +258,8 @@ object Product extends StrictLogging {
                   editableInfo = productInfoEdited.getInfo,
                   meta = productInfoEdited.getMeta
                 )
-              case _: ActivatedProductState =>
-                ActivatedProductState(
+              case _: ActiveProductState =>
+                ActiveProductState(
                   info = productInfoEdited.getInfo.toInfo,
                   meta = productInfoEdited.getMeta
                 )
@@ -290,6 +290,7 @@ object Product extends StrictLogging {
       lastModifiedBy = createProductCommand.onBehalfOf,
       createdOn = Some(now),
       createdBy = createProductCommand.onBehalfOf,
+      currentState = PRODUCT_STATE_DRAFT
     )
     val product = ProductCreated(
       createProductCommand.sku,
@@ -308,6 +309,7 @@ object Product extends StrictLogging {
     val newMeta = meta.copy(
       lastModifiedOn = Some(now),
       lastModifiedBy = activateProductCommand.onBehalfOf,
+      currentState = PRODUCT_STATE_ACTIVE
     )
 
     info match {

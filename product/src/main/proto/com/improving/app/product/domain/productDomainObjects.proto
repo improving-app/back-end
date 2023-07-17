@@ -31,27 +31,23 @@ message ProductDetails {
 
 message TicketDetails{
     oneof value {
-        ReservedTicketDetails scheduled_event_info = 1;
-        RestrictedTicketInfo in_progress_event_info = 2;
-        OpenTicketInfo delayed_event_info = 3;
+        ReservedTicketDetails reserved_ticket_details = 1;
+        RestrictedTicketInfo restricted_ticket_info = 2;
+        OpenTicketInfo open_ticket_info = 3;
     }
 }
 
 message ReservedTicketDetails {
-    common.domain.EventId event_id = 1;
-    string section = 2;
-    string row = 3;
-    string seat = 4;
+    string section = 1;
+    string row = 2;
+    string seat = 3;
 }
 
 message RestrictedTicketInfo {
-    common.domain.EventId event_id = 1;
-    string section = 2;
+    string section = 1;
 }
 
-message OpenTicketInfo {
-    common.domain.EventId event_id = 1;
-}
+message OpenTicketInfo {}
 
 message ProductInfo {
     string product_name = 1 [(validate.rules).string.min_len = 1];

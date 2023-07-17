@@ -113,7 +113,7 @@ class EventSpec
 
         }
 
-        "error for registering the same member" in {
+        "error for registering the same event" in {
           eventSourcedTestKit.runCommand[StatusReply[EventResponse]](
             EventEnvelope(
               baseCreateEvent,

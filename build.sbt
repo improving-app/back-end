@@ -2,7 +2,7 @@ ThisBuild / dynverSeparator := "-"
 
 lazy val allServices = project
   .in(file("."))
-  .aggregate(gateway, tenant, organization, member, store, gatling)
+  .aggregate(gateway, tenant, organization, member, store, event, product, gatling)
 
 // This is for protobuf types defined at 'domain' scope and having cross-service applicability only.
 lazy val commonTypes = project
