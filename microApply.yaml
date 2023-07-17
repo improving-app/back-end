@@ -46,6 +46,14 @@ spec:
         image: weinyopp/improving-app-store:latest
         ports:
         - containerPort: 8083
+      - name: event
+        image: weinyopp/improving-app-event:latest
+        ports:
+        - containerPort: 8084
+      - name: product
+        image: weinyopp/improving-app-product:latest
+        ports:
+        - containerPort: 8085
       - name: gateway
         image: weinyopp/improving-app-gateway:latest
         ports:
