@@ -15,7 +15,7 @@ option (scalapb.options) = {
   }
 };
 
-enum ProductState{
+enum ProductState {
     PRODUCT_STATE_UNSPECIFIED = 0;
     PRODUCT_STATE_DRAFT = 1;
     PRODUCT_STATE_ACTIVE = 2;
@@ -29,7 +29,7 @@ message ProductDetails {
     }
 }
 
-message TicketDetails{
+message TicketDetails {
     oneof value {
         ReservedTicketDetails reserved_ticket_details = 1;
         RestrictedTicketInfo restricted_ticket_info = 2;

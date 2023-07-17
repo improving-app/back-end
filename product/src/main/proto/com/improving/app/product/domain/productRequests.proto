@@ -85,7 +85,7 @@ message DeleteProduct {
     common.domain.MemberId on_behalf_of = 4;
 }
 
-message GetProductInfo{
+message GetProductInfo {
     option (scalapb.message) = {
         extends: [ "ProductQuery" ]
     };
