@@ -3,6 +3,8 @@ package com.improving.app.event
 import akka.actor.typed.ActorSystem
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import com.improving.app.common.service.ServiceMain
+import com.improving.app.event.api.{EventServiceHandler, EventServiceImpl}
+
 import scala.concurrent.Future
 
 /**
