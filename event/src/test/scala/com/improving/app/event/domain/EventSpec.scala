@@ -9,9 +9,6 @@ import TestData.{baseScheduleEventToStartNow, _}
 import akka.actor.typed.ActorRef
 import akka.persistence.typed.PersistenceId
 import com.google.protobuf.timestamp.Timestamp
-import com.improving.app.event.domain.Event._
-import com.improving.app.event.domain.EventState._
-import com.improving.app.event.domain.util.{EditableEventInfoUtil, EventInfoUtil}
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike

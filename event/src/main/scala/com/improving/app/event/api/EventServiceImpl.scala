@@ -10,8 +10,6 @@ import akka.util.Timeout
 import com.google.protobuf.timestamp.Timestamp
 import com.google.rpc.Code
 import com.improving.app.common.domain.EventId
-import com.improving.app.event.domain.Event.{EventEntityKey, EventEnvelope}
-import com.improving.app.event.domain._
 
 import java.time.Instant
 import scala.concurrent.duration.{DurationInt, DurationLong}
