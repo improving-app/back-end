@@ -85,13 +85,13 @@ message StoreOrEditableInfo {
 message ProductsAddedToStore {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   common.domain.StoreId store_id = 1;
-  StoreInfo info = 2;
+  StoreOrEditableInfo info = 2;
   StoreMetaInfo meta_info = 3;
 }
 
 message ProductsRemovedFromStore {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   common.domain.StoreId store_id = 1;
-  StoreInfo info = 2;
+  StoreOrEditableInfo info = 2;
   StoreMetaInfo meta_info = 3;
 }

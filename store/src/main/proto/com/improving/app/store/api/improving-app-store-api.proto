@@ -23,7 +23,7 @@ service StoreService {
 
    rpc EditStoreInfo (domain.EditStoreInfo) returns (domain.StoreInfoEdited) {}
 
-  //rpc AddProductsToStore (domain.AddProductsToStore) returns (domain.ProductsAddedToStore) {}
+   rpc AddProductsToStore (domain.AddProductsToStore) returns (domain.ProductsAddedToStore) {}
 
-  //rpc RemoveProductsFromStore (domain.RemoveProductsFromStore) returns (domain.ProductsRemovedFromStore) {}
+   rpc RemoveProductsFromStore (domain.RemoveProductsFromStore) returns (domain.ProductsRemovedFromStore) {}
 }

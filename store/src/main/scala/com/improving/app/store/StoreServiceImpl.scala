@@ -11,12 +11,16 @@ import com.google.rpc.error_details.LocalizedMessage
 import com.improving.app.common.errors.ValidationError
 import com.improving.app.store.api.StoreService
 import com.improving.app.store.domain.{
+  AddProductsToStore,
   CloseStore,
   CreateStore,
   DeleteStore,
   EditStoreInfo,
   MakeStoreReady,
   OpenStore,
+  ProductsAddedToStore,
+  ProductsRemovedFromStore,
+  RemoveProductsFromStore,
   Store,
   StoreClosed,
   StoreCommand,
@@ -102,4 +106,10 @@ class StoreServiceImpl(sys: ActorSystem[_]) extends StoreService {
     handleRequest(in).map(_.storeTerminated.get)
 
   override def editStoreInfo(in: EditStoreInfo): Future[StoreInfoEdited] = handleRequest(in).map(_.storeInfoEdited.get)
+
+  override def addProductsToStore(in: AddProductsToStore): Future[ProductsAddedToStore] =
+    handleRequest(in).map(_.productsAddedToStore.get)
+
+  override def removeProductsFromStore(in: RemoveProductsFromStore): Future[ProductsRemovedFromStore] =
+    handleRequest(in).map(_.productsRemovedFromStore.get)
 }
