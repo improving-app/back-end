@@ -1,0 +1,73 @@
+syntax =  "proto3";
+
+package com.improving.app.product.domain;
+
+import "com/improving/app/common/domain/ids.proto";
+import "com/improving/app/product/domain/productDomainObjects.proto";
+import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  [scalapb.validate.file] {
+    validate_at_construction: true
+  }
+};
+
+message ProductInfoEdited {
+    common.domain.Sku event_id = 1;
+    EditableProductInfo info = 2;
+    ProductMetaInfo meta = 3;
+}
+
+message ProductCreated {
+    common.domain.Sku event_id = 1;
+    EditableProductInfo info = 2;
+    ProductMetaInfo meta = 3;
+}
+
+message ProductActivated {
+    common.domain.Sku event_id = 1;
+    ProductInfo info = 2;
+    ProductMetaInfo meta = 3;
+}
+
+message ProductInactivated {
+    common.domain.Sku event_id = 1;
+    ProductInfo info = 2;
+    ProductMetaInfo meta = 3;
+}
+
+message ProductDeleted {
+    common.domain.Sku event_id = 1;
+    ProductMetaInfo meta = 3;
+}
+
+message ProductEvent{
+  option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
+
+  oneof sealed_value {
+      ProductCreated product_created = 1;
+      ProductActivated product_activated = 2;
+      ProductInactivated product_inactivated = 3;
+      ProductDeleted product_deleted = 4;
+      ProductInfoEdited product_info_edited = 5;
+  }
+}
+
+message ProductData {
+    common.domain.Sku sku = 1;
+    ProductInfo product_info = 2;
+    ProductMetaInfo product_meta_info = 3;
+}
+
+message ProductEventResponse {
+    ProductEvent product_event = 1;
+}
+
+message ProductResponse {
+    oneof sealed_value {
+        ProductData product_data = 1;
+        ProductEventResponse product_event_response = 2;
+    }
+}

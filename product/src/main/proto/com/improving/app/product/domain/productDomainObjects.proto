@@ -1,0 +1,80 @@
+syntax =  "proto3";
+
+package com.improving.app.product.domain;
+
+import "com/improving/app/common/domain/ids.proto";
+import "google/protobuf/timestamp.proto";
+import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
+import "validate/validate.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  [scalapb.validate.file] {
+    validate_at_construction: true
+  }
+};
+
+enum ProductState{
+    PRODUCT_STATE_UNSPECIFIED = 0;
+    PRODUCT_STATE_DRAFT = 1;
+    PRODUCT_STATE_ACTIVE = 2;
+    PRODUCT_STATE_INACTIVE = 3;
+    PRODUCT_STATE_DELETED = 4;
+}
+
+message ProductDetails {
+    oneof value {
+        TicketDetails ticket_details = 1;
+    }
+}
+
+message TicketDetails{
+    oneof value {
+        ReservedTicketDetails scheduled_event_info = 1;
+        RestrictedTicketInfo in_progress_event_info = 2;
+        OpenTicketInfo delayed_event_info = 3;
+    }
+}
+
+message ReservedTicketDetails {
+    common.domain.EventId event_id = 1;
+    string section = 2;
+    string row = 3;
+    string seat = 4;
+}
+
+message RestrictedTicketInfo {
+    common.domain.EventId event_id = 1;
+    string section = 2;
+}
+
+message OpenTicketInfo {
+    common.domain.EventId event_id = 1;
+}
+
+message ProductInfo {
+    string product_name = 1 [(validate.rules).string.min_len = 1];
+    ProductDetails product_details = 2;
+    repeated string image = 3;
+    double price = 4 [(validate.rules).double.gte = 0.0];
+    double cost = 5;
+    common.domain.EventId event_id = 6;
+}
+
+message EditableProductInfo {
+    optional string product_name = 1 [(validate.rules).string.min_len = 1];
+    optional ProductDetails product_details = 2;
+    repeated string image = 3;
+    optional double price = 4 [(validate.rules).double.gte = 0.0];
+    optional double cost = 5;
+    optional common.domain.EventId event_id = 6;
+}
+
+message ProductMetaInfo {
+    common.domain.MemberId created_by = 1;
+    google.protobuf.Timestamp created_on = 2;
+    common.domain.MemberId last_modified_by = 3;
+    google.protobuf.Timestamp last_modified_on = 4;
+    ProductState current_state = 5;
+}

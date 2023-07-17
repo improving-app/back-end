@@ -1,0 +1,93 @@
+syntax =  "proto3";
+
+package com.improving.app.product.domain;
+
+import "com/improving/app/common/domain/ids.proto";
+import "com/improving/app/product/domain/productDomainObjects.proto";
+import "google/protobuf/timestamp.proto";
+import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
+import "validate/validate.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  [scalapb.validate.file] {
+    validate_at_construction: true
+  }
+  single_file: true,
+  preamble: [
+      "sealed trait ProductRequest {\n",
+      "  val sku: Option[com.improving.app.common.domain.Sku]\n",
+      "}\n",
+      "sealed trait ProductCommand extends ProductRequest {",
+      "  val onBehalfOf: Option[com.improving.app.common.domain.MemberId]\n",
+      "}\n",
+      "sealed trait ProductQuery extends ProductRequest\n"
+  ]
+};
+
+message ProductRequestPB{
+    option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
+
+    oneof sealed_value {
+        CreateProduct create_product = 1;
+        EditProductInfo edit_product_info = 2;
+        DeleteProduct delete_product = 3;
+        ActivateProduct activate_product = 4;
+        InactivateProduct inactivate_product = 5;
+        GetProductInfo get_product_info = 6;
+    }
+}
+
+message EditProductInfo {
+    option (scalapb.message) = {
+        extends: [ "ProductCommand" ]
+    };
+    common.domain.Sku sku = 1;
+    EditableProductInfo info = 2;
+    common.domain.MemberId on_behalf_of = 3;
+}
+
+message CreateProduct {
+    option (scalapb.message) = {
+        extends: [ "ProductCommand" ]
+    };
+    common.domain.Sku sku = 1;
+    EditableProductInfo info = 2;
+    common.domain.MemberId on_behalf_of = 4;
+}
+
+message ActivateProduct {
+    option (scalapb.message) = {
+        extends: [ "ProductCommand" ]
+    };
+    common.domain.Sku sku = 1;
+    EditableProductInfo info = 2;
+    common.domain.MemberId on_behalf_of = 3;
+}
+
+message InactivateProduct {
+    option (scalapb.message) = {
+        extends: [ "ProductCommand" ]
+    };
+    common.domain.Sku sku = 1;
+    ProductInfo info = 2;
+    common.domain.MemberId on_behalf_of = 3;
+}
+
+message DeleteProduct {
+    option (scalapb.message) = {
+        extends: [ "ProductCommand" ]
+    };
+    common.domain.Sku sku = 1;
+    google.protobuf.Timestamp start = 2;
+    google.protobuf.Timestamp end = 3;
+    common.domain.MemberId on_behalf_of = 4;
+}
+
+message GetProductInfo{
+    option (scalapb.message) = {
+        extends: [ "ProductQuery" ]
+    };
+    common.domain.Sku sku = 1;
+}
