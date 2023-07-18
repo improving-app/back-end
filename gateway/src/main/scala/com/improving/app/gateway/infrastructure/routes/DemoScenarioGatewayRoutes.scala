@@ -88,7 +88,10 @@ trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with Stric
             entity(as[String]) { command =>
               val parsed = JsonFormat.fromJsonString[StartScenario](command)
 
-              val creatingMemberId = Some(MemberId(UUID.randomUUID().toString))
+              val tenantIds = (0 to parsed.numTenants).map(_ => Some(TenantId(UUID.randomUUID().toString)))
+
+              val creatingMembersForTenant: Seq[(Some[MemberId], Some[TenantId])] =
+                (0 to parsed.numTenants).map(i => Some(MemberId(UUID.randomUUID().toString)) -> tenantIds(i))
               val orgId = OrganizationId(UUID.randomUUID().toString)
               logger.debug(parsed.toProtoString)
               val tenantResponses: Future[Seq[Tenant]] =
@@ -99,14 +102,15 @@ trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with Stric
                       .zip(Random.shuffle(lastNames))
                       .zip(Random.shuffle(addresses))
                       .zip(Random.shuffle(cityStates))
+                      .zip(creatingMembersForTenant.map(_._1))
                       .take(parsed.numTenants)
                       .map {
-                        case (((first, last), address), Seq(city, state)) =>
+                        case ((((first, last), address), Seq(city, state)), member) =>
                           tenantHandler
                             .establishTenant(
                               EstablishTenant(
                                 Some(TenantId(UUID.randomUUID().toString)),
-                                creatingMemberId,
+                                member,
                                 Some(
                                   EditableTenantInfo(
                                     Some("Demo-" + LocalDateTime.now().toString),
@@ -141,78 +145,114 @@ trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with Stric
                         case (((_, _), _), _) =>
                           Future.failed(new InternalServerErrorException("Could not generate all appropriate data"))
                       }
-                      .map(_.flatMap { tenantEstablished: TenantEstablished =>
-                        tenantHandler
-                          .activateTenant(ActivateTenant(tenantEstablished.tenantId, creatingMemberId))
-                          .map(_ => tenantEstablished.toTenant)
-                      })
+                      .zip(creatingMembersForTenant.map(_._1))
+                      .map { case (tenantResponse, creatingMember) =>
+                        tenantResponse.flatMap { tenantEstablished: TenantEstablished =>
+                          tenantHandler
+                            .activateTenant(ActivateTenant(tenantEstablished.tenantId, creatingMember))
+                            .map(_ => tenantEstablished.toTenant)
+                        }
+                      }
                   )
+                  .map { tenant =>
+                    logger.debug(s"Tenant successfully established with $tenant")
+                    tenant
+                  }
 
-              val orgResponse: Future[Organization] = tenantResponses.flatMap { tenants =>
-                (Random
-                  .shuffle(addresses)
-                  .zip(Random.shuffle(cityStates))
-                  .zip(Random.shuffle(tenants.map(_.tenantId)))
-                  .head match {
-                  case ((address, Seq(city, state)), tenant) =>
-                    orgHandler.establishOrganization(
-                      EstablishOrganization(
-                        Some(orgId),
-                        creatingMemberId,
-                        Some(
-                          EditableOrganizationInfo(
-                            name = Some("The Demo Corporation"),
-                            shortName = Some("DemoCorp"),
-                            tenant = tenant,
-                            isPublic = Some(true),
-                            address = Some(
-                              EditableAddress(
-                                line1 = Some(address),
-                                line2 = None,
-                                city = Some(city),
-                                stateProvince = Some(state),
-                                country = Some("Fakaria"),
-                                postalCode = Some(
-                                  PostalCodeMessageImpl(
-                                    UsPostalCodeImpl(genPostalCode)
+              val orgResponse: Future[Organization] = tenantResponses
+                .flatMap { tenants =>
+                  (Random
+                    .shuffle(addresses)
+                    .zip(Random.shuffle(cityStates))
+                    .zip(creatingMembersForTenant)
+                    .head match {
+                    case ((address, Seq(city, state)), memberForTenant) =>
+                      orgHandler.establishOrganization(
+                        EstablishOrganization(
+                          Some(orgId),
+                          memberForTenant._1,
+                          Some(
+                            EditableOrganizationInfo(
+                              name = Some("The Demo Corporation"),
+                              shortName = Some("DemoCorp"),
+                              tenant = memberForTenant._2,
+                              isPublic = Some(true),
+                              address = Some(
+                                EditableAddress(
+                                  line1 = Some(address),
+                                  line2 = None,
+                                  city = Some(city),
+                                  stateProvince = Some(state),
+                                  country = Some("Fakaria"),
+                                  postalCode = Some(
+                                    PostalCodeMessageImpl(
+                                      UsPostalCodeImpl(genPostalCode)
+                                    )
                                   )
                                 )
-                              )
-                            ),
-                            url = Some("demo.corp"),
-                            logo = None
+                              ),
+                              url = Some("demo.corp"),
+                              logo = None
+                            )
                           )
                         )
                       )
-                    )
-                  case ((_, _), _) => Future.failed(new Exception("failed to match on data for creating org"))
-                }).flatMap { orgEstablished: OrganizationEstablished =>
-                  orgHandler
-                    .activateOrganization(ActivateOrganization(orgEstablished.organizationId, creatingMemberId))
-                    .map(_ => orgEstablished.toOrganization)
+                    case ((_, _), _) => Future.failed(new Exception("failed to match on data for creating org"))
+                  }).flatMap { orgEstablished: OrganizationEstablished =>
+                    orgHandler
+                      .activateOrganization(
+                        ActivateOrganization(orgEstablished.organizationId, creatingMembersForTenant.head._1)
+                      )
+                      .map(_ => orgEstablished.toOrganization)
+                  }
                 }
-              }
+                .map { org =>
+                  logger.debug(s"Org successfully established with $org")
+                  org
+                }
 
               val numMembers = parsed.numMembersPerOrg * parsed.numTenants
               val memberResponses: Future[Seq[Member]] = (for {
-                tenants <- tenantResponses
                 org <- orgResponse
               } yield Future
                 .sequence(
-                  Random
-                    .shuffle((2 to numMembers).map(_ => UUID.randomUUID().toString))
-                    .zip((2 to numMembers).map(i => tenants(i % tenants.length)))
+                  (creatingMembersForTenant
+                    .map(_._1) ++ Random
+                    .shuffle(
+                      (parsed.numTenants - 1 to numMembers).map(_ => Some(MemberId(UUID.randomUUID().toString)))
+                    ))
+                    .zip(
+                      creatingMembersForTenant.map(tup => (tup._1, tup._2)) ++ Random
+                        .shuffle(
+                          (parsed.numTenants - 1 to numMembers).map(_ => tenantIds(Random.nextInt(parsed.numTenants)))
+                        )
+                        .flatMap { tenant =>
+                          val creatingMembers = creatingMembersForTenant.map(_._1) ++ Random
+                            .shuffle(
+                              (parsed.numTenants - 1 to numMembers)
+                                .map(_ =>
+                                  creatingMembersForTenant(creatingMembersForTenant.indexWhere(_._2 == tenant))._1
+                                )
+                            )
+                          creatingMembers.map(member =>
+                            (
+                              member,
+                              tenant
+                            )
+                          )
+                        }
+                    )
                     .zip(
                       Random
                         .shuffle(firstNames)
                         .take(numMembers)
                         .zip(Random.shuffle(lastNames).take(numMembers))
                     )
-                    .map { case ((id, tenant), (firstName, lastName)) =>
+                    .map { case ((id, (creatingMember, tenant)), (firstName, lastName)) =>
                       memberHandler
                         .registerMember(
                           RegisterMember(
-                            Some(MemberId(id)),
+                            id,
                             Some(
                               EditableMemberInfo(
                                 handle = Some(s"${firstName.take(1)}.${lastName.take(3)}"),
@@ -233,19 +273,23 @@ trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with Stric
                                   )
                                 ),
                                 organizationMembership = Seq(org.getOrganizationId),
-                                tenant = tenant.tenantId
+                                tenant = tenant
                               )
                             ),
-                            creatingMemberId
+                            creatingMember
                           )
                         )
                         .flatMap { memberRegistered: MemberRegistered =>
                           memberHandler
-                            .activateMember(ActivateMember(memberRegistered.memberId, creatingMemberId))
+                            .activateMember(ActivateMember(memberRegistered.memberId, memberRegistered.meta.map(_.getCreatedBy)))
                             .map(_ => memberRegistered.toMember)
                         }
                     }
                 )).flatten
+                .map { member =>
+                  logger.debug(s"Member successfully established with $member")
+                  member
+                }
 
               complete {
                 for {
