@@ -281,15 +281,17 @@ trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with Stric
                         )
                         .flatMap { memberRegistered: MemberRegistered =>
                           memberHandler
-                            .activateMember(ActivateMember(memberRegistered.memberId, memberRegistered.meta.map(_.getCreatedBy)))
+                            .activateMember(
+                              ActivateMember(memberRegistered.memberId, memberRegistered.meta.map(_.getCreatedBy))
+                            )
                             .map(_ => memberRegistered.toMember)
                         }
                     }
                 )).flatten
-                .map { member =>
+                .map(_.map { member =>
                   logger.debug(s"Member successfully established with $member")
                   member
-                }
+                })
 
               complete {
                 for {
