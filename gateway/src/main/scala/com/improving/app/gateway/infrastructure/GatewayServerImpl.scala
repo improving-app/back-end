@@ -27,7 +27,10 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_]) extends MemberGatewayR
 
   private val binding = Http()
     .newServerAt(config.getString("akka.http.interface"), config.getInt("akka.http.port"))
-    .bindFlow(Directives.concat(memberRoutes(memberHandler), demoScenarioRoutes(tenantHandler, organizationHandler)))
+    .bindFlow(
+      Directives
+        .concat(memberRoutes(memberHandler), demoScenarioRoutes(tenantHandler, organizationHandler, memberHandler))
+    )
 
   def start(): Unit = binding
     .onComplete {

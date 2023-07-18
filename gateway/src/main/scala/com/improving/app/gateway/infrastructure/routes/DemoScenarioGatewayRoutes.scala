@@ -13,11 +13,18 @@ import com.improving.app.common.domain.{
   TenantId,
   UsPostalCodeImpl
 }
-import com.improving.app.gateway.api.handlers.TenantGatewayHandler
-import com.improving.app.gateway.api.handlers.{OrganizationGatewayHandler, TenantGatewayHandler}
-import com.improving.app.gateway.domain.common.orgUtil.EstablishedOrganizationUtil
+import com.improving.app.gateway.api.handlers.{MemberGatewayHandler, OrganizationGatewayHandler, TenantGatewayHandler}
+import com.improving.app.gateway.domain.orgUtil.EstablishedOrganizationUtil
 import com.improving.app.gateway.domain.common.util.{genPhoneNumber, genPostalCode}
-import com.improving.app.gateway.domain.demoScenario.{Organization, ScenarioStarted, StartScenario, Tenant}
+import com.improving.app.gateway.domain.demoScenario.{Member, Organization, ScenarioStarted, StartScenario, Tenant}
+import com.improving.app.gateway.domain.member.{
+  ActivateMember,
+  EditableMemberInfo,
+  MemberRegistered,
+  NotificationPreference,
+  RegisterMember
+}
+import com.improving.app.gateway.domain.memberUtil.MemberRegisteredUtil
 import com.improving.app.gateway.domain.organization.{
   ActivateOrganization,
   EditableOrganizationInfo,
@@ -69,7 +76,11 @@ trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with Stric
     try cityStatesFile.getLines().toSeq.map(_.split(",").toSeq)
     finally cityStatesFile.close()
 
-  def demoScenarioRoutes(tenantHandler: TenantGatewayHandler, orgHandler: OrganizationGatewayHandler): Route =
+  def demoScenarioRoutes(
+      tenantHandler: TenantGatewayHandler,
+      orgHandler: OrganizationGatewayHandler,
+      memberHandler: MemberGatewayHandler
+  ): Route =
     logRequestResult("DemoScenarioGateway") {
       pathPrefix("demo-scenario") {
         pathPrefix("start") {
@@ -182,12 +193,66 @@ trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with Stric
                 }
               }
 
+              val numMembers = parsed.numMembersPerOrg * parsed.numTenants
+              val memberResponses: Future[Seq[Member]] = (for {
+                tenants <- tenantResponses
+                org <- orgResponse
+              } yield Future
+                .sequence(
+                  Random
+                    .shuffle((2 to numMembers).map(_ => UUID.randomUUID().toString))
+                    .zip((2 to numMembers).map(i => tenants(i % tenants.length)))
+                    .zip(
+                      Random
+                        .shuffle(firstNames)
+                        .take(numMembers)
+                        .zip(Random.shuffle(lastNames).take(numMembers))
+                    )
+                    .map { case ((id, tenant), (firstName, lastName)) =>
+                      memberHandler
+                        .registerMember(
+                          RegisterMember(
+                            Some(MemberId(id)),
+                            Some(
+                              EditableMemberInfo(
+                                handle = Some(s"${firstName.take(1)}.${lastName.take(3)}"),
+                                avatarUrl = Some(s"${org.organizationInfo.get.shortName}.org"),
+                                firstName = Some(firstName),
+                                lastName = Some(lastName),
+                                notificationPreference =
+                                  Some(NotificationPreference.NOTIFICATION_PREFERENCE_APPLICATION),
+                                contact = Some(
+                                  EditableContact(
+                                    firstName = Some(firstName),
+                                    lastName = Some(lastName),
+                                    emailAddress = Some(
+                                      s"${firstName.toLowerCase}.${lastName.toLowerCase}@${org.organizationInfo.get.shortName}.org"
+                                    ),
+                                    phone = Some(genPhoneNumber),
+                                    userName = Some(s"${firstName.take(1)}$lastName")
+                                  )
+                                ),
+                                organizationMembership = Seq(org.getOrganizationId),
+                                tenant = tenant.tenantId
+                              )
+                            ),
+                            creatingMemberId
+                          )
+                        )
+                        .flatMap { memberRegistered: MemberRegistered =>
+                          memberHandler
+                            .activateMember(ActivateMember(memberRegistered.memberId, creatingMemberId))
+                            .map(_ => memberRegistered.toMember)
+                        }
+                    }
+                )).flatten
+
               complete {
-                orgResponse.map { org =>
-                  tenantResponses.map { tenants =>
-                    ScenarioStarted(tenants = tenants, organizations = Seq(org)).toProtoString
-                  }
-                }
+                for {
+                  org <- orgResponse
+                  tenants <- tenantResponses
+                  members <- memberResponses
+                } yield ScenarioStarted(tenants = tenants, organizations = Seq(org), members = members).toProtoString
               }
             }
           }

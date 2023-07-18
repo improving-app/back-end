@@ -5,30 +5,55 @@ package com.improving.app.gateway.domain.organization;
 import "com/improving/app/gateway/domain/organization/organizationGatewayDomainObjects.proto";
 import "com/improving/app/common/domain/ids.proto";
 import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
 
-//Requests
+option (scalapb.options) = {
+    scope: FILE
+    [scalapb.validate.file] {
+        validate_at_construction: true
+    }
+    single_file: true
+    preamble: [
+        "sealed trait OrganizationRequest {\n",
+        "  val organizationId: Option[com.improving.app.common.domain.OrganizationId]\n"
+        "  val onBehalfOf: Option[com.improving.app.common.domain.MemberId]\n",
+        "}\n",
+        "sealed trait OrganizationCommand extends OrganizationRequest\n",
+        "sealed trait OrganizationQuery extends OrganizationRequest\n"
+    ]
+};
+
 message EstablishOrganization {
+    option (scalapb.message) = {
+        extends: [ "OrganizationCommand" ]
+    };
     com.improving.app.common.domain.OrganizationId organization_id = 1;
     com.improving.app.common.domain.MemberId on_behalf_of = 2;
     optional organization.EditableOrganizationInfo organization_info = 3;
 }
 
 message ActivateOrganization {
+    option (scalapb.message) = {
+        extends: [ "OrganizationCommand" ]
+    };
     com.improving.app.common.domain.OrganizationId organization_id = 1;
     com.improving.app.common.domain.MemberId on_behalf_of = 2;
 }
 
 message TerminateOrganization {
+    option (scalapb.message) = {
+        extends: [ "OrganizationCommand" ]
+    };
     com.improving.app.common.domain.OrganizationId organization_id = 1;
     com.improving.app.common.domain.MemberId on_behalf_of = 2;
 }
 
-message OrganizationRequest{
+message OrganizationRequestPB {
   option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
 
   oneof sealed_value {
-    EstablishOrganization establish_tenant_value = 1;
-    ActivateOrganization activate_tenant_value = 2;
-    TerminateOrganization terminate_tenant_value = 3;
+    EstablishOrganization establish_tenant = 1;
+    ActivateOrganization activate_tenant = 2;
+    TerminateOrganization terminate_tenant = 3;
   }
 }

@@ -12,12 +12,24 @@ message MemberRegistered {
   MemberMetaInfo meta = 3;
 }
 
+message MemberActivated {
+  common.domain.MemberId member_id = 1;
+  MemberMetaInfo meta = 2;
+}
+
+message MemberTerminated {
+  common.domain.MemberId member_id = 1;
+  MemberMetaInfo last_meta = 2;
+}
+
 message MemberEvent{
 
   option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
 
   oneof sealed_value {
     MemberRegistered member_registered_value = 1;
+    MemberActivated member_activated_value = 2;
+    MemberTerminated member_terminated_value = 3;
   }
 }
 
