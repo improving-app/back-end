@@ -88,7 +88,7 @@ class DemoScenarioGatewayServerSpec
             numTenants = 1,
             numMembersPerOrg = 1
           )
-          Post("/member", command.toProtoString) ~> Route.seal(
+          Post("/demo-scenario/start", command.toProtoString) ~> Route.seal(
             demoScenarioRoutes(tenantHandler, orgHandler, memberHandler)
           ) ~> check {
             status shouldBe StatusCodes.OK
