@@ -1,21 +1,20 @@
-package com.improving.app.event
+package com.improving.app.product
 
 import akka.actor.typed.ActorSystem
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import com.improving.app.common.service.ServiceMain
-import com.improving.app.event.api.{EventServiceHandler, EventServiceImpl}
-
+import com.improving.app.product.api.{ProductServiceHandler, ProductServiceImpl}
 import scala.concurrent.Future
 
 /**
  * This is the running application for the Members project.
  */
 object Main extends ServiceMain {
-  override val projectName = "improving-app-member"
-  override val port = 8081
+  override val projectName = "improving-app-product"
+  override val port = 8085
 
   override def service(system: ActorSystem[Nothing]): HttpRequest => Future[HttpResponse] = {
-    EventServiceHandler.withServerReflection(new EventServiceImpl()(system))(system)
+    ProductServiceHandler.withServerReflection(new ProductServiceImpl()(system))(system)
   }
 
   run()

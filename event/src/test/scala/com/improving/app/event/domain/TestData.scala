@@ -3,8 +3,6 @@ package com.improving.app.event.domain
 import com.google.protobuf.duration.Duration
 import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.{EventId, MemberId, OrganizationId}
-import com.improving.app.event.domain.TestData.baseCreateEvent
-import com.improving.app.event.domain.TestData.baseCreateEvent.onBehalfOf
 import com.improving.app.event.domain.util.EventInfoUtil
 
 import java.time.Instant

@@ -5,7 +5,6 @@ import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/store/domain/storeDomainObjects.proto";
 import "scalapb/scalapb.proto";
 import "scalapb/validate.proto";
-import "validate/validate.proto";
 
 option (scalapb.options) = {
   scope: FILE
@@ -23,8 +22,8 @@ message StoreEvent {
     StoreClosed store_closed = 5;
     StoreTerminated store_terminated = 6;
     StoreInfoEdited store_info_edited = 7;
-    //ProductsAddedToStore products_added_to_store = 8;
-    //ProductsRemovedFromStore products_removed_from_store = 9;
+    ProductsAddedToStore products_added_to_store = 8;
+    ProductsRemovedFromStore products_removed_from_store = 9;
   }
 }
 
@@ -83,17 +82,16 @@ message StoreOrEditableInfo {
   }
 }
 
-//message ProductsAddedToStore {
-//  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-//  common.domain.StoreId store_id = 1;
-//  StoreInfo info = 2;
-//  StoreMetaInfo meta_info = 3;
-//}
-//
-//message ProductsRemovedFromStore {
-//  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-//  common.domain.StoreId store_id = 1;
-//  StoreInfo info = 2;
-//  StoreMetaInfo meta_info = 3;
-//}
-//
+message ProductsAddedToStore {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  common.domain.StoreId store_id = 1;
+  StoreOrEditableInfo info = 2;
+  StoreMetaInfo meta_info = 3;
+}
+
+message ProductsRemovedFromStore {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  common.domain.StoreId store_id = 1;
+  StoreOrEditableInfo info = 2;
+  StoreMetaInfo meta_info = 3;
+}

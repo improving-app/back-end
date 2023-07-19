@@ -36,9 +36,9 @@ message StoreInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   string name = 1 [(validate.rules).string.min_len = 1];
   string description = 2 [(validate.rules).string.min_len = 1];
+  repeated common.domain.Sku products = 3;
+  common.domain.EventId event = 4;
   //TODO: implement once respective services are up
-  //repeated sku products = 3;
-  //EventID event = 4;
   //VenueId venue = 5;
   //LocationId location = 6;
   common.domain.OrganizationId sponsoring_org = 7;
@@ -48,8 +48,8 @@ message EditableStoreInfo {
   option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
   optional string name = 1 [(validate.rules).string.min_len = 1];
   optional string description = 2 [(validate.rules).string.min_len = 1];
-  //optional repeated sku products = 3;
-  //optional EventID event = 4;
+  repeated common.domain.Sku products = 3;
+  optional common.domain.EventId event = 4;
   //optional VenueId venue = 5;
   //optional LocationId location = 6;
   optional common.domain.OrganizationId sponsoring_org = 7;

@@ -37,3 +37,8 @@ message EventId {
     option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     string id = 1 [(validate.rules).string.min_len = 1];
 }
+
+message Sku {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    string sku = 1 [(validate.rules).string.min_len = 1];
+}
