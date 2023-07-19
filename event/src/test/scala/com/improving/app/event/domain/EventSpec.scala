@@ -1,17 +1,15 @@
 package com.improving.app.event.domain
 
-import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
+import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.pattern.StatusReply
 import akka.persistence.testkit.scaladsl.EventSourcedBehaviorTestKit
 import akka.persistence.testkit.scaladsl.EventSourcedBehaviorTestKit.SerializationSettings
 import com.improving.app.common.domain.{EventId, MemberId}
 import TestData.{baseScheduleEventToStartNow, _}
-import akka.actor.typed.ActorRef
-import akka.persistence.typed.PersistenceId
 import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.event.domain.Event._
 import com.improving.app.event.domain.EventState._
-import com.improving.app.event.domain.util.{EditableEventInfoUtil, EventInfoUtil}
+import com.improving.app.event.domain.util._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -115,7 +113,7 @@ class EventSpec
 
         }
 
-        "error for registering the same member" in {
+        "error for registering the same event" in {
           eventSourcedTestKit.runCommand[StatusReply[EventResponse]](
             EventEnvelope(
               baseCreateEvent,
@@ -687,7 +685,8 @@ class EventSpec
       "executing commands other than End, Delay, or Cancel" should {
         "error on all commands" in {
           eventSourcedTestKit.runCommand[StatusReply[EventResponse]](EventEnvelope(baseCreateEvent, _))
-          eventSourcedTestKit.runCommand[StatusReply[EventResponse]](EventEnvelope(baseDelayEvent, _))
+          eventSourcedTestKit.runCommand[StatusReply[EventResponse]](EventEnvelope(baseScheduleEventToStartNow, _))
+          eventSourcedTestKit.runCommand[StatusReply[EventResponse]](EventEnvelope(baseStartEvent, _))
 
           val commands = Seq(
             baseCreateEvent,
@@ -699,10 +698,10 @@ class EventSpec
 
           commands.map { command =>
             val response = eventSourcedTestKit.runCommand[StatusReply[EventResponse]](EventEnvelope(command, _)).reply
-            println(command.getClass.getName.split('.').last)
+
             assert(response.isError)
             val responseError = response.getError
-            responseError.getMessage shouldEqual s"${command.getClass.getName.split('.').last} command cannot be used on a delayed Event"
+            responseError.getMessage shouldEqual s"${command.getClass.getName.split('.').last} command cannot be used on an in-progress Event"
           }
         }
       }
