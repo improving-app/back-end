@@ -12,7 +12,7 @@ import scala.concurrent.Future
  */
 object Main extends ServiceMain {
   override val projectName = "improving-app-member"
-  override val port = 8081
+  override val port = 8084
 
   override def service(system: ActorSystem[Nothing]): HttpRequest => Future[HttpResponse] = {
     EventServiceHandler.withServerReflection(new EventServiceImpl()(system))(system)

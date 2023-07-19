@@ -1,6 +1,6 @@
 package com.improving.app.gateway.api.handlers
 
-import com.improving.app.gateway.domain.common.orgUtil.{
+import com.improving.app.gateway.domain.orgUtil.{
   EditableOrganizationInfoUtil,
   GatewayEditableOrganizationInfoUtil,
   OrganizationMetaInfoUtil

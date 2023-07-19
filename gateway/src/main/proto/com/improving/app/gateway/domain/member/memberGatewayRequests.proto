@@ -5,19 +5,59 @@ package com.improving.app.gateway.domain.member;
 import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/gateway/domain/member/memberGatewayDomainObjects.proto";
 import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
 
-//Requests
+option (scalapb.options) = {
+    scope: FILE
+    [scalapb.validate.file] {
+        validate_at_construction: true
+    }
+    single_file: true,
+    preamble: [
+        "sealed trait MemberRequest {\n",
+        "  val memberId: Option[com.improving.app.common.domain.MemberId]\n",
+        "}\n",
+        "sealed trait MemberCommand extends MemberRequest {",
+        "  val onBehalfOf: Option[com.improving.app.common.domain.MemberId]\n",
+        "}\n",
+        "sealed trait MemberQuery extends MemberRequest\n"
+    ]
+};
+
 message RegisterMember {
+    option (scalapb.message) = {
+        extends: [ "MemberCommand" ]
+    };
   option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
   common.domain.MemberId member_id = 1;
   EditableMemberInfo member_info = 2;
-  common.domain.MemberId registering_member = 3;
+  common.domain.MemberId on_behalf_of = 3;
 }
 
-message MemberRequest{
+message ActivateMember {
+    option (scalapb.message) = {
+        extends: [ "MemberCommand" ]
+    };
+    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+    common.domain.MemberId member_id = 1;
+    common.domain.MemberId on_behalf_of = 2;
+}
+
+message TerminateMember {
+    option (scalapb.message) = {
+        extends: [ "MemberCommand" ]
+    };
+    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+    common.domain.MemberId member_id = 1;
+    common.domain.MemberId on_behalf_of = 2;
+}
+
+message MemberRequestPB {
   option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
 
   oneof sealed_value {
-    RegisterMember register_member_value = 1;
+    RegisterMember register_member = 1;
+    ActivateMember activate_member = 2;
+    TerminateMember terminate_member = 3;
   }
 }

@@ -10,13 +10,14 @@ import com.improving.app.member.domain.Member.{MemberEntityKey, MemberEnvelope}
 import com.improving.app.member.domain._
 
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import scala.language.postfixOps
 
 class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberService {
 
   implicit val ec: ExecutionContext = system.executionContext
   implicit val timeout: Timeout = Timeout(5 minute)
+  implicit val executor: ExecutionContextExecutor = system.executionContext
 
   // Create a new member
   val sharding: ClusterSharding = ClusterSharding(system)
@@ -44,7 +45,6 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
     .map { id =>
       val memberEntity = sharding.entityRefFor(MemberEntityKey, id.id)
 
-      // Register the member
       memberEntity
         .ask[StatusReply[MemberResponse]](replyTo => MemberEnvelope(in, replyTo))
         .map { handleResponse(eventHandler) }
@@ -66,7 +66,6 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
     .map { id =>
       val memberEntity = sharding.entityRefFor(MemberEntityKey, id.id)
 
-      // Register the member
       memberEntity
         .ask[StatusReply[MemberResponse]](replyTo => MemberEnvelope(in, replyTo))
         .map { handleResponse(eventHandler) }
