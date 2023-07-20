@@ -248,7 +248,7 @@ object Event extends StrictLogging {
             state match {
               case DraftEventState(_, _) =>
                 ScheduledEventState(
-                  info = eventScheduledEvent.getInfo,
+                  info = eventScheduledEvent.getInfo.toInfo,
                   meta = eventScheduledEvent.getMeta
                 )
               case _ => state
@@ -407,7 +407,7 @@ object Event extends StrictLogging {
             EventEventResponse(
               EventScheduled(
                 scheduleEventCommand.eventId,
-                Some(updatedInfo.toInfo),
+                Some(updatedInfo),
                 Some(newMeta)
               )
             )
@@ -419,7 +419,7 @@ object Event extends StrictLogging {
           EventEventResponse(
             EventScheduled(
               scheduleEventCommand.eventId,
-              Some(info),
+              Some(info.toEditable),
               Some(newMeta)
             )
           )

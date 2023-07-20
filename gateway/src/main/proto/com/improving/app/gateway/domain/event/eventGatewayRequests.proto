@@ -1,0 +1,72 @@
+syntax =  "proto3";
+
+package com.improving.app.gateway.domain.event;
+
+import "com/improving/app/common/domain/ids.proto";
+import "com/improving/app/gateway/domain/event/eventGatewayDomainObjects.proto";
+import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
+
+option (scalapb.options) = {
+    scope: FILE
+    [scalapb.validate.file] {
+        validate_at_construction: true
+    }
+    single_file: true,
+    preamble: [
+        "sealed trait EventRequest {\n",
+        "  val eventId: Option[com.improving.app.common.domain.EventId]\n",
+        "}\n",
+        "sealed trait EventCommand extends EventRequest {",
+        "  val onBehalfOf: Option[com.improving.app.common.domain.MemberId]\n",
+        "}\n",
+        "sealed trait EventQuery extends EventRequest\n"
+    ]
+};
+
+message EventRequestPB{
+    option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
+
+    oneof sealed_value {
+        EditEventInfo edit_event_info = 1;
+        CreateEvent create_event = 2;
+        ScheduleEvent schedule_event = 3;
+        CancelEvent cancel_event = 4;
+    }
+}
+
+message EditEventInfo {
+    option (scalapb.message) = {
+        extends: [ "EventCommand" ]
+    };
+    common.domain.EventId event_id = 1;
+    EditableEventInfo info = 2;
+    common.domain.MemberId on_behalf_of = 3;
+}
+
+message CreateEvent {
+    option (scalapb.message) = {
+        extends: [ "EventCommand" ]
+    };
+    common.domain.EventId event_id = 1;
+    EditableEventInfo info = 2;
+    common.domain.MemberId on_behalf_of = 4;
+}
+
+message ScheduleEvent {
+    option (scalapb.message) = {
+        extends: [ "EventCommand" ]
+    };
+    common.domain.EventId event_id = 1;
+    EditableEventInfo info = 2;
+    common.domain.MemberId on_behalf_of = 3;
+}
+
+message CancelEvent {
+    option (scalapb.message) = {
+        extends: [ "EventCommand" ]
+    };
+    common.domain.EventId event_id = 1;
+    string reason = 2;
+    common.domain.MemberId on_behalf_of = 3;
+}

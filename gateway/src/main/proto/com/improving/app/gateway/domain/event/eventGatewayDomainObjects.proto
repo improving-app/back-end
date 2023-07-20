@@ -1,0 +1,89 @@
+syntax =  "proto3";
+
+package com.improving.app.gateway.domain.event;
+
+import "com/improving/app/common/domain/ids.proto";
+import "google/protobuf/timestamp.proto";
+import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
+
+option (scalapb.options) = {
+    scope: FILE
+    [scalapb.validate.file] {
+        validate_at_construction: true
+    }
+};
+
+enum EventState {
+    EVENT_STATE_UNSPECIFIED = 0;
+    EVENT_STATE_DRAFT = 1;
+    EVENT_STATE_SCHEDULED = 2;
+    EVENT_STATE_INPROGRESS = 3;
+    EVENT_STATE_DELAYED = 4;
+    EVENT_STATE_PAST = 5;
+    EVENT_STATE_CANCELLED = 6;
+}
+
+message EventStateInfo {
+    oneof value {
+        ScheduledEventInfo scheduled_event_info = 1;
+        InProgressEventInfo in_progress_event_info = 2;
+        DelayedEventInfo delayed_event_info = 3;
+        PastEventInfo past_event_info = 4;
+        CancelledEventInfo cancelled_event_info = 5;
+    }
+}
+
+message ScheduledEventInfo {}
+
+message InProgressEventInfo {
+    google.protobuf.Timestamp time_started = 1;
+}
+
+message DelayedEventInfo {
+    string reason = 1;
+    optional google.protobuf.Timestamp time_started_opt = 2;
+}
+
+message PastEventInfo {
+    google.protobuf.Timestamp time_started = 1;
+    google.protobuf.Timestamp time_ended = 2;
+}
+
+message CancelledEventInfo {
+    string reason = 1;
+    optional google.protobuf.Timestamp time_started_opt = 2;
+}
+
+message EventInfo {
+    string event_name = 1;
+    optional string description = 2;
+    optional string event_url = 3;
+    common.domain.OrganizationId sponsoring_org = 4;
+    google.protobuf.Timestamp expected_start = 5;
+    google.protobuf.Timestamp expected_end = 6;
+    bool is_private = 7;
+}
+
+message EditableEventInfo {
+    optional string event_name = 1;
+    optional string description = 2;
+    optional string event_url = 3;
+    optional common.domain.OrganizationId sponsoring_org = 4;
+    optional google.protobuf.Timestamp expected_start = 5;
+    optional google.protobuf.Timestamp expected_end = 6;
+    bool is_private = 7;
+}
+
+message EventMetaInfo {
+    common.domain.MemberId created_by = 1;
+    google.protobuf.Timestamp created_on = 2;
+    common.domain.MemberId scheduled_by = 3;
+    google.protobuf.Timestamp scheduled_on = 4;
+    common.domain.MemberId last_modified_by = 5;
+    google.protobuf.Timestamp last_modified_on = 6;
+    google.protobuf.Timestamp actual_start = 7;
+    google.protobuf.Timestamp actual_end = 8;
+    EventState current_state = 9;
+    optional EventStateInfo event_state_info = 10;
+}

@@ -3,7 +3,7 @@ import akka.grpc.sbt.AkkaGrpcPlugin
 import akka.grpc.sbt.AkkaGrpcPlugin.autoImport.akkaGrpcCodeGeneratorSettings
 import com.typesafe.sbt.packager.Keys._
 import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
-import com.typesafe.sbt.packager.docker.DockerPlugin
+import com.typesafe.sbt.packager.docker.{Cmd, CmdLike, DockerPlugin, ExecCmd}
 import sbt.Keys.{libraryDependencies, _}
 import sbt.{Def, Project, Test, Tests, _}
 import sbtprotoc.ProtocPlugin.autoImport.PB
@@ -75,7 +75,7 @@ object C {
               httpDependencies ++ akkaHttpTestingDependencies ++ jsonDependencies ++
               scalaPbDependencies ++ scalaPbValidationDependencies ++ akkaTypedDependencies ++ additionalDependencies,
           dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.13.5",
-            dockerSettings(port)
+          dockerSettings(port, componentName)
         )
     }
 
@@ -165,21 +165,28 @@ object C {
         ) ++ akkaHttpTestingDependencies ++ scalaPbDependencies ++ scalaPbValidationDependencies ++ Seq(
           scalaPbCompilerPlugin
         ),
-        dockerSettings(port),
+        dockerSettings(port, artifactName),
       )
   }
 
   def dockerSettings(
-      port: Int
-  ): Seq[Def.Setting[_ >: Seq[Int] with Option[String] with Seq[String] with String with Boolean]] = Seq(
-    dockerBaseImage := "docker.io/library/eclipse-temurin:17.0.6_10-jre",
+      port: Int,
+      componentName: String
+  ): Seq[Def.Setting[_ >: Task[Seq[CmdLike]] with String with Boolean with Seq[Int] with Option[String]]] = Seq(
+    dockerBaseImage := "alpine:latest",
     dockerUsername := sys.props.get("docker.username"),
     dockerRepository := sys.props.get("docker.registry"),
     dockerUpdateLatest := true,
     dockerExposedPorts ++= Seq(port),
+    dockerCommands ++= Seq(
+      Cmd("FROM", componentName),
+      Cmd("USER", "root"),
+      ExecCmd("RUN", "/sbin/apk", "add", "--no-cache", "bash"),
+      ExecCmd("RUN", "/sbin/apk", "add", "--no-cache", "openjdk17-jre")
+    )
     // Note for developers: enable when you want to build for amd64 on non amd64
     //
-    //dockerBuildCommand := {
+    // dockerBuildCommand := {
     //  if (sys.props("os.arch") != "amd64") {
     //    // use buildx with platform to build supported amd64 images on other CPU architectures
     //    // this may require that you have first run 'docker buildx create' to set docker buildx up
@@ -190,7 +197,7 @@ object C {
     //      "--load"
     //    ) ++ dockerBuildOptions.value :+ "."
     //  } else dockerBuildCommand.value
-    //}
+    // }
   )
 
   def protobufsLib(artifactName: String)(project: Project): Project = {

@@ -15,7 +15,7 @@ import com.improving.app.common.domain.{
 }
 import com.improving.app.gateway.api.handlers.{MemberGatewayHandler, OrganizationGatewayHandler, TenantGatewayHandler}
 import com.improving.app.gateway.domain.orgUtil.EstablishedOrganizationUtil
-import com.improving.app.gateway.domain.common.util.{genPhoneNumber, genPostalCode}
+import com.improving.app.gateway.domain.common.util.{genEstablishTenantReqs, genPhoneNumber, genPostalCode}
 import com.improving.app.gateway.domain.demoScenario.{Member, Organization, ScenarioStarted, StartScenario, Tenant}
 import com.improving.app.gateway.domain.member.{
   ActivateMember,
@@ -94,70 +94,33 @@ trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with Stric
                 (0 to parsed.numTenants).map(i => Some(MemberId(UUID.randomUUID().toString)) -> tenantIds(i))
               val orgId = OrganizationId(UUID.randomUUID().toString)
               logger.debug(parsed.toProtoString)
-              val tenantResponses: Future[Seq[Tenant]] =
-                Future
-                  .sequence(
-                    Random
-                      .shuffle(firstNames)
-                      .zip(Random.shuffle(lastNames))
-                      .zip(Random.shuffle(addresses))
-                      .zip(Random.shuffle(cityStates))
-                      .zip(creatingMembersForTenant.map(_._1))
-                      .take(parsed.numTenants)
-                      .map {
-                        case ((((first, last), address), Seq(city, state)), member) =>
-                          tenantHandler
-                            .establishTenant(
-                              EstablishTenant(
-                                Some(TenantId(UUID.randomUUID().toString)),
-                                member,
-                                Some(
-                                  EditableTenantInfo(
-                                    Some("Demo-" + LocalDateTime.now().toString),
-                                    Some(
-                                      EditableContact(
-                                        Some(first),
-                                        Some(last),
-                                        Some(s"$first.$last@orgorg.com"),
-                                        Some(genPhoneNumber),
-                                        Some(first.take(1) + last)
-                                      )
-                                    ),
-                                    Some(
-                                      EditableAddress(
-                                        line1 = Some(address),
-                                        line2 = None,
-                                        city = Some(city),
-                                        stateProvince = Some(state),
-                                        country = Some("Fakaria"),
-                                        postalCode = Some(
-                                          PostalCodeMessageImpl(
-                                            UsPostalCodeImpl(genPostalCode)
-                                          )
-                                        )
-                                      )
-                                    ),
-                                    Some(TenantOrganizationList(Seq(orgId)))
-                                  )
-                                )
-                              )
-                            )
-                        case (((_, _), _), _) =>
-                          Future.failed(new InternalServerErrorException("Could not generate all appropriate data"))
+              val tenantResponses: Future[Seq[Tenant]] = Future
+                .sequence(
+                  genEstablishTenantReqs(
+                    firstNames,
+                    lastNames,
+                    addresses,
+                    cityStates,
+                    creatingMembersForTenant,
+                    parsed,
+                    orgId
+                  ).map {
+                    case Some(req) => tenantHandler.establishTenant(req)
+                    case None =>
+                      Future.failed(new InternalServerErrorException("Could not generate all appropriate data"))
+                  }.zip(creatingMembersForTenant.map(_._1))
+                    .map { case (tenantResponse, creatingMember) =>
+                      tenantResponse.flatMap { tenantEstablished: TenantEstablished =>
+                        tenantHandler
+                          .activateTenant(ActivateTenant(tenantEstablished.tenantId, creatingMember))
+                          .map(_ => tenantEstablished.toTenant)
                       }
-                      .zip(creatingMembersForTenant.map(_._1))
-                      .map { case (tenantResponse, creatingMember) =>
-                        tenantResponse.flatMap { tenantEstablished: TenantEstablished =>
-                          tenantHandler
-                            .activateTenant(ActivateTenant(tenantEstablished.tenantId, creatingMember))
-                            .map(_ => tenantEstablished.toTenant)
-                        }
-                      }
-                  )
-                  .map { tenant =>
-                    logger.debug(s"Tenant successfully established with $tenant")
-                    tenant
-                  }
+                    }
+                )
+                .map { tenant =>
+                  logger.debug(s"Tenant successfully established with $tenant")
+                  tenant
+                }
 
               val orgResponse: Future[Organization] = tenantResponses
                 .flatMap { tenants =>
