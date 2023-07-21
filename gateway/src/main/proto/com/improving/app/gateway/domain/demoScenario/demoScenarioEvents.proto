@@ -8,6 +8,7 @@ message ScenarioStarted {
     repeated Tenant tenants = 1;
     repeated Organization organizations = 2;
     repeated Member members = 3;
+    repeated Event events = 4;
 }
 
 message DemoScenarioResponse {

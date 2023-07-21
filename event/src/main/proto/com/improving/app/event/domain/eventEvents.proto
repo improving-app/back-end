@@ -29,7 +29,7 @@ message EventCreated {
 
 message EventScheduled {
     common.domain.EventId event_id = 1;
-    EventInfo info = 2;
+    EditableEventInfo info = 2;
     EventMetaInfo meta = 3;
 }
 
