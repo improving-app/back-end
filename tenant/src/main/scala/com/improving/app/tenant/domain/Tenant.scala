@@ -7,15 +7,13 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import com.google.protobuf.timestamp.Timestamp
+import com.improving.app.common.OpenTelemetry
 import com.improving.app.common.domain.{Address, Contact, EditableAddress, EditableContact, MemberId, OrganizationId}
 import com.improving.app.common.errors._
-import com.improving.app.tenant.domain.Validation.{
-  draftTransitionTenantInfoValidator,
-  tenantCommandValidator,
-  tenantRequestValidator
-}
+import com.improving.app.tenant.domain.Validation.{draftTransitionTenantInfoValidator, tenantCommandValidator, tenantRequestValidator}
 import com.improving.app.tenant.domain.util.EditableInfoUtil
 import com.typesafe.scalalogging.StrictLogging
+import io.opentelemetry.api.common.Attributes
 
 import java.time.Instant
 
@@ -197,6 +195,9 @@ object Tenant extends StrictLogging {
     metaInfo.copy(lastUpdatedBy = lastUpdatedBy, lastUpdated = Some(Timestamp(Instant.now())))
   }
 
+  private val totalTenants: OpenTelemetry.Counter =
+    OpenTelemetry.Counter("total-tenants", "", "The total number of tenants, active or suspended.", "each")
+
   private def establishTenant(establishTenant: EstablishTenant): Either[Error, TenantResponse] = {
     val now = Instant.now()
 
@@ -207,7 +208,7 @@ object Tenant extends StrictLogging {
       lastUpdatedBy = establishTenant.onBehalfOf,
       state = TenantState.TENANT_STATE_ACTIVE
     )
-
+    totalTenants.add(1L)
     Right(
       TenantEventResponse(
         TenantEstablished(
@@ -219,6 +220,9 @@ object Tenant extends StrictLogging {
     )
   }
 
+  private val activeTenants: OpenTelemetry.Counter =
+    OpenTelemetry.Counter("active-tenants", "", "The total number of tenants currently active.", "each")
+
   private def activateTenant(
       state: EstablishedTenant,
       activateTenant: ActivateTenant,
@@ -229,6 +233,7 @@ object Tenant extends StrictLogging {
         val errorsOpt = draftTransitionTenantInfoValidator(draft.info)
         errorsOpt match {
           case None =>
+            activeTenants.add(1L)
             Right(
               TenantEventResponse(
                 TenantActivated(
@@ -256,6 +261,7 @@ object Tenant extends StrictLogging {
       suspendTenant: SuspendTenant,
   ): Either[Error, TenantResponse] = {
     val newMetaInfo = updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedBy = suspendTenant.onBehalfOf)
+    activeTenants.add(-1L)
     Right(
       TenantEventResponse(
         TenantSuspended(
@@ -401,6 +407,8 @@ object Tenant extends StrictLogging {
   ): Either[Error, TenantResponse] = {
     val newMetaInfo =
       updateMetaInfo(metaInfo = state.metaInfo, lastUpdatedBy = terminateTenant.onBehalfOf)
+    activeTenants.add(-1L)
+    totalTenants.add(-1L)
     Right(
       TenantEventResponse(
         TenantTerminated(

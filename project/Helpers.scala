@@ -1,12 +1,13 @@
-import Dependencies._
+import Dependencies.*
 import akka.grpc.sbt.AkkaGrpcPlugin
 import akka.grpc.sbt.AkkaGrpcPlugin.autoImport.akkaGrpcCodeGeneratorSettings
-import com.typesafe.sbt.packager.Keys._
+import com.typesafe.sbt.packager.Keys.*
 import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
 import com.typesafe.sbt.packager.docker.{Cmd, CmdLike, DockerPlugin, ExecCmd}
 import com.lightbend.sbt.javaagent.JavaAgent
-import sbt.Keys.{libraryDependencies, _}
-import sbt.{Def, Project, Test, Tests, _}
+import sbt.Keys.{libraryDependencies, *}
+import sbt.librarymanagement.DependencyBuilders.OrganizationArtifactName
+import sbt.{Def, Project, Test, Tests, *}
 import sbtprotoc.ProtocPlugin.autoImport.PB
 import scalapb.GeneratorOption.{FlatPackage, RetainSourceCodeInfo, SingleLineToProtoString}
 
@@ -111,18 +112,24 @@ object C {
     }
   }
 
+  def scalaCompilation(artifactName: String)(proj: Project): Project = {
+    proj.settings(
+      name := artifactName,
+      organization := "com.improving",
+      organizationHomepage := Some(url("https://improving.app")),
+      licenses := Seq(("Apache 2", url("https://www.apache.org/licenses/LICENSE-2.0"))),
+      scalaVersion := V.scala,
+      scalacOptions := scala3Options,
+      Compile / scalacOptions ++= scala3Options
+    )
+  }
+
   def akkaPersistentEntity(artifactName: String, port: Integer)(project: Project): Project = {
     project
       .configs(IntegrationTest)
+      .configure(scalaCompilation(artifactName))
       .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
       .settings(
-        name := artifactName,
-        organization := "com.improving",
-        organizationHomepage := Some(url("https://improving.app")),
-        licenses := Seq(("Apache 2", url("https://www.apache.org/licenses/LICENSE-2.0"))),
-        scalaVersion := V.scala,
-        scalacOptions := scala3Options,
-        Compile / scalacOptions ++= scala3Options,
         Compile / javacOptions ++= javaOptions,
         Compile / publishLocal := true,
         Test / parallelExecution := false,
@@ -263,6 +270,7 @@ object C {
       javaAgent
     )
     proj
+      .configure()
       .enablePlugins(JavaAgent,JavaAppPackaging)
       .settings(
         libraryDependencies ++= libs,

@@ -25,9 +25,11 @@ object OpenTelemetry {
 
     override def add(value: Long): Unit = counter.add(value)
 
-    override def add(value: Long, attributes: Attributes): Unit = counter.add(value, attributes)
+    override def add(value: Long, attributes: Attributes): Unit =
+      counter.add(value, attributes)
 
-    override def add(value: Long, attributes: Attributes, context: Context): Unit = counter.add(value, attributes, context)
+    override def add(value: Long, attributes: Attributes, context: Context): Unit =
+      counter.add(value, attributes, context)
   }
 
   case class Histogram(name: String, contextName: String, description: String, unit: String) extends api.metrics.LongHistogram {

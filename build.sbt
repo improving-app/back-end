@@ -3,7 +3,7 @@ Global / onChangedBuildSource := ReloadOnSourceChanges
 
 lazy val allServices = project
   .in(file("."))
-  .aggregate(gateway, tenant, organization, member, store, event, product, gatling)
+  .aggregate(commonUtils, gateway, tenant, organization, member, store, event, product, gatling)
 
 // This is for protobuf types defined at 'domain' scope and having cross-service applicability only.
 lazy val commonTypes = project
@@ -12,13 +12,14 @@ lazy val commonTypes = project
 
 lazy val commonUtils = project
   .in(file("common-utils"))
+  .configure(C.scalaCompilation("improving-app-common-utils"))
   .configure(C.Compilation.scala, C.Testing.scalaTest)
   .configure(C.openTelemetry)
 
 lazy val tenant = project
   .in(file("tenant"))
   .configure(C.akkaPersistentEntity("improving-app-tenant", 8080))
-  .dependsOn(commonTypes)
+  .dependsOn(commonTypes, commonUtils)
 
 lazy val organization = project
   .in(file("organization"))
