@@ -1,4 +1,5 @@
 ThisBuild / dynverSeparator := "-"
+Global / onChangedBuildSource := ReloadOnSourceChanges
 
 lazy val allServices = project
   .in(file("."))

@@ -1,9 +1,5 @@
 package com.improving.app.common
 
-/*
- * `GlobalOpenTelemetry` singleton configured by OpenTelemetry Java agent, based environment variables or Java options
- */
-import com.improving.app.common.OpenTelemetry.Histogram
 import io.opentelemetry.api
 import io.opentelemetry.api.common.Attributes
 import io.opentelemetry.api.metrics.{LongCounter, Meter}
