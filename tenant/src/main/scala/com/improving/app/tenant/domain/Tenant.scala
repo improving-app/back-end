@@ -15,10 +15,11 @@ import com.improving.app.tenant.domain.Validation.{
   tenantRequestValidator
 }
 import com.improving.app.tenant.domain.util.EditableInfoUtil
+import com.typesafe.scalalogging.StrictLogging
 
 import java.time.Instant
 
-object Tenant {
+object Tenant extends StrictLogging {
   val TypeKey: EntityTypeKey[TenantRequestEnvelope] = EntityTypeKey[TenantRequestEnvelope]("Tenant")
 
   case class TenantRequestEnvelope(request: TenantRequestPB, replyTo: ActorRef[StatusReply[TenantResponse]])
@@ -63,6 +64,7 @@ object Tenant {
 
   private val commandHandler: (TenantState, TenantRequestEnvelope) => ReplyEffect[TenantResponse, TenantState] = {
     (state, envelope) =>
+      logger.debug(s"Handling command ${envelope.request.asMessage.toProtoString}")
       val requestErrors: Either[ReplyEffect[TenantResponse, TenantState], TenantRequestPB with TenantRequest] =
         envelope.request match {
           case r: TenantRequest => Right(r)

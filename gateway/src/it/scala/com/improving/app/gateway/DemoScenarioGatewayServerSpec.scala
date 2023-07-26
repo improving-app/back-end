@@ -19,7 +19,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.testcontainers.containers.wait.strategy.Wait
 
 import java.io.File
-import scala.language.postfixOps
+import scala.language.{existentials, postfixOps}
 
 class DemoScenarioGatewayServerSpec
     extends AnyWordSpec
@@ -88,8 +88,8 @@ class DemoScenarioGatewayServerSpec
             numTenants = 1,
             numMembersPerOrg = 1
           )
-          Post("/member", command.toProtoString) ~> Route.seal(
-            demoScenarioRoutes(tenantHandler, orgHandler)
+          Post("/demo-scenario/start", command.toProtoString) ~> Route.seal(
+            demoScenarioRoutes(tenantHandler, orgHandler, memberHandler)
           ) ~> check {
             status shouldBe StatusCodes.OK
             val response = ScenarioStarted.fromAscii(responseAs[String])

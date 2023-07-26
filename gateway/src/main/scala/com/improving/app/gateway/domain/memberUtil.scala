@@ -1,9 +1,12 @@
 package com.improving.app.gateway.domain
 
-import com.improving.app.common.domain.util.{ContactUtil, EditableContactUtil}
+import com.improving.app.common.domain.util.EditableContactUtil
+import com.improving.app.gateway.domain.demoScenario.Member
 import com.improving.app.gateway.domain.member.{
   EditableMemberInfo => GatewayEditableMemberInfo,
+  MemberInfo,
   MemberMetaInfo => GatewayMemberMetaInfo,
+  MemberRegistered,
   MemberStates => GatewayMemberStates,
   NotificationPreference => GatewayNotificationPreference
 }
@@ -16,7 +19,27 @@ import com.improving.app.member.domain.{
 
 object memberUtil {
 
+  implicit class MemberRegisteredUtil(established: MemberRegistered) {
+    implicit def toMember: Member = Member(
+      memberId = established.memberId,
+      memberInfo = established.memberInfo.map(_.toInfo),
+      metaInfo = established.meta
+    )
+  }
+
   implicit class GatewayEditableMemberInfoUtil(info: GatewayEditableMemberInfo) {
+
+    def toInfo: MemberInfo = MemberInfo(
+      handle = info.getHandle,
+      avatarUrl = info.getAvatarUrl,
+      firstName = info.getFirstName,
+      lastName = info.getLastName,
+      notificationPreference = info.getNotificationPreference,
+      contact = info.contact.map(_.toContact),
+      organizationMembership = info.organizationMembership,
+      tenant = info.tenant
+    )
+
     def toEditableInfo: EditableMemberInfo = EditableMemberInfo(
       info.handle,
       info.avatarUrl,

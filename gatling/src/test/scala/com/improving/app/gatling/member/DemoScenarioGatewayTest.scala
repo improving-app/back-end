@@ -24,7 +24,7 @@ class DemoScenarioGatewayTest extends Simulation {
                 .toJsonString(
                   StartScenario(
                     numTenants = 1,
-                    numMembersPerOrg = 1
+                    numMembersPerOrg = 4,
                   )
                 )
                 .replace("\"", "\\\"")}\""""

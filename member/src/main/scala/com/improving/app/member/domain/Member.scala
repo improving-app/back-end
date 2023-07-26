@@ -193,11 +193,12 @@ object Member extends StrictLogging {
                         )
                       )
                   }
-                case _ => Effect.reply(command.replyTo)(StatusReply.Error("Message was not a StoreRequest"))
+                case _ => Effect.reply(command.replyTo)(StatusReply.Error("Message was not a MemberRequest"))
               }
             case Some(errors) => Effect.reply(command.replyTo)(StatusReply.Error(errors.toString))
           }
-        case MemberRequestPB.Empty => Effect.reply(command.replyTo)(StatusReply.Error("Message was not a StoreRequest"))
+        case MemberRequestPB.Empty =>
+          Effect.reply(command.replyTo)(StatusReply.Error("Message was not a MemberRequest"))
       }
   }
 
@@ -248,14 +249,14 @@ object Member extends StrictLogging {
           case memberInfoEdited: MemberInfoEdited =>
             state match {
               case _: DraftMemberState =>
-                val info = memberInfoEdited.getMemberInfo
+                val info = memberInfoEdited.getNewInfo
                 DraftMemberState(
                   editableInfo = info,
                   meta = memberInfoEdited.getMeta
                 )
               case _: ActivatedMemberState =>
                 ActivatedMemberState(
-                  info = memberInfoEdited.getMemberInfo.toInfo,
+                  info = memberInfoEdited.getNewInfo.toInfo,
                   meta = memberInfoEdited.getMeta
                 )
               case _ => state

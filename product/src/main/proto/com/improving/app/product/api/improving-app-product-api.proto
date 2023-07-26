@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package com.improving.app.product.api;
+
+import "com/improving/app/product/domain/productEvents.proto";
+import "com/improving/app/product/domain/productRequests.proto";
+
+//import "google/api/annotations.proto";
+
+
+service ProductService {
+    rpc CreateProduct(domain.CreateProduct) returns (domain.ProductCreated){}
+    rpc EditProductInfo(domain.EditProductInfo) returns (domain.ProductInfoEdited){}
+    rpc DeleteProduct(domain.DeleteProduct) returns (domain.ProductDeleted){}
+    rpc ActivateProduct(domain.ActivateProduct) returns (domain.ProductActivated){}
+    rpc InactivateProduct(domain.InactivateProduct) returns (domain.ProductInactivated){}
+    rpc GetProductInfo(domain.GetProductInfo) returns (domain.ProductData){}
+}

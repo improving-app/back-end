@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package com.improving.app.event.api;
+
+import "com/improving/app/event/domain/eventEvents.proto";
+import "com/improving/app/event/domain/eventRequests.proto";
+
+//import "google/api/annotations.proto";
+
+
+service EventService {
+
+  rpc EditEventInfo (domain.EditEventInfo) returns (domain.EventInfoEdited) {
+      //post: "event/{eventId}/"
+
+   }
+
+  rpc CreateEvent(domain.CreateEvent) returns (domain.EventCreated) {
+      //post: "event/{eventId}/create/"
+
+  }
+
+  rpc ScheduleEvent(domain.ScheduleEvent) returns (domain.EventScheduled) {
+      //post: "event/{eventId}/schedule/"
+  }
+
+  rpc CancelEvent(domain.CancelEvent) returns (domain.EventCancelled) {
+      //post: "event/{eventId}/cancel/"
+  }
+
+  rpc RescheduleEvent(domain.RescheduleEvent) returns (domain.EventRescheduled){
+      //post: "event/{eventId}/reschedule/"
+  }
+
+  rpc DelayEvent(domain.DelayEvent) returns (domain.EventDelayed) {
+      //get:"event/{eventId}/delay"
+  }
+
+  rpc StartEvent(domain.StartEvent) returns (domain.EventStarted) {
+      //get:"event/{eventId}/start"
+  }
+
+  rpc EndEvent(domain.EndEvent) returns (domain.EventEnded) {
+      //get:"event/{eventId}/end"
+  }
+
+}

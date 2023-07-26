@@ -3,7 +3,14 @@ package com.improving.app.gateway.api.handlers
 import akka.actor.typed.ActorSystem
 import akka.grpc.GrpcClientSettings
 import akka.util.Timeout
-import com.improving.app.gateway.domain.member.{MemberRegistered, RegisterMember => GatewayRegisterMember}
+import com.improving.app.gateway.domain.member.{
+  ActivateMember => GatewayActivateMember,
+  MemberActivated,
+  MemberRegistered,
+  MemberTerminated,
+  RegisterMember => GatewayRegisterMember,
+  TerminateMember => GatewayTermainateMember
+}
 import com.improving.app.gateway.domain.memberUtil.{
   EditableMemberInfoUtil,
   GatewayEditableMemberInfoUtil,
@@ -11,7 +18,7 @@ import com.improving.app.gateway.domain.memberUtil.{
 }
 import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.member.api.MemberServiceClient
-import com.improving.app.member.domain.RegisterMember
+import com.improving.app.member.domain.{ActivateMember, RegisterMember, TerminateMember}
 import com.typesafe.scalalogging.StrictLogging
 import com.improving.app.gateway.api.handlers.errors.handlers.exceptionHandler
 
@@ -41,7 +48,7 @@ class MemberGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = N
         RegisterMember(
           in.memberId,
           Some(in.getMemberInfo.toEditableInfo),
-          in.registeringMember
+          in.onBehalfOf
         )
       )
       .map { response =>
@@ -49,6 +56,36 @@ class MemberGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = N
           response.memberId,
           response.memberInfo.map(_.toGatewayEditableInfo),
           response.meta.map(_.toGatewayMemberMeta)
+        )
+      }
+
+  def activateMember(in: GatewayActivateMember): Future[MemberActivated] =
+    memberClient
+      .activateMember(
+        ActivateMember(
+          in.memberId,
+          in.onBehalfOf
+        )
+      )
+      .map { response =>
+        MemberActivated(
+          response.memberId,
+          response.meta.map(_.toGatewayMemberMeta)
+        )
+      }
+
+  def terminateMember(in: GatewayTermainateMember): Future[MemberTerminated] =
+    memberClient
+      .terminateMember(
+        TerminateMember(
+          in.memberId,
+          in.onBehalfOf
+        )
+      )
+      .map { response =>
+        MemberTerminated(
+          response.memberId,
+          response.lastMeta.map(_.toGatewayMemberMeta)
         )
       }
 }

@@ -1,0 +1,94 @@
+syntax =  "proto3";
+
+package com.improving.app.event.domain;
+
+import "com/improving/app/common/domain/ids.proto";
+import "com/improving/app/event/domain/eventDomainObjects.proto";
+import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
+import "validate/validate.proto";
+
+option (scalapb.options) = {
+  scope: FILE
+  [scalapb.validate.file] {
+    validate_at_construction: true
+  }
+};
+
+message EventInfoEdited {
+    common.domain.EventId event_id = 1;
+    EditableEventInfo info = 2;
+    EventMetaInfo meta = 3;
+}
+
+message EventCreated {
+    common.domain.EventId event_id = 1;
+    EditableEventInfo info = 2;
+    EventMetaInfo meta = 3;
+}
+
+message EventScheduled {
+    common.domain.EventId event_id = 1;
+    EditableEventInfo info = 2;
+    EventMetaInfo meta = 3;
+}
+
+message EventCancelled {
+    common.domain.EventId event_id = 1;
+    EventMetaInfo meta = 2;
+}
+
+message EventRescheduled {
+    common.domain.EventId event_id = 1;
+    EventInfo info = 2;
+    EventMetaInfo meta = 3;
+}
+
+message EventDelayed {
+    common.domain.EventId event_id = 1;
+    EventInfo info = 2;
+    EventMetaInfo meta = 3;
+}
+
+message EventStarted {
+    common.domain.EventId event_id = 1;
+    EventInfo info = 2;
+    EventMetaInfo meta = 3;
+}
+
+message EventEnded {
+    common.domain.EventId event_id = 1;
+    EventMetaInfo meta = 2;
+}
+
+message EventEvent{
+  option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
+
+  oneof sealed_value {
+      EventInfoEdited event_info_edited = 1;
+      EventCreated event_created = 2;
+      EventScheduled event_scheduled = 3;
+      EventCancelled event_cancelled = 4;
+      EventRescheduled event_rescheduled = 5;
+      EventDelayed event_delayed = 6;
+      EventStarted event_started = 7;
+      EventEnded event_ended = 8;
+  }
+}
+
+message EventData {
+    common.domain.EventId event_id = 1;
+    EventInfo event_info = 2;
+    EventMetaInfo event_meta_info = 3;
+}
+
+message EventEventResponse {
+    EventEvent event_event = 1;
+}
+
+message EventResponse {
+    oneof sealed_value {
+        EventData event_state_value = 1;
+        EventEventResponse event_event_value = 2;
+    }
+}

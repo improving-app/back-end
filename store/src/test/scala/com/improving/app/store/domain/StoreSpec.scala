@@ -4,14 +4,16 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.ActorRef
 import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
-import com.improving.app.common.domain.{MemberId, OrganizationId, StoreId}
+import com.improving.app.common.domain.{EventId, MemberId, OrganizationId, Sku, StoreId}
 import com.improving.app.store.domain.Store.StoreRequestEnvelope
 import com.improving.app.store.domain.TestData.baseStoreInfo
+import com.improving.app.store.domain.util.{EditableStoreInfoUtil, StoreInfoUtil}
 import com.typesafe.config.{Config, ConfigFactory, Optional}
 import org.scalatest.{stats, BeforeAndAfterAll}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.util.UUID
 import scala.util.Random
 
 object StoreSpec {
@@ -62,18 +64,32 @@ class StoreSpec
   trait NewInfoForEditSpec {
     val newName: Option[String] = Some("xxxx")
     val newDesc: Option[String] = Some("xxxx")
+    val newProducts: Seq[Sku] = Seq(Sku(UUID.randomUUID().toString))
+    val newEvent: Option[EventId] = Some(EventId(UUID.randomUUID().toString))
     val newSponsoringOrg: Option[OrganizationId] = Some(OrganizationId("otherOrg"))
+
+    val baseNewInfo = EditableStoreInfo(
+      newName,
+      newDesc,
+      newProducts,
+      newEvent,
+      newSponsoringOrg
+    )
   }
+
+  private val baseEditableInfo: EditableStoreInfo = EditableStoreInfo(
+    Some(baseStoreInfo.name),
+    Some(baseStoreInfo.description),
+    baseStoreInfo.products,
+    baseStoreInfo.event,
+    baseStoreInfo.sponsoringOrg
+  )
 
   def createStore(
       storeId: StoreId,
       p: ActorRef[StoreRequestEnvelope],
       probe: TestProbe[StatusReply[StoreEvent]],
-      storeInfo: EditableStoreInfo = EditableStoreInfo(
-        Some(baseStoreInfo.getInfo.name),
-        Some(baseStoreInfo.getInfo.description),
-        baseStoreInfo.getInfo.sponsoringOrg
-      ),
+      storeInfo: EditableStoreInfo = baseEditableInfo,
       checkSuccess: Boolean = true
   ): StatusReply[StoreEvent] = {
     p ! Store.StoreRequestEnvelope(
@@ -95,13 +111,14 @@ class StoreSpec
       storeId: StoreId,
       p: ActorRef[StoreRequestEnvelope],
       probe: TestProbe[StatusReply[StoreEvent]],
+      info: EditableStoreInfo = EditableStoreInfo(),
       checkSuccess: Boolean = true
   ): StatusReply[StoreEvent] = {
     p ! Store.StoreRequestEnvelope(
       MakeStoreReady(
         storeId = Some(storeId),
         onBehalfOf = Some(MemberId("readyingUser")),
-        info = None
+        info = Some(info)
       ),
       probe.ref
     )
@@ -196,11 +213,7 @@ class StoreSpec
       storeId: StoreId,
       p: ActorRef[StoreRequestEnvelope],
       probe: TestProbe[StatusReply[StoreEvent]],
-      info: EditableStoreInfo = EditableStoreInfo(
-        Some(baseStoreInfo.getInfo.name),
-        Some(baseStoreInfo.getInfo.description),
-        baseStoreInfo.getInfo.sponsoringOrg
-      ),
+      info: EditableStoreInfo = baseEditableInfo,
       checkSuccess: Boolean = true
   ): StatusReply[StoreEvent] = {
     p ! Store.StoreRequestEnvelope(
@@ -298,6 +311,48 @@ class StoreSpec
     }
 
     "in the DRAFT state" when {
+      "executing MakeStoreReady" should {
+        "error for an unauthorized readying user" ignore new CreatedSpec {
+          p ! Store.StoreRequestEnvelope(
+            MakeStoreReady(
+              Some(storeId),
+              Some(MemberId("unauthorizedUser")),
+              Some(EditableStoreInfo()),
+            ),
+            probe.ref
+          )
+
+          val response2: StatusReply[StoreEvent] = probe.receiveMessage()
+
+          assert(response2.isError)
+
+          val responseError: Throwable = response2.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Store"
+        }
+
+        "succeed for golden path with no update" in new CreatedSpec {
+          val response2: StatusReply[StoreEvent] =
+            readyStore(storeId, p, probe)
+
+          val successVal: StoreIsReady = response2.getValue.asInstanceOf[StoreIsReady]
+
+          successVal.getStoreId shouldEqual storeId
+          successVal.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("readyingUser"))
+          successVal.info shouldEqual Some(baseEditableInfo.toInfo)
+        }
+
+        "succeed for updating all fields" in new CreatedSpec with NewInfoForEditSpec {
+          val response2: StatusReply[StoreEvent] =
+            readyStore(storeId, p, probe, baseNewInfo)
+
+          val successVal: StoreIsReady = response2.getValue.asInstanceOf[StoreIsReady]
+
+          successVal.getStoreId shouldEqual storeId
+          successVal.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("readyingUser"))
+          successVal.info shouldEqual Some(baseNewInfo.toInfo)
+        }
+      }
+
       "executing EditStoreInfo command" should {
         "error for an unauthorized updating user" ignore new CreatedSpec {
           p ! Store.StoreRequestEnvelope(
@@ -318,11 +373,7 @@ class StoreSpec
         }
 
         "succeed for an empty edit and return the proper response" in new CreatedSpec {
-          val state: EditableStoreInfo = EditableStoreInfo(
-            Some(baseStoreInfo.getInfo.name),
-            Some(baseStoreInfo.getInfo.description),
-            baseStoreInfo.getInfo.sponsoringOrg
-          )
+          val state: EditableStoreInfo = baseEditableInfo
 
           val response2: StatusReply[StoreEvent] =
             editStoreInfo(storeId, p, probe, EditableStoreInfo())
@@ -331,23 +382,18 @@ class StoreSpec
 
           successVal.getStoreId shouldEqual storeId
           successVal.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("editingUser"))
-          successVal.info.map(_.getEditableInfo) shouldEqual Some(state)
+          successVal.newInfo shouldEqual Some(state)
         }
 
         "succeed for an edit of all fields and return the proper response" in new CreatedSpec with NewInfoForEditSpec {
-          val state: EditableStoreInfo = EditableStoreInfo(
-            newName,
-            newDesc,
-            newSponsoringOrg,
-          )
           val response2: StatusReply[StoreEvent] =
-            editStoreInfo(storeId, p, probe, EditableStoreInfo(newName, newDesc, newSponsoringOrg))
+            editStoreInfo(storeId, p, probe, baseNewInfo)
           assert(response2.isSuccess)
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
           successVal.getStoreId shouldEqual storeId
-          successVal.info.map(_.getEditableInfo) shouldEqual Some(state)
+          successVal.newInfo shouldEqual Some(baseNewInfo)
           successVal.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("editingUser"))
         }
 
@@ -359,7 +405,7 @@ class StoreSpec
 
           successVal2.getStoreId shouldEqual storeId
           successVal2.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("editingUser"))
-          successVal2.info.map(_.infoOrEditable.editableInfo.flatMap(_.name)) shouldEqual Some(newName)
+          successVal2.newInfo.flatMap(_.name) shouldEqual newName
 
           val response3: StatusReply[StoreEvent] =
             editStoreInfo(storeId, p, probe, EditableStoreInfo(description = newDesc))
@@ -368,7 +414,7 @@ class StoreSpec
 
           successVal3.getStoreId shouldEqual storeId
           successVal3.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("editingUser"))
-          successVal3.info.map(_.infoOrEditable.editableInfo.flatMap(_.description)) shouldEqual Some(newDesc)
+          successVal3.newInfo.flatMap(_.description) shouldEqual newDesc
 
           val response4: StatusReply[StoreEvent] =
             editStoreInfo(storeId, p, probe, EditableStoreInfo(sponsoringOrg = newSponsoringOrg))
@@ -377,7 +423,86 @@ class StoreSpec
 
           successVal4.getStoreId shouldEqual storeId
           successVal4.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("editingUser"))
-          successVal4.info.map(_.infoOrEditable.editableInfo.get.sponsoringOrg) shouldEqual Some(newSponsoringOrg)
+          successVal4.newInfo.flatMap(_.sponsoringOrg) shouldEqual newSponsoringOrg
+        }
+      }
+
+      "executing AddProductsToStore" should {
+        "error for an unauthorized readying user" ignore new CreatedSpec {
+          p ! Store.StoreRequestEnvelope(
+            AddProductsToStore(
+              Some(storeId),
+              Some(MemberId("unauthorizedUser")),
+              Seq(Sku(UUID.randomUUID().toString)),
+            ),
+            probe.ref
+          )
+
+          val response2: StatusReply[StoreEvent] = probe.receiveMessage()
+
+          assert(response2.isError)
+
+          val responseError: Throwable = response2.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Store"
+        }
+
+        "succeed for golden path" in new CreatedSpec {
+          val newSku: Sku = Sku(UUID.randomUUID().toString)
+
+          p ! Store.StoreRequestEnvelope(
+            AddProductsToStore(
+              Some(storeId),
+              Some(MemberId("productAddingUser")),
+              Seq(newSku),
+            ),
+            probe.ref
+          )
+          val successVal: ProductsAddedToStore = probe.receiveMessage().getValue.asInstanceOf[ProductsAddedToStore]
+          assert(response.isSuccess)
+
+          successVal.getStoreId shouldEqual storeId
+          successVal.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("productAddingUser"))
+          successVal.info.map(_.getEditableInfo) shouldEqual Some(
+            baseEditableInfo.copy(products = baseEditableInfo.products :+ newSku)
+          )
+        }
+      }
+
+      "executing RemoveProductsFromStore" should {
+        "error for an unauthorized readying user" ignore new CreatedSpec {
+          p ! Store.StoreRequestEnvelope(
+            RemoveProductsFromStore(
+              Some(storeId),
+              Some(MemberId("unauthorizedUser")),
+              baseEditableInfo.products,
+            ),
+            probe.ref
+          )
+
+          val response2: StatusReply[StoreEvent] = probe.receiveMessage()
+
+          assert(response2.isError)
+
+          val responseError: Throwable = response2.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Store"
+        }
+
+        "succeed for golden path" in new CreatedSpec {
+          p ! Store.StoreRequestEnvelope(
+            RemoveProductsFromStore(
+              Some(storeId),
+              Some(MemberId("productRemovingUser")),
+              baseEditableInfo.products,
+            ),
+            probe.ref
+          )
+          val successVal: ProductsRemovedFromStore =
+            probe.receiveMessage().getValue.asInstanceOf[ProductsRemovedFromStore]
+          assert(response.isSuccess)
+
+          successVal.getStoreId shouldEqual storeId
+          successVal.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("productRemovingUser"))
+          successVal.info.map(_.getEditableInfo) shouldEqual Some(baseEditableInfo.copy(products = Seq()))
         }
       }
     }
@@ -416,7 +541,7 @@ class StoreSpec
           val responseError: Throwable = response2.getError
           responseError.getMessage shouldEqual "No associated name"
 
-          editStoreInfo(storeId, p, probe, EditableStoreInfo(name = Some(baseStoreInfo.getInfo.name)))
+          editStoreInfo(storeId, p, probe, EditableStoreInfo(name = Some(baseStoreInfo.name)))
 
           val response3: StatusReply[StoreEvent] = readyStore(storeId, p, probe, checkSuccess = false)
 
@@ -427,7 +552,7 @@ class StoreSpec
             storeId,
             p,
             probe,
-            EditableStoreInfo(name = None, description = Some(baseStoreInfo.getInfo.description))
+            EditableStoreInfo(name = None, description = Some(baseStoreInfo.description))
           )
 
           val response4: StatusReply[StoreEvent] = readyStore(storeId, p, probe, checkSuccess = false)
@@ -442,7 +567,7 @@ class StoreSpec
           val responseError: Throwable = response2.getError
           responseError.getMessage shouldEqual "No associated name"
 
-          editStoreInfo(storeId, p, probe, EditableStoreInfo(name = Some(baseStoreInfo.getInfo.name)))
+          editStoreInfo(storeId, p, probe, EditableStoreInfo(name = Some(baseStoreInfo.name)))
 
           val response3: StatusReply[StoreEvent] = readyStore(storeId, p, probe, checkSuccess = false)
 
@@ -453,7 +578,7 @@ class StoreSpec
             storeId,
             p,
             probe,
-            EditableStoreInfo(name = None, description = Some(baseStoreInfo.getInfo.description))
+            EditableStoreInfo(name = None, description = Some(baseStoreInfo.description))
           )
 
           val response4: StatusReply[StoreEvent] = readyStore(storeId, p, probe, checkSuccess = false)
@@ -485,11 +610,7 @@ class StoreSpec
               storeId = Some(storeId),
               onBehalfOf = Some(MemberId("unauthorized")),
               newInfo = Some(
-                EditableStoreInfo(
-                  Some(baseStoreInfo.getInfo.name),
-                  Some(baseStoreInfo.getInfo.description),
-                  baseStoreInfo.getInfo.sponsoringOrg
-                )
+                baseEditableInfo
               )
             ),
             probe.ref
@@ -507,27 +628,15 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.map(_.getInfo) shouldEqual Some(baseStoreInfo.getInfo)
+          successVal.newInfo shouldEqual Some(baseStoreInfo.toEditable)
         }
 
         "succeed for an edit of all fields and return the proper response" in new ReadiedSpec with NewInfoForEditSpec {
-          val updateInfo: EditableStoreInfo = EditableStoreInfo(
-            name = newName,
-            description = newDesc,
-            sponsoringOrg = newSponsoringOrg
-          )
-
-          val response2: StatusReply[StoreEvent] = editStoreInfo(storeId, p, probe, updateInfo)
+          val response2: StatusReply[StoreEvent] = editStoreInfo(storeId, p, probe, baseNewInfo)
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.map(_.getInfo) shouldEqual Some(
-            StoreInfo(
-              updateInfo.getName,
-              updateInfo.getDescription,
-              updateInfo.sponsoringOrg
-            )
-          )
+          successVal.getNewInfo shouldEqual baseNewInfo
         }
 
         "succeed for a partial edit and return the proper response" in new ReadiedSpec with NewInfoForEditSpec {
@@ -539,7 +648,7 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.map(_.getInfo) shouldEqual Some(baseStoreInfo.getInfo.copy(name = updatedInfo.getName))
+          successVal.newInfo shouldEqual Some(baseStoreInfo.copy(name = updatedInfo.getName).toEditable)
         }
       }
     }
@@ -589,11 +698,7 @@ class StoreSpec
               Some(storeId),
               Some(MemberId("unauthorizedUser")),
               Some(
-                EditableStoreInfo(
-                  Some(baseStoreInfo.getInfo.name),
-                  Some(baseStoreInfo.getInfo.description),
-                  baseStoreInfo.getInfo.sponsoringOrg
-                )
+                baseEditableInfo
               )
             ),
             probe.ref
@@ -609,28 +714,16 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info shouldEqual Some(baseStoreInfo)
+          successVal.newInfo shouldEqual Some(baseStoreInfo.toEditable)
         }
 
         "succeed for an edit of all fields and return the proper response" in new ReadiedSpec with NewInfoForEditSpec {
-          val updateInfo: EditableStoreInfo = EditableStoreInfo(
-            name = newName,
-            description = newDesc,
-            sponsoringOrg = newSponsoringOrg
-          )
-
-          val response2: StatusReply[StoreEvent] = editStoreInfo(storeId, p, probe, updateInfo)
+          val response2: StatusReply[StoreEvent] = editStoreInfo(storeId, p, probe, baseNewInfo)
           assert(response2.isSuccess)
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.map(_.getInfo) shouldEqual Some(
-            StoreInfo(
-              updateInfo.getName,
-              updateInfo.getDescription,
-              updateInfo.sponsoringOrg
-            )
-          )
+          successVal.getNewInfo shouldEqual baseNewInfo
         }
 
         "succeed for a partial edit and return the proper response" in new ReadiedSpec with NewInfoForEditSpec {
@@ -642,7 +735,94 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.map(_.getInfo) shouldEqual Some(baseStoreInfo.getInfo.copy(name = updatedInfo.name.get))
+          successVal.newInfo shouldEqual Some(baseStoreInfo.copy(name = updatedInfo.name.get).toEditable)
+        }
+      }
+
+      "executing AddProductsToStore" should {
+        "error for an unauthorized readying user" ignore new CreatedSpec {
+          readyStore(storeId, p, probe)
+
+          p ! Store.StoreRequestEnvelope(
+            AddProductsToStore(
+              Some(storeId),
+              Some(MemberId("unauthorizedUser")),
+              Seq(Sku(UUID.randomUUID().toString)),
+            ),
+            probe.ref
+          )
+
+          val response2: StatusReply[StoreEvent] = probe.receiveMessage()
+
+          assert(response2.isError)
+
+          val responseError: Throwable = response2.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Store"
+        }
+
+        "succeed for golden path" in new CreatedSpec {
+          readyStore(storeId, p, probe)
+
+          val newSku: Sku = Sku(UUID.randomUUID().toString)
+
+          p ! Store.StoreRequestEnvelope(
+            AddProductsToStore(
+              Some(storeId),
+              Some(MemberId("productAddingUser")),
+              Seq(newSku),
+            ),
+            probe.ref
+          )
+          val successVal: ProductsAddedToStore = probe.receiveMessage().getValue.asInstanceOf[ProductsAddedToStore]
+          assert(response.isSuccess)
+
+          successVal.getStoreId shouldEqual storeId
+          successVal.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("productAddingUser"))
+          successVal.info.map(_.getInfo) shouldEqual Some(
+            baseEditableInfo.copy(products = baseEditableInfo.products :+ newSku).toInfo
+          )
+        }
+      }
+
+      "executing RemoveProductsFromStore" should {
+        "error for an unauthorized readying user" ignore new CreatedSpec {
+          readyStore(storeId, p, probe)
+
+          p ! Store.StoreRequestEnvelope(
+            RemoveProductsFromStore(
+              Some(storeId),
+              Some(MemberId("unauthorizedUser")),
+              baseEditableInfo.products,
+            ),
+            probe.ref
+          )
+
+          val response2: StatusReply[StoreEvent] = probe.receiveMessage()
+
+          assert(response2.isError)
+
+          val responseError: Throwable = response2.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Store"
+        }
+
+        "succeed for golden path" in new CreatedSpec {
+          readyStore(storeId, p, probe)
+
+          p ! Store.StoreRequestEnvelope(
+            RemoveProductsFromStore(
+              Some(storeId),
+              Some(MemberId("productRemovingUser")),
+              baseEditableInfo.products,
+            ),
+            probe.ref
+          )
+          val successVal: ProductsRemovedFromStore =
+            probe.receiveMessage().getValue.asInstanceOf[ProductsRemovedFromStore]
+          assert(response.isSuccess)
+
+          successVal.getStoreId shouldEqual storeId
+          successVal.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("productRemovingUser"))
+          successVal.info.map(_.getInfo) shouldEqual Some(baseEditableInfo.copy(products = Seq()).toInfo)
         }
       }
     }
@@ -730,32 +910,16 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.map(_.getInfo) shouldEqual Some(baseStoreInfo.getInfo)
+          successVal.newInfo shouldEqual Some(baseStoreInfo.toEditable)
         }
 
         "succeed for an edit of all fields and return the proper response" in new ReadiedSpec with NewInfoForEditSpec {
-          val updateInfo: EditableStoreInfo = EditableStoreInfo(
-            name = newName,
-            description = newDesc,
-            sponsoringOrg = newSponsoringOrg
-          )
-
-          val response2: StatusReply[StoreEvent] = editStoreInfo(storeId, p, probe, updateInfo)
+          val response2: StatusReply[StoreEvent] = editStoreInfo(storeId, p, probe, baseEditableInfo)
           assert(response2.isSuccess)
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info shouldEqual Some(
-            StoreOrEditableInfo(
-              StoreOrEditableInfo.InfoOrEditable.Info(
-                StoreInfo(
-                  updateInfo.getName,
-                  updateInfo.getDescription,
-                  updateInfo.sponsoringOrg
-                )
-              )
-            )
-          )
+          successVal.newInfo shouldEqual Some(baseEditableInfo)
         }
 
         "succeed for a partial edit and return the proper response" in new ReadiedSpec with NewInfoForEditSpec {
@@ -767,7 +931,94 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.map(_.getInfo) shouldEqual Some(baseStoreInfo.getInfo.copy(name = updatedInfo.getName))
+          successVal.newInfo shouldEqual Some(baseStoreInfo.copy(name = updatedInfo.getName).toEditable)
+        }
+      }
+
+      "executing AddProductsToStore" should {
+        "error for an unauthorized readying user" ignore new ReadiedSpec {
+          openStore(storeId, p, probe)
+
+          p ! Store.StoreRequestEnvelope(
+            AddProductsToStore(
+              Some(storeId),
+              Some(MemberId("unauthorizedUser")),
+              Seq(Sku(UUID.randomUUID().toString)),
+            ),
+            probe.ref
+          )
+
+          val response2: StatusReply[StoreEvent] = probe.receiveMessage()
+
+          assert(response2.isError)
+
+          val responseError: Throwable = response2.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Store"
+        }
+
+        "succeed for golden path" in new ReadiedSpec {
+          openStore(storeId, p, probe)
+
+          val newSku: Sku = Sku(UUID.randomUUID().toString)
+
+          p ! Store.StoreRequestEnvelope(
+            AddProductsToStore(
+              Some(storeId),
+              Some(MemberId("productAddingUser")),
+              Seq(newSku),
+            ),
+            probe.ref
+          )
+          val successVal: ProductsAddedToStore = probe.receiveMessage().getValue.asInstanceOf[ProductsAddedToStore]
+          assert(response.isSuccess)
+
+          successVal.getStoreId shouldEqual storeId
+          successVal.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("productAddingUser"))
+          successVal.info.map(_.getInfo) shouldEqual Some(
+            baseEditableInfo.copy(products = baseEditableInfo.products :+ newSku).toInfo
+          )
+        }
+      }
+
+      "executing RemoveProductsFromStore" should {
+        "error for an unauthorized readying user" ignore new ReadiedSpec {
+          openStore(storeId, p, probe)
+
+          p ! Store.StoreRequestEnvelope(
+            RemoveProductsFromStore(
+              Some(storeId),
+              Some(MemberId("unauthorizedUser")),
+              baseEditableInfo.products,
+            ),
+            probe.ref
+          )
+
+          val response2: StatusReply[StoreEvent] = probe.receiveMessage()
+
+          assert(response2.isError)
+
+          val responseError: Throwable = response2.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Store"
+        }
+
+        "succeed for golden path" in new ReadiedSpec {
+          openStore(storeId, p, probe)
+
+          p ! Store.StoreRequestEnvelope(
+            RemoveProductsFromStore(
+              Some(storeId),
+              Some(MemberId("productRemovingUser")),
+              baseEditableInfo.products,
+            ),
+            probe.ref
+          )
+          val successVal: ProductsRemovedFromStore =
+            probe.receiveMessage().getValue.asInstanceOf[ProductsRemovedFromStore]
+          assert(response.isSuccess)
+
+          successVal.getStoreId shouldEqual storeId
+          successVal.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("productRemovingUser"))
+          successVal.info.map(_.getInfo) shouldEqual Some(baseEditableInfo.copy(products = Seq()).toInfo)
         }
       }
     }
@@ -899,28 +1150,16 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.map(_.getInfo) shouldEqual Some(baseStoreInfo.getInfo)
+          successVal.newInfo shouldEqual Some(baseEditableInfo)
         }
 
         "succeed for an edit of all fields and return the proper response" in new ReadiedSpec with NewInfoForEditSpec {
-          val updateInfo: EditableStoreInfo = EditableStoreInfo(
-            name = newName,
-            description = newDesc,
-            sponsoringOrg = newSponsoringOrg
-          )
-
-          val response2: StatusReply[StoreEvent] = editStoreInfo(storeId, p, probe, updateInfo)
+          val response2: StatusReply[StoreEvent] = editStoreInfo(storeId, p, probe, baseNewInfo)
           assert(response2.isSuccess)
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.map(_.getInfo) shouldEqual Some(
-            StoreInfo(
-              updateInfo.getName,
-              updateInfo.getDescription,
-              updateInfo.sponsoringOrg
-            )
-          )
+          successVal.getNewInfo shouldEqual baseNewInfo
         }
 
         "succeed for a partial edit and return the proper response" in new ReadiedSpec with NewInfoForEditSpec {
@@ -932,7 +1171,94 @@ class StoreSpec
 
           val successVal: StoreInfoEdited = response2.getValue.asInstanceOf[StoreInfoEdited]
 
-          successVal.info.map(_.getInfo) shouldEqual Some(baseStoreInfo.getInfo.copy(name = updatedInfo.getName))
+          successVal.newInfo shouldEqual Some(baseStoreInfo.copy(name = updatedInfo.getName).toEditable)
+        }
+      }
+
+      "executing AddProductsToStore" should {
+        "error for an unauthorized readying user" ignore new ReadiedSpec {
+          closeStore(storeId, p, probe)
+
+          p ! Store.StoreRequestEnvelope(
+            AddProductsToStore(
+              Some(storeId),
+              Some(MemberId("unauthorizedUser")),
+              Seq(Sku(UUID.randomUUID().toString)),
+            ),
+            probe.ref
+          )
+
+          val response2: StatusReply[StoreEvent] = probe.receiveMessage()
+
+          assert(response2.isError)
+
+          val responseError: Throwable = response2.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Store"
+        }
+
+        "succeed for golden path" in new ReadiedSpec {
+          closeStore(storeId, p, probe)
+
+          val newSku: Sku = Sku(UUID.randomUUID().toString)
+
+          p ! Store.StoreRequestEnvelope(
+            AddProductsToStore(
+              Some(storeId),
+              Some(MemberId("productAddingUser")),
+              Seq(newSku),
+            ),
+            probe.ref
+          )
+          val successVal: ProductsAddedToStore = probe.receiveMessage().getValue.asInstanceOf[ProductsAddedToStore]
+          assert(response.isSuccess)
+
+          successVal.getStoreId shouldEqual storeId
+          successVal.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("productAddingUser"))
+          successVal.info.map(_.getInfo) shouldEqual Some(
+            baseEditableInfo.copy(products = baseEditableInfo.products :+ newSku).toInfo
+          )
+        }
+      }
+
+      "executing RemoveProductsFromStore" should {
+        "error for an unauthorized readying user" ignore new ReadiedSpec {
+          closeStore(storeId, p, probe)
+
+          p ! Store.StoreRequestEnvelope(
+            RemoveProductsFromStore(
+              Some(storeId),
+              Some(MemberId("unauthorizedUser")),
+              baseEditableInfo.products,
+            ),
+            probe.ref
+          )
+
+          val response2: StatusReply[StoreEvent] = probe.receiveMessage()
+
+          assert(response2.isError)
+
+          val responseError: Throwable = response2.getError
+          responseError.getMessage shouldEqual "User is not authorized to modify Store"
+        }
+
+        "succeed for golden path" in new ReadiedSpec {
+          closeStore(storeId, p, probe)
+
+          p ! Store.StoreRequestEnvelope(
+            RemoveProductsFromStore(
+              Some(storeId),
+              Some(MemberId("productRemovingUser")),
+              baseEditableInfo.products,
+            ),
+            probe.ref
+          )
+          val successVal: ProductsRemovedFromStore =
+            probe.receiveMessage().getValue.asInstanceOf[ProductsRemovedFromStore]
+          assert(response.isSuccess)
+
+          successVal.getStoreId shouldEqual storeId
+          successVal.metaInfo.map(_.getLastUpdatedBy) shouldEqual Some(MemberId("productRemovingUser"))
+          successVal.info.map(_.getInfo) shouldEqual Some(baseEditableInfo.copy(products = Seq()).toInfo)
         }
       }
     }
@@ -1174,7 +1500,7 @@ class StoreSpec
         "error on attempted edit" in new CreatedNoInfoSpec {
           terminateStore(storeId, p, probe)
           val updatedInfo: EditableStoreInfo = EditableStoreInfo(
-            name = Some(baseStoreInfo.getInfo.name)
+            name = Some(baseStoreInfo.name)
           )
 
           val response2: StatusReply[StoreEvent] = editStoreInfo(storeId, p, probe, updatedInfo, checkSuccess = false)

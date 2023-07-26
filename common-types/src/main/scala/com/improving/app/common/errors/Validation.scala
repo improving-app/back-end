@@ -1,5 +1,6 @@
 package com.improving.app.common.errors
 
+import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.{
   CaPostalCodeImpl,
   Contact,
@@ -80,37 +81,16 @@ object Validation {
     None // TODO
   }
 
-  val tenantIdValidator: Validator[TenantId] = tenantId => {
-    if (tenantId.id.isEmpty) {
-      Some(ValidationError("Tenant Id is empty"))
-    } else {
-      None
+  def endBeforeStartValidator(startTime: Option[Timestamp]): Validator[Timestamp] = endTime =>
+    startTime match {
+      case Some(startTime) =>
+        if (endTime.seconds <= startTime.seconds) {
+          Some(ValidationError("End time occurs before or at start time"))
+        } else {
+          None
+        }
+      case None => Some(ValidationError("End time with no start time"))
     }
-  }
-
-  val memberIdValidator: Validator[MemberId] = memberId => {
-    if (memberId.id.isEmpty) {
-      Some(ValidationError("Member Id is empty"))
-    } else {
-      None
-    }
-  }
-
-  val organizationIdValidator: Validator[OrganizationId] = organizationId => {
-    if (organizationId.id.isEmpty) {
-      Some(ValidationError("Organization Id is empty"))
-    } else {
-      None
-    }
-  }
-
-  val storeIdValidator: Validator[StoreId] = storeId => {
-    if (storeId.id.isEmpty) {
-      Some(ValidationError("Store Id is empty"))
-    } else {
-      None
-    }
-  }
 
   val editableContactValidator: Validator[EditableContact] = applyAllValidators[EditableContact](
     contact => required("firstName")(contact.firstName),

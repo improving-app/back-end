@@ -5,30 +5,56 @@ package com.improving.app.gateway.domain.tenant;
 import "com/improving/app/gateway/domain/tenant/tenantGatewayDomainObjects.proto";
 import "com/improving/app/common/domain/ids.proto";
 import "scalapb/scalapb.proto";
+import "scalapb/validate.proto";
 
-//Requests
+option (scalapb.options) = {
+    scope: FILE
+    [scalapb.validate.file] {
+        validate_at_construction: true
+    }
+    single_file: true
+    preamble: [
+        "sealed trait TenantRequest {\n",
+        "  val tenantId: Option[com.improving.app.common.domain.TenantId]\n"
+        "}\n",
+        "sealed trait TenantCommand extends TenantRequest {\n",
+        "  val onBehalfOf: Option[com.improving.app.common.domain.MemberId]\n"
+        "}\n",
+        "sealed trait TenantQuery extends TenantRequest\n"
+    ]
+};
+
 message EstablishTenant {
+    option (scalapb.message) = {
+        extends: [ "TenantCommand" ]
+    };
     com.improving.app.common.domain.TenantId tenant_id = 1;
     com.improving.app.common.domain.MemberId on_behalf_of = 2;
     optional EditableTenantInfo tenant_info = 3;
 }
 
 message ActivateTenant {
+    option (scalapb.message) = {
+        extends: [ "TenantCommand" ]
+    };
     com.improving.app.common.domain.TenantId tenant_id = 1;
     com.improving.app.common.domain.MemberId on_behalf_of = 2;
 }
 
 message TerminateTenant {
+    option (scalapb.message) = {
+        extends: [ "TenantCommand" ]
+    };
     com.improving.app.common.domain.TenantId tenant_id = 1;
     com.improving.app.common.domain.MemberId on_behalf_of = 2;
 }
 
-message TenantRequest{
+message TenantRequestPB {
   option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
 
   oneof sealed_value {
-    EstablishTenant establish_tenant_value = 1;
-    ActivateTenant activate_tenant_value = 2;
-    TerminateTenant terminate_tenant_value = 3;
+    EstablishTenant establish_tenant = 1;
+    ActivateTenant activate_tenant = 2;
+    TerminateTenant terminate_tenant = 3;
   }
 }

@@ -1,7 +1,6 @@
-package com.improving.app.gateway.domain.common
+package com.improving.app.gateway.domain
 
-import com.improving.app.common.domain.OrganizationId
-import com.improving.app.common.domain.util.{EditableAddressUtil, EditableContactUtil}
+import com.improving.app.common.domain.util.EditableAddressUtil
 import com.improving.app.gateway.domain.demoScenario.Organization
 import com.improving.app.gateway.domain.organization.{
   EditableOrganizationInfo => GatewayEditableOrganizationInfo,
