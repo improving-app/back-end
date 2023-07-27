@@ -50,7 +50,6 @@ import scala.concurrent.Future
 import scala.io.Source
 import scala.util.Random
 
-
 // TODO: Move to gatling, add event start/end and other user focused routes (see IA-235)
 trait DemoScenarioGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLogging {
 
