@@ -5,7 +5,11 @@ import akka.grpc.GrpcServiceException
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes.BadRequest
 import com.improving.app.gateway.api.handlers.{MemberGatewayHandler, OrganizationGatewayHandler, TenantGatewayHandler}
-import com.improving.app.gateway.infrastructure.routes.{DemoScenarioGatewayRoutes, MemberGatewayRoutes, TenantGatewayRoutes}
+import com.improving.app.gateway.infrastructure.routes.{
+  DemoScenarioGatewayRoutes,
+  MemberGatewayRoutes,
+  TenantGatewayRoutes
+}
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse, MediaType}
 import akka.http.scaladsl.settings.{ParserSettings, ServerSettings}
 import akka.http.scaladsl.server.{Directives, ExceptionHandler}

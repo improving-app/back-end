@@ -12,7 +12,7 @@ trait CassandraTestContainer extends ForAllTestContainer with LoanedActorSystem 
       Map(
         "datastax-java-driver.basic.contact-points" ->
           List(s"${container.cassandraContainer.getHost}:${container.cassandraContainer.getFirstMappedPort
-            .intValue()}").asJava,
+              .intValue()}").asJava,
         "datastax-java-driver.basic.load-balancing-policy.local-datacenter" -> "datacenter1",
         "datastax-java-driver.advanced.auth-provider.class" -> "PlainTextAuthProvider",
         "datastax-java-driver.advanced.auth-provider.username" -> container.username,
@@ -22,7 +22,7 @@ trait CassandraTestContainer extends ForAllTestContainer with LoanedActorSystem 
 
   override val container: CassandraContainer =
     CassandraContainer(
-      //DockerImageName.parse("oracleinanutshell/oracle-xe-11g"),
+      // DockerImageName.parse("oracleinanutshell/oracle-xe-11g"),
       initScript = cassandraInitScriptPath
     )
 }
