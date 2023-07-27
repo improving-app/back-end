@@ -21,30 +21,21 @@ trait MemberGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggi
 
   val config: Config
 
-  implicit def exceptionHandler: ExceptionHandler =
-    ExceptionHandler { case e: GrpcServiceException =>
-      complete(
-        HttpResponse(
-          BadRequest,
-          entity = HttpEntity(ContentTypes.`text/plain(UTF-8)`, Json.fromString(e.getMessage).toString())
-        )
-      )
-    }
-
-  def memberRoutes(handler: MemberGatewayHandler): Route = logRequestResult("MemberGateway") {
-    pathPrefix("member") {
-      post {
-        entity(Directives.as[String]) { data =>
-          onSuccess(
-            handler
-              .registerMember(
-                fromJsonString[GatewayRegisterMember](data)
-              )
-          ) { memberRegistered =>
-            complete(JsonFormat.toJsonString(memberRegistered))
+  def memberRoutes(handler: MemberGatewayHandler)(implicit exceptionHandler: ExceptionHandler): Route =
+    logRequestResult("MemberGateway") {
+      pathPrefix("member") {
+        post {
+          entity(Directives.as[String]) { data =>
+            onSuccess(
+              handler
+                .registerMember(
+                  fromJsonString[GatewayRegisterMember](data)
+                )
+            ) { memberRegistered =>
+              complete(JsonFormat.toJsonString(memberRegistered))
+            }
           }
         }
       }
     }
-  }
 }
