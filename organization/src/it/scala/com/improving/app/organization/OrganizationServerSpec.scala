@@ -72,13 +72,13 @@ class OrganizationServerSpec extends ServiceTestContainerSpec(8082, "organizatio
           )
         )
 
-      Seq(("Invalid Activate after previously activating", response2)).foreach({
+      Seq(("Invalid Activate after previously activating", response2)).foreach {
         case (clue: String, responseFuture: Future[_]) =>
           withClue(clue) {
             val exception = responseFuture.failed.futureValue
             exception shouldBe a[GrpcServiceException]
           }
-      })
+      }
     }
   }
 

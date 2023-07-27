@@ -1,23 +1,44 @@
 package com.improving.app.gateway.infrastructure
 
 import akka.actor.typed.{ActorSystem, DispatcherSelector}
+import akka.grpc.GrpcServiceException
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.StatusCodes.BadRequest
 import com.improving.app.gateway.api.handlers.{MemberGatewayHandler, OrganizationGatewayHandler, TenantGatewayHandler}
-import com.improving.app.gateway.infrastructure.routes.{DemoScenarioGatewayRoutes, MemberGatewayRoutes}
-import akka.http.scaladsl.model.MediaType
+import com.improving.app.gateway.infrastructure.routes.{
+  DemoScenarioGatewayRoutes,
+  MemberGatewayRoutes,
+  TenantGatewayRoutes
+}
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse, MediaType}
 import akka.http.scaladsl.settings.{ParserSettings, ServerSettings}
-import akka.http.scaladsl.server.Directives
+import akka.http.scaladsl.server.{Directives, ExceptionHandler}
+import akka.http.scaladsl.server.Directives.complete
 import com.typesafe.config.{Config, ConfigFactory}
+import io.circe.Json
 
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success}
 
-class GatewayServerImpl(implicit val sys: ActorSystem[_]) extends MemberGatewayRoutes with DemoScenarioGatewayRoutes {
+class GatewayServerImpl(implicit val sys: ActorSystem[_])
+    extends TenantGatewayRoutes
+    with MemberGatewayRoutes
+    with DemoScenarioGatewayRoutes {
 
   override val config: Config = ConfigFactory
     .load("application.conf")
     .withFallback(ConfigFactory.defaultApplication())
+
+  implicit def exceptionHandler: ExceptionHandler =
+    ExceptionHandler { case e: GrpcServiceException =>
+      complete(
+        HttpResponse(
+          BadRequest,
+          entity = HttpEntity(ContentTypes.`text/plain(UTF-8)`, Json.fromString(e.getMessage).toString())
+        )
+      )
+    }
 
   private val tenantHandler: TenantGatewayHandler = new TenantGatewayHandler()
   private val organizationHandler: OrganizationGatewayHandler = new OrganizationGatewayHandler()
@@ -29,7 +50,7 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_]) extends MemberGatewayR
     .newServerAt(config.getString("akka.http.interface"), config.getInt("akka.http.port"))
     .bindFlow(
       Directives
-        .concat(memberRoutes(memberHandler), demoScenarioRoutes(tenantHandler, organizationHandler, memberHandler))
+        .concat(tenantRoutes(tenantHandler), memberRoutes(memberHandler))
     )
 
   def start(): Unit = binding

@@ -3,7 +3,8 @@ kind: Service
 metadata:
   name: scylla-db
 spec:
-  type: NodePort
+  clusterIP: 10.152.183.5
+  type: ClusterIP
   selector:
     app: scylla-db
   ports:
@@ -31,4 +32,3 @@ spec:
           imagePullPolicy: Never
           ports:
             - containerPort: 9042
-      hostNetwork: true
