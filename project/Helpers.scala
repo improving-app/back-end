@@ -181,17 +181,11 @@ object C {
       port: Int,
       componentName: String
   ): Seq[Def.Setting[_ >: Task[Seq[CmdLike]] with String with Boolean with Seq[Int] with Option[String]]] = Seq(
-    dockerBaseImage := "alpine:latest",
+    dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:ol7-java17-22.3.3",
     dockerUsername := sys.props.get("docker.username"),
     dockerRepository := sys.props.get("docker.registry"),
     dockerUpdateLatest := true,
     dockerExposedPorts ++= Seq(port),
-    dockerCommands ++= Seq(
-      Cmd("FROM", componentName),
-      Cmd("USER", "root"),
-      ExecCmd("RUN", "/sbin/apk", "add", "--no-cache", "bash"),
-      ExecCmd("RUN", "/sbin/apk", "add", "--no-cache", "openjdk17-jre")
-    )
     // Note for developers: enable when you want to build for amd64 on non amd64
     //
     // dockerBuildCommand := {
@@ -231,6 +225,7 @@ object C {
           "com.typesafe.scala-logging" %% "scala-logging" % V.scalalogging,
           "com.typesafe.akka" %% "akka-http-core" % V.akkaHttp
         ),
+        dockerUpdateLatest := true
       )
       .configure(scalapbCodeGen)
   }

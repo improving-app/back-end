@@ -27,7 +27,11 @@ For this, `applyForInternalIP.yaml`, will be used in place of `scyllaApply.yaml`
    - If on mac, just run `brew install microk8s`
 2. Enable dns with `microk8s enable dns`
 3. Install scylla
-   - Run command `microk8s kubectl apply -f applyForInternalIP.yaml`
+   1. `docker run --name some-scylla -d scylladb/scylla` to download scylla-db image locally as a container
+   2. `docker save scylladb/scylla > scylla.tar` to save container for uploading
+   3. `multipass transfer scylla.tar microk8s-vm:/tmp/scylla.tar` to transfer image into multipass directory
+   4. `microk8s ctr image import /tmp/scylla.tar` to import from multipass image to microk8s
+   5. `microk8s kubectl apply -f applyForInternalIP.yaml`
 4. Run command `microk8s kubectl apply -f microApply.yaml`
 5. Check status with `microk8s kubectl get pods -o wide`
    - expected results should look like below. Use `NAME` column to fill in `[pod-name]` in steps to expose

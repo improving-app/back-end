@@ -2,9 +2,11 @@ package com.improving.app.gateway
 
 import akka.actor.typed
 import akka.actor.typed.scaladsl.adapter.ClassicActorSystemOps
-import akka.grpc.GrpcClientSettings
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.Route
+import akka.grpc.{GrpcClientSettings, GrpcServiceException}
+import akka.http.scaladsl.model.StatusCodes.BadRequest
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse, StatusCodes}
+import akka.http.scaladsl.server.Directives.complete
+import akka.http.scaladsl.server.{ExceptionHandler, Route}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.dimafeng.testcontainers.scalatest.TestContainerForAll
 import com.dimafeng.testcontainers.{DockerComposeContainer, ExposedService}
@@ -16,6 +18,7 @@ import com.improving.app.gateway.domain.member.{EditableMemberInfo, MemberRegist
 import com.improving.app.gateway.infrastructure.routes.MemberGatewayRoutes
 import com.improving.app.member.domain.TestData.baseEditableInfo
 import com.typesafe.config.{Config, ConfigFactory}
+import io.circe.Json
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
@@ -35,6 +38,16 @@ class MemberGatewayServerSpec
     with BeforeAndAfterEach
     with MemberGatewayRoutes
     with TestContainerForAll {
+
+  implicit def exceptionHandler: ExceptionHandler =
+    ExceptionHandler { case e: GrpcServiceException =>
+      complete(
+        HttpResponse(
+          BadRequest,
+          entity = HttpEntity(ContentTypes.`text/plain(UTF-8)`, Json.fromString(e.getMessage).toString())
+        )
+      )
+    }
 
   implicit val typedSystem: typed.ActorSystem[Nothing] = system.toTyped
 

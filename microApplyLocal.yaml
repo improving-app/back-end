@@ -15,33 +15,40 @@ spec:
     spec:
       containers:
       - name: tenant
-        image: weinyopp/improving-app-tenant:latest
+        image: library/improving-app-tenant:latest
         ports:
         - containerPort: 8080
+        imagePullPolicy: Never
       - name: organization
-        image: weinyopp/improving-app-organization:latest
+        image: library/improving-app-organization:latest
         ports:
         - containerPort: 8082
+        imagePullPolicy: Never
       - name: member
-        image: weinyopp/improving-app-member:latest
+        image: library/improving-app-member:latest
         ports:
         - containerPort: 8081
+        imagePullPolicy: Never
       - name: store
-        image: weinyopp/improving-app-store:latest
+        image: library/improving-app-store:latest
         ports:
         - containerPort: 8083
+        imagePullPolicy: Never
       - name: event
-        image: weinyopp/improving-app-event:latest
+        image: library/improving-app-event:latest
         ports:
         - containerPort: 8084
+        imagePullPolicy: Never
       - name: product
-        image: weinyopp/improving-app-product:latest
+        image: library/improving-app-product:latest
         ports:
         - containerPort: 8085
+        imagePullPolicy: Never
       - name: gateway
-        image: weinyopp/improving-app-gateway:latest
+        image: library/improving-app-gateway:latest
         ports:
         - containerPort: 9000
+        imagePullPolicy: Never
       nodeSelector:
         kubernetes.io/arch: arm64
       hostNetwork: true
