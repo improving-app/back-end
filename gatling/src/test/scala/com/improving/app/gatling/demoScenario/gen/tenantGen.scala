@@ -17,7 +17,7 @@ object tenantGen {
   def genEstablishTenantReqs(
       creatingMembers: Seq[Some[MemberId]],
       numTenants: Int,
-      orgId: OrganizationId
+      orgId: Map[Some[MemberId], OrganizationId]
   ): Seq[EstablishTenant] = Random
     .shuffle(firstNames)
     .zip(Random.shuffle(lastNames))
@@ -60,7 +60,7 @@ object tenantGen {
                     )
                   )
                 ),
-                Some(TenantOrganizationList(Seq(orgId)))
+                Some(TenantOrganizationList(Seq(orgId(member))))
               )
             )
           )
