@@ -178,12 +178,6 @@ object C {
     dockerRepository := sys.props.get("docker.registry"),
     dockerUpdateLatest := true,
     dockerExposedPorts ++= Seq(port),
-    // dockerCommands ++= Seq(
-    //  Cmd("FROM", componentName),
-    //  Cmd("USER", "root"),
-    //  ExecCmd("RUN", "/sbin/apk", "add", "--no-cache", "bash"),
-    //  ExecCmd("RUN", "/sbin/apk", "add", "--no-cache", "openjdk17-jre")
-    // ),
     // Note for developers: enable when you want to build for amd64 on non amd64
     //
     // dockerBuildCommand := {

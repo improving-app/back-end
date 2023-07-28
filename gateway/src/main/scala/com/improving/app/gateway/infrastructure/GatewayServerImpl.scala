@@ -8,10 +8,10 @@ import com.improving.app.gateway.api.handlers.{MemberGatewayHandler, Organizatio
 import com.improving.app.gateway.infrastructure.routes.{
   DemoScenarioGatewayRoutes,
   MemberGatewayRoutes,
+  OrganizationGatewayRoutes,
   TenantGatewayRoutes
 }
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse, MediaType}
-import akka.http.scaladsl.settings.{ParserSettings, ServerSettings}
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
 import akka.http.scaladsl.server.{Directives, ExceptionHandler}
 import akka.http.scaladsl.server.Directives.complete
 import com.typesafe.config.{Config, ConfigFactory}
@@ -23,6 +23,7 @@ import scala.util.{Failure, Success}
 
 class GatewayServerImpl(implicit val sys: ActorSystem[_])
     extends TenantGatewayRoutes
+    with OrganizationGatewayRoutes
     with MemberGatewayRoutes
     with DemoScenarioGatewayRoutes {
 
@@ -50,7 +51,7 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_])
     .newServerAt(config.getString("akka.http.interface"), config.getInt("akka.http.port"))
     .bindFlow(
       Directives
-        .concat(tenantRoutes(tenantHandler), memberRoutes(memberHandler))
+        .concat(tenantRoutes(tenantHandler), organizationRoutes(organizationHandler), memberRoutes(memberHandler))
     )
 
   def start(): Unit = binding
