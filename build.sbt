@@ -24,38 +24,33 @@ lazy val tenant = project
 lazy val organization = project
   .in(file("organization"))
   .configure(C.akkaPersistentEntity("improving-app-organization", 8082))
-  .dependsOn(commonTypes)
+  .dependsOn(commonTypes, commonUtils)
 
 lazy val member = project
   .in(file("member"))
   .configure(C.akkaPersistentEntity("improving-app-member", 8081))
-  .dependsOn(commonTypes)
+  .dependsOn(commonTypes, commonUtils)
 
 lazy val store = project
   .in(file("store"))
   .configure(C.akkaPersistentEntity("improving-app-store", 8083))
-  .dependsOn(commonTypes)
+  .dependsOn(commonTypes, commonUtils)
 
 lazy val event = project
   .in(file("event"))
   .configure(C.akkaPersistentEntity("improving-app-event", 8084))
-  .dependsOn(commonTypes)
+  .dependsOn(commonTypes, commonUtils)
 
 lazy val product = project
   .in(file("product"))
   .configure(C.akkaPersistentEntity("improving-app-product", 8085))
-  .dependsOn(commonTypes)
+  .dependsOn(commonTypes, commonUtils)
 
 lazy val gateway = project
   .in(file("gateway"))
   .configure(C.Compilation.service("improving-app-gateway", 8090))
   .dependsOn(
-    commonTypes,
-    tenant % "compile->compile;test->test;it->test",
-    organization % "compile->compile;test->test;it->test",
-    member % "compile->compile;test->test;it->test",
-    store % "compile->compile;test->test;it->test",
-    event % "compile->compile;test->test;it->test"
+    commonTypes, commonUtils, tenant, organization, member, store, event
   )
 
 lazy val gatling = project

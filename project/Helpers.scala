@@ -61,17 +61,15 @@ object C {
     ): Project = {
       project
         .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
-        .configs(IntegrationTest.extend(Test))
         .configure(Compilation.scala)
         .configure(Testing.scalaTest)
         .settings(
-          Defaults.itSettings,
           name := componentName,
           run / fork := true,
           scalaVersion := V.scala,
           scalacOptions := scala3Options,
           Compile / scalacOptions ++= scala3Options,
-          IntegrationTest / fork := true,
+          Test / fork := true,
           libraryDependencies ++=
             utilityDependencies ++ loggingDependencies ++
               httpDependencies ++ akkaHttpTestingDependencies ++ jsonDependencies ++
@@ -126,7 +124,6 @@ object C {
 
   def akkaPersistentEntity(artifactName: String, port: Integer)(project: Project): Project = {
     project
-      .configs(IntegrationTest)
       .configure(scalaCompilation(artifactName))
       .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
       .settings(
@@ -135,10 +132,9 @@ object C {
         Test / parallelExecution := false,
         Test / testOptions += Tests.Argument("-oDF"),
         Test / logBuffered := false,
-        IntegrationTest / fork := true,
+        Test / fork := true,
         run / fork := true,
         Global / cancelable := false, // ctrl-c
-        Defaults.itSettings,
         Compile / PB.targets += scalapb.validate
           .gen(FlatPackage) -> (Compile / akkaGrpcCodeGeneratorSettings / target).value,
         libraryDependencies ++= Seq(
@@ -166,9 +162,9 @@ object C {
           "ch.qos.logback" % "logback-classic" % V.logback,
           "com.typesafe.scala-logging" %% "scala-logging" % V.scalalogging,
           "org.typelevel" %% "cats-core" % V.catsCore,
-          "org.scalatest" %% "scalatest" % V.scalatest % "it, test",
-          "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test",
-          "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion % "it, test",
+          "org.scalatest" %% "scalatest" % V.scalatest % "test",
+          "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "test",
+          "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion % "test",
           "org.wvlet.airframe" %% "airframe-ulid" % V.airframeUlidVersion,
         ) ++ akkaHttpTestingDependencies ++ scalaPbDependencies ++ scalaPbValidationDependencies ++ Seq(
           scalaPbCompilerPlugin

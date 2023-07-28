@@ -7,14 +7,11 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import akka.persistence.typed.{PersistenceId, RecoveryCompleted}
 import com.google.protobuf.timestamp.Timestamp
+import com.improving.app.common.OpenTelemetry
 import com.improving.app.common.domain.MemberId
 import com.improving.app.common.errors.{Error, StateError}
 import com.improving.app.member.domain.MemberState.{MEMBER_STATE_ACTIVE, MEMBER_STATE_DRAFT, MEMBER_STATE_SUSPENDED}
-import com.improving.app.member.domain.Validation.{
-  draftTransitionMemberInfoValidator,
-  memberCommandValidator,
-  memberQueryValidator
-}
+import com.improving.app.member.domain.Validation.{draftTransitionMemberInfoValidator, memberCommandValidator, memberQueryValidator}
 import com.improving.app.member.domain.util.{EditableMemberInfoUtil, MemberInfoUtil}
 import com.typesafe.scalalogging.StrictLogging
 
@@ -271,6 +268,20 @@ object Member extends StrictLogging {
     }
   }
 
+  // Open Telemetry Metrics
+  private val registeredMembers: OpenTelemetry.Counter = {
+    val counter = OpenTelemetry.Counter("registered-members","members",
+      "Tracks total number of registered members","each")
+    counter.add(0L) // FIXME: initialize to # of registered members in DB
+    counter
+  }
+  private val activeMembers: OpenTelemetry.Counter = {
+    val counter = OpenTelemetry.Counter("active-members", "members",
+      "Tracks total number of active members", "each")
+    counter.add(0L) // FIXME: initialize to # of active members in DB
+    counter
+  }
+
   private def registerMember(
       registerMemberCommand: RegisterMember
   ): Either[Error, MemberResponse] = {
@@ -288,7 +299,23 @@ object Member extends StrictLogging {
       registerMemberCommand.memberInfo,
       Some(newMeta)
     )
+    registeredMembers.add(1L)
     Right(MemberEventResponse(event))
+  }
+
+  private def activatedMember(
+    activateMemberCommand: ActivateMember,
+    newMeta: MemberMetaInfo
+  ): Either[Error,MemberResponse] = {
+    activeMembers.add(1L)
+    Right(
+      MemberEventResponse(
+        MemberActivated(
+          activateMemberCommand.memberId,
+          Some(newMeta)
+        )
+      )
+    )
   }
 
   private def activateMember(
@@ -305,25 +332,11 @@ object Member extends StrictLogging {
       case Left(e: EditableInfo) =>
         val validationErrorsOpt = draftTransitionMemberInfoValidator(e)
         if (validationErrorsOpt.isEmpty) {
-          Right(
-            MemberEventResponse(
-              MemberActivated(
-                activateMemberCommand.memberId,
-                Some(newMeta)
-              )
-            )
-          )
+          activatedMember(activateMemberCommand, newMeta)
         } else
           Left(StateError(validationErrorsOpt.get.message))
       case Right(_: MemberInfo) =>
-        Right(
-          MemberEventResponse(
-            MemberActivated(
-              activateMemberCommand.memberId,
-              Some(newMeta)
-            )
-          )
-        )
+        activatedMember(activateMemberCommand, newMeta)
     }
   }
 
@@ -336,6 +349,7 @@ object Member extends StrictLogging {
       lastModifiedOn = Some(Timestamp(Instant.now(clock))),
       currentState = MEMBER_STATE_SUSPENDED
     )
+    activeMembers.add(-1L)
     Right(
       MemberEventResponse(
         MemberSuspended(
@@ -356,6 +370,7 @@ object Member extends StrictLogging {
       lastModifiedOn = Some(Timestamp(Instant.now(clock)))
     )
     val event = MemberTerminated(terminateMemberCommand.memberId, Some(newMeta))
+    registeredMembers.add(-1L)
     Right(MemberEventResponse(event))
   }
 
