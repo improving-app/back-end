@@ -4,15 +4,9 @@ import akka.actor.typed.{ActorSystem, DispatcherSelector}
 import akka.grpc.GrpcServiceException
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes.BadRequest
-import com.improving.app.gateway.api.handlers.{
-  EventGatewayHandler,
-  MemberGatewayHandler,
-  OrganizationGatewayHandler,
-  TenantGatewayHandler
-}
+import com.improving.app.gateway.api.handlers.{MemberGatewayHandler, OrganizationGatewayHandler, TenantGatewayHandler}
 import com.improving.app.gateway.infrastructure.routes.{
   DemoScenarioGatewayRoutes,
-  EventGatewayRoutes,
   MemberGatewayRoutes,
   OrganizationGatewayRoutes,
   TenantGatewayRoutes
@@ -31,7 +25,6 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_])
     extends TenantGatewayRoutes
     with OrganizationGatewayRoutes
     with MemberGatewayRoutes
-    with EventGatewayRoutes
     with DemoScenarioGatewayRoutes {
 
   override val config: Config = ConfigFactory
@@ -51,7 +44,6 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_])
   private val tenantHandler: TenantGatewayHandler = new TenantGatewayHandler()
   private val organizationHandler: OrganizationGatewayHandler = new OrganizationGatewayHandler()
   private val memberHandler: MemberGatewayHandler = new MemberGatewayHandler()
-  private val eventHandler: EventGatewayHandler = new EventGatewayHandler()
 
   implicit val dispatcher: ExecutionContextExecutor = sys.dispatchers.lookup(DispatcherSelector.defaultDispatcher())
 
@@ -59,12 +51,7 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_])
     .newServerAt(config.getString("akka.http.interface"), config.getInt("akka.http.port"))
     .bindFlow(
       Directives
-        .concat(
-          tenantRoutes(tenantHandler),
-          organizationRoutes(organizationHandler),
-          memberRoutes(memberHandler),
-          eventRoutes(eventHandler)
-        )
+        .concat(tenantRoutes(tenantHandler), organizationRoutes(organizationHandler), memberRoutes(memberHandler))
     )
 
   def start(): Unit = binding
