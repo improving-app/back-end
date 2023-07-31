@@ -15,34 +15,24 @@ import scala.util.Random
 
 object memberGen {
   def genRegisterMembers(
-      numMembers: Int,
-      creatingMembersForTenant: Map[Some[MemberId], Some[TenantId]],
+      numMembersForOrg: Int,
+      creatingMemberForTenant: (Some[MemberId], Some[TenantId]),
       establishOrganization: EstablishOrganization
-  ): Seq[RegisterMember] =
-    (creatingMembersForTenant.keys ++ Random
+  ): Seq[RegisterMember] = {
+    (creatingMemberForTenant._1 +: Random
       .shuffle(
-        ((creatingMembersForTenant.size - 1) to numMembers).map(_ => Some(MemberId(UUID.randomUUID().toString)))
+        (1 until numMembersForOrg).map(_ => Some(MemberId(UUID.randomUUID().toString)))
       ))
       .zip(
-        (creatingMembersForTenant.keys ++ Random
-          .shuffle(
-            ((creatingMembersForTenant.size - 1) to numMembers)
-              .map(_ => creatingMembersForTenant.keys.toSeq(Random.nextInt(creatingMembersForTenant.size)))
-          ))
-          .zip(
-            creatingMembersForTenant.values ++ Random
-              .shuffle(
-                ((creatingMembersForTenant.size - 1) to numMembers)
-                  .map(_ => creatingMembersForTenant.values.toSeq(Random.nextInt(creatingMembersForTenant.size)))
-              )
-          )
-          .toSeq
+        creatingMemberForTenant +:
+          (1 until numMembersForOrg)
+            .map(_ => creatingMemberForTenant)
       )
       .zip(
         Random
           .shuffle(firstNames)
-          .take(numMembers)
-          .zip(Random.shuffle(lastNames).take(numMembers))
+          .take(numMembersForOrg)
+          .zip(Random.shuffle(lastNames).take(numMembersForOrg))
       )
       .flatMap { case ((id, (creatingMember, tenant)), (firstName, lastName)) =>
         Some(
@@ -74,7 +64,7 @@ object memberGen {
           )
         )
       }
-      .toSeq
+  }
 
   def genActivateMember(registerMember: RegisterMember): ActivateMember =
     ActivateMember(registerMember.memberId, registerMember.onBehalfOf)
