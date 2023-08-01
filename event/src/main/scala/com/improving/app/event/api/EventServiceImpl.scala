@@ -18,7 +18,7 @@ import scala.concurrent.duration.{DurationInt, DurationLong}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.{existentials, postfixOps}
 
-class EventServiceImpl()(implicit val system: ActorSystem[_]) extends EventService {
+class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService {
 
   implicit val ec: ExecutionContext = system.executionContext
   implicit val timeout: Timeout = Timeout(5 minute)
