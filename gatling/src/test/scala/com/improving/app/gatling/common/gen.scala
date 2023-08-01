@@ -33,7 +33,6 @@ object gen {
       ret ++= source
       println(i)
     }
-    println("final:" + ret)
     Random.shuffle(ret).take(n)
   }
 
