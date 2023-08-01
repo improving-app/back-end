@@ -31,13 +31,16 @@ For this, `applyForInternalIP.yaml`, will be used in place of `scyllaApply.yaml`
    2. `docker save scylladb/scylla > scylla.tar` to save container for uploading
    3. `multipass transfer scylla.tar microk8s-vm:/tmp/scylla.tar` to transfer image into multipass directory
    4. `microk8s ctr image import /tmp/scylla.tar` to import from multipass image to microk8s
-   5. `microk8s kubectl apply -f applyForInternalIP.yaml`
-4. Run command `microk8s kubectl apply -f microApply.yaml`
-5. Check status with `microk8s kubectl get pods -o wide`
+   5. `microk8s kubectl apply -f scyllaApplyForInternalIP.yaml`
+4. Upload or push directories 
+   - Option 1: `./importAllFromDockerLocally.sh` or `./importToMicro.sh improving-app-[serviceName]` for individual services
+   - Option 2: `./tagAllForDocker.sh`
+5. Run command `microk8s kubectl apply -f microApplyLocal.yaml` for Option 1 or `microk8s kubectl apply -f microApply.yaml` for Option 2 in previous step
+6. Check status with `microk8s kubectl get pods -o wide`
    - expected results should look like below. Use `NAME` column to fill in `[pod-name]` in steps to expose
    ```
    NAME                             READY   STATUS    RESTARTS       AGE     IP             NODE          NOMINATED NODE   READINESS GATES
-   improving-app-7c98699b4b-ptzmj   5/5     Running   0              6d23h   192.168.64.3   microk8s-vm   <none>           <none>
+   improving-app-7c98699b4b-ptzmj   7/7     Running   0              6d23h   192.168.64.3   microk8s-vm   <none>           <none>
    scylla-db-7bdb45445b-8skfx       1/1     Running   0              179m    192.168.64.3   microk8s-vm   <none>           <none>
     ```
 
@@ -48,9 +51,8 @@ For this, `applyForInternalIP.yaml`, will be used in place of `scyllaApply.yaml`
    ```
    NAME            TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE    SELECTOR
    kubernetes      ClusterIP   10.152.183.1     <none>        443/TCP          23d    <none>
-   nginx           NodePort    10.152.183.116   <none>        80:32756/TCP     23d    app=nginx
    improving-app   NodePort    10.152.183.68    <none>        9000:30668/TCP   7d1h   app=improving-app
-   scylla-db       NodePort    10.152.183.240   <none>        9042:30900/TCP   7d1h   app=scylla-db
+   scylla-db       NodePort    10.152.183.5     <none>        9042:30900/TCP   7d1h   app=scylla-db
    ```
 3. Expose node externally using port forwarding `microk8s kubectl port-forward services/improving-app 9000:9000`
 

@@ -1,10 +1,12 @@
 package com.improving.app.gatling.demoScenario
 
 import akka.http.scaladsl.model.ContentTypes
-import com.improving.app.common.domain.{MemberId, OrganizationId, TenantId}
+import com.improving.app.common.domain.{EventId, MemberId, OrganizationId, TenantId}
+import com.improving.app.gateway.domain.event.CreateEvent
 import com.improving.app.gateway.domain.member.RegisterMember
 import com.improving.app.gateway.domain.organization.{ActivateOrganization, EstablishOrganization}
 import com.improving.app.gateway.domain.tenant.EstablishTenant
+import com.improving.app.gatling.demoScenario.gen.eventGen.{genCreateEvents, genScheduleEvent}
 import com.improving.app.gatling.demoScenario.gen.memberGen.{genActivateMember, genRegisterMembers}
 import com.improving.app.gatling.demoScenario.gen.organizationGen.{genActivateOrgReqs, genEstablishOrg}
 import com.improving.app.gatling.demoScenario.gen.tenantGen.{genActivateTenantReqs, genEstablishTenantReqs}
@@ -20,15 +22,15 @@ import java.util.UUID
 class DemoScenarioGatewayTest extends Simulation {
   val httpProtocol: HttpProtocolBuilder = http.baseUrl("http://localhost:9000")
 
-  val numTenants = 2
+  val numTenants = 1
   val numOrgsPerTenant = 1
   val numMembersPerOrg = 2
   val numEventsPerOrg = 10
 
-  val tenantIds: Seq[Some[TenantId]] = (0 until numTenants).map(_ => Some(TenantId(UUID.randomUUID().toString)))
-  val tenantsByCreatingMember: Map[Some[MemberId], Some[TenantId]] =
+  val tenantIds: Seq[Option[TenantId]] = (0 until numTenants).map(_ => Some(TenantId(UUID.randomUUID().toString)))
+  val tenantsByCreatingMember: Map[Option[MemberId], Option[TenantId]] =
     tenantIds.map(tenant => Some(MemberId(UUID.randomUUID().toString)) -> tenant).toMap
-  val orgIdsByCreatingMember: Map[Some[MemberId], OrganizationId] =
+  val orgIdsByCreatingMember: Map[Option[MemberId], OrganizationId] =
     tenantsByCreatingMember.keys.toSeq.map(member => member -> OrganizationId(UUID.randomUUID().toString)).toMap
 
   val establishTenantRequestsByCreatingMember: Seq[(Option[MemberId], EstablishTenant)] = genEstablishTenantReqs(
@@ -124,7 +126,7 @@ class DemoScenarioGatewayTest extends Simulation {
         .map { org =>
           genRegisterMembers(
             numMembersPerOrg,
-            (member, tenant),
+            (member, establishTenantRequestsByCreatingMember.toMap.get(member)),
             org
           )
             .groupBy(
@@ -176,7 +178,52 @@ class DemoScenarioGatewayTest extends Simulation {
     )
     .toMap
 
-  println(registerMemberScns.values)
+  val createEventsByOrg: Map[OrganizationId, Seq[CreateEvent]] = establishOrgs.map { case (member, org) =>
+    org.organizationId.getOrElse(OrganizationId("ORGANIZATION NOT FOUND")) -> genCreateEvents(
+      numEventsPerOrg,
+      member,
+      org
+    )
+  }.toMap
+
+  val createEventsScns: Map[OrganizationId, Map[EventId, ScenarioBuilder]] = for {
+    (orgId, createEvents) <- createEventsByOrg
+  } yield orgId -> createEvents
+    .map(req =>
+      req.eventId.getOrElse(EventId.defaultInstance) -> scenario(
+        s"RegisterMember-${req.eventId.map(_.id).getOrElse("EVENTID NOT FOUND")}"
+      ).exec(
+        http("StartScenario - CreateEvent")
+          .post("/event")
+          .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
+          .body(
+            StringBody(
+              s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
+            )
+          )
+      )
+    )
+    .toMap
+
+  val scheduleEventsScns: Map[EventId, ScenarioBuilder] = (for {
+    (_, scheduleEvent) <- createEventsByOrg.map(tup => tup._1 -> tup._2.map(genScheduleEvent))
+  } yield scheduleEvent
+    .map(req =>
+      req.eventId.getOrElse(EventId("EVENTID NOT FOUND")) ->
+        scenario(
+          s"ScheduleEvent-${req.eventId.map(_.id).getOrElse("EVENTID NOT FOUND")}"
+        ).exec(
+          http("StartScenario - ScheduleEvent")
+            .post("/event/schedule")
+            .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
+            .body(
+              StringBody(
+                s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
+              )
+            )
+        )
+    )).flatten.toMap
+
   val injectionProfile: OpenInjectionStep = atOnceUsers(1)
   setUp(
     establishTenantsScn.toSeq
@@ -197,9 +244,14 @@ class DemoScenarioGatewayTest extends Simulation {
                     registerMemberIDTup._2
                       .inject(injectionProfile)
                       .andThen(
-                        activateMemberScns(orgId)(registerMemberIDTup._1).inject(injectionProfile)
+                        activateMemberScns(orgId)(registerMemberIDTup._1)
+                          .inject(injectionProfile)
                       )
-                  )
+                  ) ++ createEventsScns(orgId).map { createEventOrgIDTup =>
+                    createEventOrgIDTup._2
+                      .inject(injectionProfile)
+                      .andThen(scheduleEventsScns(createEventOrgIDTup._1).inject(injectionProfile))
+                  }.toSeq
                 }
               }
             }
