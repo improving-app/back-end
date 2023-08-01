@@ -302,7 +302,7 @@ class MemberSpec
             )
           )
 
-          result.reply.getError.getMessage shouldEqual "GetMemberInfo command cannot be used on an uninitialized Member"
+          result.reply.getError.getMessage shouldEqual "GetMemberInfo query cannot be used on an uninitialized Member"
         }
 
         "succeed and give the correct info after registering" in {
@@ -775,7 +775,7 @@ class MemberSpec
             )
           )
 
-          result.reply.getError.getMessage shouldBe "GetMemberInfo command cannot be used on a terminated Member"
+          result.reply.getError.getMessage shouldBe "GetMemberInfo query cannot be used on a terminated Member"
         }
       }
     }
