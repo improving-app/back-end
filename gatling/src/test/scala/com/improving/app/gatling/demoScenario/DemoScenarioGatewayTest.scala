@@ -22,7 +22,7 @@ class DemoScenarioGatewayTest extends Simulation {
 
   val numTenants = 2
   val numOrgsPerTenant = 1
-  val numMembersPerOrg = 2
+  val numMembersPerOrg = 300
   val numEventsPerOrg = 10
 
   val tenantIds: Seq[Some[TenantId]] = (0 until numTenants).map(_ => Some(TenantId(UUID.randomUUID().toString)))
@@ -176,7 +176,21 @@ class DemoScenarioGatewayTest extends Simulation {
     )
     .toMap
 
-  println(registerMemberScns.values)
+  val getMembers: Map[MemberId, ScenarioBuilder] = (for {
+    registerMember <- registerMemberByOrgs.values
+  } yield registerMember
+    .map(req =>
+      req.memberId
+        .getOrElse(MemberId.defaultInstance) -> scenario(
+        s"GetMemberInfo-${req.memberId.map(_.id).getOrElse("MEMBERID NOT FOUND")}"
+      )
+        .exec(
+          http("StartScenario - GetMemberInfo")
+            .get(s"/member/${req.memberId.getOrElse(MemberId("MEMBERID NOT FOUND")).id}")
+            .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
+        )
+    )).flatten.toMap
+
   val injectionProfile: OpenInjectionStep = atOnceUsers(1)
   setUp(
     establishTenantsScn.toSeq
@@ -197,7 +211,9 @@ class DemoScenarioGatewayTest extends Simulation {
                     registerMemberIDTup._2
                       .inject(injectionProfile)
                       .andThen(
-                        activateMemberScns(orgId)(registerMemberIDTup._1).inject(injectionProfile)
+                        activateMemberScns(orgId)(registerMemberIDTup._1)
+                          .inject(injectionProfile)
+                          .andThen(getMembers(registerMemberIDTup._1).inject(injectionProfile))
                       )
                   )
                 }

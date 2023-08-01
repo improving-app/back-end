@@ -3,22 +3,25 @@ package com.improving.app.gateway.api.handlers
 import akka.actor.typed.ActorSystem
 import akka.grpc.GrpcClientSettings
 import akka.util.Timeout
+import com.improving.app.common.domain.MemberId
 import com.improving.app.gateway.domain.member.{
   ActivateMember => GatewayActivateMember,
   MemberActivated,
+  MemberData,
   MemberRegistered,
   MemberTerminated,
   RegisterMember => GatewayRegisterMember,
-  TerminateMember => GatewayTermainateMember
+  TerminateMember => GatewayTerminateMember
 }
 import com.improving.app.gateway.domain.memberUtil.{
   EditableMemberInfoUtil,
   GatewayEditableMemberInfoUtil,
+  MemberInfoUtil,
   MemberMetaUtil
 }
 import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.member.api.MemberServiceClient
-import com.improving.app.member.domain.{ActivateMember, RegisterMember, TerminateMember}
+import com.improving.app.member.domain.{ActivateMember, GetMemberInfo, RegisterMember, TerminateMember}
 import com.typesafe.scalalogging.StrictLogging
 import com.improving.app.gateway.api.handlers.errors.handlers.exceptionHandler
 
@@ -74,7 +77,7 @@ class MemberGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = N
         )
       }
 
-  def terminateMember(in: GatewayTermainateMember): Future[MemberTerminated] =
+  def terminateMember(in: GatewayTerminateMember): Future[MemberTerminated] =
     memberClient
       .terminateMember(
         TerminateMember(
@@ -86,6 +89,21 @@ class MemberGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = N
         MemberTerminated(
           response.memberId,
           response.lastMeta.map(_.toGatewayMemberMeta)
+        )
+      }
+
+  def getMemberData(memberId: String): Future[MemberData] =
+    memberClient
+      .getMemberInfo(
+        GetMemberInfo(
+          Some(MemberId(memberId)),
+        )
+      )
+      .map { response =>
+        MemberData(
+          response.memberId,
+          response.memberInfo.map(_.toGateway),
+          response.memberMetaInfo.map(_.toGatewayMemberMeta)
         )
       }
 }

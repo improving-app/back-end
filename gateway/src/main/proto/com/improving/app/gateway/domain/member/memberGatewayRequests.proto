@@ -52,6 +52,14 @@ message TerminateMember {
     common.domain.MemberId on_behalf_of = 2;
 }
 
+message GetMemberInfo {
+    option (scalapb.message) = {
+        extends: [ "MemberQuery" ]
+    };
+    option (scalapb.message).extends = "com.improving.app.member.domain.Member.HasMemberId";
+    common.domain.MemberId member_id = 1;
+}
+
 message MemberRequestPB {
   option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
 
@@ -59,5 +67,6 @@ message MemberRequestPB {
     RegisterMember register_member = 1;
     ActivateMember activate_member = 2;
     TerminateMember terminate_member = 3;
+    GetMemberInfo get_member_info = 4;
   }
 }

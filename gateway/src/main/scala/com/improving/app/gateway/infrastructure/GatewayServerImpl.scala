@@ -6,7 +6,6 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes.BadRequest
 import com.improving.app.gateway.api.handlers.{MemberGatewayHandler, OrganizationGatewayHandler, TenantGatewayHandler}
 import com.improving.app.gateway.infrastructure.routes.{
-  DemoScenarioGatewayRoutes,
   MemberGatewayRoutes,
   OrganizationGatewayRoutes,
   TenantGatewayRoutes
@@ -24,8 +23,7 @@ import scala.util.{Failure, Success}
 class GatewayServerImpl(implicit val sys: ActorSystem[_])
     extends TenantGatewayRoutes
     with OrganizationGatewayRoutes
-    with MemberGatewayRoutes
-    with DemoScenarioGatewayRoutes {
+    with MemberGatewayRoutes {
 
   override val config: Config = ConfigFactory
     .load("application.conf")
