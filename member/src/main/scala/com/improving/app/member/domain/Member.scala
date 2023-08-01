@@ -183,13 +183,13 @@ object Member extends StrictLogging {
                     case UninitializedMemberState =>
                       Effect.reply(command.replyTo)(
                         StatusReply.Error(
-                          s"${command.request.productPrefix} command cannot be used on an uninitialized Member"
+                          s"${command.request.productPrefix} query cannot be used on an uninitialized Member"
                         )
                       )
                     case _: TerminatedMemberState =>
                       Effect.reply(command.replyTo)(
                         StatusReply.Error(
-                          s"${command.request.productPrefix} command cannot be used on a terminated Member"
+                          s"${command.request.productPrefix} query cannot be used on a terminated Member"
                         )
                       )
                   }
