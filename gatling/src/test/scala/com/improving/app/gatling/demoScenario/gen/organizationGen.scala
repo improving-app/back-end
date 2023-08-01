@@ -20,7 +20,7 @@ import scala.util.Random
 object organizationGen {
 
   def genEstablishOrg(
-      creatingMemberForTenant: (Some[MemberId], Some[TenantId]),
+      creatingMemberForTenant: (Option[MemberId], Option[TenantId]),
       orgId: OrganizationId
   ): Option[EstablishOrganization] = (
     Random
