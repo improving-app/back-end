@@ -25,6 +25,7 @@ import com.improving.app.member.domain.{ActivateMember, GetMemberInfo, RegisterM
 import com.typesafe.scalalogging.StrictLogging
 import com.improving.app.gateway.api.handlers.errors.handlers.exceptionHandler
 
+import java.util.UUID
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -92,7 +93,9 @@ class MemberGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = N
         )
       }
 
-  def getMemberData(memberId: String): Future[MemberData] =
+  def getMemberData(memberId: String): Future[MemberData] = {
+    try { UUID.fromString(memberId) }
+    catch { case e: Exception => Future.failed(e) }
     memberClient
       .getMemberInfo(
         GetMemberInfo(
@@ -106,4 +109,5 @@ class MemberGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = N
           response.memberMetaInfo.map(_.toGatewayMemberMeta)
         )
       }
+  }
 }

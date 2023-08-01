@@ -119,8 +119,8 @@ class DemoScenarioGatewayTest extends Simulation {
     )
     .toMap
 
-  val registerMemberByOrgs: Map[OrganizationId, Seq[RegisterMember]] = tenantsByCreatingMember
-    .flatMap { case (member, tenant) =>
+  val registerMemberByOrgs: Map[OrganizationId, Seq[RegisterMember]] = tenantsByCreatingMember.keys
+    .flatMap { member =>
       establishOrgs.toMap
         .get(member)
         .map { org =>
@@ -136,6 +136,7 @@ class DemoScenarioGatewayTest extends Simulation {
         .getOrElse(Map())
     }
     .map(tup => tup._1.getOrElse(OrganizationId.defaultInstance) -> tup._2)
+    .toMap
 
   val registerMemberScns: Map[OrganizationId, Seq[(MemberId, ScenarioBuilder)]] = for {
     (orgId, registerMembers) <- registerMemberByOrgs
