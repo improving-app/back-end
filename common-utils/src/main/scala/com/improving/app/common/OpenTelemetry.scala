@@ -23,6 +23,11 @@ object OpenTelemetry {
       .setUnit(uOfM)
       .build()
 
+    def incr(attributes: Attributes = Attributes.empty(), context: Context = Context.current()): Unit =
+      counter.add(1L, attributes, context)
+    def decr(attributes: Attributes = Attributes.empty(), context: Context = Context.current()): Unit =
+      counter.add(-1L, attributes, context)
+
     override def add(value: Long): Unit = counter.add(value)
 
     override def add(value: Long, attributes: Attributes): Unit =
