@@ -1,0 +1,20 @@
+# microk8s-config.yaml
+---
+version: 0.1.0
+addons:
+  - name: dns
+  - name: ingress
+  - name: dashboard
+  - name: metrics-server
+  - name: observability
+  - name: registry
+  - name: hostpath-storage
+
+# The extra arguments listed here are not required, as they would be set by the 'rbac' and the 'dns'
+# addons respectively. However, we set them to save time by not having to restart the Kubernetes
+# services a few times during cluster bootstrap.
+extraKubeAPIServerArgs:
+  --authorization-mode: RBAC,Node
+extraKubeletArgs:
+  --cluster-dns: 10.10.42.1
+  --cluster-domain: improving.local
