@@ -31,7 +31,9 @@ case class OpenTelemetry(serviceName: String, prometheusPort: Int) {
         .registerMetricReader(PrometheusHttpServer.builder.setPort(prometheusPort).build)
         .build
   ).buildAndRegisterGlobal
-  Runtime.getRuntime.addShutdownHook(new Thread(new Runnable { def run() { openTelemetrySdk.close() }}))
+  Runtime.getRuntime.addShutdownHook(new Thread(new Runnable {
+    def run(): Unit =  { openTelemetrySdk.close() }})
+  )
 
   case class Tracer(scope: String) {
     private val tracer: api.trace.Tracer = sdk.getTracer(scope)
