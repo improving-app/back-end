@@ -83,10 +83,9 @@ object Member extends StrictLogging {
           Effect
             .persist(eventResponse)
             .thenReply(command.replyTo) { _: MemberState => StatusReply.Success(response) }
-        case queryResponse: MemberData =>
+        case _: MemberData =>
           Effect
-            .persist(queryResponse)
-            .thenReply(command.replyTo) { _: MemberState => StatusReply.Success(response) }
+            .reply(command.replyTo)(StatusReply.Success(response))
         case _ =>
           Effect.reply(command.replyTo)(
             StatusReply.Error(s"${response.productPrefix} is not a supported member response")

@@ -6,7 +6,6 @@ import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/event/domain/eventDomainObjects.proto";
 import "scalapb/scalapb.proto";
 import "scalapb/validate.proto";
-import "validate/validate.proto";
 
 option (scalapb.options) = {
   scope: FILE
@@ -83,10 +82,12 @@ message EventData {
 }
 
 message EventEventResponse {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     EventEvent event_event = 1;
 }
 
 message EventResponse {
+    option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
     oneof sealed_value {
         EventData event_state_value = 1;
         EventEventResponse event_event_value = 2;
