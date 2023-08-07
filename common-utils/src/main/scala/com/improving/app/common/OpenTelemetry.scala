@@ -6,9 +6,32 @@ import io.opentelemetry.api.metrics.{LongCounter, Meter}
 import io.opentelemetry.api.trace.Span
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.context.Context
+import io.opentelemetry.exporter.jaeger.{JaegerGrpcSpanExporter, JaegerGrpcSpanExporterBuilder}
+import io.opentelemetry.exporter.prometheus.PrometheusHttpServer
+import io.opentelemetry.sdk.OpenTelemetrySdk
+import io.opentelemetry.sdk.metrics.SdkMeterProvider
+import io.opentelemetry.sdk.resources.Resource
+import io.opentelemetry.sdk.trace.SdkTracerProvider
+import io.opentelemetry.sdk.trace.`export`.SimpleSpanProcessor
+import io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SERVICE_NAME
 
-object OpenTelemetry {
+
+case class OpenTelemetry(serviceName: String, prometheusPort: Int) {
   private lazy val sdk: api.OpenTelemetry = GlobalOpenTelemetry.get()
+  private val resource: Resource = Resource.getDefault.merge(Resource.builder.put(SERVICE_NAME, serviceName).build)
+  private val openTelemetrySdk: OpenTelemetrySdk = OpenTelemetrySdk.builder
+    .setTracerProvider(
+      SdkTracerProvider.builder
+        .setResource(resource)
+        .addSpanProcessor(SimpleSpanProcessor.create(JaegerGrpcSpanExporter.builder().build()))
+        .build
+    ).setMeterProvider(
+      SdkMeterProvider.builder
+        .setResource(resource)
+        .registerMetricReader(PrometheusHttpServer.builder.setPort(prometheusPort).build)
+        .build
+  ).buildAndRegisterGlobal
+  Runtime.getRuntime.addShutdownHook(new Thread(new Runnable { def run() { openTelemetrySdk.close() }}))
 
   case class Tracer(scope: String) {
     private val tracer: api.trace.Tracer = sdk.getTracer(scope)
