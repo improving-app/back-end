@@ -139,6 +139,7 @@ class DemoScenarioGatewayTest extends Simulation {
         .getOrElse(Map())
     }
     .map(tup => tup._1.getOrElse(OrganizationId.defaultInstance) -> tup._2)
+    .toMap
 
   val registerMemberScns: Map[OrganizationId, Seq[(MemberId, ScenarioBuilder)]] = for {
     (orgId, registerMembers) <- registerMemberByOrgs
@@ -275,6 +276,21 @@ class DemoScenarioGatewayTest extends Simulation {
         )
     )).flatten.toMap
 
+  val getMembers: Map[MemberId, ScenarioBuilder] = (for {
+    registerMember <- registerMemberByOrgs.values
+  } yield registerMember
+    .map(req =>
+      req.memberId
+        .getOrElse(MemberId.defaultInstance) -> scenario(
+        s"GetMemberInfo-${req.memberId.map(_.id).getOrElse("MEMBERID NOT FOUND")}"
+      )
+        .exec(
+          http("StartScenario - GetMemberInfo")
+            .get(s"/member/${req.memberId.getOrElse(MemberId("MEMBERID NOT FOUND")).id}")
+            .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
+        )
+    )).flatten.toMap
+
   val injectionProfile: OpenInjectionStep = atOnceUsers(1)
   setUp(
     establishTenantsScn.toSeq
@@ -297,6 +313,7 @@ class DemoScenarioGatewayTest extends Simulation {
                       .andThen(
                         activateMemberScns(orgId)(registerMemberIDTup._1)
                           .inject(injectionProfile)
+                          .andThen(getMembers(registerMemberIDTup._1).inject(injectionProfile))
                       )
                   ) ++ createEventsScns(orgId).map { createEventOrgIDTup =>
                     createEventOrgIDTup._2
