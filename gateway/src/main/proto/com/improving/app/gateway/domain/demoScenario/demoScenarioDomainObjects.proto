@@ -6,6 +6,7 @@ import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/gateway/domain/event/eventGatewayDomainObjects.proto";
 import "com/improving/app/gateway/domain/member/memberGatewayDomainObjects.proto";
 import "com/improving/app/gateway/domain/organization/organizationGatewayDomainObjects.proto";
+import "com/improving/app/gateway/domain/store/storeGatewayDomainObjects.proto";
 import "com/improving/app/gateway/domain/tenant/tenantGatewayDomainObjects.proto";
 
 message Tenant {
@@ -30,4 +31,10 @@ message Event {
     common.domain.EventId event_id = 1;
     event.EventInfo event_info = 2;
     gateway.domain.event.EventMetaInfo meta_info = 3;
+}
+
+message Store {
+    common.domain.StoreId store_id = 1;
+    store.StoreInfo info = 2;
+    store.StoreMetaInfo meta_info = 3;
 }

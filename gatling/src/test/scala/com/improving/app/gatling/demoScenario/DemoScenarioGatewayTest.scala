@@ -1,14 +1,16 @@
 package com.improving.app.gatling.demoScenario
 
 import akka.http.scaladsl.model.ContentTypes
-import com.improving.app.common.domain.{EventId, MemberId, OrganizationId, TenantId}
+import com.improving.app.common.domain.{EventId, MemberId, OrganizationId, StoreId, TenantId}
 import com.improving.app.gateway.domain.event.CreateEvent
 import com.improving.app.gateway.domain.member.RegisterMember
 import com.improving.app.gateway.domain.organization.{ActivateOrganization, EstablishOrganization}
+import com.improving.app.gateway.domain.store.CreateStore
 import com.improving.app.gateway.domain.tenant.EstablishTenant
 import com.improving.app.gatling.demoScenario.gen.eventGen.{genCreateEvents, genScheduleEvent}
 import com.improving.app.gatling.demoScenario.gen.memberGen.{genActivateMember, genRegisterMembers}
 import com.improving.app.gatling.demoScenario.gen.organizationGen.{genActivateOrgReqs, genEstablishOrg}
+import com.improving.app.gatling.demoScenario.gen.storeGen.{genCreateStores, genMakeStoreReady}
 import com.improving.app.gatling.demoScenario.gen.tenantGen.{genActivateTenantReqs, genEstablishTenantReqs}
 import io.gatling.core.Predef._
 import io.gatling.core.controller.inject.open.OpenInjectionStep
@@ -24,8 +26,9 @@ class DemoScenarioGatewayTest extends Simulation {
 
   val numTenants = 1
   val numOrgsPerTenant = 1
-  val numMembersPerOrg = 300
+  val numMembersPerOrg = 2
   val numEventsPerOrg = 10
+  val numStoresPerEvent = 2
 
   val tenantIds: Seq[Option[TenantId]] = (0 until numTenants).map(_ => Some(TenantId(UUID.randomUUID().toString)))
   val tenantsByCreatingMember: Map[Option[MemberId], Option[TenantId]] =
@@ -119,8 +122,8 @@ class DemoScenarioGatewayTest extends Simulation {
     )
     .toMap
 
-  val registerMemberByOrgs: Map[OrganizationId, Seq[RegisterMember]] = tenantsByCreatingMember.keys
-    .flatMap { member =>
+  val registerMemberByOrgs: Map[OrganizationId, Seq[RegisterMember]] = tenantsByCreatingMember
+    .flatMap { case (member, _) =>
       establishOrgs.toMap
         .get(member)
         .map { org =>
@@ -192,7 +195,7 @@ class DemoScenarioGatewayTest extends Simulation {
   } yield orgId -> createEvents
     .map(req =>
       req.eventId.getOrElse(EventId.defaultInstance) -> scenario(
-        s"RegisterMember-${req.eventId.map(_.id).getOrElse("EVENTID NOT FOUND")}"
+        s"CreateEvent-${req.eventId.map(_.id).getOrElse("EVENTID NOT FOUND")}"
       ).exec(
         http("StartScenario - CreateEvent")
           .post("/event")
@@ -216,6 +219,54 @@ class DemoScenarioGatewayTest extends Simulation {
         ).exec(
           http("StartScenario - ScheduleEvent")
             .post("/event/schedule")
+            .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
+            .body(
+              StringBody(
+                s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
+              )
+            )
+        )
+    )).flatten.toMap
+
+  val createStoresByOrg: Map[OrganizationId, Seq[CreateStore]] = establishOrgs.map { case (member, org) =>
+    org.organizationId.getOrElse(OrganizationId("ORGANIZATION NOT FOUND")) -> genCreateStores(
+      numStoresPerEvent,
+      member,
+      org,
+      createEventsByOrg(org.organizationId.getOrElse(OrganizationId.defaultInstance))
+    )
+  }.toMap
+
+  val createStoresScns: Map[EventId, (StoreId, ScenarioBuilder)] = (for {
+    (orgId, createStores) <- createStoresByOrg
+  } yield createEventsByOrg(orgId)
+    .zip(createStores)
+    .map { case (createEvent, req) =>
+      createEvent.eventId
+        .getOrElse(EventId.defaultInstance) -> (req.storeId.getOrElse(StoreId.defaultInstance) -> scenario(
+        s"CreateStore-${req.storeId.map(_.id).getOrElse("STOREID NOT FOUND")}"
+      ).exec(
+        http("StartScenario - CreateStore")
+          .post("/store")
+          .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
+          .body(
+            StringBody(
+              s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
+            )
+          )
+      ))
+    }).flatten.toMap
+
+  val readyStoresScns: Map[StoreId, ScenarioBuilder] = (for {
+    (_, readyStore) <- createStoresByOrg.map(tup => tup._1 -> tup._2.map(genMakeStoreReady))
+  } yield readyStore
+    .map(req =>
+      req.storeId.getOrElse(StoreId("STOREID NOT FOUND")) ->
+        scenario(
+          s"MakeStoreReady-${req.storeId.map(_.id).getOrElse("STOREID NOT FOUND")}"
+        ).exec(
+          http("StartScenario - MakeStoreReady")
+            .post("/store/ready")
             .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
             .body(
               StringBody(
@@ -267,7 +318,17 @@ class DemoScenarioGatewayTest extends Simulation {
                   ) ++ createEventsScns(orgId).map { createEventOrgIDTup =>
                     createEventOrgIDTup._2
                       .inject(injectionProfile)
-                      .andThen(scheduleEventsScns(createEventOrgIDTup._1).inject(injectionProfile))
+                      .andThen(
+                        scheduleEventsScns(createEventOrgIDTup._1)
+                          .inject(injectionProfile)
+                          .andThen(
+                            createStoresScns(createEventOrgIDTup._1)._2
+                              .inject(injectionProfile)
+                              .andThen(
+                                readyStoresScns(createStoresScns(createEventOrgIDTup._1)._1).inject(injectionProfile)
+                              )
+                          )
+                      )
                   }.toSeq
                 }
               }
