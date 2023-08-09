@@ -21,7 +21,7 @@ object TestData {
       ProductDetails(
         ProductDetails.Value
           .TicketDetails(
-            TicketDetails(TicketDetails.Value.OpenTicketInfo(OpenTicketInfo()))
+            TicketDetails(TicketDetails.Value.OpenTicketDetails(OpenTicketDetails()))
           )
       )
     ),
@@ -35,7 +35,7 @@ object TestData {
       ProductDetails(
         ProductDetails.Value
           .TicketDetails(
-            TicketDetails(TicketDetails.Value.OpenTicketInfo(OpenTicketInfo()))
+            TicketDetails(TicketDetails.Value.OpenTicketDetails(OpenTicketDetails()))
           )
       )
     ),
