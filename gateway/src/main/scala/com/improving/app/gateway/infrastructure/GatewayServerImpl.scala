@@ -21,7 +21,8 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_])
     with OrganizationGatewayRoutes
     with MemberGatewayRoutes
     with EventGatewayRoutes
-    with StoreGatewayRoutes {
+    with StoreGatewayRoutes
+    with ProductGatewayRoutes {
 
   override val config: Config = ConfigFactory
     .load("application.conf")
@@ -42,6 +43,7 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_])
   private val memberHandler: MemberGatewayHandler = new MemberGatewayHandler()
   private val eventHandler: EventGatewayHandler = new EventGatewayHandler()
   private val storeHandler: StoreGatewayHandler = new StoreGatewayHandler()
+  private val productHandler: ProductGatewayHandler = new ProductGatewayHandler()
 
   implicit val dispatcher: ExecutionContextExecutor = sys.dispatchers.lookup(DispatcherSelector.defaultDispatcher())
 
@@ -54,7 +56,8 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_])
           organizationRoutes(organizationHandler),
           memberRoutes(memberHandler),
           eventRoutes(eventHandler),
-          storeRoutes(storeHandler)
+          storeRoutes(storeHandler),
+          productRoutes(productHandler)
         )
     )
 
