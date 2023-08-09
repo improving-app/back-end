@@ -4,10 +4,8 @@ package com.improving.app.product.domain;
 
 import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/product/domain/productDomainObjects.proto";
-import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
 import "scalapb/validate.proto";
-import "validate/validate.proto";
 
 option (scalapb.options) = {
   scope: FILE

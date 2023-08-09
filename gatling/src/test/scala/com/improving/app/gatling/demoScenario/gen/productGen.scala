@@ -31,6 +31,14 @@ object productGen {
       )
     )
     .head
+
+  def productTypeAsString(details: ProductDetails): String = details.value.ticketDetails match {
+    case Some(TicketDetails(TicketDetails.Value.OpenTicketDetails(_), _))       => "open"
+    case Some(TicketDetails(TicketDetails.Value.RestrictedTicketDetails(_), _)) => "restricted"
+    case Some(TicketDetails(TicketDetails.Value.ReservedTicketDetails(_), _))   => "reserved"
+    case Some(TicketDetails(TicketDetails.Value.Empty, _))                      => "NO TICKET DETAILS FOUND"
+    case None                                                                   => "NO TICKET DETAILS FOUND"
+  }
   def genCreateProducts(
       numProductsPerStore: Int,
       creatingMember: Option[MemberId],
@@ -50,17 +58,20 @@ object productGen {
         )
       )
       .flatMap { case ((id, creatingMember), details) =>
+        val productString = productTypeAsString(details)
+        val eventName = event.info.flatMap(_.eventName).getOrElse("NO EVENT NAME FOUND")
         Some(
           CreateProduct(
             Some(id),
             Some(
               EditableProductInfo(
-                productName =
-                  Some(s"${event.info.flatMap(_.eventName).getOrElse("NO EVENT NAME FOUND")} event ticket of type "),
+                productName = Some(
+                  s"$eventName $productString event ticket"
+                ),
                 productDetails = Some(details),
-                image = Seq(),
+                image = Seq(s"imgr.com/${productString}_ticket_for_event_${eventName}_img.png"),
                 price = Some(0.0),
-                cost = None,
+                cost = Some(0.0),
                 eventId = event.eventId
               )
             ),
