@@ -5,9 +5,9 @@ import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import akka.http.scaladsl.server.{Directives, ExceptionHandler, Route}
 import com.improving.app.gateway.api.handlers.ProductGatewayHandler
 import com.improving.app.gateway.domain.product.{
+  ActivateProduct => GatewayActivateProduct,
   CreateProduct => GatewayCreateProduct,
-  DeleteProduct => GatewayDeleteProduct,
-  ActivateProduct => GatewayActivateProduct
+  DeleteProduct => GatewayDeleteProduct
 }
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
