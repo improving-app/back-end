@@ -310,7 +310,7 @@ class DemoScenarioGatewayStart extends Simulation {
   } yield createProducts
     .map { createProduct =>
       storeId -> scenario(
-        s"CreateStore-${createProduct.sku.map(_.sku).getOrElse("SKU NOT FOUND")}"
+        s"CreateProduct-${createProduct.sku.map(_.sku).getOrElse("SKU NOT FOUND")}"
       ).exec(
         http("StartScenario - CreateProduct")
           .post("/product")
@@ -323,13 +323,13 @@ class DemoScenarioGatewayStart extends Simulation {
       )
     }).flatten.toMap
 
-  val actiavateProductScns: Map[StoreId, ScenarioBuilder] = (for {
+  val activateProductScns: Map[StoreId, ScenarioBuilder] = (for {
     (storeId, readyStore) <- createProductsByStore.map(tup => tup._1 -> tup._2.map(genActivateProduct))
   } yield readyStore
     .map(req =>
       storeId ->
         scenario(
-          s"MakeStoreReady-${req.sku.map(_.sku).getOrElse("SKU NOT FOUND")}"
+          s"ActivateProduct-${req.sku.map(_.sku).getOrElse("SKU NOT FOUND")}"
         ).exec(
           http("StartScenario - ActivateProduct")
             .post("/product/activate")
@@ -382,7 +382,7 @@ class DemoScenarioGatewayStart extends Simulation {
                                   .andThen(
                                     createProductsScns(storeId)
                                       .inject(injectionProfile)
-                                      .andThen(actiavateProductScns(storeId).inject(injectionProfile))
+                                      .andThen(activateProductScns(storeId).inject(injectionProfile))
                                   )
                               }
                           )

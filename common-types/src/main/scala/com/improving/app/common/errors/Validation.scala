@@ -41,7 +41,7 @@ object Validation {
 
   def listHasLength[T]: String => Validator[Seq[T]] = fieldName => { list =>
     if (list.isEmpty) {
-      Some(ValidationError("List " + fieldName + "has no length"))
+      Some(ValidationError("List " + fieldName + " has no length"))
     } else {
       None
     }
