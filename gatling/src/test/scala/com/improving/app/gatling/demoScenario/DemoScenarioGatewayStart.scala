@@ -1,7 +1,7 @@
 package com.improving.app.gatling.demoScenario
 
 import akka.http.scaladsl.model.ContentTypes
-import com.improving.app.common.domain.{EventId, MemberId, OrganizationId, StoreId, TenantId}
+import com.improving.app.common.domain.{EventId, MemberId, OrganizationId, Sku, StoreId, TenantId}
 import com.improving.app.gateway.domain.event.CreateEvent
 import com.improving.app.gateway.domain.member.RegisterMember
 import com.improving.app.gateway.domain.organization.{ActivateOrganization, EstablishOrganization}
@@ -26,12 +26,12 @@ import java.util.UUID
 class DemoScenarioGatewayStart extends Simulation {
   val httpProtocol: HttpProtocolBuilder = http.baseUrl("http://localhost:9000")
 
-  val numTenants = 1
+  val numTenants = 2
   val numOrgsPerTenant = 1
   val numMembersPerOrg = 2
-  val numEventsPerOrg = 10
+  val numEventsPerOrg = 2
   val numStoresPerEvent = 2
-  val numProductsPerEventStore = 1
+  val numProductsPerEventStore = 2
 
   val tenantIds: Seq[Option[TenantId]] = (0 until numTenants).map(_ => Some(TenantId(UUID.randomUUID().toString)))
   val tenantsByCreatingMember: Map[Option[MemberId], Option[TenantId]] =
@@ -245,37 +245,39 @@ class DemoScenarioGatewayStart extends Simulation {
         )
     )).flatten.toMap
 
-  val createStoresByOrg: Map[OrganizationId, Seq[CreateStore]] = establishOrgs.map { case (member, org) =>
-    org.organizationId.getOrElse(OrganizationId("ORGANIZATION NOT FOUND")) -> genCreateStores(
-      numStoresPerEvent,
-      member,
-      org,
-      createEventsByOrg(org.organizationId.getOrElse(OrganizationId.defaultInstance))
-    )
+  val createStoresByEvent: Map[EventId, Seq[CreateStore]] = establishOrgs.flatMap { case (member, org) =>
+    val orgId = org.organizationId.getOrElse(OrganizationId("ORGANIZATION NOT FOUND"))
+    createEventsByOrg(orgId)
+      .flatMap(_.eventId)
+      .zip(
+        genCreateStores(
+          numStoresPerEvent,
+          member,
+          org,
+          createEventsByOrg(orgId)
+        )
+      )
   }.toMap
 
-  val createStoresScns: Map[EventId, (StoreId, ScenarioBuilder)] = (for {
-    (orgId, createStores) <- createStoresByOrg
-  } yield createEventsByOrg(orgId)
-    .zip(createStores)
-    .map { case (createEvent, req) =>
-      createEvent.eventId
-        .getOrElse(EventId.defaultInstance) -> (req.storeId.getOrElse(StoreId.defaultInstance) -> scenario(
-        s"CreateStore-${req.storeId.map(_.id).getOrElse("STOREID NOT FOUND")}"
-      ).exec(
-        http("StartScenario - CreateStore")
-          .post("/store")
-          .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
-          .body(
-            StringBody(
-              s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
-            )
+  val createStoresScns: Map[EventId, Seq[(StoreId, ScenarioBuilder)]] = (for {
+    (eventId, createStores) <- createStoresByEvent
+  } yield createStores.map { req =>
+    eventId -> (req.storeId.getOrElse(StoreId.defaultInstance) -> scenario(
+      s"CreateStore-${req.storeId.map(_.id).getOrElse("STOREID NOT FOUND")}"
+    ).exec(
+      http("StartScenario - CreateStore")
+        .post("/store")
+        .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
+        .body(
+          StringBody(
+            s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
           )
-      ))
-    }).flatten.toMap
+        )
+    ))
+  }).flatten.groupBy(_._1).map(tup => tup._1 -> tup._2.map(_._2).toSeq)
 
   val readyStoresScns: Map[StoreId, ScenarioBuilder] = (for {
-    (_, readyStore) <- createStoresByOrg.map(tup => tup._1 -> tup._2.map(genMakeStoreReady))
+    (_, readyStore) <- createStoresByEvent.map(tup => tup._1 -> tup._2.map(genMakeStoreReady))
   } yield readyStore
     .map(req =>
       req.storeId.getOrElse(StoreId("STOREID NOT FOUND")) ->
@@ -293,23 +295,27 @@ class DemoScenarioGatewayStart extends Simulation {
         )
     )).flatten.toMap
 
-  val createProductsByStore: Map[StoreId, Seq[CreateProduct]] = establishOrgs.flatMap { case (member, org) =>
-    createStoresByOrg(org.organizationId.getOrElse(OrganizationId("ORGANIZATION NOT FOUND")))
+  val createProductsByStore: Map[StoreId, Seq[CreateProduct]] = createStoresByEvent.toSeq.flatMap { createStore =>
+    createStore._2
       .map(store =>
         store.storeId.getOrElse(StoreId.defaultInstance) -> genCreateProducts(
           numProductsPerEventStore,
-          member,
-          createEventsByOrg(org.organizationId.getOrElse(OrganizationId.defaultInstance))
+          store.onBehalfOf,
+          createEventsByOrg(store.info.flatMap(_.sponsoringOrg).getOrElse(OrganizationId.defaultInstance))
+            .groupBy(_.eventId)
+            .get(Some(createStore._1))
+            .map(_.head)
+            .getOrElse(CreateEvent.defaultInstance)
         )
       )
       .toMap
   }.toMap
 
-  val createProductsScns: Map[StoreId, ScenarioBuilder] = (for {
+  val createProductsScns: Map[StoreId, Seq[(Sku, ScenarioBuilder)]] = (for {
     (storeId, createProducts) <- createProductsByStore
   } yield createProducts
     .map { createProduct =>
-      storeId -> scenario(
+      storeId -> (createProduct.sku.getOrElse(Sku.defaultInstance) -> scenario(
         s"CreateProduct-${createProduct.sku.map(_.sku).getOrElse("SKU NOT FOUND")}"
       ).exec(
         http("StartScenario - CreateProduct")
@@ -320,14 +326,14 @@ class DemoScenarioGatewayStart extends Simulation {
               s"""\"${JsonFormat.toJsonString(createProduct).replace("\"", "\\\"")}\""""
             )
           )
-      )
-    }).flatten.toMap
+      ))
+    }).flatten.groupBy(_._1).map(tup => tup._1 -> tup._2.map(_._2).toSeq)
 
-  val activateProductScns: Map[StoreId, ScenarioBuilder] = (for {
-    (storeId, readyStore) <- createProductsByStore.map(tup => tup._1 -> tup._2.map(genActivateProduct))
-  } yield readyStore
+  val activateProductScns: Map[StoreId, Map[Sku, ScenarioBuilder]] = (for {
+    (storeId, activateProduct) <- createProductsByStore.map(tup => tup._1 -> tup._2.map(genActivateProduct))
+  } yield activateProduct
     .map(req =>
-      storeId ->
+      storeId -> (req.sku.getOrElse(Sku.defaultInstance) ->
         scenario(
           s"ActivateProduct-${req.sku.map(_.sku).getOrElse("SKU NOT FOUND")}"
         ).exec(
@@ -339,8 +345,8 @@ class DemoScenarioGatewayStart extends Simulation {
                 s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
               )
             )
-        )
-    )).flatten.toMap
+        ))
+    )).flatten.groupBy(_._1).map(tup => tup._1 -> tup._2.map(_._2).toMap)
 
   val injectionProfile: OpenInjectionStep = atOnceUsers(1)
   setUp(
@@ -373,18 +379,21 @@ class DemoScenarioGatewayStart extends Simulation {
                         scheduleEventsScns(createEventOrgIDTup._1)
                           .inject(injectionProfile)
                           .andThen(
-                            createStoresScns(createEventOrgIDTup._1)._2
-                              .inject(injectionProfile)
-                              .andThen {
-                                val storeId = createStoresScns(createEventOrgIDTup._1)._1
-                                readyStoresScns(storeId)
-                                  .inject(injectionProfile)
-                                  .andThen(
-                                    createProductsScns(storeId)
-                                      .inject(injectionProfile)
-                                      .andThen(activateProductScns(storeId).inject(injectionProfile))
-                                  )
-                              }
+                            createStoresScns(createEventOrgIDTup._1).map(storeScnTup =>
+                              storeScnTup._2
+                                .inject(injectionProfile)
+                                .andThen {
+                                  readyStoresScns(storeScnTup._1)
+                                    .inject(injectionProfile)
+                                    .andThen(createProductsScns(storeScnTup._1).map { productScn =>
+                                      productScn._2
+                                        .inject(injectionProfile)
+                                        .andThen(
+                                          activateProductScns(storeScnTup._1)(productScn._1).inject(injectionProfile)
+                                        )
+                                    }: _*)
+                                }
+                            ): _*
                           )
                       )
                   }.toSeq

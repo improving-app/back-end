@@ -42,44 +42,42 @@ object productGen {
   def genCreateProducts(
       numProductsPerStore: Int,
       creatingMember: Option[MemberId],
-      eventsForOrg: Seq[CreateEvent]
-  ): Seq[CreateProduct] = eventsForOrg.flatMap { event =>
-    Random
-      .shuffle((0 until numProductsPerStore).map(_ => Sku(UUID.randomUUID().toString)))
-      .zip(
-        Random
-          .shuffle(
-            (0 until numProductsPerStore).map(_ => creatingMember)
-          )
+      eventForStore: CreateEvent
+  ): Seq[CreateProduct] = (0 until numProductsPerStore)
+    .map(_ => Sku(UUID.randomUUID().toString))
+    .zip(
+      Random
+        .shuffle(
+          (0 until numProductsPerStore).map(_ => creatingMember)
+        )
+    )
+    .zip(
+      (0 until numProductsPerStore).map(_ =>
+        ProductDetails(ProductDetails.Value.TicketDetails(TicketDetails(genRandomTicketDetails)))
       )
-      .zip(
-        (0 until numProductsPerStore).map(_ =>
-          ProductDetails(ProductDetails.Value.TicketDetails(TicketDetails(genRandomTicketDetails)))
+    )
+    .flatMap { case ((id, creatingMember), details) =>
+      val productString = productTypeAsString(details)
+      val eventName = eventForStore.info.flatMap(_.eventName).getOrElse("NO EVENT NAME FOUND")
+      Some(
+        CreateProduct(
+          Some(id),
+          Some(
+            EditableProductInfo(
+              productName = Some(
+                s"$eventName $productString event ticket"
+              ),
+              productDetails = Some(details),
+              image = Seq(s"imgr.com/${productString}_ticket_for_event_${eventName}_img.png"),
+              price = Some(0.0),
+              cost = Some(0.0),
+              eventId = eventForStore.eventId
+            )
+          ),
+          creatingMember
         )
       )
-      .flatMap { case ((id, creatingMember), details) =>
-        val productString = productTypeAsString(details)
-        val eventName = event.info.flatMap(_.eventName).getOrElse("NO EVENT NAME FOUND")
-        Some(
-          CreateProduct(
-            Some(id),
-            Some(
-              EditableProductInfo(
-                productName = Some(
-                  s"$eventName $productString event ticket"
-                ),
-                productDetails = Some(details),
-                image = Seq(s"imgr.com/${productString}_ticket_for_event_${eventName}_img.png"),
-                price = Some(0.0),
-                cost = Some(0.0),
-                eventId = event.eventId
-              )
-            ),
-            creatingMember
-          )
-        )
-      }
-  }
+    }
 
   def genActivateProduct(createProduct: CreateProduct): ActivateProduct =
     ActivateProduct(createProduct.sku, None, createProduct.onBehalfOf)

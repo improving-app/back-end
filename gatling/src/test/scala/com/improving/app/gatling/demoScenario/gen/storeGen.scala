@@ -15,30 +15,25 @@ object storeGen {
       creatingMember: Option[MemberId],
       establishOrg: EstablishOrganization,
       eventsForOrg: Seq[CreateEvent]
-  ): Seq[CreateStore] = eventsForOrg.flatMap { event =>
-    Random
-      .shuffle((0 until numStoresPerEvent).map(_ => StoreId(UUID.randomUUID().toString)))
+  ): Seq[Seq[CreateStore]] = eventsForOrg.map { event =>
+    (0 until numStoresPerEvent)
+      .map(_ => StoreId(UUID.randomUUID().toString))
       .zip(
-        Random
-          .shuffle(
-            (0 until numStoresPerEvent).map(_ => creatingMember)
-          )
+        (0 until numStoresPerEvent).map(_ => creatingMember)
       )
-      .flatMap { case (id, creatingMember) =>
+      .map { case (id, creatingMember) =>
         val orgName: String = establishOrg.organizationInfo.flatMap(_.name).getOrElse("ORG NAME NOT FOUND")
         val eventName: String = event.info.flatMap(_.eventName).getOrElse("EVENT NAME NOT FOUND")
-        Some(
-          CreateStore(
-            Some(id),
-            creatingMember,
-            Some(
-              EditableStoreInfo(
-                name = Some(s"$eventName Event Store"),
-                description = Some(s"This store sells items the event $eventName for organization $orgName"),
-                products = Seq(),
-                event = event.eventId,
-                sponsoringOrg = establishOrg.organizationId
-              )
+        CreateStore(
+          Some(id),
+          creatingMember,
+          Some(
+            EditableStoreInfo(
+              name = Some(s"$eventName Event Store"),
+              description = Some(s"This store sells items the event $eventName for organization $orgName"),
+              products = Seq(),
+              event = event.eventId,
+              sponsoringOrg = establishOrg.organizationId
             )
           )
         )
