@@ -7,6 +7,8 @@ import akka.grpc.GrpcServiceException
 import akka.pattern.StatusReply
 import akka.util.Timeout
 import com.google.rpc.Code
+import com.improving.app.common.OpenTelemetry
+import com.improving.app.common.Tracer
 import com.improving.app.product.domain.{ProductResponse, _}
 import com.improving.app.product.domain.Product.{ProductEntityKey, ProductEnvelope}
 
@@ -18,6 +20,8 @@ class ProductServiceImpl()(implicit val system: ActorSystem[_]) extends ProductS
 
   implicit val ec: ExecutionContext = system.executionContext
   implicit val timeout: Timeout = Timeout(5 minute)
+  private val ot = OpenTelemetry("Product")
+  private val tracer = Tracer("main")
 
   // Create a new product
   val sharding: ClusterSharding = ClusterSharding(system)
@@ -39,44 +43,58 @@ class ProductServiceImpl()(implicit val system: ActorSystem[_]) extends ProductS
   private def handleCommand[T](
       in: ProductRequestPB with ProductCommand,
       productHandler: PartialFunction[StatusReply[ProductResponse], T]
-  ): Future[T] = in.sku
-    .map { id =>
-      val productEntity = sharding.entityRefFor(ProductEntityKey, id.sku)
+  ): Future[T] = {
+    val span = tracer.startSpan(s"handleCommand(${in.getClass.getSimpleName})")
+    try {
+      in.sku
+        .map { id =>
+          val productEntity = sharding.entityRefFor(ProductEntityKey, id.sku)
 
-      productEntity
-        .ask[StatusReply[ProductResponse]](replyTo => ProductEnvelope(in, replyTo))
-        .map { handleResponse(productHandler) }
-    }
-    .getOrElse(
-      Future.failed(
-        GrpcServiceException.create(
-          Code.INVALID_ARGUMENT,
-          "An entity Id was not provided",
-          java.util.List.of(in.asMessage)
+          productEntity
+            .ask[StatusReply[ProductResponse]](replyTo => ProductEnvelope(in, replyTo))
+            .map {
+              handleResponse(productHandler)
+            }
+        }
+        .getOrElse(
+          Future.failed(
+            GrpcServiceException.create(
+              Code.INVALID_ARGUMENT,
+              "An entity Id was not provided",
+              java.util.List.of(in.asMessage)
+            )
+          )
         )
-      )
-    )
+    } finally span.end()
+  }
 
   private def handleQuery[T](
       in: ProductRequestPB with ProductQuery,
       productHandler: PartialFunction[StatusReply[ProductResponse], T]
-  ): Future[T] = in.sku
-    .map { sku =>
-      val productEntity = sharding.entityRefFor(ProductEntityKey, sku.sku)
+  ): Future[T] = {
+    val span = tracer.startSpan(s"handleQuery(${in.getClass.getSimpleName})")
+    try {
+      in.sku
+        .map { sku =>
+          val productEntity = sharding.entityRefFor(ProductEntityKey, sku.sku)
 
-      productEntity
-        .ask[StatusReply[ProductResponse]](replyTo => ProductEnvelope(in, replyTo))
-        .map { handleResponse(productHandler) }
-    }
-    .getOrElse(
-      Future.failed(
-        GrpcServiceException.create(
-          Code.INVALID_ARGUMENT,
-          "An entity Id (sku) was not provided",
-          java.util.List.of(in.asMessage)
+          productEntity
+            .ask[StatusReply[ProductResponse]](replyTo => ProductEnvelope(in, replyTo))
+            .map {
+              handleResponse(productHandler)
+            }
+        }
+        .getOrElse(
+          Future.failed(
+            GrpcServiceException.create(
+              Code.INVALID_ARGUMENT,
+              "An entity Id (sku) was not provided",
+              java.util.List.of(in.asMessage)
+            )
+          )
         )
-      )
-    )
+    } finally span.end()
+  }
 
   /**
    * post: "product/{productId}/"

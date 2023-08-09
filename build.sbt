@@ -1,7 +1,7 @@
 ThisBuild / dynverSeparator := "-"
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-lazy val allServices = project
+lazy val `back-end` = project
   .in(file("."))
   .aggregate(commonUtils, gateway, tenant, organization, member, store, event, product, gatling)
 

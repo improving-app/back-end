@@ -7,7 +7,7 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import com.google.protobuf.timestamp.Timestamp
-import com.improving.app.common.OpenTelemetry
+import com.improving.app.common.{Counter, Tracer}
 import com.improving.app.common.domain.{Address, Contact, EditableAddress, EditableContact, MemberId, OrganizationId}
 import com.improving.app.common.errors._
 import com.improving.app.tenant.domain.Validation.{draftTransitionTenantInfoValidator, tenantCommandValidator, tenantRequestValidator}
@@ -21,15 +21,15 @@ object Tenant extends StrictLogging {
   val TypeKey: EntityTypeKey[TenantRequestEnvelope] = EntityTypeKey[TenantRequestEnvelope]("Tenant")
 
   // Counter metric for tenants
-  private val totalTenants: OpenTelemetry.Counter =
-    OpenTelemetry.Counter("total-tenants", "", "The total number of tenants, active or suspended.", "each")
+  private val totalTenants: Counter =
+    Counter("total-tenants", "", "The total number of tenants, active or suspended.", "each")
 
   // Counter metric for active tenants
-  private val activeTenants: OpenTelemetry.Counter =
-    OpenTelemetry.Counter("active-tenants", "", "The total number of tenants currently active.", "each")
+  private val activeTenants: Counter =
+    Counter("active-tenants", "", "The total number of tenants currently active.", "each")
 
   // Tracer for tracing call chains
-  private val tracer = OpenTelemetry.Tracer("Tenant")
+  private val tracer = Tracer("Tenant")
 
   case class TenantRequestEnvelope(request: TenantRequestPB, replyTo: ActorRef[StatusReply[TenantResponse]])
 
@@ -274,7 +274,7 @@ object Tenant extends StrictLogging {
             )
           )
       }
-    }
+    } finally span.end()
   }
 
   private def suspendTenant(

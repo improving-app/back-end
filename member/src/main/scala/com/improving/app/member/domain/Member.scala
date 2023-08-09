@@ -7,7 +7,7 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import akka.persistence.typed.{PersistenceId, RecoveryCompleted}
 import com.google.protobuf.timestamp.Timestamp
-import com.improving.app.common.OpenTelemetry
+import com.improving.app.common.{Counter,Tracer}
 import com.improving.app.common.domain.MemberId
 import com.improving.app.common.errors.{Error, StateError}
 import com.improving.app.member.domain.MemberState.{MEMBER_STATE_ACTIVE, MEMBER_STATE_DRAFT, MEMBER_STATE_SUSPENDED}
@@ -268,14 +268,14 @@ object Member extends StrictLogging {
   }
 
   // Open Telemetry Metrics
-  private val registeredMembers: OpenTelemetry.Counter = {
-    val counter = OpenTelemetry.Counter("registered-members","members",
+  private val registeredMembers: Counter = {
+    val counter = Counter("registered-members","members",
       "Tracks total number of registered members","each")
     counter.add(0L) // FIXME: initialize to # of registered members in DB
     counter
   }
-  private val activeMembers: OpenTelemetry.Counter = {
-    val counter = OpenTelemetry.Counter("active-members", "members",
+  private val activeMembers: Counter = {
+    val counter = Counter("active-members", "members",
       "Tracks total number of active members", "each")
     counter.add(0L) // FIXME: initialize to # of active members in DB
     counter

@@ -6,7 +6,7 @@ import "com/improving/app/common/domain/ids.proto";
 import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
 import "scalapb/validate.proto";
-import "validate/validate.proto";
+// import "validate/validate.proto";
 
 option (scalapb.options) = {
   scope: FILE

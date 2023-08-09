@@ -7,7 +7,7 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import com.google.protobuf.timestamp.Timestamp
-import com.improving.app.common.OpenTelemetry
+import com.improving.app.common.{Counter, Tracer}
 import com.improving.app.common.domain.MemberId
 import com.improving.app.common.errors._
 import com.improving.app.store.domain.Validation.{draftTransitionStoreInfoValidator, storeCommandValidator}
@@ -19,15 +19,15 @@ object Store {
   val TypeKey: EntityTypeKey[StoreRequestEnvelope] = EntityTypeKey[StoreRequestEnvelope]("Store")
 
   // Counter metric for tenants
-  private val totalStores: OpenTelemetry.Counter =
-    OpenTelemetry.Counter("total-stores", "", "The total number of stores, active or suspended.", "each")
+  private val totalStores: Counter =
+    Counter("total-stores", "", "The total number of stores, active or suspended.", "each")
 
   // Counter metric for active tenants
-  private val openStores: OpenTelemetry.Counter =
-    OpenTelemetry.Counter("open-stores", "", "The total number of stores currently active.", "each")
+  private val openStores: Counter =
+    Counter("open-stores", "", "The total number of stores currently active.", "each")
 
   // Tracer for tracing call chains
-  private val tracer = OpenTelemetry.Tracer("Store")
+  private val tracer = Tracer("Store")
 
   case class StoreRequestEnvelope(request: StoreRequestPB, replyTo: ActorRef[StatusReply[StoreEvent]])
 
@@ -62,7 +62,7 @@ object Store {
   private case class DeletedState(info: StoreInfo, metaInfo: StoreMetaInfo) extends InactiveState
   private case class TerminatedState(lastMeta: StoreMetaInfo) extends EmptyState
   def apply(persistenceId: PersistenceId): Behavior[StoreRequestEnvelope] = {
-    Behaviors.setup(context =>
+    Behaviors.setup( _ =>
       EventSourcedBehavior[StoreRequestEnvelope, StoreEvent, StoreState](
         persistenceId = persistenceId,
         emptyState = UninitializedState,

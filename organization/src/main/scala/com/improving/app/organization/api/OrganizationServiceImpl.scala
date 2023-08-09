@@ -8,6 +8,8 @@ import akka.persistence.typed.PersistenceId
 import akka.util.Timeout
 import com.google.rpc.Code
 import com.google.rpc.error_details.LocalizedMessage
+import com.improving.app.common.OpenTelemetry
+import com.improving.app.common.Tracer
 import com.improving.app.common.domain.ContactList
 import com.improving.app.organization.domain._
 
@@ -15,6 +17,8 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
 class OrganizationServiceImpl(sys: ActorSystem[_]) extends OrganizationService {
+  val ot = OpenTelemetry("OrganizationService")
+  val tracer = Tracer("OrganizationService")
   implicit private val system: ActorSystem[_] = sys
   implicit val timeout: Timeout = 5.minute
   implicit val executor: ExecutionContextExecutor = system.executionContext
@@ -42,25 +46,28 @@ class OrganizationServiceImpl(sys: ActorSystem[_]) extends OrganizationService {
 
   private def processEntityRequest[ResultT](
       request: OrganizationRequest with OrganizationRequestPB
-  ): Future[ResultT] = request.organizationId
-    .map { id =>
-      val result = sharding
-        .entityRefFor(Organization.TypeKey, id.id)
-        .ask(ref => Organization.OrganizationRequestEnvelope(request.asInstanceOf[OrganizationRequestPB], ref))
-      result.transform(
-        _.getValue.asInstanceOf[ResultT],
-        exception => exceptionHandler(exception)
-      )
-    }
-    .getOrElse(
-      Future.failed(
-        GrpcServiceException.create(
-          Code.INVALID_ARGUMENT,
-          "An entity Id was not provided",
-          java.util.List.of(request.asMessage)
+  ): Future[ResultT] = {
+    val span = tracer.startSpan(s"processEntityRequest(${request.getClass.getSimpleName}")
+    request.organizationId
+      .map { id =>
+        val result = sharding
+          .entityRefFor(Organization.TypeKey, id.id)
+          .ask(ref => Organization.OrganizationRequestEnvelope(request.asInstanceOf[OrganizationRequestPB], ref))
+        result.transform(
+          _.getValue.asInstanceOf[ResultT],
+          exception => exceptionHandler(exception)
+        )
+      }
+      .getOrElse(
+        Future.failed(
+          GrpcServiceException.create(
+            Code.INVALID_ARGUMENT,
+            "An entity Id was not provided",
+            java.util.List.of(request.asMessage)
+          )
         )
       )
-    )
+  }
 
   override def establishOrganization(command: EstablishOrganization): Future[OrganizationEstablished] =
     processEntityRequest(command)
