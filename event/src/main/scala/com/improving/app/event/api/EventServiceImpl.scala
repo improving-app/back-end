@@ -9,6 +9,7 @@ import akka.pattern.StatusReply
 import akka.util.Timeout
 import com.google.protobuf.timestamp.Timestamp
 import com.google.rpc.Code
+import com.improving.app.common.{Counter, OpenTelemetry, Tracer}
 import com.improving.app.common.domain.EventId
 import com.improving.app.event.domain.Event.{EventEntityKey, EventEnvelope}
 import com.improving.app.event.domain._
@@ -25,6 +26,8 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
 
   private var cancellableStartTimers: Map[String, Cancellable] = Map()
   private var cancellableEndTimers: Map[String, Cancellable] = Map()
+
+  private val tracer: Tracer = Tracer("serviceImpl")
 
   def startStartTimer(in: EventRequestPB with EventCommand, expectedStart: Timestamp, id: EventId): Unit =
     cancellableStartTimers += id.id ->
@@ -70,55 +73,70 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
   private def handleCommand[T](
       in: EventRequestPB with EventCommand,
       eventHandler: PartialFunction[StatusReply[EventResponse], T]
-  ): Future[T] = in.eventId
-    .map { id =>
-      val eventEntity = sharding.entityRefFor(EventEntityKey, id.id)
+  ): Future[T] = {
+    val span = tracer.startSpan(s"handleCommand(${in.getClass.getSimpleName})")
+    try {
+      in.eventId
+        .map { id =>
+          val eventEntity = sharding.entityRefFor(EventEntityKey, id.id)
 
-      eventEntity
-        .ask[StatusReply[EventResponse]](replyTo => EventEnvelope(in, replyTo))
-        .map { handleResponse(eventHandler) }
-    }
-    .getOrElse(
-      Future.failed(
-        GrpcServiceException.create(
-          Code.INVALID_ARGUMENT,
-          "An entity Id was not provided",
-          java.util.List.of(in.asMessage)
+          eventEntity
+            .ask[StatusReply[EventResponse]](replyTo => EventEnvelope(in, replyTo))
+            .map {
+              handleResponse(eventHandler)
+            }
+        }
+        .getOrElse(
+          Future.failed(
+            GrpcServiceException.create(
+              Code.INVALID_ARGUMENT,
+              "An entity Id was not provided",
+              java.util.List.of(in.asMessage)
+            )
+          )
         )
-      )
-    )
+    } finally span.end()
+  }
 
   private def handleQuery[T](
       in: EventRequestPB with EventQuery,
       eventHandler: PartialFunction[StatusReply[EventResponse], T]
-  ): Future[T] = in.eventId
-    .map { id =>
-      val eventEntity = sharding.entityRefFor(EventEntityKey, id.id)
+  ): Future[T] = {
+    val span = tracer.startSpan(s"handleQuery(${in.getClass.getSimpleName})")
+    try {
+      in.eventId
+        .map { id =>
+          val eventEntity = sharding.entityRefFor(EventEntityKey, id.id)
 
-      eventEntity
-        .ask[StatusReply[EventResponse]](replyTo => EventEnvelope(in, replyTo))
-        .map { handleResponse(eventHandler) }
-    }
-    .getOrElse(
-      Future.failed(
-        GrpcServiceException.create(
-          Code.INVALID_ARGUMENT,
-          "An entity Id was not provided",
-          java.util.List.of(in.asMessage)
+          eventEntity
+            .ask[StatusReply[EventResponse]](replyTo => EventEnvelope(in, replyTo))
+            .map {
+              handleResponse(eventHandler)
+            }
+        }
+        .getOrElse(
+          Future.failed(
+            GrpcServiceException.create(
+              Code.INVALID_ARGUMENT,
+              "An entity Id was not provided",
+              java.util.List.of(in.asMessage)
+            )
+          )
         )
-      )
-    )
+    } finally span.end()
+  }
 
   /**
    * post: "event/{eventId}/"
    */
-  override def editEventInfo(in: EditEventInfo): Future[EventInfoEdited] =
+  override def editEventInfo(in: EditEventInfo): Future[EventInfoEdited] = {
     handleCommand(
       in,
-      { case StatusReply.Success(EventEventResponse(response @ EventInfoEdited(_, _, _, _), _)) =>
+      { case StatusReply.Success(EventEventResponse(response@EventInfoEdited(_, _, _, _), _)) =>
         response
       }
     )
+  }
 
   /**
    * post: "event/{eventId}/create/"

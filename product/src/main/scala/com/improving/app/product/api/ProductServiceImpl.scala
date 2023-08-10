@@ -20,8 +20,7 @@ class ProductServiceImpl()(implicit val system: ActorSystem[_]) extends ProductS
 
   implicit val ec: ExecutionContext = system.executionContext
   implicit val timeout: Timeout = Timeout(5 minute)
-  private val ot = OpenTelemetry("Product")
-  private val tracer = Tracer("main")
+  private val tracer = Tracer("Product")
 
   // Create a new product
   val sharding: ClusterSharding = ClusterSharding(system)

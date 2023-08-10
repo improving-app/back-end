@@ -5,6 +5,7 @@ import com.typesafe.sbt.packager.Keys.*
 import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
 import com.typesafe.sbt.packager.docker.{Cmd, CmdLike, DockerPlugin, ExecCmd}
 import com.lightbend.sbt.javaagent.JavaAgent
+import com.lightbend.sbt.javaagent.JavaAgent.JavaAgentKeys.javaAgents
 import sbt.Keys.{libraryDependencies, *}
 import sbt.librarymanagement.DependencyBuilders.OrganizationArtifactName
 import sbt.{Def, Project, Test, Tests, *}
@@ -176,7 +177,7 @@ object C {
   def dockerSettings(
       port: Int,
       componentName: String
-  ): Seq[Def.Setting[_ >: Task[Seq[CmdLike]] with String with Boolean with Seq[Int] with Option[String]]] = Seq(
+  ): Seq[Def.Setting[? >: Task[Seq[CmdLike]] with String with Boolean with Seq[Int] with Option[String]]] = Seq(
     dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:ol7-java17-22.3.3",
     dockerUsername := sys.props.get("docker.username"),
     dockerRepository := sys.props.get("docker.registry"),
@@ -244,7 +245,7 @@ object C {
     )
   }
   def openTelemetry(proj: Project): Project = {
-    val version = "1.27.0"
+    val version = "1.28.0"
     val alphaVersion = s"$version-alpha"
     lazy val javaAgent = "io.opentelemetry.javaagent" % "opentelemetry-javaagent" % version % "runtime"
     lazy val libs: Seq[ModuleID] = Seq(
@@ -252,7 +253,7 @@ object C {
       "io.opentelemetry" % "opentelemetry-api" % version,
       "io.opentelemetry" % "opentelemetry-sdk" % version,
       "io.opentelemetry" % "opentelemetry-exporter-jaeger" % version,
-      "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % alphaVersion,
+      "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % version,
       "io.opentelemetry" % "opentelemetry-exporter-prometheus" % alphaVersion,
       "io.opentelemetry" % "opentelemetry-exporter-zipkin" % version,
       "io.opentelemetry" % "opentelemetry-exporter-jaeger" % version,
@@ -265,8 +266,18 @@ object C {
       .enablePlugins(JavaAgent,JavaAppPackaging)
       .settings(
         libraryDependencies ++= libs,
-        // javaAgents += javaAgent,
-        // javaOptions += "-Dotel.javaagent.debug=true"
+        javaAgents += javaAgent,
+        Compile/ javacOptions ++= Seq(
+          "-Dotel.java.global-autoconfigure.enabled=true",
+          s"-Dotel.javaagent.configuration-file=opentelemetry.properties",
+          "-Dotel.javaagent.debug=false"
+        ),
+        Test / javacOptions ++= Seq(
+          "-Dotel.java.global-autoconfigure.enabled=true",
+          s"-Dotel.javaagent.configuration-file=opentelemetry.properties",
+          "-Dotel.javaagent.debug=true"
+
+        )
         //Debug OpenTelemetry Java agent
       )
   }

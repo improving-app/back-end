@@ -8,7 +8,6 @@ import akka.persistence.typed.PersistenceId
 import akka.util.Timeout
 import com.google.rpc.Code
 import com.google.rpc.error_details.LocalizedMessage
-import com.improving.app.common.OpenTelemetry
 import com.improving.app.common.Tracer
 import com.improving.app.common.domain.ContactList
 import com.improving.app.organization.domain._
@@ -17,8 +16,7 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
 class OrganizationServiceImpl(sys: ActorSystem[_]) extends OrganizationService {
-  val ot = OpenTelemetry("OrganizationService")
-  val tracer = Tracer("OrganizationService")
+  val tracer: Tracer = Tracer("OrganizationService")
   implicit private val system: ActorSystem[_] = sys
   implicit val timeout: Timeout = 5.minute
   implicit val executor: ExecutionContextExecutor = system.executionContext

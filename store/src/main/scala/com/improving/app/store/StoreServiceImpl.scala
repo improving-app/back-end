@@ -19,8 +19,7 @@ import scala.concurrent.duration.DurationInt
 
 class StoreServiceImpl(sys: ActorSystem[_]) extends StoreService {
 
-  private val openTelemetry = OpenTelemetry("Store")
-  private val tracer: Tracer = Tracer("StoreServiceImpl")
+  private val tracer: Tracer = Tracer("Store")
   implicit private val system: ActorSystem[_] = sys
   implicit val timeout: Timeout = 5.minutes
   implicit val executor: ExecutionContextExecutor = system.executionContext

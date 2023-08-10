@@ -6,7 +6,6 @@ import org.scalatest.wordspec.AnyWordSpec
 class OpenTelemetryTest extends AnyWordSpec with Matchers {
 
   "OpenTelemetry" must {
-    val ot = OpenTelemetry("Test", 9090)
     "capture counters" in {
       System.setProperty("otel.java.global-autoconfigure.enabled","true")
       System.setProperty("otel.metrics.exporter", "logging")

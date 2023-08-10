@@ -20,26 +20,6 @@ object OpenTelemetry {
   private[common] lazy val sdk: api.OpenTelemetry = GlobalOpenTelemetry.get()
 }
 
-case class OpenTelemetry(serviceName: String, prometheusPort: Int = 9090) {
-  private val resource: Resource = Resource.getDefault.merge(Resource.builder.put(SERVICE_NAME, serviceName).build)
-  private val openTelemetrySdk: OpenTelemetrySdk = OpenTelemetrySdk.builder
-    .setTracerProvider(
-      SdkTracerProvider.builder
-        .setResource(resource)
-        .addSpanProcessor(SimpleSpanProcessor.create(JaegerGrpcSpanExporter.builder().build()))
-        .build
-    ).setMeterProvider(
-    SdkMeterProvider.builder
-      .setResource(resource)
-      .registerMetricReader(PrometheusHttpServer.builder.setPort(prometheusPort).build)
-      .build
-  ).buildAndRegisterGlobal
-  Runtime.getRuntime.addShutdownHook(new Thread(() => {
-    openTelemetrySdk.close()
-  })
-  )
-}
-
 case class Tracer(scope: String)  {
   private val tracer: api.trace.Tracer = OpenTelemetry.sdk.getTracer(scope)
   def startSpan(name: String): Span = tracer.spanBuilder(name).startSpan
