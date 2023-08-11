@@ -48,7 +48,8 @@ lazy val gateway = project
     organization % "compile->compile;test->test;it->test",
     member % "compile->compile;test->test;it->test",
     store % "compile->compile;test->test;it->test",
-    event % "compile->compile;test->test;it->test"
+    event % "compile->compile;test->test;it->test",
+    product % "compile->compile;test->test;it->test"
   )
 
 lazy val gatling = project

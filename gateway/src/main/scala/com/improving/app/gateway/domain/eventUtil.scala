@@ -15,11 +15,11 @@ import com.improving.app.event.domain.{EditableEventInfo, EventMetaInfo, EventSt
 
 object eventUtil {
 
-  implicit class EventCreatedUtil(established: EventCreated) {
+  implicit class EventCreatedUtil(created: EventCreated) {
     implicit def toEvent: Event = Event(
-      eventId = established.eventId,
-      eventInfo = established.info.map(_.toInfo),
-      metaInfo = established.meta
+      eventId = created.eventId,
+      eventInfo = created.info.map(_.toInfo),
+      metaInfo = created.meta
     )
   }
 

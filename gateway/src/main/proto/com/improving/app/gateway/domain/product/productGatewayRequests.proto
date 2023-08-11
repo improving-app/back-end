@@ -1,27 +1,28 @@
 syntax =  "proto3";
 
-package com.improving.app.product.domain;
+package com.improving.app.gateway.domain.product;
 
 import "com/improving/app/common/domain/ids.proto";
-import "com/improving/app/product/domain/productDomainObjects.proto";
+import "com/improving/app/gateway/domain/product/productGatewayDomainObjects.proto";
+import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
 import "scalapb/validate.proto";
 
 option (scalapb.options) = {
-  scope: FILE
-  [scalapb.validate.file] {
-    validate_at_construction: true
-  }
-  single_file: true,
-  preamble: [
-      "sealed trait ProductRequest {\n",
-      "  val sku: Option[com.improving.app.common.domain.Sku]\n",
-      "}\n",
-      "sealed trait ProductCommand extends ProductRequest {",
-      "  val onBehalfOf: Option[com.improving.app.common.domain.MemberId]\n",
-      "}\n",
-      "sealed trait ProductQuery extends ProductRequest\n"
-  ]
+    scope: FILE
+    [scalapb.validate.file] {
+        validate_at_construction: true
+    }
+    single_file: true,
+    preamble: [
+        "sealed trait ProductRequest {\n",
+        "  val sku: Option[com.improving.app.common.domain.Sku]\n",
+        "}\n",
+        "sealed trait ProductCommand extends ProductRequest {",
+        "  val onBehalfOf: Option[com.improving.app.common.domain.MemberId]\n",
+        "}\n",
+        "sealed trait ProductQuery extends ProductRequest\n"
+    ]
 };
 
 message ProductRequestPB{

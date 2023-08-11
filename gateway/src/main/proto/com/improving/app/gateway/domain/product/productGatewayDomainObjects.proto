@@ -1,6 +1,6 @@
 syntax =  "proto3";
 
-package com.improving.app.product.domain;
+package com.improving.app.gateway.domain.product;
 
 import "com/improving/app/common/domain/ids.proto";
 import "google/protobuf/timestamp.proto";
@@ -9,10 +9,10 @@ import "scalapb/validate.proto";
 import "validate/validate.proto";
 
 option (scalapb.options) = {
-  scope: FILE
-  [scalapb.validate.file] {
-    validate_at_construction: true
-  }
+    scope: FILE
+    [scalapb.validate.file] {
+        validate_at_construction: true
+    }
 };
 
 enum ProductState {
