@@ -1,14 +1,13 @@
-import Dependencies.*
+import Dependencies._
 import akka.grpc.sbt.AkkaGrpcPlugin
 import akka.grpc.sbt.AkkaGrpcPlugin.autoImport.akkaGrpcCodeGeneratorSettings
-import com.typesafe.sbt.packager.Keys.*
+import com.typesafe.sbt.packager.Keys._
 import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
-import com.typesafe.sbt.packager.docker.{Cmd, CmdLike, DockerPlugin, ExecCmd}
+import com.typesafe.sbt.packager.docker.{CmdLike, DockerPlugin}
 import com.lightbend.sbt.javaagent.JavaAgent
 import com.lightbend.sbt.javaagent.JavaAgent.JavaAgentKeys.javaAgents
-import sbt.Keys.{libraryDependencies, *}
-import sbt.librarymanagement.DependencyBuilders.OrganizationArtifactName
-import sbt.{Def, Project, Test, Tests, *}
+import sbt.Keys._
+import sbt._
 import sbtprotoc.ProtocPlugin.autoImport.PB
 import scalapb.GeneratorOption.{FlatPackage, RetainSourceCodeInfo, SingleLineToProtoString}
 
@@ -249,7 +248,7 @@ object C {
     val alphaVersion = s"$version-alpha"
     lazy val javaAgent = "io.opentelemetry.javaagent" % "opentelemetry-javaagent" % version % "runtime"
     lazy val libs: Seq[ModuleID] = Seq(
-      "io.opentelemetry" % "opentelemetry-bom" % version pomOnly(),
+      ("io.opentelemetry" % "opentelemetry-bom" % version).pomOnly(),
       "io.opentelemetry" % "opentelemetry-api" % version,
       "io.opentelemetry" % "opentelemetry-sdk" % version,
       "io.opentelemetry" % "opentelemetry-exporter-jaeger" % version,
@@ -263,11 +262,11 @@ object C {
     )
     proj
       .configure()
-      .enablePlugins(JavaAgent,JavaAppPackaging)
+      .enablePlugins(JavaAgent, JavaAppPackaging)
       .settings(
         libraryDependencies ++= libs,
         javaAgents += javaAgent,
-        Compile/ javacOptions ++= Seq(
+        Compile / javacOptions ++= Seq(
           "-Dotel.java.global-autoconfigure.enabled=true",
           s"-Dotel.javaagent.configuration-file=opentelemetry.properties",
           "-Dotel.javaagent.debug=false"
@@ -276,9 +275,8 @@ object C {
           "-Dotel.java.global-autoconfigure.enabled=true",
           s"-Dotel.javaagent.configuration-file=opentelemetry.properties",
           "-Dotel.javaagent.debug=true"
-
         )
-        //Debug OpenTelemetry Java agent
+        // Debug OpenTelemetry Java agent
       )
   }
 }
