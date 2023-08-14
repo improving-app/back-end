@@ -4,8 +4,12 @@ import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.grpc.GrpcServiceException
 import akka.pattern.StatusReply
+import akka.persistence.cassandra.query.scaladsl.CassandraReadJournal
+import akka.persistence.query.PersistenceQuery
 import akka.util.Timeout
+import com.google.protobuf.empty.Empty
 import com.google.rpc.Code
+import com.improving.app.common.domain.MemberId
 import com.improving.app.member.domain.Member.{MemberEntityKey, MemberEnvelope}
 import com.improving.app.member.domain._
 
@@ -26,8 +30,6 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
   )
 
   Cluster(system).manager ! Join(Cluster(system).selfMember.address)
-
-  // Do not use for RegisterMember
 
   private def handleResponse[T](
       eventHandler: PartialFunction[StatusReply[MemberResponse], T]
@@ -120,4 +122,12 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
       in,
       { case StatusReply.Success(response @ MemberData(_, _, _, _)) => response }
     )
+
+  override def getAllMemberIds(in: Empty): Future[AllMemberIds] = {
+    val readJournal =
+      PersistenceQuery(system).readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
+    readJournal.currentPersistenceIds().runFold(Seq[MemberId]())(_ :+ MemberId(_)).map { seq =>
+      AllMemberIds(seq)
+    }
+  }
 }

@@ -4,6 +4,7 @@ package com.improving.app.member.api;
 
 import "com/improving/app/member/domain/memberEvents.proto";
 import "com/improving/app/member/domain/memberRequests.proto";
+import "google/protobuf/empty.proto";
 
 //import "google/api/annotations.proto";
 
@@ -34,6 +35,10 @@ service MemberService {
 
   rpc GetMemberInfo(domain.GetMemberInfo) returns (domain.MemberData) {
       //get:"member/{memberId}/"
+  }
+
+  rpc GetAllMemberIds(google.protobuf.Empty) returns (domain.AllMemberIds) {
+
   }
 
 }

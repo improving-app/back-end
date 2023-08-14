@@ -7,11 +7,9 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport
 import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
-import com.improving.app.common.domain.MemberId
 import com.improving.app.gateway.api.handlers.MemberGatewayHandler
 import com.improving.app.gateway.domain.member.{
   ActivateMember => GatewayActivateMember,
-  GetMemberInfo => GatewayGetMemberInfo,
   RegisterMember => GatewayRegisterMember,
   TerminateMember => GatewayTerminateMember
 }
@@ -50,6 +48,14 @@ trait MemberGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggi
               ) { memberTerminated =>
                 complete(JsonFormat.toJsonString(memberTerminated))
               }
+            }
+          }
+        } ~ pathPrefix("allIds") {
+          get {
+            onSuccess(
+              handler.getAllMemberIds
+            ) { allIds =>
+              complete(JsonFormat.toJsonString(allIds))
             }
           }
         } ~ pathPrefix(Segment) { memberId =>

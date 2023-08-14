@@ -6,6 +6,7 @@ import akka.util.Timeout
 import com.improving.app.common.domain.MemberId
 import com.improving.app.gateway.domain.member.{
   ActivateMember => GatewayActivateMember,
+  AllMemberIds,
   MemberActivated,
   MemberData,
   MemberRegistered,
@@ -110,4 +111,7 @@ class MemberGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = N
         )
       }
   }
+
+  def getAllMemberIds: Future[AllMemberIds] =
+    memberClient.getAllMemberIds(com.google.protobuf.empty.Empty()).map(response => AllMemberIds(response.memberIds))
 }
