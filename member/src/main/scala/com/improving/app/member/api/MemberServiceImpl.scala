@@ -76,15 +76,16 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
   ): Future[T] = {
     val span = tracer.startSpan(s"handleQuery(${in.getClass.getSimpleName})")
     try {
-      in.memberId.map { id =>
-        val memberEntity = sharding.entityRefFor(MemberEntityKey, id.id)
+      in.memberId
+        .map { id =>
+          val memberEntity = sharding.entityRefFor(MemberEntityKey, id.id)
 
-        memberEntity
-          .ask[StatusReply[MemberResponse]](replyTo => MemberEnvelope(in, replyTo))
-          .map {
-            handleResponse(eventHandler)
-          }
-      }
+          memberEntity
+            .ask[StatusReply[MemberResponse]](replyTo => MemberEnvelope(in, replyTo))
+            .map {
+              handleResponse(eventHandler)
+            }
+        }
         .getOrElse(
           Future.failed(
             GrpcServiceException.create(

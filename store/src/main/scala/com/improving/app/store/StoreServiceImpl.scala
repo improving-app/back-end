@@ -12,7 +12,30 @@ import com.improving.app.common.OpenTelemetry
 import com.improving.app.common.Tracer
 import com.improving.app.common.errors.ValidationError
 import com.improving.app.store.api.StoreService
-import com.improving.app.store.domain.{AddProductsToStore, CloseStore, CreateStore, DeleteStore, EditStoreInfo, MakeStoreReady, OpenStore, ProductsAddedToStore, ProductsRemovedFromStore, RemoveProductsFromStore, Store, StoreClosed, StoreCommand, StoreCreated, StoreDeleted, StoreEventMessage, StoreInfoEdited, StoreIsReady, StoreOpened, StoreRequestPB, StoreTerminated, TerminateStore}
+import com.improving.app.store.domain.{
+  AddProductsToStore,
+  CloseStore,
+  CreateStore,
+  DeleteStore,
+  EditStoreInfo,
+  MakeStoreReady,
+  OpenStore,
+  ProductsAddedToStore,
+  ProductsRemovedFromStore,
+  RemoveProductsFromStore,
+  Store,
+  StoreClosed,
+  StoreCommand,
+  StoreCreated,
+  StoreDeleted,
+  StoreEventMessage,
+  StoreInfoEdited,
+  StoreIsReady,
+  StoreOpened,
+  StoreRequestPB,
+  StoreTerminated,
+  TerminateStore
+}
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.concurrent.duration.DurationInt

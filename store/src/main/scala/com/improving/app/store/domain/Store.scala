@@ -62,7 +62,7 @@ object Store {
   private case class DeletedState(info: StoreInfo, metaInfo: StoreMetaInfo) extends InactiveState
   private case class TerminatedState(lastMeta: StoreMetaInfo) extends EmptyState
   def apply(persistenceId: PersistenceId): Behavior[StoreRequestEnvelope] = {
-    Behaviors.setup( _ =>
+    Behaviors.setup(_ =>
       EventSourcedBehavior[StoreRequestEnvelope, StoreEvent, StoreState](
         persistenceId = persistenceId,
         emptyState = UninitializedState,
@@ -88,61 +88,61 @@ object Store {
               case _: EmptyState =>
                 envelope.request match {
                   case command: CreateStore => createStore(command)
-                  case _ => Left(StateError("Message type not supported in empty state"))
+                  case _                    => Left(StateError("Message type not supported in empty state"))
                 }
               case draftState: DraftState =>
                 envelope.request match {
-                  case command: MakeStoreReady => makeStoreReady(draftState, command)
-                  case command: DeleteStore => deleteStore(draftState, command)
-                  case command: TerminateStore => terminateStore(draftState, command)
-                  case command: EditStoreInfo => editStoreInfo(draftState, command)
-                  case command: AddProductsToStore => addProductsToStore(draftState, command)
+                  case command: MakeStoreReady          => makeStoreReady(draftState, command)
+                  case command: DeleteStore             => deleteStore(draftState, command)
+                  case command: TerminateStore          => terminateStore(draftState, command)
+                  case command: EditStoreInfo           => editStoreInfo(draftState, command)
+                  case command: AddProductsToStore      => addProductsToStore(draftState, command)
                   case command: RemoveProductsFromStore => removeProductsFromStore(draftState, command)
-                  case _ => Left(StateError("Message type not supported in draft state"))
+                  case _                                => Left(StateError("Message type not supported in draft state"))
                 }
               case readyState: ReadyState =>
                 envelope.request match {
-                  case command: OpenStore => openStore(readyState, command)
-                  case command: CloseStore => closeStore(readyState, command)
-                  case command: TerminateStore => terminateStore(readyState, command)
-                  case command: EditStoreInfo => editStoreInfo(readyState, command)
-                  case command: AddProductsToStore => addProductsToStore(readyState, command)
+                  case command: OpenStore               => openStore(readyState, command)
+                  case command: CloseStore              => closeStore(readyState, command)
+                  case command: TerminateStore          => terminateStore(readyState, command)
+                  case command: EditStoreInfo           => editStoreInfo(readyState, command)
+                  case command: AddProductsToStore      => addProductsToStore(readyState, command)
                   case command: RemoveProductsFromStore => removeProductsFromStore(readyState, command)
-                  case _: DeleteStore => Left(StateError("Store must be closed before deleting"))
-                  case _ => Left(StateError("Message type not supported in ready state"))
+                  case _: DeleteStore                   => Left(StateError("Store must be closed before deleting"))
+                  case _                                => Left(StateError("Message type not supported in ready state"))
                 }
               case openState: OpenState =>
                 envelope.request match {
-                  case command: CloseStore => closeStore(openState, command)
-                  case command: TerminateStore => terminateStore(openState, command)
-                  case command: EditStoreInfo => editStoreInfo(openState, command)
-                  case command: AddProductsToStore => addProductsToStore(openState, command)
+                  case command: CloseStore              => closeStore(openState, command)
+                  case command: TerminateStore          => terminateStore(openState, command)
+                  case command: EditStoreInfo           => editStoreInfo(openState, command)
+                  case command: AddProductsToStore      => addProductsToStore(openState, command)
                   case command: RemoveProductsFromStore => removeProductsFromStore(openState, command)
-                  case _: DeleteStore => Left(StateError("Store must be closed before deleting"))
-                  case _ => Left(StateError("Message type not supported in open state"))
+                  case _: DeleteStore                   => Left(StateError("Store must be closed before deleting"))
+                  case _                                => Left(StateError("Message type not supported in open state"))
                 }
               case closedState: ClosedState =>
                 envelope.request match {
-                  case command: OpenStore => openStore(closedState, command)
-                  case command: DeleteStore => deleteStore(closedState, command)
-                  case command: TerminateStore => terminateStore(closedState, command)
-                  case command: EditStoreInfo => editStoreInfo(closedState, command)
-                  case command: AddProductsToStore => addProductsToStore(closedState, command)
+                  case command: OpenStore               => openStore(closedState, command)
+                  case command: DeleteStore             => deleteStore(closedState, command)
+                  case command: TerminateStore          => terminateStore(closedState, command)
+                  case command: EditStoreInfo           => editStoreInfo(closedState, command)
+                  case command: AddProductsToStore      => addProductsToStore(closedState, command)
                   case command: RemoveProductsFromStore => removeProductsFromStore(closedState, command)
                   case _ => Left(StateError("Message type not supported in closed state"))
                 }
               case deletedState: DeletedState =>
                 envelope.request match {
                   case command: TerminateStore => terminateStore(deletedState, command)
-                  case _ => Left(StateError("Message type not supported in deleted state"))
+                  case _                       => Left(StateError("Message type not supported in deleted state"))
                 }
             }
             result match {
-              case Left(error) => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
+              case Left(error)  => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
               case Right(event) => Effect.persist(event).thenReply(envelope.replyTo) { _ => StatusReply.Success(event) }
             }
           case Right(Some(errors)) => Effect.reply(envelope.replyTo)(StatusReply.Error(errors.message))
-          case Left(r) => r
+          case Left(r)             => r
         }
       } finally span.end()
   }
@@ -169,39 +169,39 @@ object Store {
           }
         case StoreOpened(_, Some(info), Some(metaInfo), _) =>
           state match {
-            case _: ReadyState => OpenState(info, metaInfo)
+            case _: ReadyState  => OpenState(info, metaInfo)
             case _: ClosedState => OpenState(info, metaInfo)
-            case x: StoreState => x
+            case x: StoreState  => x
           }
         case StoreClosed(_, Some(info), Some(metaInfo), _) =>
           state match {
             case _: ReadyState => ClosedState(info, metaInfo)
-            case _: OpenState => ClosedState(info, metaInfo)
+            case _: OpenState  => ClosedState(info, metaInfo)
             case x: StoreState => x
           }
         case StoreDeleted(_, Some(info), Some(metaInfo), _) =>
           state match {
-            case _: DraftState => DeletedState(info, metaInfo)
+            case _: DraftState  => DeletedState(info, metaInfo)
             case _: ClosedState => DeletedState(info, metaInfo)
-            case x: StoreState => x
+            case x: StoreState  => x
           }
         case StoreTerminated(_, Some(metaInfo), _) =>
           state match {
             case _: InitializedState => TerminatedState(metaInfo)
-            case x: StoreState => x
+            case x: StoreState       => x
           }
         case StoreInfoEdited(
-        _,
-        Some(newInfo),
-        Some(metaInfo),
-        _
-        ) =>
+              _,
+              Some(newInfo),
+              Some(metaInfo),
+              _
+            ) =>
           state match {
-            case _: DraftState => DraftState(newInfo, metaInfo)
-            case _: ReadyState => ReadyState(newInfo.toInfo, metaInfo)
-            case _: OpenState => OpenState(newInfo.toInfo, metaInfo)
+            case _: DraftState  => DraftState(newInfo, metaInfo)
+            case _: ReadyState  => ReadyState(newInfo.toInfo, metaInfo)
+            case _: OpenState   => OpenState(newInfo.toInfo, metaInfo)
             case _: ClosedState => ClosedState(newInfo.toInfo, metaInfo)
-            case x: StoreState => x
+            case x: StoreState  => x
           }
         case _ => state
       }

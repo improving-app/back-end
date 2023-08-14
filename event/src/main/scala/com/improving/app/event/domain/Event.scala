@@ -156,7 +156,9 @@ object Event extends StrictLogging {
                             editEventInfo(Right(info), meta, editEventInfoCommand)
                           case _ =>
                             Left(
-                              StateError(s"${command.request.productPrefix} command cannot be used on a scheduled Event")
+                              StateError(
+                                s"${command.request.productPrefix} command cannot be used on a scheduled Event"
+                              )
                             )
                         }
                       case InProgressEventState(info, meta) =>
@@ -227,13 +229,13 @@ object Event extends StrictLogging {
                 }
 
                 result match {
-                  case Left(error) => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
+                  case Left(error)  => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
                   case Right(event) => replyWithResponseEvent(event)
                 }
               case Some(errors) => Effect.reply(command.replyTo)(StatusReply.Error(errors.message))
             }
-          case EventRequestPB.Empty => Effect.reply(command.replyTo)(
-            StatusReply.Error("Message was not an EventRequest"))
+          case EventRequestPB.Empty =>
+            Effect.reply(command.replyTo)(StatusReply.Error("Message was not an EventRequest"))
         }
       } finally span.end()
   }
@@ -362,7 +364,7 @@ object Event extends StrictLogging {
               }
             case _ => state
           }
-        case _: EventData => state
+        case _: EventData        => state
         case EventResponse.Empty => state
 
         case other =>
@@ -409,9 +411,7 @@ object Event extends StrictLogging {
         scheduledOn = Some(now),
         scheduledBy = scheduleEventCommand.onBehalfOf,
         currentState = EVENT_STATE_SCHEDULED,
-        eventStateInfo = Some(EventStateInfo(
-          EventStateInfo.Value.ScheduledEventInfo(ScheduledEventInfo()))
-        )
+        eventStateInfo = Some(EventStateInfo(EventStateInfo.Value.ScheduledEventInfo(ScheduledEventInfo())))
       )
 
       info match {
@@ -680,7 +680,7 @@ object Event extends StrictLogging {
           val event = EventInfoEdited(
             editEventInfoCommand.eventId,
             Some(info match {
-              case Right(i: EventInfo) => i.updateInfo(editable).toEditable
+              case Right(i: EventInfo)        => i.updateInfo(editable).toEditable
               case Left(e: EditableEventInfo) => e.updateInfo(editable)
             }),
             Some(newMeta)

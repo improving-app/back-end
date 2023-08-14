@@ -9,7 +9,7 @@ import akka.pattern.StatusReply
 import akka.util.Timeout
 import com.google.protobuf.timestamp.Timestamp
 import com.google.rpc.Code
-import com.improving.app.common.{Counter, OpenTelemetry, Tracer}
+import com.improving.app.common.Tracer
 import com.improving.app.common.domain.EventId
 import com.improving.app.event.domain.Event.{EventEntityKey, EventEnvelope}
 import com.improving.app.event.domain._
@@ -132,7 +132,7 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
   override def editEventInfo(in: EditEventInfo): Future[EventInfoEdited] = {
     handleCommand(
       in,
-      { case StatusReply.Success(EventEventResponse(response@EventInfoEdited(_, _, _, _), _)) =>
+      { case StatusReply.Success(EventEventResponse(response @ EventInfoEdited(_, _, _, _), _)) =>
         response
       }
     )

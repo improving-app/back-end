@@ -7,11 +7,15 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import akka.persistence.typed.{PersistenceId, RecoveryCompleted}
 import com.google.protobuf.timestamp.Timestamp
-import com.improving.app.common.{Counter,Tracer}
+import com.improving.app.common.{Counter, Tracer}
 import com.improving.app.common.domain.MemberId
 import com.improving.app.common.errors.{Error, StateError}
 import com.improving.app.member.domain.MemberState.{MEMBER_STATE_ACTIVE, MEMBER_STATE_DRAFT, MEMBER_STATE_SUSPENDED}
-import com.improving.app.member.domain.Validation.{draftTransitionMemberInfoValidator, memberCommandValidator, memberQueryValidator}
+import com.improving.app.member.domain.Validation.{
+  draftTransitionMemberInfoValidator,
+  memberCommandValidator,
+  memberQueryValidator
+}
 import com.improving.app.member.domain.util.{EditableMemberInfoUtil, MemberInfoUtil}
 import com.typesafe.scalalogging.StrictLogging
 
@@ -124,7 +128,8 @@ object Member extends StrictLogging {
                       case MemberState.MEMBER_STATE_ACTIVE =>
                         command.request match {
                           case suspendMemberCommand: SuspendMember => suspendMember(x.meta, suspendMemberCommand)
-                          case terminateMemberCommand: TerminateMember => terminateMember(x.meta, terminateMemberCommand)
+                          case terminateMemberCommand: TerminateMember =>
+                            terminateMember(x.meta, terminateMemberCommand)
                           case editMemberInfoCommand: EditMemberInfo =>
                             editMemberInfo(Right(x.info), x.meta, editMemberInfoCommand)
                           case _ =>
@@ -137,7 +142,8 @@ object Member extends StrictLogging {
                           case activateMemberCommand: ActivateMember =>
                             activateMember(Right(x.info), x.meta, activateMemberCommand)
                           case suspendMemberCommand: SuspendMember => suspendMember(x.meta, suspendMemberCommand)
-                          case terminateMemberCommand: TerminateMember => terminateMember(x.meta, terminateMemberCommand)
+                          case terminateMemberCommand: TerminateMember =>
+                            terminateMember(x.meta, terminateMemberCommand)
                           case _ =>
                             Left(
                               StateError(
@@ -158,7 +164,7 @@ object Member extends StrictLogging {
                 }
 
                 result match {
-                  case Left(error) => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
+                  case Left(error)  => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
                   case Right(event) => replyWithResponseEvent(event)
                 }
               case Some(errors) => Effect.reply(command.replyTo)(StatusReply.Error(errors.message))
@@ -171,12 +177,12 @@ object Member extends StrictLogging {
                     state match {
                       case x: DefinedMemberState =>
                         getMemberInfo(Right(x.info), x.meta, request) match {
-                          case Left(error) => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
+                          case Left(error)  => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
                           case Right(event) => replyWithResponseEvent(event)
                         }
                       case x: DraftMemberState =>
                         getMemberInfo(Left(x.editableInfo), x.meta, request) match {
-                          case Left(error) => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
+                          case Left(error)  => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
                           case Right(event) => replyWithResponseEvent(event)
 
                         }
@@ -246,7 +252,7 @@ object Member extends StrictLogging {
             case memberTerminatedEvent: MemberTerminated =>
               state match {
                 case _: RegisteredMemberState => TerminatedMemberState(lastMeta = memberTerminatedEvent.getLastMeta)
-                case _ => state
+                case _                        => state
               }
 
             case memberInfoEdited: MemberInfoEdited =>
@@ -266,7 +272,7 @@ object Member extends StrictLogging {
               }
             case _ => state
           }
-        case _: MemberData => state
+        case _: MemberData        => state
         case MemberResponse.Empty => state
 
         case other =>
@@ -277,14 +283,12 @@ object Member extends StrictLogging {
 
   // Open Telemetry Metrics
   private val registeredMembers: Counter = {
-    val counter = Counter("registered-members","members",
-      "Tracks total number of registered members","each")
+    val counter = Counter("registered-members", "members", "Tracks total number of registered members", "each")
     counter.add(0L) // FIXME: initialize to # of registered members in DB
     counter
   }
   private val activeMembers: Counter = {
-    val counter = Counter("active-members", "members",
-      "Tracks total number of active members", "each")
+    val counter = Counter("active-members", "members", "Tracks total number of active members", "each")
     counter.add(0L) // FIXME: initialize to # of active members in DB
     counter
   }
@@ -314,9 +318,9 @@ object Member extends StrictLogging {
   }
 
   private def activatedMember(
-    activateMemberCommand: ActivateMember,
-    newMeta: MemberMetaInfo
-  ): Either[Error,MemberResponse] = {
+      activateMemberCommand: ActivateMember,
+      newMeta: MemberMetaInfo
+  ): Either[Error, MemberResponse] = {
     activeMembers.add(1L)
     Right(
       MemberEventResponse(
@@ -410,7 +414,7 @@ object Member extends StrictLogging {
           val event = MemberInfoEdited(
             editMemberInfoCommand.memberId,
             Some(info match {
-              case Right(i: MemberInfo) => i.updateInfo(editable).toEditable
+              case Right(i: MemberInfo)  => i.updateInfo(editable).toEditable
               case Left(e: EditableInfo) => e.updateInfo(editable)
             }),
             Some(newMeta)

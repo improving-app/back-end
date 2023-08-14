@@ -15,12 +15,11 @@ import io.opentelemetry.sdk.trace.SdkTracerProvider
 import io.opentelemetry.sdk.trace.`export`.SimpleSpanProcessor
 import io.opentelemetry.semconv.resource.attributes.ResourceAttributes.SERVICE_NAME
 
-
 object OpenTelemetry {
   private[common] lazy val sdk: api.OpenTelemetry = GlobalOpenTelemetry.get()
 }
 
-case class Tracer(scope: String)  {
+case class Tracer(scope: String) {
   private val tracer: api.trace.Tracer = OpenTelemetry.sdk.getTracer(scope)
   def startSpan(name: String): Span = tracer.spanBuilder(name).startSpan
 }
@@ -47,7 +46,8 @@ case class Counter(name: String, contextName: String, description: String, uOfM:
     counter.add(value, attributes, context)
 }
 
-case class Histogram(name: String, contextName: String, description: String, unit: String) extends api.metrics.LongHistogram {
+case class Histogram(name: String, contextName: String, description: String, unit: String)
+    extends api.metrics.LongHistogram {
   private val meter: api.metrics.Meter = OpenTelemetry.sdk.getMeter(contextName)
   private val histogram: api.metrics.LongHistogram =
     meter.histogramBuilder(name).ofLongs.setDescription(description).setUnit(unit).build()
@@ -60,4 +60,3 @@ case class Histogram(name: String, contextName: String, description: String, uni
   override def record(value: Long, attributes: Attributes, context: Context): Unit =
     histogram.record(value, attributes, context)
 }
-
