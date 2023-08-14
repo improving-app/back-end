@@ -8,6 +8,8 @@ import akka.persistence.typed.PersistenceId
 import akka.util.Timeout
 import com.google.rpc.Code
 import com.google.rpc.error_details.LocalizedMessage
+import com.improving.app.common.OpenTelemetry
+import com.improving.app.common.Tracer
 import com.improving.app.common.errors.ValidationError
 import com.improving.app.store.api.StoreService
 import com.improving.app.store.domain.{
@@ -40,6 +42,7 @@ import scala.concurrent.duration.DurationInt
 
 class StoreServiceImpl(sys: ActorSystem[_]) extends StoreService {
 
+  private val tracer: Tracer = Tracer("Store")
   implicit private val system: ActorSystem[_] = sys
   implicit val timeout: Timeout = 5.minutes
   implicit val executor: ExecutionContextExecutor = system.executionContext
@@ -75,22 +78,27 @@ class StoreServiceImpl(sys: ActorSystem[_]) extends StoreService {
 
   private def handleRequest(
       in: StoreRequestPB with StoreCommand,
-  ): Future[StoreEventMessage.SealedValue] = in.storeId
-    .map { id =>
-      val result = sharding
-        .entityRefFor(Store.TypeKey, id.id)
-        .ask(ref => Store.StoreRequestEnvelope(in, ref))
-      result.transform(result => result.getValue.asMessage.sealedValue, exception => exceptionHandler(exception))
-    }
-    .getOrElse(
-      Future.failed(
-        GrpcServiceException.create(
-          Code.INVALID_ARGUMENT,
-          "An entity Id was not provided",
-          java.util.List.of(in.asMessage)
+  ): Future[StoreEventMessage.SealedValue] = {
+    val span = tracer.startSpan("handleRequest")
+    try {
+      in.storeId
+        .map { id =>
+          val result = sharding
+            .entityRefFor(Store.TypeKey, id.id)
+            .ask(ref => Store.StoreRequestEnvelope(in, ref))
+          result.transform(result => result.getValue.asMessage.sealedValue, exception => exceptionHandler(exception))
+        }
+        .getOrElse(
+          Future.failed(
+            GrpcServiceException.create(
+              Code.INVALID_ARGUMENT,
+              "An entity Id was not provided",
+              java.util.List.of(in.asMessage)
+            )
+          )
         )
-      )
-    )
+    } finally span.end()
+  }
 
   override def createStore(in: CreateStore): Future[StoreCreated] = handleRequest(in).map(_.storeCreated.get)
 

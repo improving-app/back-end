@@ -7,7 +7,7 @@ import "com/improving/app/event/domain/eventDomainObjects.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
-import "validate/validate.proto";
+// import "validate/validate.proto";
 import "scalapb/validate.proto";
 
 option (scalapb.options) = {
@@ -31,7 +31,7 @@ message EventRequestPB{
     option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
 
     oneof sealed_value {
-        EditEventInfo edit_event_info = 1; 
+        EditEventInfo edit_event_info = 1;
         CreateEvent create_event = 2;
         ScheduleEvent schedule_event = 3;
         CancelEvent cancel_event = 4;
@@ -46,8 +46,8 @@ message EditEventInfo {
     option (scalapb.message) = {
         extends: [ "EventCommand" ]
     };
-    common.domain.EventId event_id = 1; 
-    EditableEventInfo info = 2;  
+    common.domain.EventId event_id = 1;
+    EditableEventInfo info = 2;
     common.domain.MemberId on_behalf_of = 3;
 }
 
@@ -55,8 +55,8 @@ message CreateEvent {
     option (scalapb.message) = {
         extends: [ "EventCommand" ]
     };
-    common.domain.EventId event_id = 1; 
-    EditableEventInfo info = 2;  
+    common.domain.EventId event_id = 1;
+    EditableEventInfo info = 2;
     common.domain.MemberId on_behalf_of = 4;
 }
 
@@ -73,7 +73,7 @@ message CancelEvent {
     option (scalapb.message) = {
         extends: [ "EventCommand" ]
     };
-    common.domain.EventId event_id = 1; 
+    common.domain.EventId event_id = 1;
     string reason = 2;
     common.domain.MemberId on_behalf_of = 3;
 }
@@ -82,7 +82,7 @@ message RescheduleEvent {
     option (scalapb.message) = {
         extends: [ "EventCommand" ]
     };
-    common.domain.EventId event_id = 1; 
+    common.domain.EventId event_id = 1;
     google.protobuf.Timestamp start = 2;
     google.protobuf.Timestamp end = 3;
     common.domain.MemberId on_behalf_of = 4;
@@ -92,7 +92,7 @@ message DelayEvent {
     option (scalapb.message) = {
         extends: [ "EventCommand" ]
     };
-    common.domain.EventId event_id = 1; 
+    common.domain.EventId event_id = 1;
     string reason = 2;
     google.protobuf.Duration expected_duration = 3;
     common.domain.MemberId on_behalf_of = 4;
@@ -102,7 +102,7 @@ message StartEvent {
     option (scalapb.message) = {
         extends: [ "EventCommand" ]
     };
-    common.domain.EventId event_id = 1; 
+    common.domain.EventId event_id = 1;
     common.domain.MemberId on_behalf_of = 2;
 }
 
@@ -110,6 +110,6 @@ message EndEvent {
     option (scalapb.message) = {
         extends: [ "EventCommand" ]
     };
-    common.domain.EventId event_id = 1; 
+    common.domain.EventId event_id = 1;
     common.domain.MemberId on_behalf_of = 2;
 }

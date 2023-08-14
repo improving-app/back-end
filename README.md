@@ -24,19 +24,27 @@ For this, `applyForInternalIP.yaml`, will be used in place of `scyllaApply.yaml`
 
 ## Installation Instructions
 1. Install microk8s if not already installed (: see https://microk8s.io/docs/install-alternatives for instructions)
-   - If on mac, just run `brew install microk8s`
-2. Enable dns with `microk8s enable dns`
-3. Install scylla
+   - If on mac, just run `brew install ubuntu/microk8s/microk8s` but make sure you read 
+   [these notes](https://microk8s.io/docs/install-macos)
+2. Run `mickrok8s status` to see which addons are enabled
+3. Run `microk8s enable <name>` to ensure these addons are enabled:
+   `dashboard, dns, metrics-server, observability, registry`
+4. Copy the `microk8s/microk8s-config.yaml` file to the standard config location
+   per [these instructions](https://microk8s.io/docs/add-launch-config). You will need to repeat this every time
+   the YAML file changes. 
+5. Install scylla
    1. `docker run --name some-scylla -d scylladb/scylla` to download scylla-db image locally as a container
    2. `docker save scylladb/scylla > scylla.tar` to save container for uploading
    3. `multipass transfer scylla.tar microk8s-vm:/tmp/scylla.tar` to transfer image into multipass directory
    4. `microk8s ctr image import /tmp/scylla.tar` to import from multipass image to microk8s
    5. `microk8s kubectl apply -f scyllaApplyForInternalIP.yaml`
-4. Upload or push directories 
+6. Upload or push directories 
    - Option 1: `./importAllFromDockerLocally.sh` or `./importToMicro.sh improving-app-[serviceName]` for individual services
    - Option 2: `./tagAllForDocker.sh`
-5. Run command `microk8s kubectl apply -f microApplyLocal.yaml` for Option 1 or `microk8s kubectl apply -f microApply.yaml` for Option 2 in previous step
+7. Run command `microk8s kubectl apply -f microApplyLocal.yaml` for Option 1 or `microk8s kubectl apply -f microApply.yaml` for Option 2 in previous step
 6. Check status with `microk8s kubectl get pods -o wide`
+7. `microk8s kubectl apply -f applyForInternalIP.yaml`
+6. Run `microk8s kubectl get all --all-namespaces` to view all services in k8s
    - expected results should look like below. Use `NAME` column to fill in `[pod-name]` in steps to expose
    ```
    NAME                             READY   STATUS    RESTARTS       AGE     IP             NODE          NOMINATED NODE   READINESS GATES

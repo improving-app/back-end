@@ -33,18 +33,15 @@ object Dependencies {
     "com.thesamet.scalapb" %% "compilerplugin" % scalapbCompiler
 
   val basicTestingDependencies: Seq[ModuleID] = Seq(
-    "org.scalatest" %% "scalatest" % scalatest % "it, test",
+    "org.scalatest" %% "scalatest" % scalatest % "test",
     "org.scalamock" %% "scalamock" % scalamock % Test,
     "org.scalacheck" %% "scalacheck" % scalacheck % "test",
   )
 
   val akkaHttpTestingDependencies: Seq[ModuleID] = Seq(
     "com.typesafe.akka" %% "akka-stream-testkit" % akka % Test,
-    "com.typesafe.akka" %% "akka-stream-testkit" % akka % IntegrationTest,
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttp % Test,
-    "com.typesafe.akka" %% "akka-http-testkit" % akkaHttp % IntegrationTest,
-    "com.typesafe.akka" %% "akka-discovery" % akka % Test,
-    "com.typesafe.akka" %% "akka-discovery" % akka % IntegrationTest
+    "com.typesafe.akka" %% "akka-discovery" % akka % Test
   )
 
   val loggingDependencies: Seq[ModuleID] = Seq(
@@ -125,3 +122,4 @@ object Dependencies {
     "com.github.phisgr" % "gatling-grpc" % "0.16.0" % "test"
   )
 }
+

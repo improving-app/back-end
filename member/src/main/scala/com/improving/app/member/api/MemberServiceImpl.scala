@@ -9,6 +9,7 @@ import akka.persistence.query.PersistenceQuery
 import akka.util.Timeout
 import com.google.protobuf.empty.Empty
 import com.google.rpc.Code
+import com.improving.app.common.{OpenTelemetry, Tracer}
 import com.improving.app.common.domain.MemberId
 import com.improving.app.member.domain.Member.{MemberEntityKey, MemberEnvelope}
 import com.improving.app.member.domain._
@@ -22,6 +23,7 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
   implicit val ec: ExecutionContext = system.executionContext
   implicit val timeout: Timeout = Timeout(5 minute)
   implicit val executor: ExecutionContextExecutor = system.executionContext
+  private val tracer: Tracer = Tracer("Member")
 
   // Create a new member
   val sharding: ClusterSharding = ClusterSharding(system)
@@ -43,44 +45,58 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
   private def handleCommand[T](
       in: MemberRequestPB with MemberCommand,
       eventHandler: PartialFunction[StatusReply[MemberResponse], T]
-  ): Future[T] = in.memberId
-    .map { id =>
-      val memberEntity = sharding.entityRefFor(MemberEntityKey, id.id)
+  ): Future[T] = {
+    val span = tracer.startSpan(s"handleCommand(${in.getClass.getSimpleName})")
+    try {
+      in.memberId
+        .map { id =>
+          val memberEntity = sharding.entityRefFor(MemberEntityKey, id.id)
 
-      memberEntity
-        .ask[StatusReply[MemberResponse]](replyTo => MemberEnvelope(in, replyTo))
-        .map { handleResponse(eventHandler) }
-    }
-    .getOrElse(
-      Future.failed(
-        GrpcServiceException.create(
-          Code.INVALID_ARGUMENT,
-          "An entity Id was not provided",
-          java.util.List.of(in.asMessage)
+          memberEntity
+            .ask[StatusReply[MemberResponse]](replyTo => MemberEnvelope(in, replyTo))
+            .map {
+              handleResponse(eventHandler)
+            }
+        }
+        .getOrElse(
+          Future.failed(
+            GrpcServiceException.create(
+              Code.INVALID_ARGUMENT,
+              "An entity Id was not provided",
+              java.util.List.of(in.asMessage)
+            )
+          )
         )
-      )
-    )
+    } finally span.end()
+  }
 
   private def handleQuery[T](
       in: MemberRequestPB with MemberQuery,
       eventHandler: PartialFunction[StatusReply[MemberResponse], T]
-  ): Future[T] = in.memberId
-    .map { id =>
-      val memberEntity = sharding.entityRefFor(MemberEntityKey, id.id)
+  ): Future[T] = {
+    val span = tracer.startSpan(s"handleQuery(${in.getClass.getSimpleName})")
+    try {
+      in.memberId
+        .map { id =>
+          val memberEntity = sharding.entityRefFor(MemberEntityKey, id.id)
 
-      memberEntity
-        .ask[StatusReply[MemberResponse]](replyTo => MemberEnvelope(in, replyTo))
-        .map { handleResponse(eventHandler) }
-    }
-    .getOrElse(
-      Future.failed(
-        GrpcServiceException.create(
-          Code.INVALID_ARGUMENT,
-          "An entity Id was not provided",
-          java.util.List.of(in.asMessage)
+          memberEntity
+            .ask[StatusReply[MemberResponse]](replyTo => MemberEnvelope(in, replyTo))
+            .map {
+              handleResponse(eventHandler)
+            }
+        }
+        .getOrElse(
+          Future.failed(
+            GrpcServiceException.create(
+              Code.INVALID_ARGUMENT,
+              "An entity Id was not provided",
+              java.util.List.of(in.asMessage)
+            )
+          )
         )
-      )
-    )
+    } finally span.end()
+  }
 
   override def registerMember(in: RegisterMember): Future[MemberRegistered] = {
     handleCommand(

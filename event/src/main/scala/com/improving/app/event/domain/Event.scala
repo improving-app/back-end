@@ -7,6 +7,7 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import akka.persistence.typed.{PersistenceId, RecoveryCompleted}
 import com.google.protobuf.timestamp.Timestamp
+import com.improving.app.common.Tracer
 import com.improving.app.common.domain.EventId
 import com.improving.app.common.errors.{Error, StateError}
 import com.improving.app.event.domain.EventState._
@@ -21,6 +22,8 @@ object Event extends StrictLogging {
   private val clock: Clock = Clock.systemDefaultZone()
 
   val EventEntityKey: EntityTypeKey[EventEnvelope] = EntityTypeKey[EventEnvelope]("Event")
+
+  private val tracer = Tracer("Event")
 
   // Command wraps the request type
   final case class EventEnvelope(request: EventRequestPB, replyTo: ActorRef[StatusReply[EventResponse]])
@@ -100,284 +103,298 @@ object Event extends StrictLogging {
           )
       }
 
-      command.request match {
-        case c: EventCommand =>
-          eventCommandValidator(c) match {
-            case None =>
-              val result: Either[Error, EventResponse] = state match {
-                case UninitializedEventState =>
-                  command.request match {
-                    case createEventCommand: CreateEvent => createEvent(createEventCommand)
-                    case _ =>
-                      Left(
-                        StateError(
-                          s"${command.request.productPrefix} command cannot be used on an uninitialized Event"
+      val span = tracer.startSpan(s"commandHandler(${command.request.getClass.getSimpleName})")
+      try {
+        command.request match {
+          case c: EventCommand =>
+            eventCommandValidator(c) match {
+              case None =>
+                val result: Either[Error, EventResponse] = state match {
+                  case UninitializedEventState =>
+                    command.request match {
+                      case createEventCommand: CreateEvent => createEvent(createEventCommand)
+                      case _ =>
+                        Left(
+                          StateError(
+                            s"${command.request.productPrefix} command cannot be used on an uninitialized Event"
+                          )
                         )
-                      )
-                  }
-                case DraftEventState(editableInfo, meta) =>
-                  command.request match {
-                    case scheduleEventCommand: ScheduleEvent =>
-                      scheduleEvent(Left(editableInfo), meta, scheduleEventCommand)
-                    case editEventInfoCommand: EditEventInfo =>
-                      editEventInfo(Left(editableInfo), meta, editEventInfoCommand)
-                    case delayEventCommand: DelayEvent =>
-                      delayEvent(Left(editableInfo), meta, delayEventCommand)
-                    case cancelEventCommand: CancelEvent =>
-                      cancelEvent(Left(editableInfo), meta, cancelEventCommand)
-                    case _ =>
-                      Left(StateError(s"${command.request.productPrefix} command cannot be used on a draft Event"))
-                  }
-                case x: DefinedEventState =>
-                  x match {
-                    case ScheduledEventState(info, meta) =>
-                      command.request match {
-                        case startEventCommand: StartEvent =>
-                          if (Instant.now().getEpochSecond > info.getExpectedStart.seconds)
-                            startEvent(info, meta, startEventCommand)
-                          else
+                    }
+                  case DraftEventState(editableInfo, meta) =>
+                    command.request match {
+                      case scheduleEventCommand: ScheduleEvent =>
+                        scheduleEvent(Left(editableInfo), meta, scheduleEventCommand)
+                      case editEventInfoCommand: EditEventInfo =>
+                        editEventInfo(Left(editableInfo), meta, editEventInfoCommand)
+                      case delayEventCommand: DelayEvent =>
+                        delayEvent(Left(editableInfo), meta, delayEventCommand)
+                      case cancelEventCommand: CancelEvent =>
+                        cancelEvent(Left(editableInfo), meta, cancelEventCommand)
+                      case _ =>
+                        Left(StateError(s"${command.request.productPrefix} command cannot be used on a draft Event"))
+                    }
+                  case x: DefinedEventState =>
+                    x match {
+                      case ScheduledEventState(info, meta) =>
+                        command.request match {
+                          case startEventCommand: StartEvent =>
+                            if (Instant.now().getEpochSecond > info.getExpectedStart.seconds)
+                              startEvent(info, meta, startEventCommand)
+                            else
+                              Left(
+                                StateError(
+                                  s"${command.request.productPrefix} command cannot be used before an Event has started"
+                                )
+                              )
+                          case rescheduleEventCommand: RescheduleEvent =>
+                            rescheduleEvent(info, meta, rescheduleEventCommand)
+                          case delayEventCommand: DelayEvent =>
+                            delayEvent(Right(info), meta, delayEventCommand)
+                          case cancelEventCommand: CancelEvent =>
+                            cancelEvent(Right(info), meta, cancelEventCommand)
+                          case editEventInfoCommand: EditEventInfo =>
+                            editEventInfo(Right(info), meta, editEventInfoCommand)
+                          case _ =>
                             Left(
                               StateError(
-                                s"${command.request.productPrefix} command cannot be used before an Event has started"
+                                s"${command.request.productPrefix} command cannot be used on a scheduled Event"
                               )
                             )
-                        case rescheduleEventCommand: RescheduleEvent =>
-                          rescheduleEvent(info, meta, rescheduleEventCommand)
-                        case delayEventCommand: DelayEvent   => delayEvent(Right(info), meta, delayEventCommand)
-                        case cancelEventCommand: CancelEvent => cancelEvent(Right(info), meta, cancelEventCommand)
-                        case editEventInfoCommand: EditEventInfo =>
-                          editEventInfo(Right(info), meta, editEventInfoCommand)
-                        case _ =>
-                          Left(
-                            StateError(s"${command.request.productPrefix} command cannot be used on a scheduled Event")
-                          )
-                      }
-                    case InProgressEventState(info, meta) =>
-                      command.request match {
-                        case delayEventCommand: DelayEvent =>
-                          delayEvent(Right(info), meta, delayEventCommand)
-                        case endEventCommand: EndEvent =>
-                          if (Instant.now().getEpochSecond > info.getExpectedEnd.seconds)
-                            endEvent(meta, endEventCommand)
-                          else
+                        }
+                      case InProgressEventState(info, meta) =>
+                        command.request match {
+                          case delayEventCommand: DelayEvent =>
+                            delayEvent(Right(info), meta, delayEventCommand)
+                          case endEventCommand: EndEvent =>
+                            if (Instant.now().getEpochSecond > info.getExpectedEnd.seconds)
+                              endEvent(meta, endEventCommand)
+                            else
+                              Left(
+                                StateError(
+                                  s"${command.request.productPrefix} command cannot be used before an Event has started"
+                                )
+                              )
+                          case _ =>
                             Left(
                               StateError(
-                                s"${command.request.productPrefix} command cannot be used before an Event has started"
+                                s"${command.request.productPrefix} command cannot be used on an in-progress Event"
                               )
                             )
-                        case _ =>
-                          Left(
-                            StateError(
-                              s"${command.request.productPrefix} command cannot be used on an in-progress Event"
-                            )
-                          )
-                      }
-                    case DelayedEventState(info, meta) =>
-                      command.request match {
-                        case startEventCommand: StartEvent =>
-                          if (Instant.now().getEpochSecond > info.getExpectedStart.seconds)
-                            startEvent(info, meta, startEventCommand)
-                          else
+                        }
+                      case DelayedEventState(info, meta) =>
+                        command.request match {
+                          case startEventCommand: StartEvent =>
+                            if (Instant.now().getEpochSecond > info.getExpectedStart.seconds)
+                              startEvent(info, meta, startEventCommand)
+                            else
+                              Left(
+                                StateError(
+                                  s"${command.request.productPrefix} command cannot be used before an Event has started"
+                                )
+                              )
+                          case cancelEventCommand: CancelEvent =>
+                            cancelEvent(Right(info), meta, cancelEventCommand)
+                          case rescheduleEventCommand: RescheduleEvent =>
+                            rescheduleEvent(info, meta, rescheduleEventCommand)
+                          case editEventInfoCommand: EditEventInfo =>
+                            editEventInfo(Right(info), meta, editEventInfoCommand)
+                          case _ =>
                             Left(
                               StateError(
-                                s"${command.request.productPrefix} command cannot be used before an Event has started"
+                                s"${command.request.productPrefix} command cannot be used on a delayed Event"
                               )
                             )
-                        case cancelEventCommand: CancelEvent =>
-                          cancelEvent(Right(info), meta, cancelEventCommand)
-                        case rescheduleEventCommand: RescheduleEvent =>
-                          rescheduleEvent(info, meta, rescheduleEventCommand)
-                        case editEventInfoCommand: EditEventInfo =>
-                          editEventInfo(Right(info), meta, editEventInfoCommand)
-                        case _ =>
-                          Left(
-                            StateError(
-                              s"${command.request.productPrefix} command cannot be used on a delayed Event"
+                        }
+                      case CancelledEventState(info, meta) =>
+                        command.request match {
+                          case rescheduleEventCommand: RescheduleEvent =>
+                            rescheduleEvent(info, meta, rescheduleEventCommand)
+                          case _ =>
+                            Left(
+                              StateError(
+                                s"${command.request.productPrefix} command cannot be used on a cancelled Event"
+                              )
                             )
-                          )
-                      }
-                    case CancelledEventState(info, meta) =>
-                      command.request match {
-                        case rescheduleEventCommand: RescheduleEvent =>
-                          rescheduleEvent(info, meta, rescheduleEventCommand)
-                        case _ =>
-                          Left(
-                            StateError(
-                              s"${command.request.productPrefix} command cannot be used on a cancelled Event"
-                            )
-                          )
-                      }
-                    case _ =>
-                      Left(StateError(s"Registered member has an invalid state ${x.meta.currentState.productPrefix}"))
-                  }
-                case _: PastEventState =>
-                  command.request match {
-                    case _ =>
-                      Left(
-                        StateError(s"Event is past, no commands available")
-                      )
-                  }
-              }
+                        }
+                      case _ =>
+                        Left(StateError(s"Registered member has an invalid state ${x.meta.currentState.productPrefix}"))
+                    }
+                  case _: PastEventState =>
+                    command.request match {
+                      case _ =>
+                        Left(
+                          StateError(s"Event is past, no commands available")
+                        )
+                    }
+                }
 
-              result match {
-                case Left(error)  => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
-                case Right(event) => replyWithResponseEvent(event)
-              }
-            case Some(errors) => Effect.reply(command.replyTo)(StatusReply.Error(errors.message))
-          }
-        case EventRequestPB.Empty => Effect.reply(command.replyTo)(StatusReply.Error("Message was not an EventRequest"))
-      }
+                result match {
+                  case Left(error)  => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
+                  case Right(event) => replyWithResponseEvent(event)
+                }
+              case Some(errors) => Effect.reply(command.replyTo)(StatusReply.Error(errors.message))
+            }
+          case EventRequestPB.Empty =>
+            Effect.reply(command.replyTo)(StatusReply.Error("Message was not an EventRequest"))
+        }
+      } finally span.end()
   }
 
   // EventHandler
   private val eventHandler: (EventState, EventResponse) => EventState = { (state, response) =>
-    response match {
-      case eventResponse: EventEventResponse =>
-        eventResponse.eventEvent match {
-          case eventCreatedEvent: EventCreated =>
-            state match {
-              case UninitializedEventState =>
-                DraftEventState(
-                  editableInfo = eventCreatedEvent.getInfo,
-                  meta = eventCreatedEvent.getMeta
-                )
-              case _ => state
-            }
+    val span = tracer.startSpan(s"eventHandler(${response.getClass.getSimpleName})")
+    try {
+      response match {
+        case eventResponse: EventEventResponse =>
+          eventResponse.eventEvent match {
+            case eventCreatedEvent: EventCreated =>
+              state match {
+                case UninitializedEventState =>
+                  DraftEventState(
+                    editableInfo = eventCreatedEvent.getInfo,
+                    meta = eventCreatedEvent.getMeta
+                  )
+                case _ => state
+              }
 
-          case eventScheduledEvent: EventScheduled =>
-            state match {
-              case DraftEventState(_, _) =>
-                ScheduledEventState(
-                  info = eventScheduledEvent.getInfo.toInfo,
-                  meta = eventScheduledEvent.getMeta
-                )
-              case _ => state
-            }
+            case eventScheduledEvent: EventScheduled =>
+              state match {
+                case DraftEventState(_, _) =>
+                  ScheduledEventState(
+                    info = eventScheduledEvent.getInfo.toInfo,
+                    meta = eventScheduledEvent.getMeta
+                  )
+                case _ => state
+              }
 
-          case eventRescheduledEvent: EventRescheduled =>
-            state match {
-              case DraftEventState(editableInfo, _) =>
-                ScheduledEventState(
-                  info = editableInfo.toInfo,
-                  meta = eventRescheduledEvent.getMeta
-                )
-              case ScheduledEventState(info, _) =>
-                ScheduledEventState(
-                  info = info,
-                  meta = eventRescheduledEvent.getMeta
-                )
-              case DelayedEventState(info, _) =>
-                ScheduledEventState(
-                  info = info,
-                  meta = eventRescheduledEvent.getMeta
-                )
-              case CancelledEventState(info, _) =>
-                ScheduledEventState(
-                  info = info,
-                  meta = eventRescheduledEvent.getMeta
-                )
-              case _ => state
-            }
+            case eventRescheduledEvent: EventRescheduled =>
+              state match {
+                case DraftEventState(editableInfo, _) =>
+                  ScheduledEventState(
+                    info = editableInfo.toInfo,
+                    meta = eventRescheduledEvent.getMeta
+                  )
+                case ScheduledEventState(info, _) =>
+                  ScheduledEventState(
+                    info = info,
+                    meta = eventRescheduledEvent.getMeta
+                  )
+                case DelayedEventState(info, _) =>
+                  ScheduledEventState(
+                    info = info,
+                    meta = eventRescheduledEvent.getMeta
+                  )
+                case CancelledEventState(info, _) =>
+                  ScheduledEventState(
+                    info = info,
+                    meta = eventRescheduledEvent.getMeta
+                  )
+                case _ => state
+              }
 
-          case eventDelayedEvent: EventDelayed =>
-            state match {
-              case DraftEventState(editableInfo, _) =>
-                DelayedEventState(
-                  info = editableInfo.toInfo,
-                  meta = eventDelayedEvent.getMeta
-                )
-              case ScheduledEventState(info, _) =>
-                DelayedEventState(
-                  info = info,
-                  meta = eventDelayedEvent.getMeta
-                )
-              case InProgressEventState(info, _) =>
-                DelayedEventState(
-                  info = info,
-                  meta = eventDelayedEvent.getMeta
-                )
-              case _ => state
-            }
+            case eventDelayedEvent: EventDelayed =>
+              state match {
+                case DraftEventState(editableInfo, _) =>
+                  DelayedEventState(
+                    info = editableInfo.toInfo,
+                    meta = eventDelayedEvent.getMeta
+                  )
+                case ScheduledEventState(info, _) =>
+                  DelayedEventState(
+                    info = info,
+                    meta = eventDelayedEvent.getMeta
+                  )
+                case InProgressEventState(info, _) =>
+                  DelayedEventState(
+                    info = info,
+                    meta = eventDelayedEvent.getMeta
+                  )
+                case _ => state
+              }
 
-          case eventCancelledEvent: EventCancelled =>
-            state match {
-              case DraftEventState(editableInfo, _) =>
-                CancelledEventState(
-                  info = editableInfo.toInfo,
-                  meta = eventCancelledEvent.getMeta
-                )
-              case ScheduledEventState(info, _) =>
-                CancelledEventState(
-                  info = info,
-                  meta = eventCancelledEvent.getMeta
-                )
-              case _ => state
-            }
+            case eventCancelledEvent: EventCancelled =>
+              state match {
+                case DraftEventState(editableInfo, _) =>
+                  CancelledEventState(
+                    info = editableInfo.toInfo,
+                    meta = eventCancelledEvent.getMeta
+                  )
+                case ScheduledEventState(info, _) =>
+                  CancelledEventState(
+                    info = info,
+                    meta = eventCancelledEvent.getMeta
+                  )
+                case _ => state
+              }
 
-          case eventStartedEvent: EventStarted =>
-            state match {
-              case ScheduledEventState(_, _) =>
-                InProgressEventState(info = eventStartedEvent.getInfo, meta = eventStartedEvent.getMeta)
-              case DelayedEventState(_, _) =>
-                InProgressEventState(info = eventStartedEvent.getInfo, meta = eventStartedEvent.getMeta)
-              case _ => state
-            }
+            case eventStartedEvent: EventStarted =>
+              state match {
+                case ScheduledEventState(_, _) =>
+                  InProgressEventState(info = eventStartedEvent.getInfo, meta = eventStartedEvent.getMeta)
+                case DelayedEventState(_, _) =>
+                  InProgressEventState(info = eventStartedEvent.getInfo, meta = eventStartedEvent.getMeta)
+                case _ => state
+              }
 
-          case eventEndedEvent: EventEnded =>
-            state match {
-              case InProgressEventState(info: EventInfo, _) =>
-                PastEventState(info = info, lastMeta = eventEndedEvent.getMeta)
-              case _ => state
-            }
+            case eventEndedEvent: EventEnded =>
+              state match {
+                case InProgressEventState(info: EventInfo, _) =>
+                  PastEventState(info = info, lastMeta = eventEndedEvent.getMeta)
+                case _ => state
+              }
 
-          case eventInfoEdited: EventInfoEdited =>
-            state match {
-              case _: DraftEventState =>
-                DraftEventState(
-                  editableInfo = eventInfoEdited.getInfo,
-                  meta = eventInfoEdited.getMeta
-                )
-              case _: ScheduledEventState =>
-                ScheduledEventState(
-                  info = eventInfoEdited.getInfo.toInfo,
-                  meta = eventInfoEdited.getMeta
-                )
-              case _: DelayedEventState =>
-                DelayedEventState(
-                  info = eventInfoEdited.getInfo.toInfo,
-                  meta = eventInfoEdited.getMeta
-                )
-              case _ => state
-            }
-          case _ => state
-        }
-      case _: EventData        => state
-      case EventResponse.Empty => state
+            case eventInfoEdited: EventInfoEdited =>
+              state match {
+                case _: DraftEventState =>
+                  DraftEventState(
+                    editableInfo = eventInfoEdited.getInfo,
+                    meta = eventInfoEdited.getMeta
+                  )
+                case _: ScheduledEventState =>
+                  ScheduledEventState(
+                    info = eventInfoEdited.getInfo.toInfo,
+                    meta = eventInfoEdited.getMeta
+                  )
+                case _: DelayedEventState =>
+                  DelayedEventState(
+                    info = eventInfoEdited.getInfo.toInfo,
+                    meta = eventInfoEdited.getMeta
+                  )
+                case _ => state
+              }
+            case _ => state
+          }
+        case _: EventData        => state
+        case EventResponse.Empty => state
 
-      case other =>
-        throw new RuntimeException(s"Invalid/Unhandled event $other")
-    }
+        case other =>
+          throw new RuntimeException(s"Invalid/Unhandled event $other")
+      }
+    } finally span.end()
   }
 
   private def createEvent(
       createEventCommand: CreateEvent
   ): Either[Error, EventResponse] = {
-    logger.info(s"creating for id ${createEventCommand.getEventId}")
-    val now = Timestamp(Instant.now(clock))
-    val newMeta = EventMetaInfo(
-      lastModifiedOn = Some(now),
-      lastModifiedBy = createEventCommand.onBehalfOf,
-      createdOn = Some(now),
-      createdBy = createEventCommand.onBehalfOf,
-      currentState = EVENT_STATE_DRAFT,
-      eventStateInfo = None
-    )
-    val event = EventCreated(
-      createEventCommand.eventId,
-      createEventCommand.info,
-      Some(newMeta)
-    )
-    Right(EventEventResponse(event))
+    val span = tracer.startSpan(s"createEvent(${createEventCommand.eventId.get.id}")
+    try {
+      logger.info(s"creating for id ${createEventCommand.getEventId}")
+      val now = Timestamp(Instant.now(clock))
+      val newMeta = EventMetaInfo(
+        lastModifiedOn = Some(now),
+        lastModifiedBy = createEventCommand.onBehalfOf,
+        createdOn = Some(now),
+        createdBy = createEventCommand.onBehalfOf,
+        currentState = EVENT_STATE_DRAFT,
+        eventStateInfo = None
+      )
+      val event = EventCreated(
+        createEventCommand.eventId,
+        createEventCommand.info,
+        Some(newMeta)
+      )
+      Right(EventEventResponse(event))
+    } finally span.end()
   }
 
   private def scheduleEvent(
@@ -385,46 +402,49 @@ object Event extends StrictLogging {
       meta: EventMetaInfo,
       scheduleEventCommand: ScheduleEvent
   ): Either[Error, EventResponse] = {
-    val now = Timestamp(Instant.now(clock))
-    val newMeta = meta.copy(
-      lastModifiedOn = Some(now),
-      lastModifiedBy = scheduleEventCommand.onBehalfOf,
-      scheduledOn = Some(now),
-      scheduledBy = scheduleEventCommand.onBehalfOf,
-      currentState = EVENT_STATE_SCHEDULED,
-      eventStateInfo = Some(EventStateInfo(EventStateInfo.Value.ScheduledEventInfo(ScheduledEventInfo())))
-    )
+    val span = tracer.startSpan(s"scheduleEvent(${scheduleEventCommand.eventId.get.id}")
+    try {
+      val now = Timestamp(Instant.now(clock))
+      val newMeta = meta.copy(
+        lastModifiedOn = Some(now),
+        lastModifiedBy = scheduleEventCommand.onBehalfOf,
+        scheduledOn = Some(now),
+        scheduledBy = scheduleEventCommand.onBehalfOf,
+        currentState = EVENT_STATE_SCHEDULED,
+        eventStateInfo = Some(EventStateInfo(EventStateInfo.Value.ScheduledEventInfo(ScheduledEventInfo())))
+      )
 
-    info match {
-      case Left(e: EditableEventInfo) =>
-        val updatedInfo =
-          if (scheduleEventCommand.info.isDefined)
-            e.updateInfo(scheduleEventCommand.getInfo)
-          else e
-        val validationErrorsOpt = draftTransitionEventInfoValidator(updatedInfo)
-        if (validationErrorsOpt.isEmpty) {
+      info match {
+        case Left(e: EditableEventInfo) =>
+          val updatedInfo =
+            if (scheduleEventCommand.info.isDefined)
+              e.updateInfo(scheduleEventCommand.getInfo)
+            else e
+          val validationErrorsOpt = draftTransitionEventInfoValidator(updatedInfo)
+          if (validationErrorsOpt.isEmpty) {
+            Right(
+              EventEventResponse(
+                EventScheduled(
+                  scheduleEventCommand.eventId,
+                  Some(updatedInfo),
+                  Some(newMeta)
+                )
+              )
+            )
+          } else
+            Left(StateError(validationErrorsOpt.get.message))
+        case Right(info: EventInfo) =>
           Right(
             EventEventResponse(
               EventScheduled(
                 scheduleEventCommand.eventId,
-                Some(updatedInfo),
+                Some(info.toEditable),
                 Some(newMeta)
               )
             )
           )
-        } else
-          Left(StateError(validationErrorsOpt.get.message))
-      case Right(info: EventInfo) =>
-        Right(
-          EventEventResponse(
-            EventScheduled(
-              scheduleEventCommand.eventId,
-              Some(info.toEditable),
-              Some(newMeta)
-            )
-          )
-        )
-    }
+      }
+    } finally span.end()
   }
 
   private def rescheduleEvent(
@@ -432,25 +452,28 @@ object Event extends StrictLogging {
       meta: EventMetaInfo,
       rescheduleEventCommand: RescheduleEvent
   ): Either[Error, EventResponse] = {
-    val now = Some(Timestamp(Instant.now(clock)))
-    val newMeta = meta.copy(
-      lastModifiedOn = now,
-      lastModifiedBy = rescheduleEventCommand.onBehalfOf,
-      scheduledOn = now,
-      scheduledBy = rescheduleEventCommand.onBehalfOf,
-      currentState = EVENT_STATE_SCHEDULED,
-      eventStateInfo = Some(EventStateInfo(EventStateInfo.Value.ScheduledEventInfo(ScheduledEventInfo())))
-    )
+    val span = tracer.startSpan(s"rescheduleEvent(${rescheduleEventCommand.eventId.get.id}")
+    try {
+      val now = Some(Timestamp(Instant.now(clock)))
+      val newMeta = meta.copy(
+        lastModifiedOn = now,
+        lastModifiedBy = rescheduleEventCommand.onBehalfOf,
+        scheduledOn = now,
+        scheduledBy = rescheduleEventCommand.onBehalfOf,
+        currentState = EVENT_STATE_SCHEDULED,
+        eventStateInfo = Some(EventStateInfo(EventStateInfo.Value.ScheduledEventInfo(ScheduledEventInfo())))
+      )
 
-    Right(
-      EventEventResponse(
-        EventRescheduled(
-          rescheduleEventCommand.eventId,
-          Some(info.copy(expectedStart = rescheduleEventCommand.start, expectedEnd = rescheduleEventCommand.end)),
-          Some(newMeta)
+      Right(
+        EventEventResponse(
+          EventRescheduled(
+            rescheduleEventCommand.eventId,
+            Some(info.copy(expectedStart = rescheduleEventCommand.start, expectedEnd = rescheduleEventCommand.end)),
+            Some(newMeta)
+          )
         )
       )
-    )
+    } finally span.end()
   }
 
   private def startEvent(
@@ -458,24 +481,27 @@ object Event extends StrictLogging {
       meta: EventMetaInfo,
       startEventCommand: StartEvent
   ): Either[Error, EventResponse] = {
-    val now = Some(Timestamp(Instant.now(clock)))
-    val newMeta = meta.copy(
-      lastModifiedOn = now,
-      lastModifiedBy = startEventCommand.onBehalfOf,
-      currentState = EVENT_STATE_INPROGRESS,
-      eventStateInfo = Some(EventStateInfo(EventStateInfo.Value.InProgressEventInfo(InProgressEventInfo(now)))),
-      actualStart = now
-    )
+    val span = tracer.startSpan(s"startEvent(${startEventCommand.eventId.get.id}")
+    try {
+      val now = Some(Timestamp(Instant.now(clock)))
+      val newMeta = meta.copy(
+        lastModifiedOn = now,
+        lastModifiedBy = startEventCommand.onBehalfOf,
+        currentState = EVENT_STATE_INPROGRESS,
+        eventStateInfo = Some(EventStateInfo(EventStateInfo.Value.InProgressEventInfo(InProgressEventInfo(now)))),
+        actualStart = now
+      )
 
-    Right(
-      EventEventResponse(
-        EventStarted(
-          startEventCommand.eventId,
-          Some(info),
-          Some(newMeta)
+      Right(
+        EventEventResponse(
+          EventStarted(
+            startEventCommand.eventId,
+            Some(info),
+            Some(newMeta)
+          )
         )
       )
-    )
+    } finally span.end()
   }
 
   private def delayEvent(
@@ -483,87 +509,90 @@ object Event extends StrictLogging {
       meta: EventMetaInfo,
       delayEventCommand: DelayEvent
   ): Either[Error, EventResponse] = {
-    val infoWithDelayedTimes: Either[EditableEventInfo, EventInfo] = info match {
-      case Right(e) =>
-        Right(
-          e.copy(
-            expectedStart = e.expectedStart
-              .map(start =>
+    val span = tracer.startSpan(s"delayEvent(${delayEventCommand.eventId.get.id}")
+    try {
+      val infoWithDelayedTimes: Either[EditableEventInfo, EventInfo] = info match {
+        case Right(e) =>
+          Right(
+            e.copy(
+              expectedStart = e.expectedStart
+                .map(start =>
+                  Timestamp.of(
+                    start.seconds + delayEventCommand.getExpectedDuration.seconds,
+                    start.nanos + delayEventCommand.getExpectedDuration.nanos
+                  )
+                ),
+              expectedEnd = e.expectedEnd.map(end =>
                 Timestamp.of(
-                  start.seconds + delayEventCommand.getExpectedDuration.seconds,
-                  start.nanos + delayEventCommand.getExpectedDuration.nanos
+                  end.seconds + delayEventCommand.getExpectedDuration.seconds,
+                  end.nanos + delayEventCommand.getExpectedDuration.nanos
                 )
-              ),
-            expectedEnd = e.expectedEnd.map(end =>
-              Timestamp.of(
-                end.seconds + delayEventCommand.getExpectedDuration.seconds,
-                end.nanos + delayEventCommand.getExpectedDuration.nanos
               )
             )
           )
-        )
-      case Left(e) =>
-        Left(
-          e.copy(
-            expectedStart = e.expectedStart
-              .map(start =>
+        case Left(e) =>
+          Left(
+            e.copy(
+              expectedStart = e.expectedStart
+                .map(start =>
+                  Timestamp.of(
+                    start.seconds + delayEventCommand.getExpectedDuration.seconds,
+                    start.nanos + delayEventCommand.getExpectedDuration.nanos
+                  )
+                ),
+              expectedEnd = e.expectedEnd.map(end =>
                 Timestamp.of(
-                  start.seconds + delayEventCommand.getExpectedDuration.seconds,
-                  start.nanos + delayEventCommand.getExpectedDuration.nanos
+                  end.seconds + delayEventCommand.getExpectedDuration.seconds,
+                  end.nanos + delayEventCommand.getExpectedDuration.nanos
                 )
-              ),
-            expectedEnd = e.expectedEnd.map(end =>
-              Timestamp.of(
-                end.seconds + delayEventCommand.getExpectedDuration.seconds,
-                end.nanos + delayEventCommand.getExpectedDuration.nanos
               )
             )
           )
-        )
-    }
+      }
 
-    val now = Some(Timestamp(Instant.now(clock)))
-    val newMeta = meta.copy(
-      lastModifiedOn = now,
-      lastModifiedBy = delayEventCommand.onBehalfOf,
-      scheduledOn = now,
-      scheduledBy = delayEventCommand.onBehalfOf,
-      currentState = EVENT_STATE_DELAYED,
-      eventStateInfo = Some(
-        EventStateInfo(
-          EventStateInfo.Value.DelayedEventInfo(
-            DelayedEventInfo(reason = delayEventCommand.reason, timeStartedOpt = meta.actualStart)
+      val now = Some(Timestamp(Instant.now(clock)))
+      val newMeta = meta.copy(
+        lastModifiedOn = now,
+        lastModifiedBy = delayEventCommand.onBehalfOf,
+        scheduledOn = now,
+        scheduledBy = delayEventCommand.onBehalfOf,
+        currentState = EVENT_STATE_DELAYED,
+        eventStateInfo = Some(
+          EventStateInfo(
+            EventStateInfo.Value.DelayedEventInfo(
+              DelayedEventInfo(reason = delayEventCommand.reason, timeStartedOpt = meta.actualStart)
+            )
           )
         )
       )
-    )
 
-    infoWithDelayedTimes match {
-      case Left(e: EditableEventInfo) =>
-        val validationErrorsOpt = draftTransitionEventInfoValidator(e)
-        if (validationErrorsOpt.isEmpty) {
+      infoWithDelayedTimes match {
+        case Left(e: EditableEventInfo) =>
+          val validationErrorsOpt = draftTransitionEventInfoValidator(e)
+          if (validationErrorsOpt.isEmpty) {
+            Right(
+              EventEventResponse(
+                EventDelayed(
+                  delayEventCommand.eventId,
+                  Some(e.toInfo),
+                  Some(newMeta)
+                )
+              )
+            )
+          } else
+            Left(StateError(validationErrorsOpt.get.message))
+        case Right(info: EventInfo) =>
           Right(
             EventEventResponse(
               EventDelayed(
                 delayEventCommand.eventId,
-                Some(e.toInfo),
+                Some(info),
                 Some(newMeta)
               )
             )
           )
-        } else
-          Left(StateError(validationErrorsOpt.get.message))
-      case Right(info: EventInfo) =>
-        Right(
-          EventEventResponse(
-            EventDelayed(
-              delayEventCommand.eventId,
-              Some(info),
-              Some(newMeta)
-            )
-          )
-        )
-    }
+      }
+    } finally span.end()
   }
 
   private def cancelEvent(
@@ -571,25 +600,38 @@ object Event extends StrictLogging {
       meta: EventMetaInfo,
       cancelEventCommand: CancelEvent
   ): Either[Error, EventResponse] = {
-    val now = Some(Timestamp(Instant.now(clock)))
-    val newMeta = meta.copy(
-      lastModifiedOn = now,
-      lastModifiedBy = cancelEventCommand.onBehalfOf,
-      scheduledOn = now,
-      scheduledBy = cancelEventCommand.onBehalfOf,
-      currentState = EVENT_STATE_CANCELLED,
-      eventStateInfo = Some(
-        EventStateInfo(
-          EventStateInfo.Value.CancelledEventInfo(
-            CancelledEventInfo(reason = cancelEventCommand.reason, timeStartedOpt = meta.actualStart)
+    val span = tracer.startSpan(s"cancelEvent(${cancelEventCommand.eventId.get.id}")
+    try {
+      val now = Some(Timestamp(Instant.now(clock)))
+      val newMeta = meta.copy(
+        lastModifiedOn = now,
+        lastModifiedBy = cancelEventCommand.onBehalfOf,
+        scheduledOn = now,
+        scheduledBy = cancelEventCommand.onBehalfOf,
+        currentState = EVENT_STATE_CANCELLED,
+        eventStateInfo = Some(
+          EventStateInfo(
+            EventStateInfo.Value.CancelledEventInfo(
+              CancelledEventInfo(reason = cancelEventCommand.reason, timeStartedOpt = meta.actualStart)
+            )
           )
         )
       )
-    )
-    info match {
-      case Left(e: EditableEventInfo) =>
-        val validationErrorsOpt = draftTransitionEventInfoValidator(e)
-        if (validationErrorsOpt.isEmpty) {
+      info match {
+        case Left(e: EditableEventInfo) =>
+          val validationErrorsOpt = draftTransitionEventInfoValidator(e)
+          if (validationErrorsOpt.isEmpty) {
+            Right(
+              EventEventResponse(
+                EventCancelled(
+                  cancelEventCommand.eventId,
+                  Some(newMeta)
+                )
+              )
+            )
+          } else
+            Left(StateError(validationErrorsOpt.get.message))
+        case Right(_: EventInfo) =>
           Right(
             EventEventResponse(
               EventCancelled(
@@ -598,34 +640,27 @@ object Event extends StrictLogging {
               )
             )
           )
-        } else
-          Left(StateError(validationErrorsOpt.get.message))
-      case Right(_: EventInfo) =>
-        Right(
-          EventEventResponse(
-            EventCancelled(
-              cancelEventCommand.eventId,
-              Some(newMeta)
-            )
-          )
-        )
-    }
+      }
+    } finally span.end()
   }
 
   private def endEvent(
       meta: EventMetaInfo,
       endEventCommand: EndEvent
   ): Either[Error, EventResponse] = {
-    val now = Some(Timestamp(Instant.now(clock)))
-    val newMeta = meta.copy(
-      lastModifiedOn = now,
-      lastModifiedBy = endEventCommand.onBehalfOf,
-      actualEnd = now,
-      currentState = EVENT_STATE_PAST,
-      eventStateInfo = Some(EventStateInfo(EventStateInfo.Value.PastEventInfo(PastEventInfo(meta.actualStart, now))))
-    )
-    val event = EventEnded(endEventCommand.eventId, Some(newMeta))
-    Right(EventEventResponse(event))
+    val span = tracer.startSpan(s"endEvent(${endEventCommand.eventId.get.id}")
+    try {
+      val now = Some(Timestamp(Instant.now(clock)))
+      val newMeta = meta.copy(
+        lastModifiedOn = now,
+        lastModifiedBy = endEventCommand.onBehalfOf,
+        actualEnd = now,
+        currentState = EVENT_STATE_PAST,
+        eventStateInfo = Some(EventStateInfo(EventStateInfo.Value.PastEventInfo(PastEventInfo(meta.actualStart, now))))
+      )
+      val event = EventEnded(endEventCommand.eventId, Some(newMeta))
+      Right(EventEventResponse(event))
+    } finally span.end()
   }
 
   private def editEventInfo(
@@ -633,33 +668,36 @@ object Event extends StrictLogging {
       meta: EventMetaInfo,
       editEventInfoCommand: EditEventInfo
   ): Either[Error, EventResponse] = {
-    val newMeta = meta.copy(
-      lastModifiedBy = editEventInfoCommand.onBehalfOf,
-      lastModifiedOn = Some(Timestamp(Instant.now(clock)))
-    )
+    val span = tracer.startSpan(s"editEventInfo")
+    try {
+      val newMeta = meta.copy(
+        lastModifiedBy = editEventInfoCommand.onBehalfOf,
+        lastModifiedOn = Some(Timestamp(Instant.now(clock)))
+      )
 
-    editEventInfoCommand.info
-      .map { editable =>
-        val event = EventInfoEdited(
-          editEventInfoCommand.eventId,
-          Some(info match {
-            case Right(i: EventInfo)        => i.updateInfo(editable).toEditable
-            case Left(e: EditableEventInfo) => e.updateInfo(editable)
-          }),
-          Some(newMeta)
-        )
-        Right(EventEventResponse(event))
-      }
-      .getOrElse(
-        Right(
-          EventEventResponse(
-            EventInfoEdited(
-              editEventInfoCommand.eventId,
-              None,
-              Some(newMeta)
+      editEventInfoCommand.info
+        .map { editable =>
+          val event = EventInfoEdited(
+            editEventInfoCommand.eventId,
+            Some(info match {
+              case Right(i: EventInfo)        => i.updateInfo(editable).toEditable
+              case Left(e: EditableEventInfo) => e.updateInfo(editable)
+            }),
+            Some(newMeta)
+          )
+          Right(EventEventResponse(event))
+        }
+        .getOrElse(
+          Right(
+            EventEventResponse(
+              EventInfoEdited(
+                editEventInfoCommand.eventId,
+                None,
+                Some(newMeta)
+              )
             )
           )
         )
-      )
+    } finally span.end()
   }
 }

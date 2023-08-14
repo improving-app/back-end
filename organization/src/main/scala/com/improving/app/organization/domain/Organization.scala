@@ -7,6 +7,7 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import com.google.protobuf.timestamp.Timestamp
+import com.improving.app.common.Tracer
 import com.improving.app.common.domain.{Contact, MemberId}
 import com.improving.app.common.errors._
 import com.improving.app.organization.domain.OrganizationState._
@@ -21,7 +22,7 @@ import java.time.{Clock, Instant}
 
 object Organization {
   val TypeKey: EntityTypeKey[OrganizationRequestEnvelope] = EntityTypeKey[OrganizationRequestEnvelope]("Organization")
-
+  private val tracer = Tracer("Organization")
   private val clock: Clock = Clock.systemDefaultZone()
 
   case class OrganizationRequestEnvelope(
@@ -83,165 +84,187 @@ object Organization {
   }
 
   private val requestHandler
-      : (OrganizationState, OrganizationRequestEnvelope) => ReplyEffect[OrganizationEventPB, OrganizationState] =
+      : (OrganizationState, OrganizationRequestEnvelope) => ReplyEffect[OrganizationEventPB, OrganizationState] = {
     (state, envelope) =>
-      envelope.request match {
-        case c: OrganizationCommand =>
-          organizationCommandValidator(c) match {
-            case None =>
-              handleCommand(state, c) match {
-                case Left(error) => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
-                case Right(event) =>
-                  Effect
-                    .persist(event)
-                    .thenReply(envelope.replyTo)((_: OrganizationState) => StatusReply.Success(event))
-                    .asInstanceOf[ReplyEffect[OrganizationEventPB, OrganizationState]]
-              }
-            case Some(errors) => Effect.reply(envelope.replyTo)(StatusReply.Error(errors.message))
-          }
-        case query: OrganizationQuery =>
-          organizationQueryValidator(query) match {
-            case None =>
-              handleQuery(state, query) match {
-                case Left(error)   => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
-                case Right(result) => Effect.reply(envelope.replyTo)(StatusReply.Success(result))
-              }
-            case Some(errors) => Effect.reply(envelope.replyTo)(StatusReply.Error(errors.message))
+      val span = tracer.startSpan(s"requestHandler(${envelope.request.getClass.getSimpleName})")
+      try {
+        envelope.request match {
+          case c: OrganizationCommand =>
+            organizationCommandValidator(c) match {
+              case None =>
+                handleCommand(state, c) match {
+                  case Left(error) => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
+                  case Right(event) =>
+                    Effect
+                      .persist(event)
+                      .thenReply(envelope.replyTo)((_: OrganizationState) => StatusReply.Success(event))
+                      .asInstanceOf[ReplyEffect[OrganizationEventPB, OrganizationState]]
+                }
+              case Some(errors) => Effect.reply(envelope.replyTo)(StatusReply.Error(errors.message))
+            }
+          case query: OrganizationQuery =>
+            organizationQueryValidator(query) match {
+              case None =>
+                handleQuery(state, query) match {
+                  case Left(error)   => Effect.reply(envelope.replyTo)(StatusReply.Error(error.message))
+                  case Right(result) => Effect.reply(envelope.replyTo)(StatusReply.Success(result))
+                }
+              case Some(errors) => Effect.reply(envelope.replyTo)(StatusReply.Error(errors.message))
 
+            }
+          case OrganizationRequestPB.Empty =>
+            Effect.reply(envelope.replyTo)(StatusReply.Error("OrganizationRequest is of type Empty"))
+        }
+      } finally span.end()
+  }
+
+  private val eventHandler: (OrganizationState, OrganizationEventPB) => OrganizationState = { (state, event) =>
+    val span = tracer.startSpan(s"eventHandler(${event.getClass.getSimpleName})")
+    try {
+      event match {
+        case OrganizationEventPB.Empty => state
+        case event: OrganizationEstablished =>
+          state match {
+            case UninitializedState =>
+              DraftState(
+                info = event.getOrganizationInfo,
+                metaInfo = event.getMetaInfo,
+                Set.empty,
+                Set.empty,
+                Set.empty
+              )
+            case _: DraftState     => state
+            case _: ActiveState    => state
+            case _: SuspendedState => state
           }
-        case OrganizationRequestPB.Empty =>
-          Effect.reply(envelope.replyTo)(StatusReply.Error("OrganizationRequest is of type Empty"))
+        case event: OrganizationActivated =>
+          state match {
+            case x: DraftState =>
+              ActiveState(x.info.toInfo, event.getMetaInfo, x.members, x.owners, x.contacts)
+            case _: ActiveState     => state
+            case x: SuspendedState  => ActiveState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
+            case UninitializedState => UninitializedState
+          }
+        case event: OrganizationSuspended =>
+          state match {
+            case x: DraftState =>
+              SuspendedState(x.info.toInfo, event.getMetaInfo, x.members, x.owners, x.contacts)
+            case x: ActiveState     => SuspendedState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
+            case x: SuspendedState  => SuspendedState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
+            case UninitializedState => UninitializedState
+          }
+        case _: OrganizationTerminated => state
+        case event: OrganizationInfoEdited =>
+          state match {
+            case x: DraftState => x.copy(metaInfo = event.getMetaInfo, info = event.getNewInfo)
+            case x: ActiveState =>
+              x.copy(metaInfo = event.getMetaInfo, info = event.getNewInfo.toInfo)
+            case x: SuspendedState =>
+              x.copy(metaInfo = event.getMetaInfo, info = event.getNewInfo.toInfo)
+            case UninitializedState => UninitializedState
+          }
+        case event: MembersAddedToOrganization =>
+          state match {
+            case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, members = x.members ++ event.membersAdded)
+            case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, members = x.members ++ event.membersAdded)
+            case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, members = x.members ++ event.membersAdded)
+            case UninitializedState => UninitializedState
+          }
+        case event: MembersRemovedFromOrganization =>
+          state match {
+            case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, members = x.members -- event.membersRemoved)
+            case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, members = x.members -- event.membersRemoved)
+            case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, members = x.members -- event.membersRemoved)
+            case UninitializedState => UninitializedState
+          }
+        case event: OwnersAddedToOrganization =>
+          state match {
+            case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, owners = x.owners ++ event.ownersAdded)
+            case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, owners = x.owners ++ event.ownersAdded)
+            case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, owners = x.owners ++ event.ownersAdded)
+            case UninitializedState => UninitializedState
+          }
+        case event: OwnersRemovedFromOrganization =>
+          state match {
+            case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, owners = x.owners -- event.ownersRemoved)
+            case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, owners = x.owners -- event.ownersRemoved)
+            case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, owners = x.owners -- event.ownersRemoved)
+            case UninitializedState => UninitializedState
+          }
+        case event: OrganizationContactsUpdated =>
+          state match {
+            case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, contacts = event.contacts.toSet)
+            case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, contacts = event.contacts.toSet)
+            case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, contacts = event.contacts.toSet)
+            case UninitializedState => UninitializedState
+          }
       }
+    } finally span.end()
+  }
 
-  private val eventHandler: (OrganizationState, OrganizationEventPB) => OrganizationState = (state, event) =>
-    event match {
-      case OrganizationEventPB.Empty => state
-      case event: OrganizationEstablished =>
-        state match {
-          case UninitializedState =>
-            DraftState(info = event.getOrganizationInfo, metaInfo = event.getMetaInfo, Set.empty, Set.empty, Set.empty)
-          case _: DraftState     => state
-          case _: ActiveState    => state
-          case _: SuspendedState => state
-        }
-      case event: OrganizationActivated =>
-        state match {
-          case x: DraftState =>
-            ActiveState(x.info.toInfo, event.getMetaInfo, x.members, x.owners, x.contacts)
-          case _: ActiveState     => state
-          case x: SuspendedState  => ActiveState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
-          case UninitializedState => UninitializedState
-        }
-      case event: OrganizationSuspended =>
-        state match {
-          case x: DraftState =>
-            SuspendedState(x.info.toInfo, event.getMetaInfo, x.members, x.owners, x.contacts)
-          case x: ActiveState     => SuspendedState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
-          case x: SuspendedState  => SuspendedState(x.info, event.getMetaInfo, x.members, x.owners, x.contacts)
-          case UninitializedState => UninitializedState
-        }
-      case _: OrganizationTerminated => state
-      case event: OrganizationInfoEdited =>
-        state match {
-          case x: DraftState => x.copy(metaInfo = event.getMetaInfo, info = event.getNewInfo)
-          case x: ActiveState =>
-            x.copy(metaInfo = event.getMetaInfo, info = event.getNewInfo.toInfo)
-          case x: SuspendedState =>
-            x.copy(metaInfo = event.getMetaInfo, info = event.getNewInfo.toInfo)
-          case UninitializedState => UninitializedState
-        }
-      case event: MembersAddedToOrganization =>
-        state match {
-          case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, members = x.members ++ event.membersAdded)
-          case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, members = x.members ++ event.membersAdded)
-          case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, members = x.members ++ event.membersAdded)
-          case UninitializedState => UninitializedState
-        }
-      case event: MembersRemovedFromOrganization =>
-        state match {
-          case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, members = x.members -- event.membersRemoved)
-          case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, members = x.members -- event.membersRemoved)
-          case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, members = x.members -- event.membersRemoved)
-          case UninitializedState => UninitializedState
-        }
-      case event: OwnersAddedToOrganization =>
-        state match {
-          case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, owners = x.owners ++ event.ownersAdded)
-          case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, owners = x.owners ++ event.ownersAdded)
-          case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, owners = x.owners ++ event.ownersAdded)
-          case UninitializedState => UninitializedState
-        }
-      case event: OwnersRemovedFromOrganization =>
-        state match {
-          case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, owners = x.owners -- event.ownersRemoved)
-          case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, owners = x.owners -- event.ownersRemoved)
-          case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, owners = x.owners -- event.ownersRemoved)
-          case UninitializedState => UninitializedState
-        }
-      case event: OrganizationContactsUpdated =>
-        state match {
-          case x: DraftState      => x.copy(metaInfo = event.getMetaInfo, contacts = event.contacts.toSet)
-          case x: ActiveState     => x.copy(metaInfo = event.getMetaInfo, contacts = event.contacts.toSet)
-          case x: SuspendedState  => x.copy(metaInfo = event.getMetaInfo, contacts = event.contacts.toSet)
-          case UninitializedState => UninitializedState
-        }
-    }
-
-  private def handleCommand(state: OrganizationState, command: OrganizationCommand): Either[Error, OrganizationEvent] =
-    state match {
-      case UninitializedState =>
-        command match {
-          case command: EstablishOrganization => establishOrganization(command)
-          case _                              => Left(StateError("Organization is not established"))
-        }
-      case draftState: DraftState =>
-        command match {
-          case command: ActivateOrganization =>
-            activateOrganization(Left(draftState.info), draftState.metaInfo, command)
-          case command: SuspendOrganization   => suspendOrganization(draftState, command)
-          case command: TerminateOrganization => terminateOrganization(command)
-          case command: EditOrganizationInfo =>
-            editOrganizationInfo(Left(draftState.info), draftState.metaInfo, command)
-          case command: AddMembersToOrganization      => addMembersToOrganization(draftState, command)
-          case command: RemoveMembersFromOrganization => removeMembersFromOrganization(draftState, command)
-          case command: AddOwnersToOrganization       => addOwnersToOrganization(draftState, command)
-          case command: RemoveOwnersFromOrganization  => removeOwnersFromOrganization(draftState, command)
-          case command: UpdateOrganizationContacts    => updateOrganizationContacts(draftState, command)
-          case _                                      => Left(StateError("Message type not supported in draft state"))
-        }
-      case activeState: ActiveState =>
-        command match {
-          case command: SuspendOrganization   => suspendOrganization(activeState, command)
-          case command: TerminateOrganization => terminateOrganization(command)
-          case command: EditOrganizationInfo =>
-            editOrganizationInfo(Right(activeState.info), activeState.metaInfo, command)
-          case command: AddMembersToOrganization      => addMembersToOrganization(activeState, command)
-          case command: RemoveMembersFromOrganization => removeMembersFromOrganization(activeState, command)
-          case command: AddOwnersToOrganization       => addOwnersToOrganization(activeState, command)
-          case command: RemoveOwnersFromOrganization  => removeOwnersFromOrganization(activeState, command)
-          case command: UpdateOrganizationContacts    => updateOrganizationContacts(activeState, command)
-          case _                                      => Left(StateError("Message type not supported in active state"))
-        }
-      case suspendedState: SuspendedState =>
-        command match {
-          case command: ActivateOrganization =>
-            activateOrganization(Right(suspendedState.info), suspendedState.metaInfo, command)
-          case command: TerminateOrganization => terminateOrganization(command)
-          case command: EditOrganizationInfo =>
-            editOrganizationInfo(Right(suspendedState.info), suspendedState.metaInfo, command)
-          case command: AddMembersToOrganization      => addMembersToOrganization(suspendedState, command)
-          case command: RemoveMembersFromOrganization => removeMembersFromOrganization(suspendedState, command)
-          case command: AddOwnersToOrganization       => addOwnersToOrganization(suspendedState, command)
-          case command: RemoveOwnersFromOrganization  => removeOwnersFromOrganization(suspendedState, command)
-          case command: UpdateOrganizationContacts    => updateOrganizationContacts(suspendedState, command)
-          case _ => Left(StateError("Message type not supported in suspended state"))
-        }
-    }
+  private def handleCommand(
+      state: OrganizationState,
+      command: OrganizationCommand
+  ): Either[Error, OrganizationEvent] = {
+    val span = tracer.startSpan(s"handleCommand(${command.getClass.getSimpleName})")
+    try {
+      state match {
+        case UninitializedState =>
+          command match {
+            case command: EstablishOrganization => establishOrganization(command)
+            case _                              => Left(StateError("Organization is not established"))
+          }
+        case draftState: DraftState =>
+          command match {
+            case command: ActivateOrganization =>
+              activateOrganization(Left(draftState.info), draftState.metaInfo, command)
+            case command: SuspendOrganization   => suspendOrganization(draftState, command)
+            case command: TerminateOrganization => terminateOrganization(command)
+            case command: EditOrganizationInfo =>
+              editOrganizationInfo(Left(draftState.info), draftState.metaInfo, command)
+            case command: AddMembersToOrganization      => addMembersToOrganization(draftState, command)
+            case command: RemoveMembersFromOrganization => removeMembersFromOrganization(draftState, command)
+            case command: AddOwnersToOrganization       => addOwnersToOrganization(draftState, command)
+            case command: RemoveOwnersFromOrganization  => removeOwnersFromOrganization(draftState, command)
+            case command: UpdateOrganizationContacts    => updateOrganizationContacts(draftState, command)
+            case _                                      => Left(StateError("Message type not supported in draft state"))
+          }
+        case activeState: ActiveState =>
+          command match {
+            case command: SuspendOrganization   => suspendOrganization(activeState, command)
+            case command: TerminateOrganization => terminateOrganization(command)
+            case command: EditOrganizationInfo =>
+              editOrganizationInfo(Right(activeState.info), activeState.metaInfo, command)
+            case command: AddMembersToOrganization      => addMembersToOrganization(activeState, command)
+            case command: RemoveMembersFromOrganization => removeMembersFromOrganization(activeState, command)
+            case command: AddOwnersToOrganization       => addOwnersToOrganization(activeState, command)
+            case command: RemoveOwnersFromOrganization  => removeOwnersFromOrganization(activeState, command)
+            case command: UpdateOrganizationContacts    => updateOrganizationContacts(activeState, command)
+            case _ => Left(StateError("Message type not supported in active state"))
+          }
+        case suspendedState: SuspendedState =>
+          command match {
+            case command: ActivateOrganization =>
+              activateOrganization(Right(suspendedState.info), suspendedState.metaInfo, command)
+            case command: TerminateOrganization => terminateOrganization(command)
+            case command: EditOrganizationInfo =>
+              editOrganizationInfo(Right(suspendedState.info), suspendedState.metaInfo, command)
+            case command: AddMembersToOrganization      => addMembersToOrganization(suspendedState, command)
+            case command: RemoveMembersFromOrganization => removeMembersFromOrganization(suspendedState, command)
+            case command: AddOwnersToOrganization       => addOwnersToOrganization(suspendedState, command)
+            case command: RemoveOwnersFromOrganization  => removeOwnersFromOrganization(suspendedState, command)
+            case command: UpdateOrganizationContacts    => updateOrganizationContacts(suspendedState, command)
+            case _ => Left(StateError("Message type not supported in suspended state"))
+          }
+      }
+    } finally span.end()
+  }
 
   private def handleQuery(
       state: OrganizationState,
       query: OrganizationQuery
   ): Either[Error, OrganizationQueryResponse] = {
+    val span = tracer.startSpan(s"handleQuery(${query.getClass.getSimpleName})")
     state match {
       case state: DefinedState =>
         query match {

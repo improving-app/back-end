@@ -3,9 +3,11 @@ import akka.grpc.sbt.AkkaGrpcPlugin
 import akka.grpc.sbt.AkkaGrpcPlugin.autoImport.akkaGrpcCodeGeneratorSettings
 import com.typesafe.sbt.packager.Keys._
 import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
-import com.typesafe.sbt.packager.docker.{Cmd, CmdLike, DockerPlugin, ExecCmd}
-import sbt.Keys.{libraryDependencies, _}
-import sbt.{Def, Project, Test, Tests, _}
+import com.typesafe.sbt.packager.docker.{CmdLike, DockerPlugin}
+import com.lightbend.sbt.javaagent.JavaAgent
+import com.lightbend.sbt.javaagent.JavaAgent.JavaAgentKeys.javaAgents
+import sbt.Keys._
+import sbt._
 import sbtprotoc.ProtocPlugin.autoImport.PB
 import scalapb.GeneratorOption.{FlatPackage, RetainSourceCodeInfo, SingleLineToProtoString}
 
@@ -59,17 +61,15 @@ object C {
     ): Project = {
       project
         .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
-        .configs(IntegrationTest.extend(Test))
         .configure(Compilation.scala)
         .configure(Testing.scalaTest)
         .settings(
-          Defaults.itSettings,
           name := componentName,
           run / fork := true,
           scalaVersion := V.scala,
           scalacOptions := scala3Options,
           Compile / scalacOptions ++= scala3Options,
-          IntegrationTest / fork := true,
+          Test / fork := true,
           libraryDependencies ++=
             utilityDependencies ++ loggingDependencies ++
               httpDependencies ++ akkaHttpTestingDependencies ++ jsonDependencies ++
@@ -110,27 +110,31 @@ object C {
     }
   }
 
+  def scalaCompilation(artifactName: String)(proj: Project): Project = {
+    proj.settings(
+      name := artifactName,
+      organization := "com.improving",
+      organizationHomepage := Some(url("https://improving.app")),
+      licenses := Seq(("Apache 2", url("https://www.apache.org/licenses/LICENSE-2.0"))),
+      scalaVersion := V.scala,
+      scalacOptions := scala3Options,
+      Compile / scalacOptions ++= scala3Options
+    )
+  }
+
   def akkaPersistentEntity(artifactName: String, port: Integer)(project: Project): Project = {
     project
-      .configs(IntegrationTest)
+      .configure(scalaCompilation(artifactName))
       .enablePlugins(AkkaGrpcPlugin, JavaAppPackaging, DockerPlugin)
       .settings(
-        name := artifactName,
-        organization := "com.improving",
-        organizationHomepage := Some(url("https://improving.app")),
-        licenses := Seq(("Apache 2", url("https://www.apache.org/licenses/LICENSE-2.0"))),
-        scalaVersion := V.scala,
-        scalacOptions := scala3Options,
-        Compile / scalacOptions ++= scala3Options,
         Compile / javacOptions ++= javaOptions,
         Compile / publishLocal := true,
         Test / parallelExecution := false,
         Test / testOptions += Tests.Argument("-oDF"),
         Test / logBuffered := false,
-        IntegrationTest / fork := true,
+        Test / fork := true,
         run / fork := true,
         Global / cancelable := false, // ctrl-c
-        Defaults.itSettings,
         Compile / PB.targets += scalapb.validate
           .gen(FlatPackage) -> (Compile / akkaGrpcCodeGeneratorSettings / target).value,
         libraryDependencies ++= Seq(
@@ -158,9 +162,9 @@ object C {
           "ch.qos.logback" % "logback-classic" % V.logback,
           "com.typesafe.scala-logging" %% "scala-logging" % V.scalalogging,
           "org.typelevel" %% "cats-core" % V.catsCore,
-          "org.scalatest" %% "scalatest" % V.scalatest % "it, test",
-          "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "it, test",
-          "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion % "it, test",
+          "org.scalatest" %% "scalatest" % V.scalatest % "test",
+          "com.dimafeng" %% "testcontainers-scala-scalatest" % V.testcontainersScalaVersion % "test",
+          "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion % "test",
           "org.wvlet.airframe" %% "airframe-ulid" % V.airframeUlidVersion,
         ) ++ akkaHttpTestingDependencies ++ scalaPbDependencies ++ scalaPbValidationDependencies ++ Seq(
           scalaPbCompilerPlugin
@@ -172,7 +176,7 @@ object C {
   def dockerSettings(
       port: Int,
       componentName: String
-  ): Seq[Def.Setting[_ >: Task[Seq[CmdLike]] with String with Boolean with Seq[Int] with Option[String]]] = Seq(
+  ): Seq[Def.Setting[? >: Task[Seq[CmdLike]] with String with Boolean with Seq[Int] with Option[String]]] = Seq(
     dockerBaseImage := "ghcr.io/graalvm/graalvm-ce:ol7-java17-22.3.3",
     dockerUsername := sys.props.get("docker.username"),
     dockerRepository := sys.props.get("docker.registry"),
@@ -238,5 +242,41 @@ object C {
         ) -> (Compile / sourceManaged).value / "scalapb"
       ),
     )
+  }
+  def openTelemetry(proj: Project): Project = {
+    val version = "1.28.0"
+    val alphaVersion = s"$version-alpha"
+    lazy val javaAgent = "io.opentelemetry.javaagent" % "opentelemetry-javaagent" % version % "runtime"
+    lazy val libs: Seq[ModuleID] = Seq(
+      ("io.opentelemetry" % "opentelemetry-bom" % version).pomOnly(),
+      "io.opentelemetry" % "opentelemetry-api" % version,
+      "io.opentelemetry" % "opentelemetry-sdk" % version,
+      "io.opentelemetry" % "opentelemetry-exporter-jaeger" % version,
+      "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % version,
+      "io.opentelemetry" % "opentelemetry-exporter-prometheus" % alphaVersion,
+      "io.opentelemetry" % "opentelemetry-exporter-zipkin" % version,
+      "io.opentelemetry" % "opentelemetry-exporter-jaeger" % version,
+      "io.opentelemetry" % "opentelemetry-exporter-otlp" % version,
+      "io.opentelemetry" % "opentelemetry-exporter-logging" % version % Test,
+      javaAgent
+    )
+    proj
+      .configure()
+      .enablePlugins(JavaAgent, JavaAppPackaging)
+      .settings(
+        libraryDependencies ++= libs,
+        javaAgents += javaAgent,
+        Compile / javacOptions ++= Seq(
+          "-Dotel.java.global-autoconfigure.enabled=true",
+          s"-Dotel.javaagent.configuration-file=opentelemetry.properties",
+          "-Dotel.javaagent.debug=false"
+        ),
+        Test / javacOptions ++= Seq(
+          "-Dotel.java.global-autoconfigure.enabled=true",
+          s"-Dotel.javaagent.configuration-file=opentelemetry.properties",
+          "-Dotel.javaagent.debug=true"
+        )
+        // Debug OpenTelemetry Java agent
+      )
   }
 }
