@@ -1,61 +1,57 @@
 syntax =  "proto3";
 
-package com.improving.app.product.domain;
+package com.improving.app.gateway.domain.product;
 
 import "com/improving/app/common/domain/ids.proto";
-import "com/improving/app/product/domain/productDomainObjects.proto";
+import "com/improving/app/gateway/domain/product/productGatewayDomainObjects.proto";
 import "scalapb/scalapb.proto";
 import "scalapb/validate.proto";
 
 option (scalapb.options) = {
-  scope: FILE
-  [scalapb.validate.file] {
-    validate_at_construction: true
-  }
+    scope: FILE
+    [scalapb.validate.file] {
+        validate_at_construction: true
+    }
 };
 
 message ProductInfoEdited {
-    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.Sku sku = 1;
     EditableProductInfo info = 2;
     ProductMetaInfo meta = 3;
 }
 
 message ProductCreated {
-    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.Sku sku = 1;
     EditableProductInfo info = 2;
     ProductMetaInfo meta = 3;
 }
 
 message ProductActivated {
-    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.Sku sku = 1;
     ProductInfo info = 2;
     ProductMetaInfo meta = 3;
 }
 
 message ProductInactivated {
-    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.Sku sku = 1;
     ProductInfo info = 2;
     ProductMetaInfo meta = 3;
 }
 
 message ProductDeleted {
-    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.Sku sku = 1;
     ProductMetaInfo meta = 3;
 }
 
 message ProductEvent{
     option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
+
     oneof sealed_value {
-      ProductCreated product_created = 1;
-      ProductActivated product_activated = 2;
-      ProductInactivated product_inactivated = 3;
-      ProductDeleted product_deleted = 4;
-      ProductInfoEdited product_info_edited = 5;
+        ProductCreated product_created = 1;
+        ProductActivated product_activated = 2;
+        ProductInactivated product_inactivated = 3;
+        ProductDeleted product_deleted = 4;
+        ProductInfoEdited product_info_edited = 5;
     }
 }
 
@@ -66,12 +62,10 @@ message ProductData {
 }
 
 message ProductEventResponse {
-    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     ProductEvent product_event = 1;
 }
 
 message ProductResponse {
-    option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
     oneof sealed_value {
         ProductData product_data = 1;
         ProductEventResponse product_event_response = 2;

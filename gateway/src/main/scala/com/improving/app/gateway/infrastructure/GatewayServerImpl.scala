@@ -4,19 +4,8 @@ import akka.actor.typed.{ActorSystem, DispatcherSelector}
 import akka.grpc.GrpcServiceException
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes.BadRequest
-import com.improving.app.gateway.api.handlers.{
-  EventGatewayHandler,
-  MemberGatewayHandler,
-  OrganizationGatewayHandler,
-  TenantGatewayHandler
-}
-import com.improving.app.gateway.infrastructure.routes.{
-  DemoScenarioGatewayRoutes,
-  EventGatewayRoutes,
-  MemberGatewayRoutes,
-  OrganizationGatewayRoutes,
-  TenantGatewayRoutes
-}
+import com.improving.app.gateway.api.handlers._
+import com.improving.app.gateway.infrastructure.routes._
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
 import akka.http.scaladsl.server.{Directives, ExceptionHandler}
 import akka.http.scaladsl.server.Directives.complete
@@ -32,7 +21,8 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_])
     with OrganizationGatewayRoutes
     with MemberGatewayRoutes
     with EventGatewayRoutes
-    with DemoScenarioGatewayRoutes {
+    with StoreGatewayRoutes
+    with ProductGatewayRoutes {
 
   override val config: Config = ConfigFactory
     .load("application.conf")
@@ -52,6 +42,8 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_])
   private val organizationHandler: OrganizationGatewayHandler = new OrganizationGatewayHandler()
   private val memberHandler: MemberGatewayHandler = new MemberGatewayHandler()
   private val eventHandler: EventGatewayHandler = new EventGatewayHandler()
+  private val storeHandler: StoreGatewayHandler = new StoreGatewayHandler()
+  private val productHandler: ProductGatewayHandler = new ProductGatewayHandler()
 
   implicit val dispatcher: ExecutionContextExecutor = sys.dispatchers.lookup(DispatcherSelector.defaultDispatcher())
 
@@ -63,7 +55,9 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_])
           tenantRoutes(tenantHandler),
           organizationRoutes(organizationHandler),
           memberRoutes(memberHandler),
-          eventRoutes(eventHandler)
+          eventRoutes(eventHandler),
+          storeRoutes(storeHandler),
+          productRoutes(productHandler)
         )
     )
 

@@ -1,14 +1,18 @@
 package com.improving.app.gatling.demoScenario
 
 import akka.http.scaladsl.model.ContentTypes
-import com.improving.app.common.domain.{EventId, MemberId, OrganizationId, TenantId}
+import com.improving.app.common.domain.{EventId, MemberId, OrganizationId, Sku, StoreId, TenantId}
 import com.improving.app.gateway.domain.event.CreateEvent
 import com.improving.app.gateway.domain.member.RegisterMember
 import com.improving.app.gateway.domain.organization.{ActivateOrganization, EstablishOrganization}
+import com.improving.app.gateway.domain.product.CreateProduct
+import com.improving.app.gateway.domain.store.CreateStore
 import com.improving.app.gateway.domain.tenant.EstablishTenant
 import com.improving.app.gatling.demoScenario.gen.eventGen.{genCreateEvents, genScheduleEvent}
 import com.improving.app.gatling.demoScenario.gen.memberGen.{genActivateMember, genRegisterMembers}
 import com.improving.app.gatling.demoScenario.gen.organizationGen.{genActivateOrgReqs, genEstablishOrg}
+import com.improving.app.gatling.demoScenario.gen.productGen.{genActivateProduct, genCreateProducts}
+import com.improving.app.gatling.demoScenario.gen.storeGen.{genCreateStores, genMakeStoreReady}
 import com.improving.app.gatling.demoScenario.gen.tenantGen.{genActivateTenantReqs, genEstablishTenantReqs}
 import io.gatling.core.Predef._
 import io.gatling.core.controller.inject.open.OpenInjectionStep
@@ -19,13 +23,15 @@ import scalapb.json4s.JsonFormat
 
 import java.util.UUID
 
-class DemoScenarioGatewayTest extends Simulation {
+class DemoScenarioGatewayStart extends Simulation {
   val httpProtocol: HttpProtocolBuilder = http.baseUrl("http://localhost:9000")
 
-  val numTenants = 1
+  val numTenants = 2
   val numOrgsPerTenant = 1
   val numMembersPerOrg = 2
-  val numEventsPerOrg = 10
+  val numEventsPerOrg = 2
+  val numStoresPerEvent = 2
+  val numProductsPerEventStore = 2
 
   val tenantIds: Seq[Option[TenantId]] = (0 until numTenants).map(_ => Some(TenantId(UUID.randomUUID().toString)))
   val tenantsByCreatingMember: Map[Option[MemberId], Option[TenantId]] =
@@ -120,7 +126,7 @@ class DemoScenarioGatewayTest extends Simulation {
     .toMap
 
   val registerMemberByOrgs: Map[OrganizationId, Seq[RegisterMember]] = tenantsByCreatingMember
-    .flatMap { case (member, tenant) =>
+    .flatMap { case (member, _) =>
       establishOrgs.toMap
         .get(member)
         .map { org =>
@@ -178,6 +184,21 @@ class DemoScenarioGatewayTest extends Simulation {
     )
     .toMap
 
+  val getMembers: Map[MemberId, ScenarioBuilder] = (for {
+    registerMember <- registerMemberByOrgs.values
+  } yield registerMember
+    .map(req =>
+      req.memberId
+        .getOrElse(MemberId.defaultInstance) -> scenario(
+        s"GetMemberInfo-${req.memberId.map(_.id).getOrElse("MEMBERID NOT FOUND")}"
+      )
+        .exec(
+          http("StartScenario - GetMemberInfo")
+            .get(s"/member/${req.memberId.getOrElse(MemberId("MEMBERID NOT FOUND")).id}")
+            .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
+        )
+    )).flatten.toMap
+
   val createEventsByOrg: Map[OrganizationId, Seq[CreateEvent]] = establishOrgs.map { case (member, org) =>
     org.organizationId.getOrElse(OrganizationId("ORGANIZATION NOT FOUND")) -> genCreateEvents(
       numEventsPerOrg,
@@ -191,7 +212,7 @@ class DemoScenarioGatewayTest extends Simulation {
   } yield orgId -> createEvents
     .map(req =>
       req.eventId.getOrElse(EventId.defaultInstance) -> scenario(
-        s"RegisterMember-${req.eventId.map(_.id).getOrElse("EVENTID NOT FOUND")}"
+        s"CreateEvent-${req.eventId.map(_.id).getOrElse("EVENTID NOT FOUND")}"
       ).exec(
         http("StartScenario - CreateEvent")
           .post("/event")
@@ -224,6 +245,109 @@ class DemoScenarioGatewayTest extends Simulation {
         )
     )).flatten.toMap
 
+  val createStoresByEvent: Map[EventId, Seq[CreateStore]] = establishOrgs.flatMap { case (member, org) =>
+    val orgId = org.organizationId.getOrElse(OrganizationId("ORGANIZATION NOT FOUND"))
+    createEventsByOrg(orgId)
+      .flatMap(_.eventId)
+      .zip(
+        genCreateStores(
+          numStoresPerEvent,
+          member,
+          org,
+          createEventsByOrg(orgId)
+        )
+      )
+  }.toMap
+
+  val createStoresScns: Map[EventId, Seq[(StoreId, ScenarioBuilder)]] = (for {
+    (eventId, createStores) <- createStoresByEvent
+  } yield createStores.map { req =>
+    eventId -> (req.storeId.getOrElse(StoreId.defaultInstance) -> scenario(
+      s"CreateStore-${req.storeId.map(_.id).getOrElse("STOREID NOT FOUND")}"
+    ).exec(
+      http("StartScenario - CreateStore")
+        .post("/store")
+        .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
+        .body(
+          StringBody(
+            s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
+          )
+        )
+    ))
+  }).flatten.groupBy(_._1).map(tup => tup._1 -> tup._2.map(_._2).toSeq)
+
+  val readyStoresScns: Map[StoreId, ScenarioBuilder] = (for {
+    (_, readyStore) <- createStoresByEvent.map(tup => tup._1 -> tup._2.map(genMakeStoreReady))
+  } yield readyStore
+    .map(req =>
+      req.storeId.getOrElse(StoreId("STOREID NOT FOUND")) ->
+        scenario(
+          s"MakeStoreReady-${req.storeId.map(_.id).getOrElse("STOREID NOT FOUND")}"
+        ).exec(
+          http("StartScenario - MakeStoreReady")
+            .post("/store/ready")
+            .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
+            .body(
+              StringBody(
+                s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
+              )
+            )
+        )
+    )).flatten.toMap
+
+  val createProductsByStore: Map[StoreId, Seq[CreateProduct]] = createStoresByEvent.toSeq.flatMap { createStore =>
+    createStore._2
+      .map(store =>
+        store.storeId.getOrElse(StoreId.defaultInstance) -> genCreateProducts(
+          numProductsPerEventStore,
+          store.onBehalfOf,
+          createEventsByOrg(store.info.flatMap(_.sponsoringOrg).getOrElse(OrganizationId.defaultInstance))
+            .groupBy(_.eventId)
+            .get(Some(createStore._1))
+            .map(_.head)
+            .getOrElse(CreateEvent.defaultInstance)
+        )
+      )
+      .toMap
+  }.toMap
+
+  val createProductsScns: Map[StoreId, Seq[(Sku, ScenarioBuilder)]] = (for {
+    (storeId, createProducts) <- createProductsByStore
+  } yield createProducts
+    .map { createProduct =>
+      storeId -> (createProduct.sku.getOrElse(Sku.defaultInstance) -> scenario(
+        s"CreateProduct-${createProduct.sku.map(_.sku).getOrElse("SKU NOT FOUND")}"
+      ).exec(
+        http("StartScenario - CreateProduct")
+          .post("/product")
+          .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
+          .body(
+            StringBody(
+              s"""\"${JsonFormat.toJsonString(createProduct).replace("\"", "\\\"")}\""""
+            )
+          )
+      ))
+    }).flatten.groupBy(_._1).map(tup => tup._1 -> tup._2.map(_._2).toSeq)
+
+  val activateProductScns: Map[StoreId, Map[Sku, ScenarioBuilder]] = (for {
+    (storeId, activateProduct) <- createProductsByStore.map(tup => tup._1 -> tup._2.map(genActivateProduct))
+  } yield activateProduct
+    .map(req =>
+      storeId -> (req.sku.getOrElse(Sku.defaultInstance) ->
+        scenario(
+          s"ActivateProduct-${req.sku.map(_.sku).getOrElse("SKU NOT FOUND")}"
+        ).exec(
+          http("StartScenario - ActivateProduct")
+            .post("/product/activate")
+            .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
+            .body(
+              StringBody(
+                s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
+              )
+            )
+        ))
+    )).flatten.groupBy(_._1).map(tup => tup._1 -> tup._2.map(_._2).toMap)
+
   val injectionProfile: OpenInjectionStep = atOnceUsers(1)
   setUp(
     establishTenantsScn.toSeq
@@ -246,11 +370,32 @@ class DemoScenarioGatewayTest extends Simulation {
                       .andThen(
                         activateMemberScns(orgId)(registerMemberIDTup._1)
                           .inject(injectionProfile)
+                          .andThen(getMembers(registerMemberIDTup._1).inject(injectionProfile))
                       )
                   ) ++ createEventsScns(orgId).map { createEventOrgIDTup =>
                     createEventOrgIDTup._2
                       .inject(injectionProfile)
-                      .andThen(scheduleEventsScns(createEventOrgIDTup._1).inject(injectionProfile))
+                      .andThen(
+                        scheduleEventsScns(createEventOrgIDTup._1)
+                          .inject(injectionProfile)
+                          .andThen(
+                            createStoresScns(createEventOrgIDTup._1).map(storeScnTup =>
+                              storeScnTup._2
+                                .inject(injectionProfile)
+                                .andThen {
+                                  readyStoresScns(storeScnTup._1)
+                                    .inject(injectionProfile)
+                                    .andThen(createProductsScns(storeScnTup._1).map { productScn =>
+                                      productScn._2
+                                        .inject(injectionProfile)
+                                        .andThen(
+                                          activateProductScns(storeScnTup._1)(productScn._1).inject(injectionProfile)
+                                        )
+                                    }: _*)
+                                }
+                            ): _*
+                          )
+                      )
                   }.toSeq
                 }
               }

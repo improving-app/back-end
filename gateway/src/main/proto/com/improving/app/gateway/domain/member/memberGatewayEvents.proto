@@ -22,6 +22,11 @@ message MemberTerminated {
   MemberMetaInfo last_meta = 2;
 }
 
+message AllMemberIds {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    repeated common.domain.MemberId member_ids = 1;
+}
+
 message MemberEvent{
 
   option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
@@ -30,6 +35,7 @@ message MemberEvent{
     MemberRegistered member_registered_value = 1;
     MemberActivated member_activated_value = 2;
     MemberTerminated member_terminated_value = 3;
+    AllMemberIds all_member_ids = 4;
   }
 }
 

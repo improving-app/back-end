@@ -50,19 +50,37 @@ trait MemberGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggi
               }
             }
           }
-        } ~
-          post {
-            entity(Directives.as[String]) { data =>
-              onSuccess(
-                handler
-                  .registerMember(
-                    fromJsonString[GatewayRegisterMember](data)
-                  )
-              ) { memberRegistered =>
-                complete(JsonFormat.toJsonString(memberRegistered))
-              }
+        } ~ pathPrefix("allIds") {
+          get {
+            onSuccess(
+              handler.getAllMemberIds
+            ) { allIds =>
+              complete(JsonFormat.toJsonString(allIds))
             }
           }
+        } ~ pathPrefix(Segment) { memberId =>
+          get {
+            onSuccess(
+              handler
+                .getMemberData(
+                  memberId
+                )
+            ) { memberInfo =>
+              complete(JsonFormat.toJsonString(memberInfo))
+            }
+          }
+        } ~ post {
+          entity(Directives.as[String]) { data =>
+            onSuccess(
+              handler
+                .registerMember(
+                  fromJsonString[GatewayRegisterMember](data)
+                )
+            ) { memberRegistered =>
+              complete(JsonFormat.toJsonString(memberRegistered))
+            }
+          }
+        }
       }
     }
 }

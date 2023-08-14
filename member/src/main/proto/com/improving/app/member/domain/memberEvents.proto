@@ -16,31 +16,41 @@ option (scalapb.options) = {
 };
 
 message MemberRegistered {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.MemberId member_id = 1;
     EditableInfo member_info = 2;
     MemberMetaInfo meta = 3;
 }
 
 message MemberActivated {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.MemberId member_id = 1;
     MemberMetaInfo meta = 2;
 }
 
 message MemberSuspended {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.MemberId member_id = 1;
     MemberMetaInfo meta = 2;
     string suspension_reason = 3 [(validate.rules).string.min_len = 1];
 }
 
 message MemberTerminated {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.MemberId member_id = 1;
     MemberMetaInfo last_meta = 2;
 }
 
 message MemberInfoEdited {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.MemberId member_id = 1;
     EditableInfo new_info = 2;
     MemberMetaInfo meta = 3;
+}
+
+message AllMemberIds {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    repeated common.domain.MemberId member_ids = 1;
 }
 
 
@@ -53,6 +63,7 @@ message MemberEvent{
     MemberSuspended member_suspended_value = 3;
     MemberTerminated member_terminated = 4;
     MemberInfoEdited member_info_edited = 5;
+      AllMemberIds all_member_ids = 6;
   }
 }
 
@@ -64,10 +75,12 @@ message MemberData {
 }
 
 message MemberEventResponse {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     MemberEvent member_event = 1;
 }
 
 message MemberResponse {
+    option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
     oneof sealed_value {
         MemberData member_state_value = 1;
         MemberEventResponse member_event_value = 2;
