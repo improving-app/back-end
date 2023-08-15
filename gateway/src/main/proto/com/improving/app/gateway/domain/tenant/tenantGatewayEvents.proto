@@ -49,6 +49,11 @@ message TenantEventResponse {
     TenantEvent tenant_event = 1;
 }
 
+message AllTenantIds {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    repeated common.domain.TenantId all_tenant_ids = 1;
+}
+
 message TenantDataResponse {
     TenantData tenant_data = 1 ;
 }

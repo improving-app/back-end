@@ -50,14 +50,13 @@ message MemberInfoEdited {
 
 message AllMemberIds {
     option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
-    repeated common.domain.MemberId member_ids = 1;
+    repeated common.domain.MemberId all_member_ids = 1;
 }
 
 
 message MemberEvent{
-  option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
-
-  oneof sealed_value {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    oneof sealed_value {
     MemberRegistered member_registered_value = 1;
     MemberActivated member_activated_value = 2;
     MemberSuspended member_suspended_value = 3;
@@ -80,7 +79,7 @@ message MemberEventResponse {
 }
 
 message MemberResponse {
-    option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     oneof sealed_value {
         MemberData member_state_value = 1;
         MemberEventResponse member_event_value = 2;

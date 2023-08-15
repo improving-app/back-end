@@ -49,6 +49,14 @@ trait OrganizationGatewayRoutes extends ErrorAccumulatingCirceSupport with Stric
               }
             }
           }
+        } ~ pathPrefix("allIds") {
+          get {
+            onSuccess(
+              handler.getAllIds
+            ) { allOrgIds =>
+              complete(JsonFormat.toJsonString(allOrgIds))
+            }
+          }
         } ~ post {
           entity(Directives.as[String]) { data =>
             onSuccess(

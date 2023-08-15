@@ -34,6 +34,11 @@ message OrganizationTerminated {
     com.improving.app.common.domain.OrganizationId organization_id = 1;
 }
 
+message AllOrganizationIds {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    repeated common.domain.OrganizationId all_organization_ids = 1;
+}
+
 message OrganizationEventResponse {
     option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     OrganizationEvent organization_event = 1;

@@ -37,7 +37,7 @@ service MemberService {
       //get:"member/{memberId}/"
   }
 
-  rpc GetAllMemberIds(google.protobuf.Empty) returns (domain.AllMemberIds) {
+  rpc GetAllIds(google.protobuf.Empty) returns (domain.AllMemberIds) {
 
   }
 

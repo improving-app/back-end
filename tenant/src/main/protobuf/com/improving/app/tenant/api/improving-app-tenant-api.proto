@@ -4,6 +4,7 @@ package com.improving.app.tenant.api;
 
 import "com/improving/app/tenant/domain/tenantEvents.proto";
 import "com/improving/app/tenant/domain/tenantRequests.proto";
+import "google/protobuf/empty.proto";
 
 service TenantService {
   rpc EstablishTenant (domain.EstablishTenant) returns (domain.TenantEstablished) {}
@@ -17,4 +18,6 @@ service TenantService {
   rpc GetOrganizations (domain.GetOrganizations) returns (domain.TenantOrganizationData) {}
 
   rpc TerminateTenant (domain.TerminateTenant) returns (domain.TenantTerminated) {}
+
+  rpc GetAllIds (google.protobuf.Empty) returns (domain.AllTenantIds) {}
 }

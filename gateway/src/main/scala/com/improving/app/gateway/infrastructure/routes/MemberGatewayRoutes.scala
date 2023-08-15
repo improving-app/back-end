@@ -53,7 +53,7 @@ trait MemberGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggi
         } ~ pathPrefix("allIds") {
           get {
             onSuccess(
-              handler.getAllMemberIds
+              handler.getAllIds
             ) { allIds =>
               complete(JsonFormat.toJsonString(allIds))
             }

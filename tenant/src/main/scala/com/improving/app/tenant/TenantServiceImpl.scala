@@ -4,10 +4,14 @@ import akka.actor.typed.ActorSystem
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.grpc.GrpcServiceException
+import akka.persistence.cassandra.query.scaladsl.CassandraReadJournal
+import akka.persistence.query.PersistenceQuery
 import akka.persistence.typed.PersistenceId
 import akka.util.Timeout
+import com.google.protobuf.empty.Empty
 import com.google.rpc.Code
 import com.google.rpc.error_details.LocalizedMessage
+import com.improving.app.common.domain.TenantId
 import com.improving.app.tenant.api.TenantService
 import com.improving.app.tenant.domain._
 
@@ -80,4 +84,11 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
   override def getOrganizations(in: GetOrganizations): Future[TenantOrganizationData] =
     handleRequest[TenantDataResponse](in).map(_.tenantData.asMessage.getOrganizationDataValue)
 
+  override def getAllIds(in: Empty): Future[AllTenantIds] = {
+    val readJournal =
+      PersistenceQuery(system).readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
+    readJournal.currentPersistenceIds().runFold(Seq[TenantId]())(_ :+ TenantId(_)).map { seq =>
+      AllTenantIds(seq)
+    }
+  }
 }

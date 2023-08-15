@@ -17,19 +17,19 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import scala.language.postfixOps
 
-class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberService {
-
-  implicit val ec: ExecutionContext = system.executionContext
+class MemberServiceImpl(sys: ActorSystem[_]) extends MemberService {
+  implicit private val system: ActorSystem[_] = sys
+  implicit val ec: ExecutionContext = sys.executionContext
   implicit val timeout: Timeout = Timeout(5 minute)
-  implicit val executor: ExecutionContextExecutor = system.executionContext
+  implicit val executor: ExecutionContextExecutor = sys.executionContext
 
   // Create a new member
-  val sharding: ClusterSharding = ClusterSharding(system)
-  ClusterSharding(system).init(
+  val sharding: ClusterSharding = ClusterSharding(sys)
+  ClusterSharding(sys).init(
     Entity(MemberEntityKey)(entityContext => Member(entityContext.entityTypeKey.name, entityContext.entityId))
   )
 
-  Cluster(system).manager ! Join(Cluster(system).selfMember.address)
+  Cluster(sys).manager ! Join(Cluster(sys).selfMember.address)
 
   private def handleResponse[T](
       eventHandler: PartialFunction[StatusReply[MemberResponse], T]
@@ -41,14 +41,14 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
   }
 
   private def handleCommand[T](
-      in: MemberRequestPB with MemberCommand,
+      in: MemberCommand with MemberRequestPB,
       eventHandler: PartialFunction[StatusReply[MemberResponse], T]
   ): Future[T] = in.memberId
     .map { id =>
       val memberEntity = sharding.entityRefFor(MemberEntityKey, id.id)
 
       memberEntity
-        .ask[StatusReply[MemberResponse]](replyTo => MemberEnvelope(in, replyTo))
+        .ask[StatusReply[MemberResponse]](replyTo => MemberEnvelope(in.asInstanceOf[MemberRequestPB], replyTo))
         .map { handleResponse(eventHandler) }
     }
     .getOrElse(
@@ -62,14 +62,14 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
     )
 
   private def handleQuery[T](
-      in: MemberRequestPB with MemberQuery,
+      in: MemberQuery with MemberRequestPB,
       eventHandler: PartialFunction[StatusReply[MemberResponse], T]
   ): Future[T] = in.memberId
     .map { id =>
       val memberEntity = sharding.entityRefFor(MemberEntityKey, id.id)
 
       memberEntity
-        .ask[StatusReply[MemberResponse]](replyTo => MemberEnvelope(in, replyTo))
+        .ask(replyTo => MemberEnvelope(in.asInstanceOf[MemberRequestPB], replyTo))
         .map { handleResponse(eventHandler) }
     }
     .getOrElse(
@@ -123,9 +123,9 @@ class MemberServiceImpl(implicit val system: ActorSystem[_]) extends MemberServi
       { case StatusReply.Success(response @ MemberData(_, _, _, _)) => response }
     )
 
-  override def getAllMemberIds(in: Empty): Future[AllMemberIds] = {
+  override def getAllIds(in: Empty): Future[AllMemberIds] = {
     val readJournal =
-      PersistenceQuery(system).readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
+      PersistenceQuery(sys).readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
     readJournal.currentPersistenceIds().runFold(Seq[MemberId]())(_ :+ MemberId(_)).map { seq =>
       AllMemberIds(seq)
     }

@@ -41,6 +41,10 @@ message OrganizationContactsResponse {
   repeated com.improving.app.common.domain.Contact contacts = 2;
 }
 
+message AllOrganizationIds {
+  repeated common.domain.OrganizationId all_organization_ids = 1;
+}
+
 message OrganizationEventPB {
 
   oneof sealed_value {

@@ -4,13 +4,17 @@ import akka.actor.typed.ActorSystem
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.grpc.GrpcServiceException
+import akka.persistence.cassandra.query.scaladsl.CassandraReadJournal
+import akka.persistence.query.PersistenceQuery
 import akka.persistence.typed.PersistenceId
 import akka.util.Timeout
+import com.google.protobuf.empty.Empty
 import com.google.rpc.Code
 import com.google.rpc.error_details.LocalizedMessage
-import com.improving.app.common.domain.ContactList
+import com.improving.app.common.domain.{ContactList, OrganizationId}
 import com.improving.app.organization.domain._
 
+import scala.:+
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
@@ -100,5 +104,13 @@ class OrganizationServiceImpl(sys: ActorSystem[_]) extends OrganizationService {
 
   override def getOrganizationContacts(query: GetOrganizationContacts): Future[ContactList] = {
     processEntityRequest[OrganizationContactsResponse](query).map(r => ContactList(r.contacts))
+  }
+
+  override def getAllIds(in: Empty): Future[AllOrganizationIds] = {
+    val readJournal =
+      PersistenceQuery(system).readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
+    readJournal.currentPersistenceIds().runFold(Seq[OrganizationId]())(_ :+ OrganizationId(_)).map { seq =>
+      AllOrganizationIds(seq)
+    }
   }
 }
