@@ -22,7 +22,12 @@ class GetAllIds extends Simulation {
 
   val getAllMembersScn: ScenarioBuilder = getAllScnForService("member")
 
-  val getAllEventsScn: ScenarioBuilder = getAllScnForService("event")
+  val getAllEventsScn: ScenarioBuilder = scenario(
+    s"GetAllEvents"
+  ).exec(
+    http(s"StartScenario - GetAllEvents")
+      .get(s"/event/allData")
+  )
 
   val getAllStoresScn: ScenarioBuilder = getAllScnForService("store")
 

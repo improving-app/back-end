@@ -41,7 +41,7 @@ class DemoScenarioGatewayStart extends Simulation {
     tenantsByCreatingMember.keys.toSeq.map(member => member -> OrganizationId(UUID.randomUUID().toString)).toMap
 
   def createScn[T <: GeneratedMessage](scnId: String, path: String, req: T): ScenarioBuilder = scenario(
-    s"${req.getClass.getCanonicalName}-$scnId"
+    s"${req.getClass.getSimpleName}-$scnId"
   ).exec(
     http(s"StartScenario - ${req.getClass.getSimpleName}")
       .post(path)

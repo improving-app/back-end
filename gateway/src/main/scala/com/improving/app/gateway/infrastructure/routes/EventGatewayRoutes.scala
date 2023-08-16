@@ -3,11 +3,11 @@ package com.improving.app.gateway.infrastructure.routes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import akka.http.scaladsl.server.{Directives, ExceptionHandler, Route}
-import com.improving.app.common.domain.EventId
 import com.improving.app.gateway.api.handlers.EventGatewayHandler
 import com.improving.app.gateway.domain.event.{
   CancelEvent => GatewayCancelEvent,
   CreateEvent => GatewayCreateEvent,
+  EventData,
   ScheduleEvent => GatewayScheduleEvent
 }
 import com.typesafe.config.Config
@@ -16,6 +16,9 @@ import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport
 import io.circe.generic.codec.DerivedAsObjectCodec.deriveCodec
 import scalapb.json4s.JsonFormat
 import scalapb.json4s.JsonFormat.fromJsonString
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLogging {
 
@@ -48,6 +51,26 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
               ) { eventCancelled =>
                 complete(JsonFormat.toJsonString(eventCancelled))
               }
+            }
+          }
+        } ~ pathPrefix("allIds") {
+          get {
+            onSuccess(
+              handler.getAllIds
+            ) { allIds =>
+              complete(JsonFormat.toJsonString(allIds))
+            }
+
+          }
+        } ~ pathPrefix("allData") {
+          get {
+            onSuccess(
+              handler.getAllIds.map { resp =>
+                println("resp: " + resp.toProtoString)
+                resp.allEventIds.map(id => handler.getEventData(id.id))
+              }
+            ) { allIdsFut =>
+              complete(Future.sequence(allIdsFut).map(data => data.map(JsonFormat.toJsonString[EventData])))
             }
           }
         } ~ pathPrefix(Segment) { eventId =>

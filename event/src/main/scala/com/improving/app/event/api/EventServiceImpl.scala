@@ -250,8 +250,12 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
   override def getAllIds(in: Empty): Future[AllEventIds] = {
     val readJournal =
       PersistenceQuery(system).readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
-    readJournal.currentPersistenceIds().runFold(Seq[EventId]())(_ :+ EventId(_)).map { seq =>
-      AllEventIds(seq)
-    }
+    readJournal
+      .currentPersistenceIds()
+      .map(id => id.split('|')(1))
+      .runFold(Seq[EventId]())(_ :+ EventId(_))
+      .map { seq =>
+        AllEventIds(seq)
+      }
   }
 }
