@@ -14,7 +14,31 @@ import com.google.rpc.error_details.LocalizedMessage
 import com.improving.app.common.domain.StoreId
 import com.improving.app.common.errors.ValidationError
 import com.improving.app.store.api.StoreService
-import com.improving.app.store.domain.{AddProductsToStore, AllStoreIds, CloseStore, CreateStore, DeleteStore, EditStoreInfo, MakeStoreReady, OpenStore, ProductsAddedToStore, ProductsRemovedFromStore, RemoveProductsFromStore, Store, StoreClosed, StoreCommand, StoreCreated, StoreDeleted, StoreEventMessage, StoreInfoEdited, StoreIsReady, StoreOpened, StoreRequestPB, StoreTerminated, TerminateStore}
+import com.improving.app.store.domain.{
+  AddProductsToStore,
+  AllStoreIds,
+  CloseStore,
+  CreateStore,
+  DeleteStore,
+  EditStoreInfo,
+  MakeStoreReady,
+  OpenStore,
+  ProductsAddedToStore,
+  ProductsRemovedFromStore,
+  RemoveProductsFromStore,
+  Store,
+  StoreClosed,
+  StoreCommand,
+  StoreCreated,
+  StoreDeleted,
+  StoreEventMessage,
+  StoreInfoEdited,
+  StoreIsReady,
+  StoreOpened,
+  StoreRequestPB,
+  StoreTerminated,
+  TerminateStore
+}
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.concurrent.duration.DurationInt
