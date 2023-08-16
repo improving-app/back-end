@@ -53,6 +53,17 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
               }
             }
           }
+        } ~ pathPrefix(Segment) { eventId =>
+          get {
+            onSuccess(
+              handler
+                .getEventData(
+                  eventId
+                )
+            ) { eventData =>
+              complete(JsonFormat.toJsonString(eventData))
+            }
+          }
         } ~ pathPrefix("allIds") {
           get {
             onSuccess(
@@ -65,45 +76,10 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
         } ~ pathPrefix("allData") {
           get {
             onSuccess(
-              handler.getAllIds.map { resp =>
-                println("resp: " + resp.toProtoString)
-                resp.allEventIds.map(id => handler.getEventData(id.id))
-              }
+              handler.getAllIds.map(_.allEventIds.map(id => handler.getEventData(id.id)))
             ) { allIdsFut =>
               complete(Future.sequence(allIdsFut).map(data => data.map(JsonFormat.toJsonString[EventData])))
             }
-          }
-        } ~ pathPrefix(Segment) { eventId =>
-          get {
-            onSuccess(
-              handler
-                .getEventData(
-                  eventId
-                )
-            ) { eventData =>
-              complete(JsonFormat.toJsonString(eventData))
-            }
-          }
-        } ~ post {
-          entity(Directives.as[String]) { data =>
-            onSuccess(
-              handler
-                .createEvent(
-                  fromJsonString[GatewayCreateEvent](data)
-                )
-            ) { eventCreated =>
-              complete(JsonFormat.toJsonString(eventCreated))
-            }
-          }
-        }
-        } ~ pathPrefix("allIds") {
-          get {
-            onSuccess(
-              handler.getAllIds
-            ) { allIds =>
-              complete(JsonFormat.toJsonString(allIds))
-            }
-
           }
         } ~ post {
           entity(Directives.as[String]) { data =>

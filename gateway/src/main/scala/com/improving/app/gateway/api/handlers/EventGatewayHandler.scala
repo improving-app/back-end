@@ -111,7 +111,6 @@ class EventGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = No
 
   def getAllIds: Future[GatewayAllEventIds] =
     eventClient.getAllIds(com.google.protobuf.empty.Empty()).map { response =>
-      println("resp: " + response.toProtoString)
       GatewayAllEventIds(response.allEventIds)
     }
 }
