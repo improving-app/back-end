@@ -6,6 +6,7 @@ import "com/improving/app/organization/domain/organizationRequest.proto";
 import "com/improving/app/organization/domain/organizationDomainObjects.proto";
 import "com/improving/app/organization/domain/organizationEvents.proto";
 import "com/improving/app/common/domain/address.proto";
+import "google/protobuf/empty.proto";
 
 service OrganizationService {
 
@@ -30,5 +31,7 @@ service OrganizationService {
   rpc UpdateOrganizationContacts (domain.UpdateOrganizationContacts) returns (domain.OrganizationContactsUpdated) {}
 
   rpc GetOrganizationContacts (domain.GetOrganizationContacts) returns (common.domain.ContactList) {}
+
+  rpc GetAllIds(google.protobuf.Empty) returns (domain.AllOrganizationIds) {}
 
 }

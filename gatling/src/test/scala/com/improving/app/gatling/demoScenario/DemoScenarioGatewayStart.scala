@@ -2,12 +2,12 @@ package com.improving.app.gatling.demoScenario
 
 import akka.http.scaladsl.model.ContentTypes
 import com.improving.app.common.domain.{EventId, MemberId, OrganizationId, Sku, StoreId, TenantId}
-import com.improving.app.gateway.domain.event.CreateEvent
-import com.improving.app.gateway.domain.member.RegisterMember
+import com.improving.app.gateway.domain.event.{CreateEvent, ScheduleEvent}
+import com.improving.app.gateway.domain.member.{ActivateMember, GetMemberInfo, RegisterMember}
 import com.improving.app.gateway.domain.organization.{ActivateOrganization, EstablishOrganization}
-import com.improving.app.gateway.domain.product.CreateProduct
-import com.improving.app.gateway.domain.store.CreateStore
-import com.improving.app.gateway.domain.tenant.EstablishTenant
+import com.improving.app.gateway.domain.product.{ActivateProduct, CreateProduct}
+import com.improving.app.gateway.domain.store.{CreateStore, MakeStoreReady}
+import com.improving.app.gateway.domain.tenant.{ActivateTenant, EstablishTenant}
 import com.improving.app.gatling.demoScenario.gen.eventGen.{genCreateEvents, genScheduleEvent}
 import com.improving.app.gatling.demoScenario.gen.memberGen.{genActivateMember, genRegisterMembers}
 import com.improving.app.gatling.demoScenario.gen.organizationGen.{genActivateOrgReqs, genEstablishOrg}
@@ -19,6 +19,7 @@ import io.gatling.core.controller.inject.open.OpenInjectionStep
 import io.gatling.core.structure.ScenarioBuilder
 import io.gatling.http.Predef._
 import io.gatling.http.protocol.HttpProtocolBuilder
+import scalapb.GeneratedMessage
 import scalapb.json4s.JsonFormat
 
 import java.util.UUID
@@ -39,6 +40,19 @@ class DemoScenarioGatewayStart extends Simulation {
   val orgIdsByCreatingMember: Map[Option[MemberId], OrganizationId] =
     tenantsByCreatingMember.keys.toSeq.map(member => member -> OrganizationId(UUID.randomUUID().toString)).toMap
 
+  def createScn[T <: GeneratedMessage](scnId: String, path: String, req: T): ScenarioBuilder = scenario(
+    s"${req.getClass.getCanonicalName}-$scnId"
+  ).exec(
+    http(s"StartScenario - ${req.getClass.getSimpleName}")
+      .post(path)
+      .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
+      .body(
+        StringBody(
+          s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
+        )
+      )
+  )
+
   val establishTenantRequestsByCreatingMember: Seq[(Option[MemberId], EstablishTenant)] = genEstablishTenantReqs(
     tenantsByCreatingMember.keys.toSeq,
     numTenants,
@@ -50,33 +64,21 @@ class DemoScenarioGatewayStart extends Simulation {
 
   val establishTenantsScn: Map[Option[MemberId], ScenarioBuilder] = (for {
     (creatingMember, tenantReq) <- establishTenantRequestsByCreatingMember
-  } yield creatingMember -> scenario(s"EstablishTenant-${tenantReq.tenantId.map(_.id).getOrElse("TENANTID NOT FOUND")}")
-    .exec(
-      http("StartScenario - EstablishTenants")
-        .post("/tenant")
-        .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
-        .body(
-          StringBody(
-            s"""\"${JsonFormat.toJsonString(tenantReq).replace("\"", "\\\"")}\""""
-          )
-        )
-    )).toMap
+  } yield creatingMember -> createScn[EstablishTenant](
+    tenantReq.tenantId.map(_.id).getOrElse("TENANTID NOT FOUND"),
+    "/tenant",
+    tenantReq
+  )).toMap
 
   val activateTenantsScn: Map[Option[MemberId], ScenarioBuilder] = (for {
     (creatingMember, tenantReq) <- establishTenantRequestsByCreatingMember.map(tup =>
       tup._1 -> genActivateTenantReqs(tup._2)
     )
-  } yield creatingMember -> scenario(s"ActivateTenant-${tenantReq.tenantId.map(_.id).getOrElse("TENANTID NOT FOUND")}")
-    .exec(
-      http("StartScenario - ActivateTenants")
-        .post("/tenant/activate")
-        .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
-        .body(
-          StringBody(
-            s"""\"${JsonFormat.toJsonString(tenantReq).replace("\"", "\\\"")}\""""
-          )
-        )
-    )).toMap
+  } yield creatingMember -> createScn[ActivateTenant](
+    tenantReq.tenantId.map(_.id).getOrElse("TENANTID NOT FOUND"),
+    "/tenant/activate",
+    tenantReq
+  )).toMap
 
   val establishOrgs: Seq[(Option[MemberId], EstablishOrganization)] =
     tenantsByCreatingMember.map { case (member, tenant) =>
@@ -88,42 +90,22 @@ class DemoScenarioGatewayStart extends Simulation {
   val establishOrgScn: Map[Option[MemberId], ScenarioBuilder] = establishOrgs
     .map(req =>
       req._1 ->
-        scenario(
-          s"EstablishOrg-${req._2.organizationId.map(_.id).getOrElse("ORGANIZATIONID NOT FOUND")}"
-        )
-          .exec(
-            http("StartScenario - EstablishOrg")
-              .post("/organization")
-              .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
-              .body(
-                StringBody(
-                  s"""\"${JsonFormat.toJsonString(req._2).replace("\"", "\\\"")}\""""
-                )
-              )
-          )
-    )
-    .toMap
-
-  val activateOrgs: Seq[(Option[MemberId], ActivateOrganization)] =
-    establishOrgs.map(req => req._1 -> genActivateOrgReqs(req._2))
-
-  val activateOrgScn: Map[Option[MemberId], ScenarioBuilder] = activateOrgs
-    .map(req =>
-      req._1 -> scenario(
-        s"ActivateOrg-${req._2.organizationId.map(_.id).getOrElse("ORGANIZATIONID NOT FOUND")}"
-      )
-        .exec(
-          http("StartScenario - ActivateOrg")
-            .post("/organization/activate")
-            .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
-            .body(
-              StringBody(
-                s"""\"${JsonFormat.toJsonString(req._2).replace("\"", "\\\"")}\""""
-              )
-            )
+        createScn[EstablishOrganization](
+          req._2.organizationId.map(_.id).getOrElse("ORGANIZATIONID NOT FOUND"),
+          "/organization",
+          req._2
         )
     )
     .toMap
+
+  val activateOrgScn: Map[Option[MemberId], ScenarioBuilder] = establishOrgs.map { req =>
+    val activate = genActivateOrgReqs(req._2)
+    req._1 -> createScn[ActivateOrganization](
+      activate.organizationId.map(_.id).getOrElse("ORGANIZATIONID NOT FOUND"),
+      "/organization/activate",
+      activate
+    )
+  }.toMap
 
   val registerMemberByOrgs: Map[OrganizationId, Seq[RegisterMember]] = tenantsByCreatingMember
     .flatMap { case (member, _) =>
@@ -147,19 +129,11 @@ class DemoScenarioGatewayStart extends Simulation {
     (orgId, registerMembers) <- registerMemberByOrgs
   } yield orgId -> registerMembers
     .map(req =>
-      req.memberId.getOrElse(MemberId.defaultInstance) ->
-        scenario(
-          s"RegisterMember-${req.memberId.map(_.id).getOrElse("MEMBERID NOT FOUND")}"
-        ).exec(
-          http("StartScenario - RegisterMember")
-            .post("/member")
-            .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
-            .body(
-              StringBody(
-                s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
-              )
-            )
-        )
+      req.memberId.getOrElse(MemberId.defaultInstance) -> createScn[RegisterMember](
+        req.memberId.map(_.id).getOrElse("MEMBERID NOT FOUND"),
+        "/member",
+        req
+      )
     )
 
   val activateMemberScns: Map[OrganizationId, Map[MemberId, ScenarioBuilder]] = for {
@@ -168,19 +142,11 @@ class DemoScenarioGatewayStart extends Simulation {
     )
   } yield orgId -> activateMembers
     .map(req =>
-      req.memberId.getOrElse(MemberId.defaultInstance) -> scenario(
-        s"ActivateMember-${req.memberId.map(_.id).getOrElse("MEMBERID NOT FOUND")}"
+      req.memberId.getOrElse(MemberId.defaultInstance) -> createScn[ActivateMember](
+        req.memberId.map(_.id).getOrElse("MEMBERID NOT FOUND"),
+        "/member/activate",
+        req
       )
-        .exec(
-          http("StartScenario - ActivateMember")
-            .post("/member/activate")
-            .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
-            .body(
-              StringBody(
-                s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
-              )
-            )
-        )
     )
     .toMap
 
@@ -211,17 +177,10 @@ class DemoScenarioGatewayStart extends Simulation {
     (orgId, createEvents) <- createEventsByOrg
   } yield orgId -> createEvents
     .map(req =>
-      req.eventId.getOrElse(EventId.defaultInstance) -> scenario(
-        s"CreateEvent-${req.eventId.map(_.id).getOrElse("EVENTID NOT FOUND")}"
-      ).exec(
-        http("StartScenario - CreateEvent")
-          .post("/event")
-          .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
-          .body(
-            StringBody(
-              s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
-            )
-          )
+      req.eventId.getOrElse(EventId.defaultInstance) -> createScn[CreateEvent](
+        req.eventId.map(_.id).getOrElse("EVENTID NOT FOUND"),
+        s"/event",
+        req
       )
     )
     .toMap
@@ -231,17 +190,10 @@ class DemoScenarioGatewayStart extends Simulation {
   } yield scheduleEvent
     .map(req =>
       req.eventId.getOrElse(EventId("EVENTID NOT FOUND")) ->
-        scenario(
-          s"ScheduleEvent-${req.eventId.map(_.id).getOrElse("EVENTID NOT FOUND")}"
-        ).exec(
-          http("StartScenario - ScheduleEvent")
-            .post("/event/schedule")
-            .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
-            .body(
-              StringBody(
-                s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
-              )
-            )
+        createScn[ScheduleEvent](
+          req.eventId.map(_.id).getOrElse("EVENTID NOT FOUND"),
+          s"/event/schedule",
+          req
         )
     )).flatten.toMap
 
@@ -262,17 +214,10 @@ class DemoScenarioGatewayStart extends Simulation {
   val createStoresScns: Map[EventId, Seq[(StoreId, ScenarioBuilder)]] = (for {
     (eventId, createStores) <- createStoresByEvent
   } yield createStores.map { req =>
-    eventId -> (req.storeId.getOrElse(StoreId.defaultInstance) -> scenario(
-      s"CreateStore-${req.storeId.map(_.id).getOrElse("STOREID NOT FOUND")}"
-    ).exec(
-      http("StartScenario - CreateStore")
-        .post("/store")
-        .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
-        .body(
-          StringBody(
-            s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
-          )
-        )
+    eventId -> (req.storeId.getOrElse(StoreId.defaultInstance) -> createScn[CreateStore](
+      req.storeId.map(_.id).getOrElse("STOREID NOT FOUND"),
+      s"/store",
+      req
     ))
   }).flatten.groupBy(_._1).map(tup => tup._1 -> tup._2.map(_._2).toSeq)
 
@@ -281,18 +226,7 @@ class DemoScenarioGatewayStart extends Simulation {
   } yield readyStore
     .map(req =>
       req.storeId.getOrElse(StoreId("STOREID NOT FOUND")) ->
-        scenario(
-          s"MakeStoreReady-${req.storeId.map(_.id).getOrElse("STOREID NOT FOUND")}"
-        ).exec(
-          http("StartScenario - MakeStoreReady")
-            .post("/store/ready")
-            .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
-            .body(
-              StringBody(
-                s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
-              )
-            )
-        )
+        createScn[MakeStoreReady](req.storeId.map(_.id).getOrElse("STOREID NOT FOUND"), s"/store/ready", req)
     )).flatten.toMap
 
   val createProductsByStore: Map[StoreId, Seq[CreateProduct]] = createStoresByEvent.toSeq.flatMap { createStore =>
@@ -315,17 +249,10 @@ class DemoScenarioGatewayStart extends Simulation {
     (storeId, createProducts) <- createProductsByStore
   } yield createProducts
     .map { createProduct =>
-      storeId -> (createProduct.sku.getOrElse(Sku.defaultInstance) -> scenario(
-        s"CreateProduct-${createProduct.sku.map(_.sku).getOrElse("SKU NOT FOUND")}"
-      ).exec(
-        http("StartScenario - CreateProduct")
-          .post("/product")
-          .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
-          .body(
-            StringBody(
-              s"""\"${JsonFormat.toJsonString(createProduct).replace("\"", "\\\"")}\""""
-            )
-          )
+      storeId -> (createProduct.sku.getOrElse(Sku.defaultInstance) -> createScn[CreateProduct](
+        createProduct.sku.map(_.sku).getOrElse("SKU NOT FOUND"),
+        s"/product",
+        createProduct
       ))
     }).flatten.groupBy(_._1).map(tup => tup._1 -> tup._2.map(_._2).toSeq)
 
@@ -334,17 +261,10 @@ class DemoScenarioGatewayStart extends Simulation {
   } yield activateProduct
     .map(req =>
       storeId -> (req.sku.getOrElse(Sku.defaultInstance) ->
-        scenario(
-          s"ActivateProduct-${req.sku.map(_.sku).getOrElse("SKU NOT FOUND")}"
-        ).exec(
-          http("StartScenario - ActivateProduct")
-            .post("/product/activate")
-            .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
-            .body(
-              StringBody(
-                s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
-              )
-            )
+        createScn[ActivateProduct](
+          req.sku.map(_.sku).getOrElse("SKU NOT FOUND"),
+          s"/product/activate",
+          req
         ))
     )).flatten.groupBy(_._1).map(tup => tup._1 -> tup._2.map(_._2).toMap)
 

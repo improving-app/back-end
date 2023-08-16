@@ -14,7 +14,7 @@ object Main extends ServiceMain {
   override val port = 8081
 
   override def service(system: ActorSystem[Nothing]): HttpRequest => Future[HttpResponse] = {
-    MemberServiceHandler.withServerReflection(new MemberServiceImpl()(system))(system)
+    MemberServiceHandler.withServerReflection(new MemberServiceImpl(system))(system)
   }
 
   run()

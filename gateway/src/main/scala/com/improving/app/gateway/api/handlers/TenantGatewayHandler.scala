@@ -11,6 +11,7 @@ import com.improving.app.gateway.domain.tenantUtil.{
 import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.gateway.domain.tenant.{
   ActivateTenant => GatewayActivateTenant,
+  AllTenantIds => GatewayAllTenantIds,
   EstablishTenant => GatewayEstablishTenant,
   TenantActivated,
   TenantEstablished,
@@ -85,6 +86,15 @@ class TenantGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = N
         TenantTerminated(
           Some(response.getTenantId),
           Some(tenantMetaToGatewayTenantMeta(response.getMetaInfo)),
+        )
+      }
+
+  def getAllIds: Future[GatewayAllTenantIds] =
+    tenantClient
+      .getAllIds(com.google.protobuf.empty.Empty())
+      .map { response =>
+        GatewayAllTenantIds(
+          response.allTenantIds
         )
       }
 }

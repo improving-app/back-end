@@ -54,6 +54,14 @@ trait TenantGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggi
               }
             }
           }
+        } ~ pathPrefix("allIds") {
+          get {
+            onSuccess(
+              handler.getAllIds
+            ) { allTenantIds =>
+              complete(JsonFormat.toJsonString(allTenantIds))
+            }
+          }
         } ~ post {
           entity(Directives.as[String]) { data =>
             onSuccess(

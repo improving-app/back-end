@@ -9,15 +9,23 @@ import io.gatling.http.protocol.HttpProtocolBuilder
 class GetAllIds extends Simulation {
   val httpProtocol: HttpProtocolBuilder = http.baseUrl("http://localhost:9000")
 
-  val getAllMembersScn: ScenarioBuilder = scenario(
-    s"GetAllMembers"
+  def getAllScnForService(serviceName: String): ScenarioBuilder = scenario(
+    s"GetAll${serviceName.capitalize}s"
   ).exec(
-    http("StartScenario - GetAllMembers")
-      .get("/member/allIds")
+    http(s"StartScenario - GetAll${serviceName.capitalize}s")
+      .get(s"/$serviceName/allIds")
   )
+
+  val getAllTenantsScn: ScenarioBuilder = getAllScnForService("tenant")
+
+  val getAllOrgsScn: ScenarioBuilder = getAllScnForService("organization")
+
+  val getAllMembersScn: ScenarioBuilder = getAllScnForService("member")
 
   val injectionProfile: OpenInjectionStep = atOnceUsers(1)
   setUp(
+    getAllTenantsScn.inject(injectionProfile),
+    getAllOrgsScn.inject(injectionProfile),
     getAllMembersScn.inject(injectionProfile)
   ).protocols(httpProtocol)
 }

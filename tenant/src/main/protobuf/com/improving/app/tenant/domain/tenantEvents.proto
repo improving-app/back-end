@@ -47,6 +47,11 @@ message TenantTerminated {
     TenantMetaInfo meta_info = 2;
 }
 
+message AllTenantIds {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    repeated common.domain.TenantId all_tenant_ids = 1;
+}
+
 message TenantOrganizationData {
     option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     TenantOrganizationList organizations = 1;

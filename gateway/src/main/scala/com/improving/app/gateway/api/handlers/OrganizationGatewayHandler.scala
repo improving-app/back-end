@@ -11,6 +11,7 @@ import akka.util.Timeout
 import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.gateway.domain.organization.{
   ActivateOrganization => GatewayActivateOrganization,
+  AllOrganizationIds => GatewayAllOrganizationIds,
   EstablishOrganization => GatewayEstablishOrganization,
   OrganizationActivated,
   OrganizationEstablished,
@@ -84,6 +85,15 @@ class OrganizationGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSetting
       .map { response =>
         OrganizationTerminated(
           Some(response.getOrganizationId)
+        )
+      }
+
+  def getAllIds: Future[GatewayAllOrganizationIds] =
+    orgClient
+      .getAllIds(com.google.protobuf.empty.Empty())
+      .map { response =>
+        GatewayAllOrganizationIds(
+          response.allOrganizationIds
         )
       }
 }
