@@ -6,6 +6,7 @@ import akka.util.Timeout
 import com.improving.app.store.domain.{CloseStore, CreateStore, DeleteStore, MakeStoreReady, OpenStore}
 import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.gateway.domain.store.{
+  AllStoreIds => GatewayAllStoreIds,
   CloseStore => GatewayCloseStore,
   CreateStore => GatewayCreateStore,
   DeleteStore => GatewayDeleteStore,
@@ -122,4 +123,7 @@ class StoreGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = No
           response.metaInfo.map(_.toGatewayStoreMeta)
         )
       }
+
+  def getAllIds: Future[GatewayAllStoreIds] =
+    storeClient.getAllIds(com.google.protobuf.empty.Empty()).map(response => GatewayAllStoreIds(response.allStoreIds))
 }

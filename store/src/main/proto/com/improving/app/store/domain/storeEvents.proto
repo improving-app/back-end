@@ -95,3 +95,8 @@ message ProductsRemovedFromStore {
   StoreOrEditableInfo info = 2;
   StoreMetaInfo meta_info = 3;
 }
+
+message AllStoreIds {
+  option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+  repeated common.domain.StoreId all_store_ids = 1;
+}

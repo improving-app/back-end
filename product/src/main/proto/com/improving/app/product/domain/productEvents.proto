@@ -70,6 +70,11 @@ message ProductEventResponse {
     ProductEvent product_event = 1;
 }
 
+message AllSkus {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
+    repeated common.domain.Sku all_skus = 1;
+}
+
 message ProductResponse {
     option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
     oneof sealed_value {

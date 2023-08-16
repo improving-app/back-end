@@ -6,7 +6,10 @@ import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.grpc.GrpcServiceException
 import akka.pattern.StatusReply
+import akka.persistence.cassandra.query.scaladsl.CassandraReadJournal
+import akka.persistence.query.PersistenceQuery
 import akka.util.Timeout
+import com.google.protobuf.empty.Empty
 import com.google.protobuf.timestamp.Timestamp
 import com.google.rpc.Code
 import com.improving.app.common.domain.EventId
@@ -230,4 +233,15 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
       response
     }
   )
+
+  /**
+   * get:"event/allIds"
+   */
+  override def getAllIds(in: Empty): Future[AllEventIds] = {
+    val readJournal =
+      PersistenceQuery(system).readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
+    readJournal.currentPersistenceIds().runFold(Seq[EventId]())(_ :+ EventId(_)).map { seq =>
+      AllEventIds(seq)
+    }
+  }
 }
