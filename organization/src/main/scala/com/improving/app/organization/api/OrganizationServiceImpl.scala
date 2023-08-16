@@ -109,8 +109,12 @@ class OrganizationServiceImpl(sys: ActorSystem[_]) extends OrganizationService {
   override def getAllIds(in: Empty): Future[AllOrganizationIds] = {
     val readJournal =
       PersistenceQuery(system).readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
-    readJournal.currentPersistenceIds().runFold(Seq[OrganizationId]())(_ :+ OrganizationId(_)).map { seq =>
-      AllOrganizationIds(seq)
-    }
+    readJournal
+      .currentPersistenceIds()
+      .map(id => id.split('|')(1))
+      .runFold(Seq[OrganizationId]())(_ :+ OrganizationId(_))
+      .map { seq =>
+        AllOrganizationIds(seq)
+      }
   }
 }

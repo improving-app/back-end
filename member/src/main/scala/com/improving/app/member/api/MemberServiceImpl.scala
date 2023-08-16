@@ -126,8 +126,12 @@ class MemberServiceImpl(sys: ActorSystem[_]) extends MemberService {
   override def getAllIds(in: Empty): Future[AllMemberIds] = {
     val readJournal =
       PersistenceQuery(sys).readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
-    readJournal.currentPersistenceIds().runFold(Seq[MemberId]())(_ :+ MemberId(_)).map { seq =>
-      AllMemberIds(seq)
-    }
+    readJournal
+      .currentPersistenceIds()
+      .map(id => id.split('|')(1))
+      .runFold(Seq[MemberId]())(_ :+ MemberId(_))
+      .map { seq =>
+        AllMemberIds(seq)
+      }
   }
 }
