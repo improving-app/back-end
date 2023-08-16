@@ -16,5 +16,5 @@ service ProductService {
     rpc ActivateProduct(domain.ActivateProduct) returns (domain.ProductActivated){}
     rpc InactivateProduct(domain.InactivateProduct) returns (domain.ProductInactivated){}
     rpc GetProductInfo(domain.GetProductInfo) returns (domain.ProductData){}
-    rpc GetAllIds(google.protobuf.Empty) returns (domain.AllSkus) {}
+    rpc GetAllSkus(google.protobuf.Empty) returns (domain.AllSkus) {}
 }
