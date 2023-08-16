@@ -5,11 +5,16 @@ import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.grpc.GrpcServiceException
 import akka.pattern.StatusReply
+import akka.persistence.cassandra.query.scaladsl.CassandraReadJournal
+import akka.persistence.query.PersistenceQuery
 import akka.util.Timeout
+import com.google.protobuf.empty.Empty
 import com.google.rpc.Code
+import com.improving.app.common.domain.Sku
 import com.improving.app.product.domain.{ProductResponse, _}
 import com.improving.app.product.domain.Product.{ProductEntityKey, ProductEnvelope}
 
+import scala.:+
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.{existentials, postfixOps}
@@ -138,4 +143,12 @@ class ProductServiceImpl()(implicit val system: ActorSystem[_]) extends ProductS
       response
     }
   )
+
+  override def getAllIds(in: Empty): Future[AllSkus] = {
+    val readJournal =
+      PersistenceQuery(system).readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
+    readJournal.currentPersistenceIds().runFold(Seq[Sku]())(_ :+ Sku(_)).map { seq =>
+      AllSkus(seq)
+    }
+  }
 }
