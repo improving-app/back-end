@@ -77,19 +77,27 @@ trait StoreGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
               }
             }
           }
-        } ~
-          post {
-            entity(Directives.as[String]) { data =>
-              onSuccess(
-                handler
-                  .createStore(
-                    fromJsonString[GatewayCreateStore](data)
-                  )
-              ) { storeCreated =>
-                complete(JsonFormat.toJsonString(storeCreated))
-              }
+        } ~ pathPrefix("allIds") {
+          get {
+            onSuccess(
+              handler.getAllIds
+            ) { allIds =>
+              complete(JsonFormat.toJsonString(allIds))
+            }
+
+          }
+        } ~ post {
+          entity(Directives.as[String]) { data =>
+            onSuccess(
+              handler
+                .createStore(
+                  fromJsonString[GatewayCreateStore](data)
+                )
+            ) { storeCreated =>
+              complete(JsonFormat.toJsonString(storeCreated))
             }
           }
+        }
       }
     }
 }

@@ -43,6 +43,10 @@ message ProductDeleted {
     ProductMetaInfo meta = 3;
 }
 
+message AllSkus {
+    repeated common.domain.Sku all_skus = 1;
+}
+
 message ProductEvent{
     option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
 
