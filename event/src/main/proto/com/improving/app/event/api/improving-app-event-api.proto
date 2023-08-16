@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package com.improving.app.event.api;
 
+import "com/improving/app/common/domain/ids.proto";
+import "com/improving/app/event/domain/eventDomainObjects.proto";
 import "com/improving/app/event/domain/eventEvents.proto";
 import "com/improving/app/event/domain/eventRequests.proto";
 
@@ -43,5 +45,7 @@ service EventService {
   rpc EndEvent(domain.EndEvent) returns (domain.EventEnded) {
       //get:"event/{eventId}/end"
   }
+
+  rpc GetEventData(domain.GetEventData) returns (domain.EventData);
 
 }

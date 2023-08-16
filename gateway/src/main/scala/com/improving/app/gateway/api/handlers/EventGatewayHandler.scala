@@ -3,20 +3,23 @@ package com.improving.app.gateway.api.handlers
 import akka.actor.typed.ActorSystem
 import akka.grpc.GrpcClientSettings
 import akka.util.Timeout
+import com.improving.app.common.domain.EventId
 import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.gateway.domain.event.{
   CancelEvent => GatewayCancelEvent,
   CreateEvent => GatewayCreateEvent,
   EventCancelled,
   EventCreated,
+  EventData,
   EventScheduled,
   ScheduleEvent => GatewayScheduleEvent
 }
 import com.improving.app.gateway.domain.eventUtil._
 import com.improving.app.event.api.EventServiceClient
-import com.improving.app.event.domain.{CancelEvent, CreateEvent, ScheduleEvent}
+import com.improving.app.event.domain.{CancelEvent, CreateEvent, GetEventData, ScheduleEvent}
 import com.typesafe.scalalogging.StrictLogging
 
+import java.util.UUID
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -86,4 +89,22 @@ class EventGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = No
           response.meta.map(_.toGatewayEventMeta)
         )
       }
+
+  def getEventData(id: String): Future[EventData] = {
+    try {
+      UUID.fromString(id)
+    } catch {
+      case e: Exception => Future.failed(e)
+    }
+
+    eventClient
+      .getEventData(GetEventData(Some(EventId(id))))
+      .map(data =>
+        EventData(
+          Some(EventId(id)),
+          data.eventInfo.flatMap(_.toGatewayInfoOrEditable),
+          data.eventMetaInfo.map(_.toGatewayEventMeta)
+        )
+      )
+  }
 }

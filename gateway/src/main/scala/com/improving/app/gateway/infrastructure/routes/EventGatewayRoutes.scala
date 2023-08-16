@@ -3,6 +3,7 @@ package com.improving.app.gateway.infrastructure.routes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import akka.http.scaladsl.server.{Directives, ExceptionHandler, Route}
+import com.improving.app.common.domain.EventId
 import com.improving.app.gateway.api.handlers.EventGatewayHandler
 import com.improving.app.gateway.domain.event.{
   CancelEvent => GatewayCancelEvent,
@@ -49,19 +50,29 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
               }
             }
           }
-        } ~
-          post {
-            entity(Directives.as[String]) { data =>
-              onSuccess(
-                handler
-                  .createEvent(
-                    fromJsonString[GatewayCreateEvent](data)
-                  )
-              ) { eventCreated =>
-                complete(JsonFormat.toJsonString(eventCreated))
-              }
+        } ~ pathPrefix(Segment) { eventId =>
+          get {
+            onSuccess(
+              handler
+                .getEventData(
+                  eventId
+                )
+            ) { eventData =>
+              complete(JsonFormat.toJsonString(eventData))
             }
           }
+        } ~ post {
+          entity(Directives.as[String]) { data =>
+            onSuccess(
+              handler
+                .createEvent(
+                  fromJsonString[GatewayCreateEvent](data)
+                )
+            ) { eventCreated =>
+              complete(JsonFormat.toJsonString(eventCreated))
+            }
+          }
+        }
       }
     }
 }

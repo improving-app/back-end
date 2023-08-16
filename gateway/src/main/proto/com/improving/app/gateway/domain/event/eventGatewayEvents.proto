@@ -50,7 +50,7 @@ message EventEvent{
 
 message EventData {
     common.domain.EventId event_id = 1;
-    EventInfo event_info = 2;
+    EventInfoOrEditable event_info = 2;
     EventMetaInfo event_meta_info = 3;
 }
 

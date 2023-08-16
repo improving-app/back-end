@@ -68,7 +68,7 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
   }
 
   private def handleCommand[T](
-      in: EventRequestPB with EventCommand,
+      in: EventCommand with EventRequestPB,
       eventHandler: PartialFunction[StatusReply[EventResponse], T]
   ): Future[T] = in.eventId
     .map { id =>
@@ -89,7 +89,7 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
     )
 
   private def handleQuery[T](
-      in: EventRequestPB with EventQuery,
+      in: EventQuery with EventRequestPB,
       eventHandler: PartialFunction[StatusReply[EventResponse], T]
   ): Future[T] = in.eventId
     .map { id =>
@@ -228,6 +228,16 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
       // cancelEndTimer(id)
 
       response
+    }
+  )
+
+  override def getEventData(in: GetEventData): Future[EventData] = handleQuery(
+    in,
+    { case StatusReply.Success(data: EventData) =>
+      // To be implemented when we want automatic timers for start and end
+      // cancelEndTimer(id)
+
+      data
     }
   )
 }
