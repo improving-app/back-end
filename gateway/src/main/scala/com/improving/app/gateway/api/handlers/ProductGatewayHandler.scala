@@ -8,6 +8,7 @@ import com.improving.app.product.domain.{ActivateProduct, CreateProduct, DeleteP
 import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.gateway.domain.product.{
   ActivateProduct => GatewayActivateProduct,
+  AllSkus => GatewayAllSkus,
   CreateProduct => GatewayCreateProduct,
   DeleteProduct => GatewayDeleteProduct,
   ProductActivated,
@@ -85,4 +86,7 @@ class ProductGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = 
           response.meta.map(_.toGatewayProductMeta)
         )
       }
+
+  def getAllSkus: Future[GatewayAllSkus] =
+    productClient.getAllSkus(com.google.protobuf.empty.Empty()).map(response => GatewayAllSkus(response.allSkus))
 }

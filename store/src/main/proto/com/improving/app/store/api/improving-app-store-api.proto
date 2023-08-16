@@ -6,24 +6,27 @@ package com.improving.app.store.api;
 
 import "com/improving/app/store/domain/storeEvents.proto";
 import "com/improving/app/store/domain/storeRequest.proto";
+import "google/protobuf/empty.proto";
 
 service StoreService {
 
-   rpc CreateStore (domain.CreateStore) returns (domain.StoreCreated) {}
+  rpc CreateStore (domain.CreateStore) returns (domain.StoreCreated) {}
 
-   rpc MakeStoreReady (domain.MakeStoreReady) returns (domain.StoreIsReady) {}
+  rpc MakeStoreReady (domain.MakeStoreReady) returns (domain.StoreIsReady) {}
 
-   rpc DeleteStore (domain.DeleteStore) returns (domain.StoreDeleted) {}
+  rpc DeleteStore (domain.DeleteStore) returns (domain.StoreDeleted) {}
 
-   rpc OpenStore (domain.OpenStore) returns (domain.StoreOpened) {}
+  rpc OpenStore (domain.OpenStore) returns (domain.StoreOpened) {}
 
-   rpc CloseStore (domain.CloseStore) returns (domain.StoreClosed) {}
+  rpc CloseStore (domain.CloseStore) returns (domain.StoreClosed) {}
 
-   rpc TerminateStore (domain.TerminateStore) returns (domain.StoreTerminated) {}
+  rpc TerminateStore (domain.TerminateStore) returns (domain.StoreTerminated) {}
 
-   rpc EditStoreInfo (domain.EditStoreInfo) returns (domain.StoreInfoEdited) {}
+  rpc EditStoreInfo (domain.EditStoreInfo) returns (domain.StoreInfoEdited) {}
 
-   rpc AddProductsToStore (domain.AddProductsToStore) returns (domain.ProductsAddedToStore) {}
+  rpc AddProductsToStore (domain.AddProductsToStore) returns (domain.ProductsAddedToStore) {}
 
-   rpc RemoveProductsFromStore (domain.RemoveProductsFromStore) returns (domain.ProductsRemovedFromStore) {}
+  rpc RemoveProductsFromStore (domain.RemoveProductsFromStore) returns (domain.ProductsRemovedFromStore) {}
+
+  rpc GetAllIds(google.protobuf.Empty) returns (domain.AllStoreIds) {}
 }

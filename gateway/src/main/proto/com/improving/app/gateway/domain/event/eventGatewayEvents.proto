@@ -37,6 +37,10 @@ message EventCancelled {
     EventMetaInfo meta = 2;
 }
 
+message AllEventIds {
+    repeated common.domain.EventId all_event_ids = 1;
+}
+
 message EventEvent{
     option (scalapb.message).sealed_oneof_extends = "com.improving.app.common.serialize.PBMsgOneOfSerializable";
 

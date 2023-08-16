@@ -6,6 +6,7 @@ import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/event/domain/eventDomainObjects.proto";
 import "com/improving/app/event/domain/eventEvents.proto";
 import "com/improving/app/event/domain/eventRequests.proto";
+import "google/protobuf/empty.proto";
 
 //import "google/api/annotations.proto";
 
@@ -47,5 +48,9 @@ service EventService {
   }
 
   rpc GetEventData(domain.GetEventData) returns (domain.EventData);
+
+  rpc GetAllIds(google.protobuf.Empty) returns (domain.AllEventIds) {
+      //get:"event/allIds"
+  }
 
 }

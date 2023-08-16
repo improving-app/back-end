@@ -6,6 +6,7 @@ import akka.util.Timeout
 import com.improving.app.common.domain.EventId
 import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.gateway.domain.event.{
+  AllEventIds => GatewayAllEventIds,
   CancelEvent => GatewayCancelEvent,
   CreateEvent => GatewayCreateEvent,
   EventCancelled,
@@ -107,4 +108,7 @@ class EventGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = No
         )
       )
   }
+
+  def getAllIds: Future[GatewayAllEventIds] =
+    eventClient.getAllIds(com.google.protobuf.empty.Empty()).map(response => GatewayAllEventIds(response.allEventIds))
 }

@@ -4,14 +4,19 @@ import akka.actor.typed.ActorSystem
 import akka.cluster.sharding.typed.scaladsl.{ClusterSharding, Entity}
 import akka.cluster.typed.{Cluster, Join}
 import akka.grpc.GrpcServiceException
+import akka.persistence.cassandra.query.scaladsl.CassandraReadJournal
+import akka.persistence.query.PersistenceQuery
 import akka.persistence.typed.PersistenceId
 import akka.util.Timeout
+import com.google.protobuf.empty.Empty
 import com.google.rpc.Code
 import com.google.rpc.error_details.LocalizedMessage
+import com.improving.app.common.domain.StoreId
 import com.improving.app.common.errors.ValidationError
 import com.improving.app.store.api.StoreService
 import com.improving.app.store.domain.{
   AddProductsToStore,
+  AllStoreIds,
   CloseStore,
   CreateStore,
   DeleteStore,
@@ -112,4 +117,12 @@ class StoreServiceImpl(sys: ActorSystem[_]) extends StoreService {
 
   override def removeProductsFromStore(in: RemoveProductsFromStore): Future[ProductsRemovedFromStore] =
     handleRequest(in).map(_.productsRemovedFromStore.get)
+
+  override def getAllIds(in: Empty): Future[AllStoreIds] = {
+    val readJournal =
+      PersistenceQuery(system).readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
+    readJournal.currentPersistenceIds().runFold(Seq[StoreId]())(_ :+ StoreId(_)).map { seq =>
+      AllStoreIds(seq)
+    }
+  }
 }

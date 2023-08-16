@@ -73,6 +73,27 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
             }
           }
         }
+        } ~ pathPrefix("allIds") {
+          get {
+            onSuccess(
+              handler.getAllIds
+            ) { allIds =>
+              complete(JsonFormat.toJsonString(allIds))
+            }
+
+          }
+        } ~ post {
+          entity(Directives.as[String]) { data =>
+            onSuccess(
+              handler
+                .createEvent(
+                  fromJsonString[GatewayCreateEvent](data)
+                )
+            ) { eventCreated =>
+              complete(JsonFormat.toJsonString(eventCreated))
+            }
+          }
+        }
       }
     }
 }

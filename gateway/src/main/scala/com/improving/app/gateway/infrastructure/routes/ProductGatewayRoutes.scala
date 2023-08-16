@@ -49,19 +49,27 @@ trait ProductGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLogg
               }
             }
           }
-        } ~
-          post {
-            entity(Directives.as[String]) { data =>
-              onSuccess(
-                handler
-                  .createProduct(
-                    fromJsonString[GatewayCreateProduct](data)
-                  )
-              ) { productCreated =>
-                complete(JsonFormat.toJsonString(productCreated))
-              }
+        } ~ pathPrefix("allSkus") {
+          get {
+            onSuccess(
+              handler.getAllSkus
+            ) { allSkus =>
+              complete(JsonFormat.toJsonString(allSkus))
+            }
+
+          }
+        } ~ post {
+          entity(Directives.as[String]) { data =>
+            onSuccess(
+              handler
+                .createProduct(
+                  fromJsonString[GatewayCreateProduct](data)
+                )
+            ) { productCreated =>
+              complete(JsonFormat.toJsonString(productCreated))
             }
           }
+        }
       }
     }
 }

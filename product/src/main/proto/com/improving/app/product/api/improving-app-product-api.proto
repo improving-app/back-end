@@ -4,6 +4,7 @@ package com.improving.app.product.api;
 
 import "com/improving/app/product/domain/productEvents.proto";
 import "com/improving/app/product/domain/productRequests.proto";
+import "google/protobuf/empty.proto";
 
 //import "google/api/annotations.proto";
 
@@ -15,4 +16,5 @@ service ProductService {
     rpc ActivateProduct(domain.ActivateProduct) returns (domain.ProductActivated){}
     rpc InactivateProduct(domain.InactivateProduct) returns (domain.ProductInactivated){}
     rpc GetProductInfo(domain.GetProductInfo) returns (domain.ProductData){}
+    rpc GetAllSkus(google.protobuf.Empty) returns (domain.AllSkus) {}
 }
