@@ -3,11 +3,14 @@ package com.improving.app.gateway.infrastructure.routes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import akka.http.scaladsl.server.{Directives, ExceptionHandler, Route}
+import com.improving.app.common.domain.OrganizationId
 import com.improving.app.gateway.api.handlers.EventGatewayHandler
 import com.improving.app.gateway.domain.event.{
   CancelEvent => GatewayCancelEvent,
   CreateEvent => GatewayCreateEvent,
   EventData,
+  EventInfoOrEditable,
+  EventState,
   ScheduleEvent => GatewayScheduleEvent
 }
 import com.typesafe.config.Config
@@ -53,6 +56,64 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
               }
             }
           }
+        } ~ pathPrefix("allIds") {
+          get {
+            onSuccess(
+              handler.getAllIds
+            ) { allIds =>
+              complete(JsonFormat.toJsonString(allIds))
+            }
+          }
+        } ~ pathPrefix("allData") {
+          pathPrefix("status") {
+            pathPrefix(Segment) { status =>
+              pathPrefix("forOrg") {
+                pathPrefix(Segment) { orgId =>
+                  get {
+                    onSuccess(
+                      handler.getAllIds.map(_.allEventIds.map(id => handler.getEventData(id.id)))
+                    ) { allIdsFut =>
+                      complete(
+                        Future
+                          .sequence(allIdsFut)
+                          .map(data =>
+                            data
+                              .filter(_.eventMetaInfo.map(_.currentState) == EventState.fromName(status))
+                              .filter(
+                                _.eventInfo.exists(info =>
+                                  if (info.value.isInfo) info.getInfo.sponsoringOrg.contains(OrganizationId(orgId))
+                                  else info.getEditable.sponsoringOrg.contains(OrganizationId(orgId))
+                                )
+                              )
+                              .map(JsonFormat.toJsonString[EventData])
+                          )
+                      )
+                    }
+                  }
+                }
+              } ~ get {
+                onSuccess(
+                  handler.getAllIds.map(_.allEventIds.map(id => handler.getEventData(id.id)))
+                ) { allIdsFut =>
+                  complete(
+                    Future
+                      .sequence(allIdsFut)
+                      .map(data =>
+                        data
+                          .filter(_.eventMetaInfo.map(_.currentState) == EventState.fromName(status))
+                          .map(JsonFormat.toJsonString[EventData])
+                      )
+                  )
+                }
+              }
+            }
+          } ~ get {
+            onSuccess(
+              handler.getAllIds.map(_.allEventIds.map(id => handler.getEventData(id.id)))
+            ) { allIdsFut =>
+              complete(Future.sequence(allIdsFut).map(data => data.map(JsonFormat.toJsonString[EventData])))
+            }
+          }
         } ~ pathPrefix(Segment) { eventId =>
           get {
             onSuccess(
@@ -62,23 +123,6 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                 )
             ) { eventData =>
               complete(JsonFormat.toJsonString(eventData))
-            }
-          }
-        } ~ pathPrefix("allIds") {
-          get {
-            onSuccess(
-              handler.getAllIds
-            ) { allIds =>
-              complete(JsonFormat.toJsonString(allIds))
-            }
-
-          }
-        } ~ pathPrefix("allData") {
-          get {
-            onSuccess(
-              handler.getAllIds.map(_.allEventIds.map(id => handler.getEventData(id.id)))
-            ) { allIdsFut =>
-              complete(Future.sequence(allIdsFut).map(data => data.map(JsonFormat.toJsonString[EventData])))
             }
           }
         } ~ post {

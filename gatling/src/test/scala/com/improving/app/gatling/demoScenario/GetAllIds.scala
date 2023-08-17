@@ -1,5 +1,6 @@
 package com.improving.app.gatling.demoScenario
 
+import com.improving.app.gateway.domain.event.EventState
 import io.gatling.core.Predef._
 import io.gatling.core.controller.inject.open.OpenInjectionStep
 import io.gatling.core.structure.ScenarioBuilder
@@ -11,10 +12,10 @@ class GetAllIds extends Simulation {
 
   def getAllScnForService(serviceName: String): ScenarioBuilder = scenario(
     s"GetAll${serviceName.capitalize}s"
-  ).exec(
+  ).exec {
     http(s"StartScenario - GetAll${serviceName.capitalize}s")
       .get(s"/$serviceName/allIds")
-  )
+  }
 
   val getAllTenantsScn: ScenarioBuilder = getAllScnForService("tenant")
 
@@ -27,6 +28,13 @@ class GetAllIds extends Simulation {
   ).exec(
     http(s"StartScenario - GetAllEvents")
       .get(s"/event/allData")
+  )
+
+  val getAllEventsScheduledScn: ScenarioBuilder = scenario(
+    s"GetAllEventsSched"
+  ).exec(
+    http(s"StartScenario - GetAllEventsSched")
+      .get(s"/event/allData/status/${EventState.EVENT_STATE_SCHEDULED}")
   )
 
   val getAllStoresScn: ScenarioBuilder = getAllScnForService("store")
@@ -43,7 +51,7 @@ class GetAllIds extends Simulation {
     getAllTenantsScn.inject(injectionProfile),
     getAllOrgsScn.inject(injectionProfile),
     getAllMembersScn.inject(injectionProfile),
-    getAllEventsScn.inject(injectionProfile),
+    getAllEventsScn.inject(injectionProfile).andThen(getAllEventsScheduledScn.inject(injectionProfile)),
     getAllStoresScn.inject(injectionProfile),
     getAllProductsScn.inject(injectionProfile),
   ).protocols(httpProtocol)
