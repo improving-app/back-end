@@ -4,12 +4,12 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.directives.FutureDirectives.onSuccess
 import akka.http.scaladsl.server.{Directives, ExceptionHandler, Route}
 import com.improving.app.common.domain.OrganizationId
+import com.improving.app.common.domain.util.GeneratedMessageUtil
 import com.improving.app.gateway.api.handlers.EventGatewayHandler
 import com.improving.app.gateway.domain.event.{
   CancelEvent => GatewayCancelEvent,
   CreateEvent => GatewayCreateEvent,
   EventData,
-  EventInfoOrEditable,
   EventState,
   ScheduleEvent => GatewayScheduleEvent
 }
@@ -39,7 +39,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                     fromJsonString[GatewayScheduleEvent](data)
                   )
               ) { eventScheduled =>
-                complete(JsonFormat.toJsonString(eventScheduled))
+                complete(eventScheduled.print)
               }
             }
           }
@@ -52,7 +52,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                     fromJsonString[GatewayCancelEvent](data)
                   )
               ) { eventCancelled =>
-                complete(JsonFormat.toJsonString(eventCancelled))
+                complete(eventCancelled.print)
               }
             }
           }
@@ -61,7 +61,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
             onSuccess(
               handler.getAllIds
             ) { allIds =>
-              complete(JsonFormat.toJsonString(allIds))
+              complete(allIds.print)
             }
           }
         } ~ pathPrefix("allData") {
@@ -85,7 +85,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                                   else info.getEditable.sponsoringOrg.contains(OrganizationId(orgId))
                                 )
                               )
-                              .map(JsonFormat.toJsonString[EventData])
+                              .map(_.print)
                           )
                       )
                     }
@@ -101,7 +101,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                       .map(data =>
                         data
                           .filter(_.eventMetaInfo.map(_.currentState) == EventState.fromName(status))
-                          .map(JsonFormat.toJsonString[EventData])
+                          .map(_.print)
                       )
                   )
                 }
@@ -111,7 +111,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
             onSuccess(
               handler.getAllIds.map(_.allEventIds.map(id => handler.getEventData(id.id)))
             ) { allIdsFut =>
-              complete(Future.sequence(allIdsFut).map(data => data.map(JsonFormat.toJsonString[EventData])))
+              complete(Future.sequence(allIdsFut).map(data => data.map(_.print)))
             }
           }
         } ~ pathPrefix(Segment) { eventId =>
@@ -122,18 +122,19 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                   eventId
                 )
             ) { eventData =>
-              complete(JsonFormat.toJsonString(eventData))
+              complete(eventData.print)
             }
           }
         } ~ post {
           entity(Directives.as[String]) { data =>
+            logger.info(data)
             onSuccess(
               handler
                 .createEvent(
                   fromJsonString[GatewayCreateEvent](data)
                 )
             ) { eventCreated =>
-              complete(JsonFormat.toJsonString(eventCreated))
+              complete(eventCreated.print)
             }
           }
         }

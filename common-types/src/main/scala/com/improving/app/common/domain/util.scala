@@ -1,5 +1,8 @@
 package com.improving.app.common.domain
 
+import scalapb.GeneratedMessage
+import scalapb.json4s.JsonFormat
+
 import scala.language.implicitConversions
 
 object util {
@@ -97,6 +100,10 @@ object util {
       phone = editable.phone.orElse(contact.phone),
       userName = editable.userName.orElse(contact.userName)
     )
+  }
+
+  implicit class GeneratedMessageUtil[T <: GeneratedMessage](req: T) {
+    implicit def print: String = s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
   }
 
 }
