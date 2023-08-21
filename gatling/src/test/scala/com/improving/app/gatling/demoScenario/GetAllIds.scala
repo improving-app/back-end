@@ -1,58 +1,62 @@
 package com.improving.app.gatling.demoScenario
 
 import com.improving.app.gateway.domain.event.EventState
+import com.improving.app.gateway.domain.organization.AllOrganizationIds
 import io.gatling.core.Predef._
 import io.gatling.core.controller.inject.open.OpenInjectionStep
-import io.gatling.core.structure.ScenarioBuilder
 import io.gatling.http.Predef._
 import io.gatling.http.protocol.HttpProtocolBuilder
+import io.gatling.http.request.builder.HttpRequestBuilder
+import scalapb.json4s.JsonFormat.fromJsonString
+
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 
 class GetAllIds extends Simulation {
   val httpProtocol: HttpProtocolBuilder = http.baseUrl("http://localhost:9000")
 
-  def getAllScnForService(serviceName: String): ScenarioBuilder = scenario(
-    s"GetAll${serviceName.capitalize}s"
-  ).exec {
+  def getAllForService(serviceName: String): HttpRequestBuilder =
     http(s"StartScenario - GetAll${serviceName.capitalize}s")
       .get(s"/$serviceName/allIds")
-  }
+      .check(bodyString.saveAs(s"${serviceName}Ids"))
 
-  val getAllTenantsScn: ScenarioBuilder = getAllScnForService("tenant")
+  val getAllTenants: HttpRequestBuilder = getAllForService("tenant")
+  val getAllOrgs: HttpRequestBuilder = getAllForService("organization")
+  val getAllMembers: HttpRequestBuilder = getAllForService("member")
+  val getAllEvents: HttpRequestBuilder = getAllForService("event")
+  val getAllStores: HttpRequestBuilder = getAllForService("store")
+  val getAllProducts: HttpRequestBuilder = http(s"StartScenario - AllSkus")
+    .get(s"/product/allSkus")
+    .check(bodyString.saveAs("skus"))
 
-  val getAllOrgsScn: ScenarioBuilder = getAllScnForService("organization")
+  val getAllEventsScheduled: HttpRequestBuilder = http(s"StartScenario - GetAllEventsSched")
+    .get(s"/event/allData/status/${EventState.EVENT_STATE_SCHEDULED}")
 
-  val getAllMembersScn: ScenarioBuilder = getAllScnForService("member")
-
-  val getAllEventsScn: ScenarioBuilder = scenario(
-    s"GetAllEvents"
-  ).exec(
-    http(s"StartScenario - GetAllEvents")
-      .get(s"/event/allData")
-  )
-
-  val getAllEventsScheduledScn: ScenarioBuilder = scenario(
-    s"GetAllEventsSched"
-  ).exec(
-    http(s"StartScenario - GetAllEventsSched")
-      .get(s"/event/allData/status/${EventState.EVENT_STATE_SCHEDULED}")
-  )
-
-  val getAllStoresScn: ScenarioBuilder = getAllScnForService("store")
-
-  val getAllProductsScn: ScenarioBuilder = scenario(
-    s"GetAllProducts"
-  ).exec(
-    http(s"StartScenario - GetAllProducts")
-      .get(s"/product/allSkus")
-  )
+  def getAllEventsScheduledForOrg(orgIds: String): HttpRequestBuilder = http(s"StartScenario - GetAllEventsSchedForOrg")
+    .get(
+      s"/event/allData/status/${EventState.EVENT_STATE_SCHEDULED}/forOrg/${fromJsonString[AllOrganizationIds](
+          orgIds.replace("\"", "").replace("\\", "\"")
+        ).allOrganizationIds.head.id}"
+    )
 
   val injectionProfile: OpenInjectionStep = atOnceUsers(1)
+
   setUp(
-    getAllTenantsScn.inject(injectionProfile),
-    getAllOrgsScn.inject(injectionProfile),
-    getAllMembersScn.inject(injectionProfile),
-    getAllEventsScn.inject(injectionProfile).andThen(getAllEventsScheduledScn.inject(injectionProfile)),
-    getAllStoresScn.inject(injectionProfile),
-    getAllProductsScn.inject(injectionProfile),
+    scenario("GetAllScenario")
+      .exec(
+        exec(getAllTenants),
+        exec(getAllOrgs),
+        exec(getAllMembers),
+        exec(getAllEvents),
+        exec(getAllEventsScheduled),
+        exec(getAllStores),
+        exec(getAllProducts)
+      )
+      .exec { session =>
+        getAllEventsScheduledForOrg(session("organizationIds").as[String])
+        session
+      }
+      .inject(injectionProfile)
   ).protocols(httpProtocol)
+
 }
