@@ -71,47 +71,29 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                 pathPrefix(Segment) { orgId =>
                   get {
                     onSuccess(
-                      handler.getAllIds.map(_.allEventIds.map(id => handler.getEventData(id.id)))
-                    ) { allIdsFut =>
+                      handler.getAllIdsAndGetData(EventState.fromName(status), Some(OrganizationId(orgId)))
+                    ) { eventDataFut =>
                       complete(
-                        Future
-                          .sequence(allIdsFut)
-                          .map(data =>
-                            data
-                              .filter(_.eventMetaInfo.map(_.currentState) == EventState.fromName(status))
-                              .filter(
-                                _.eventInfo.exists(info =>
-                                  if (info.value.isInfo) info.getInfo.sponsoringOrg.contains(OrganizationId(orgId))
-                                  else info.getEditable.sponsoringOrg.contains(OrganizationId(orgId))
-                                )
-                              )
-                              .map(_.print)
-                          )
+                        eventDataFut.map(_.print)
                       )
                     }
                   }
                 }
               } ~ get {
                 onSuccess(
-                  handler.getAllIds.map(_.allEventIds.map(id => handler.getEventData(id.id)))
-                ) { allIdsFut =>
+                  handler.getAllIdsAndGetData(EventState.fromName(status))
+                ) { eventDataFut =>
                   complete(
-                    Future
-                      .sequence(allIdsFut)
-                      .map(data =>
-                        data
-                          .filter(_.eventMetaInfo.map(_.currentState) == EventState.fromName(status))
-                          .map(_.print)
-                      )
+                    eventDataFut.map(_.print)
                   )
                 }
               }
             }
           } ~ get {
             onSuccess(
-              handler.getAllIds.map(_.allEventIds.map(id => handler.getEventData(id.id)))
-            ) { allIdsFut =>
-              complete(Future.sequence(allIdsFut).map(data => data.map(_.print)))
+              handler.getAllIdsAndGetData()
+            ) { eventDataFut =>
+              complete(eventDataFut.map(_.print))
             }
           }
         } ~ pathPrefix(Segment) { eventId =>

@@ -32,17 +32,6 @@ class GetAllIds extends Simulation {
   val getAllEventsScheduled: HttpRequestBuilder = http(s"StartScenario - GetAllEventsSched")
     .get(s"/event/allData/status/${EventState.EVENT_STATE_SCHEDULED}")
 
-  val getAllEventsScn: ScenarioBuilder = getAllScnForService("event")
-
-  val getAllStoresScn: ScenarioBuilder = getAllScnForService("store")
-
-  val getAllProductsScn: ScenarioBuilder = scenario(
-    s"GetAllProducts"
-  ).exec(
-    http(s"StartScenario - GetAllProducts")
-      .get(s"/product/allSkus")
-  )
-
   val injectionProfile: OpenInjectionStep = atOnceUsers(1)
 
   var numEvents = 0
