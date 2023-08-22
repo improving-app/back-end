@@ -32,14 +32,9 @@ class GetAllIds extends Simulation {
   val getAllEventsScheduled: HttpRequestBuilder = http(s"StartScenario - GetAllEventsSched")
     .get(s"/event/allData/status/${EventState.EVENT_STATE_SCHEDULED}")
 
-  def getAllEventsScheduledForOrg(orgIds: String): HttpRequestBuilder = http(s"StartScenario - GetAllEventsSchedForOrg")
-    .get(
-      s"/event/allData/status/${EventState.EVENT_STATE_SCHEDULED}/forOrg/${fromJsonString[AllOrganizationIds](
-          orgIds.replace("\"", "").replace("\\", "\"")
-        ).allOrganizationIds.head.id}"
-    )
-
   val injectionProfile: OpenInjectionStep = atOnceUsers(1)
+
+  var numEvents = 0
 
   setUp(
     scenario("GetAllScenario")
@@ -50,12 +45,23 @@ class GetAllIds extends Simulation {
         exec(getAllEvents),
         exec(getAllEventsScheduled),
         exec(getAllStores),
-        exec(getAllProducts)
+        exec(getAllProducts),
       )
       .exec { session =>
-        getAllEventsScheduledForOrg(session("organizationIds").as[String])
-        session
+        val orgIds = fromJsonString[AllOrganizationIds](
+          session("organizationIds").as[String].replace("\"", "").replace("\\", "\"")
+        ).allOrganizationIds
+
+        session.set("orgId", orgIds.head)
       }
+      .exec(
+        exec(
+          http(s"StartScenario - GetAllEventsSchedForOrg")
+            .get(
+              s"/event/allData/status/${EventState.EVENT_STATE_SCHEDULED}/forOrg/#{orgId}"
+            )
+        )
+      )
       .inject(injectionProfile)
   ).protocols(httpProtocol)
 
