@@ -147,8 +147,12 @@ class ProductServiceImpl()(implicit val system: ActorSystem[_]) extends ProductS
   override def getAllSkus(in: Empty): Future[AllSkus] = {
     val readJournal =
       PersistenceQuery(system).readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
-    readJournal.currentPersistenceIds().runFold(Seq[Sku]())(_ :+ Sku(_)).map { seq =>
-      AllSkus(seq)
-    }
+    readJournal
+      .currentPersistenceIds()
+      .map(id => id.split('|')(1))
+      .runFold(Seq[Sku]())(_ :+ Sku(_))
+      .map { seq =>
+        AllSkus(seq)
+      }
   }
 }

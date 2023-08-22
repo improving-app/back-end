@@ -10,7 +10,11 @@ import com.google.protobuf.timestamp.Timestamp
 import com.improving.app.common.domain.EventId
 import com.improving.app.common.errors.{Error, StateError}
 import com.improving.app.event.domain.EventState._
-import com.improving.app.event.domain.Validation.{draftTransitionEventInfoValidator, eventCommandValidator}
+import com.improving.app.event.domain.Validation.{
+  draftTransitionEventInfoValidator,
+  eventCommandValidator,
+  eventQueryValidator
+}
 import com.improving.app.event.domain.util.{EditableEventInfoUtil, EventInfoUtil}
 import com.typesafe.scalalogging.StrictLogging
 
@@ -215,6 +219,125 @@ object Event extends StrictLogging {
                     case _ =>
                       Left(
                         StateError(s"Event is past, no commands available")
+                      )
+                  }
+              }
+
+              result match {
+                case Left(error)  => Effect.reply(command.replyTo)(StatusReply.Error(error.message))
+                case Right(event) => replyWithResponseEvent(event)
+              }
+            case Some(errors) => Effect.reply(command.replyTo)(StatusReply.Error(errors.message))
+          }
+        case q: EventQuery =>
+          eventQueryValidator(q) match {
+            case None =>
+              val result: Either[Error, EventResponse] = state match {
+                case UninitializedEventState =>
+                  command.request match {
+                    case _ =>
+                      Left(
+                        StateError(
+                          s"${command.request.productPrefix} query cannot be used on an uninitialized Event"
+                        )
+                      )
+                  }
+                case DraftEventState(editableInfo, meta) =>
+                  command.request match {
+                    case getInfo: GetEventData =>
+                      Right(
+                        EventData(
+                          getInfo.eventId,
+                          Some(EventInfoOrEditable(EventInfoOrEditable.Value.Editable(editableInfo))),
+                          Some(meta)
+                        )
+                      )
+                    case _ =>
+                      Left(StateError(s"${command.request.productPrefix} query cannot be used on a draft Event"))
+                  }
+                case x: DefinedEventState =>
+                  x match {
+                    case ScheduledEventState(info, meta) =>
+                      command.request match {
+                        case getInfo: GetEventData =>
+                          Right(
+                            EventData(
+                              getInfo.eventId,
+                              Some(EventInfoOrEditable(EventInfoOrEditable.Value.Info(info))),
+                              Some(meta)
+                            )
+                          )
+                        case _ =>
+                          Left(
+                            StateError(s"${command.request.productPrefix} command cannot be used on a scheduled Event")
+                          )
+                      }
+                    case InProgressEventState(info, meta) =>
+                      command.request match {
+                        case getInfo: GetEventData =>
+                          Right(
+                            EventData(
+                              getInfo.eventId,
+                              Some(EventInfoOrEditable(EventInfoOrEditable.Value.Info(info))),
+                              Some(meta)
+                            )
+                          )
+                        case _ =>
+                          Left(
+                            StateError(
+                              s"${command.request.productPrefix} query cannot be used on an in-progress Event"
+                            )
+                          )
+                      }
+                    case DelayedEventState(info, meta) =>
+                      command.request match {
+                        case getInfo: GetEventData =>
+                          Right(
+                            EventData(
+                              getInfo.eventId,
+                              Some(EventInfoOrEditable(EventInfoOrEditable.Value.Info(info))),
+                              Some(meta)
+                            )
+                          )
+                        case _ =>
+                          Left(
+                            StateError(
+                              s"${command.request.productPrefix} query cannot be used on a delayed Event"
+                            )
+                          )
+                      }
+                    case CancelledEventState(info, meta) =>
+                      command.request match {
+
+                        case getInfo: GetEventData =>
+                          Right(
+                            EventData(
+                              getInfo.eventId,
+                              Some(EventInfoOrEditable(EventInfoOrEditable.Value.Info(info))),
+                              Some(meta)
+                            )
+                          )
+                        case _ =>
+                          Left(
+                            StateError(
+                              s"${command.request.productPrefix} query cannot be used on a cancelled Event"
+                            )
+                          )
+                      }
+                  }
+                case PastEventState(info, meta) =>
+                  command.request match {
+                    case getInfo: GetEventData =>
+                      Right(
+                        EventData(
+                          getInfo.eventId,
+                          Some(EventInfoOrEditable(EventInfoOrEditable.Value.Info(info))),
+                          Some(meta)
+                        )
+                      )
+                    case _ =>
+                      Left(
+                        StateError(s"${command.request.productPrefix} query cannot be used on a past Event")
                       )
                   }
               }

@@ -15,52 +15,61 @@ option (scalapb.options) = {
 };
 
 message EventInfoEdited {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.EventId event_id = 1;
     EditableEventInfo info = 2;
     EventMetaInfo meta = 3;
 }
 
 message EventCreated {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.EventId event_id = 1;
     EditableEventInfo info = 2;
     EventMetaInfo meta = 3;
 }
 
 message EventScheduled {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.EventId event_id = 1;
     EditableEventInfo info = 2;
     EventMetaInfo meta = 3;
 }
 
 message EventCancelled {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.EventId event_id = 1;
     EventMetaInfo meta = 2;
 }
 
 message EventRescheduled {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.EventId event_id = 1;
     EventInfo info = 2;
     EventMetaInfo meta = 3;
 }
 
 message EventDelayed {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.EventId event_id = 1;
     EventInfo info = 2;
     EventMetaInfo meta = 3;
 }
 
 message EventStarted {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.EventId event_id = 1;
     EventInfo info = 2;
     EventMetaInfo meta = 3;
 }
 
 message EventEnded {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.EventId event_id = 1;
     EventMetaInfo meta = 2;
 }
 
 message AllEventIds {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     repeated common.domain.EventId all_event_ids = 1;
 }
 
@@ -80,8 +89,9 @@ message EventEvent{
 }
 
 message EventData {
+    option (scalapb.message).extends = "com.improving.app.common.serialize.PBMsgSerializable";
     common.domain.EventId event_id = 1;
-    EventInfo event_info = 2;
+    EventInfoOrEditable event_info = 2;
     EventMetaInfo event_meta_info = 3;
 }
 

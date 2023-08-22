@@ -215,7 +215,8 @@ object C {
           "com.dimafeng" %% "testcontainers-scala-cassandra" % V.testcontainersScalaVersion,
           "com.typesafe.akka" %% "akka-actor-typed" % V.akka,
           "com.typesafe.scala-logging" %% "scala-logging" % V.scalalogging,
-          "com.typesafe.akka" %% "akka-http-core" % V.akkaHttp
+          "com.typesafe.akka" %% "akka-http-core" % V.akkaHttp,
+          "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.0"
         ),
         dockerUpdateLatest := true
       )

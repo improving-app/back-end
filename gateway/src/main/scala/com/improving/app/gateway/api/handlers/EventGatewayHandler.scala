@@ -3,6 +3,8 @@ package com.improving.app.gateway.api.handlers
 import akka.actor.typed.ActorSystem
 import akka.grpc.GrpcClientSettings
 import akka.util.Timeout
+import com.improving.app.common.domain.util.GeneratedMessageUtil
+import com.improving.app.common.domain.{EventId, OrganizationId}
 import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.gateway.domain.event.{
   AllEventIds => GatewayAllEventIds,
@@ -10,14 +12,17 @@ import com.improving.app.gateway.domain.event.{
   CreateEvent => GatewayCreateEvent,
   EventCancelled,
   EventCreated,
+  EventData,
   EventScheduled,
+  EventState,
   ScheduleEvent => GatewayScheduleEvent
 }
 import com.improving.app.gateway.domain.eventUtil._
 import com.improving.app.event.api.EventServiceClient
-import com.improving.app.event.domain.{CancelEvent, CreateEvent, ScheduleEvent}
+import com.improving.app.event.domain.{CancelEvent, CreateEvent, GetEventData, ScheduleEvent}
 import com.typesafe.scalalogging.StrictLogging
 
+import java.util.UUID
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -88,6 +93,61 @@ class EventGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = No
         )
       }
 
+  def getEventData(id: String): Future[EventData] = {
+    try {
+      UUID.fromString(id)
+    } catch {
+      case e: Exception => Future.failed(e)
+    }
+
+    eventClient
+      .getEventData(GetEventData(Some(EventId(id))))
+      .map(data =>
+        EventData(
+          Some(EventId(id)),
+          data.eventInfo.flatMap(_.toGatewayInfoOrEditable),
+          data.eventMetaInfo.map(_.toGatewayEventMeta)
+        )
+      )
+  }
+
   def getAllIds: Future[GatewayAllEventIds] =
-    eventClient.getAllIds(com.google.protobuf.empty.Empty()).map(response => GatewayAllEventIds(response.allEventIds))
+    eventClient.getAllIds(com.google.protobuf.empty.Empty()).map { response =>
+      GatewayAllEventIds(response.allEventIds)
+    }
+
+  def filterEventDataByStatus(eventData: Seq[EventData], status: Option[EventState]): Seq[EventData] =
+    status match {
+      case Some(state) => eventData.filter(_.eventMetaInfo.map(_.currentState).contains(state))
+      case None        => eventData
+    }
+
+  def filterEventDataByOrgId(eventData: Seq[EventData], orgId: Option[OrganizationId]): Seq[EventData] =
+    orgId match {
+      case Some(organizationId) =>
+        eventData
+          .filter(
+            _.eventInfo.exists(info =>
+              if (info.value.isInfo) info.getInfo.sponsoringOrg.contains(organizationId)
+              else info.getEditable.sponsoringOrg.contains(organizationId)
+            )
+          )
+      case None => eventData
+    }
+
+  def getAllIdsAndGetData(
+      status: Option[EventState] = None,
+      orgId: Option[OrganizationId] = None
+  ): Future[Seq[EventData]] =
+    eventClient
+      .getAllIds(com.google.protobuf.empty.Empty())
+      .map { response =>
+        GatewayAllEventIds(response.allEventIds)
+      }
+      .map(_.allEventIds.map(id => getEventData(id.id)))
+      .flatMap(allIdsFut =>
+        Future
+          .sequence(allIdsFut)
+          .map(data => filterEventDataByOrgId(filterEventDataByStatus(data, status), orgId))
+      )
 }

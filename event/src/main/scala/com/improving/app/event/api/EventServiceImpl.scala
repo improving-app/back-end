@@ -71,7 +71,7 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
   }
 
   private def handleCommand[T](
-      in: EventRequestPB with EventCommand,
+      in: EventCommand with EventRequestPB,
       eventHandler: PartialFunction[StatusReply[EventResponse], T]
   ): Future[T] = in.eventId
     .map { id =>
@@ -92,7 +92,7 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
     )
 
   private def handleQuery[T](
-      in: EventRequestPB with EventQuery,
+      in: EventQuery with EventRequestPB,
       eventHandler: PartialFunction[StatusReply[EventResponse], T]
   ): Future[T] = in.eventId
     .map { id =>
@@ -234,14 +234,28 @@ class EventServiceImpl(implicit val system: ActorSystem[_]) extends EventService
     }
   )
 
+  override def getEventData(in: GetEventData): Future[EventData] = handleQuery(
+    in,
+    { case StatusReply.Success(data: EventData) =>
+      // To be implemented when we want automatic timers for start and end
+      // cancelEndTimer(id)
+
+      data
+    }
+  )
+
   /**
    * get:"event/allIds"
    */
   override def getAllIds(in: Empty): Future[AllEventIds] = {
     val readJournal =
       PersistenceQuery(system).readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
-    readJournal.currentPersistenceIds().runFold(Seq[EventId]())(_ :+ EventId(_)).map { seq =>
-      AllEventIds(seq)
-    }
+    readJournal
+      .currentPersistenceIds()
+      .map(id => id.split('|')(1))
+      .runFold(Seq[EventId]())(_ :+ EventId(_))
+      .map { seq =>
+        AllEventIds(seq)
+      }
   }
 }

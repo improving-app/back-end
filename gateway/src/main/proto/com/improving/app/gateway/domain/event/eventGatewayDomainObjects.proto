@@ -87,3 +87,10 @@ message EventMetaInfo {
     EventState current_state = 9;
     optional EventStateInfo event_state_info = 10;
 }
+
+message EventInfoOrEditable {
+    oneof value {
+        EventInfo info = 1;
+        EditableEventInfo editable = 2;
+    }
+}

@@ -4,6 +4,7 @@ package com.improving.app.event.domain;
 
 import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/event/domain/eventDomainObjects.proto";
+import "com/improving/app/event/domain/eventEvents.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
@@ -39,6 +40,7 @@ message EventRequestPB{
         DelayEvent delay_event = 6;
         StartEvent start_event = 7;
         EndEvent end_event = 8;
+        GetEventData get_event_info = 9;
     }
 }
 
@@ -112,4 +114,11 @@ message EndEvent {
     };
     common.domain.EventId event_id = 1; 
     common.domain.MemberId on_behalf_of = 2;
+}
+
+message GetEventData {
+    option(scalapb.message) = {
+        extends: ["EventQuery"]
+    };
+    common.domain.EventId event_id = 1;
 }

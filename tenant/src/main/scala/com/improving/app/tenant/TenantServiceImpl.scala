@@ -87,8 +87,12 @@ class TenantServiceImpl(sys: ActorSystem[_]) extends TenantService {
   override def getAllIds(in: Empty): Future[AllTenantIds] = {
     val readJournal =
       PersistenceQuery(system).readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
-    readJournal.currentPersistenceIds().runFold(Seq[TenantId]())(_ :+ TenantId(_)).map { seq =>
-      AllTenantIds(seq)
-    }
+    readJournal
+      .currentPersistenceIds()
+      .map(id => id.split('|')(1))
+      .runFold(Seq[TenantId]())(_ :+ TenantId(_))
+      .map { seq =>
+        AllTenantIds(seq)
+      }
   }
 }

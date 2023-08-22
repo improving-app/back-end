@@ -121,8 +121,12 @@ class StoreServiceImpl(sys: ActorSystem[_]) extends StoreService {
   override def getAllIds(in: Empty): Future[AllStoreIds] = {
     val readJournal =
       PersistenceQuery(system).readJournalFor[CassandraReadJournal](CassandraReadJournal.Identifier)
-    readJournal.currentPersistenceIds().runFold(Seq[StoreId]())(_ :+ StoreId(_)).map { seq =>
-      AllStoreIds(seq)
-    }
+    readJournal
+      .currentPersistenceIds()
+      .map(id => id.split('|')(1))
+      .runFold(Seq[StoreId]())(_ :+ StoreId(_))
+      .map { seq =>
+        AllStoreIds(seq)
+      }
   }
 }

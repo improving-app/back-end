@@ -61,15 +61,14 @@ class GatewayServerImpl(implicit val sys: ActorSystem[_])
         )
     )
 
-  def start(): Unit = binding
-    .onComplete {
-      case Success(binding) =>
-        val address = binding.localAddress
-        println(s"Improving.App HTTP Gateway bound to ${address.getHostString}:${address.getPort}")
-      case Failure(ex) =>
-        println(s"Failed to bind HTTP endpoint for Improving.APP Gateway, terminating system: ${ex.getMessage}")
-        sys.terminate()
-    }
+  def start(): Unit = binding.onComplete {
+    case Success(binding) =>
+      val address = binding.localAddress
+      println(s"Improving.App HTTP Gateway bound to ${address.getHostString}:${address.getPort}")
+    case Failure(ex) =>
+      println(s"Failed to bind HTTP endpoint for Improving.APP Gateway, terminating system: ${ex.getMessage}")
+      sys.terminate()
+  }
 
   def tearDown: Future[Unit] = Await
     .result(binding, 10.seconds)

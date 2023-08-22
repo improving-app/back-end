@@ -5,13 +5,21 @@ import com.improving.app.gateway.domain.event.{
   CancelledEventInfo => GatewayCancelledEventInfo,
   EditableEventInfo => GatewayEditableEventInfo,
   EventCreated,
-  EventInfo,
+  EventInfo => GatewayEventInfo,
+  EventInfoOrEditable => GatewayEventInfoOrEditable,
   EventMetaInfo => GatewayEventMetaInfo,
   EventState => GatewayEventState,
   EventStateInfo => GatewayEventStateInfo,
   ScheduledEventInfo => GatewayScheduledEventInfo
 }
-import com.improving.app.event.domain.{EditableEventInfo, EventMetaInfo, EventState, EventStateInfo}
+import com.improving.app.event.domain.{
+  EditableEventInfo,
+  EventInfo,
+  EventInfoOrEditable,
+  EventMetaInfo,
+  EventState,
+  EventStateInfo
+}
 
 object eventUtil {
 
@@ -23,9 +31,21 @@ object eventUtil {
     )
   }
 
+  implicit class EventInfoUtil(info: EventInfo) {
+    def toGatewayInfo: GatewayEventInfo = GatewayEventInfo(
+      eventName = info.eventName,
+      description = info.description,
+      eventUrl = info.eventUrl,
+      sponsoringOrg = info.sponsoringOrg,
+      expectedStart = info.expectedStart,
+      expectedEnd = info.expectedEnd,
+      isPrivate = info.isPrivate,
+    )
+  }
+
   implicit class GatewayEditableEventInfoUtil(info: GatewayEditableEventInfo) {
 
-    def toInfo: EventInfo = EventInfo(
+    def toInfo: GatewayEventInfo = GatewayEventInfo(
       eventName = info.getEventName,
       description = info.description,
       eventUrl = info.eventUrl,
@@ -58,6 +78,16 @@ object eventUtil {
         expectedEnd = info.expectedEnd,
         isPrivate = info.isPrivate
       )
+  }
+
+  implicit class EventInfoOrEditableUtil(info: EventInfoOrEditable) {
+    def toGatewayInfoOrEditable: Option[GatewayEventInfoOrEditable] =
+      if (info.value.isInfo)
+        info.value.info.map(i => GatewayEventInfoOrEditable(GatewayEventInfoOrEditable.Value.Info(i.toGatewayInfo)))
+      else
+        info.value.editable.map(i =>
+          GatewayEventInfoOrEditable(GatewayEventInfoOrEditable.Value.Editable(i.toGatewayEditableInfo))
+        )
   }
 
   implicit class EventStateUtil(eventState: EventState) {

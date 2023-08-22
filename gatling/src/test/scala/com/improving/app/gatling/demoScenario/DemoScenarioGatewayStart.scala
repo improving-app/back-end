@@ -2,8 +2,9 @@ package com.improving.app.gatling.demoScenario
 
 import akka.http.scaladsl.model.ContentTypes
 import com.improving.app.common.domain.{EventId, MemberId, OrganizationId, Sku, StoreId, TenantId}
+import com.improving.app.common.domain.util.GeneratedMessageUtil
 import com.improving.app.gateway.domain.event.{CreateEvent, ScheduleEvent}
-import com.improving.app.gateway.domain.member.{ActivateMember, GetMemberInfo, RegisterMember}
+import com.improving.app.gateway.domain.member.{ActivateMember, RegisterMember}
 import com.improving.app.gateway.domain.organization.{ActivateOrganization, EstablishOrganization}
 import com.improving.app.gateway.domain.product.{ActivateProduct, CreateProduct}
 import com.improving.app.gateway.domain.store.{CreateStore, MakeStoreReady}
@@ -20,7 +21,6 @@ import io.gatling.core.structure.ScenarioBuilder
 import io.gatling.http.Predef._
 import io.gatling.http.protocol.HttpProtocolBuilder
 import scalapb.GeneratedMessage
-import scalapb.json4s.JsonFormat
 
 import java.util.UUID
 
@@ -41,14 +41,14 @@ class DemoScenarioGatewayStart extends Simulation {
     tenantsByCreatingMember.keys.toSeq.map(member => member -> OrganizationId(UUID.randomUUID().toString)).toMap
 
   def createScn[T <: GeneratedMessage](scnId: String, path: String, req: T): ScenarioBuilder = scenario(
-    s"${req.getClass.getCanonicalName}-$scnId"
+    s"${req.getClass.getSimpleName}-$scnId"
   ).exec(
     http(s"StartScenario - ${req.getClass.getSimpleName}")
       .post(path)
       .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
       .body(
         StringBody(
-          s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
+          req.print
         )
       )
   )

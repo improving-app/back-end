@@ -28,4 +28,7 @@ object Validation {
       eventCommand => required("eventId")(eventCommand.eventId),
       eventCommand => required("on_behalf_of")(eventCommand.onBehalfOf)
     )
+
+  val eventQueryValidator: Validator[EventQuery] =
+    applyAllValidators[EventQuery](eventQuery => required("eventId")(eventQuery.eventId))
 }
