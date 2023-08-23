@@ -4,6 +4,7 @@ import com.improving.app.gateway.domain.event.EventState
 import com.improving.app.gateway.domain.organization.AllOrganizationIds
 import io.gatling.core.Predef._
 import io.gatling.core.controller.inject.open.OpenInjectionStep
+import io.gatling.core.structure.ChainBuilder
 import io.gatling.http.Predef._
 import io.gatling.http.protocol.HttpProtocolBuilder
 import io.gatling.http.request.builder.HttpRequestBuilder
@@ -32,12 +33,9 @@ class GetAllIds extends Simulation {
   val getAllEventsScheduled: HttpRequestBuilder = http(s"StartScenario - GetAllEventsSched")
     .get(s"/event/allData/status/${EventState.EVENT_STATE_SCHEDULED}")
 
-  def getAllEventsScheduledForOrgs: Seq[HttpRequestBuilder] =
-    (0 until numEvents).map(num =>
-      http(s"StartScenario - GetAllEventsSchedForOrg$num")
-        .get(
-          s"/event/allData/status/${EventState.EVENT_STATE_SCHEDULED}/forOrg/#{orgId$num}"
-        )
+  def getEventsScheduledForOrg: HttpRequestBuilder = http(s"StartScenario - GetEventsSchedForOrg #{id}")
+    .get(
+      s"/event/allData/status/${EventState.EVENT_STATE_SCHEDULED}/forOrg/#{id}"
     )
 
   val injectionProfile: OpenInjectionStep = atOnceUsers(1)
@@ -56,22 +54,15 @@ class GetAllIds extends Simulation {
         exec(getAllProducts),
       )
       .exec { session =>
-        var s = session
         val orgIds = fromJsonString[AllOrganizationIds](
-          s("organizationIds").as[String].replace("\"", "").replace("\\", "\"")
+          session("organizationIds").as[String].replace("\"", "").replace("\\", "\"")
         ).allOrganizationIds
 
-        orgIds.zipWithIndex.foreach { case (id, index) =>
-          s = s.set(s"orgId_$index", id)
-        }
-        numEvents = orgIds.size
-        s = s.set("orgId", orgIds.head)
-        s = s.set("num", numEvents)
-        s
+        session.set("orgIds", orgIds.map(_.id))
       }
-      .exec(
-        getAllEventsScheduledForOrgs.map(exec): _*
-      )
+      .foreach("${orgIds}", "id") {
+        exec(getEventsScheduledForOrg)
+      }
       .inject(injectionProfile)
   ).protocols(httpProtocol)
 
