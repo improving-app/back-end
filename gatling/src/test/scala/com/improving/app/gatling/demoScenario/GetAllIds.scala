@@ -4,6 +4,7 @@ import com.improving.app.gateway.domain.event.EventState
 import com.improving.app.gateway.domain.organization.AllOrganizationIds
 import io.gatling.core.Predef._
 import io.gatling.core.controller.inject.open.OpenInjectionStep
+import io.gatling.core.structure.ChainBuilder
 import io.gatling.http.Predef._
 import io.gatling.http.protocol.HttpProtocolBuilder
 import io.gatling.http.request.builder.HttpRequestBuilder
@@ -32,6 +33,11 @@ class GetAllIds extends Simulation {
   val getAllEventsScheduled: HttpRequestBuilder = http(s"StartScenario - GetAllEventsSched")
     .get(s"/event/allData/status/${EventState.EVENT_STATE_SCHEDULED}")
 
+  def getEventsScheduledForOrg: HttpRequestBuilder = http(s"StartScenario - GetEventsSchedForOrg #{id}")
+    .get(
+      s"/event/allData/status/${EventState.EVENT_STATE_SCHEDULED}/forOrg/#{id}"
+    )
+
   val injectionProfile: OpenInjectionStep = atOnceUsers(1)
 
   var numEvents = 0
@@ -52,16 +58,11 @@ class GetAllIds extends Simulation {
           session("organizationIds").as[String].replace("\"", "").replace("\\", "\"")
         ).allOrganizationIds
 
-        session.set("orgId", orgIds.head)
+        session.set("orgIds", orgIds.map(_.id))
       }
-      .exec(
-        exec(
-          http(s"StartScenario - GetAllEventsSchedForOrg")
-            .get(
-              s"/event/allData/status/${EventState.EVENT_STATE_SCHEDULED}/forOrg/#{orgId}"
-            )
-        )
-      )
+      .foreach("${orgIds}", "id") {
+        exec(getEventsScheduledForOrg)
+      }
       .inject(injectionProfile)
   ).protocols(httpProtocol)
 
