@@ -9,9 +9,13 @@ import com.improving.app.gateway.api.handlers.EventGatewayHandler
 import com.improving.app.gateway.domain.event.{
   CancelEvent => GatewayCancelEvent,
   CreateEvent => GatewayCreateEvent,
+  DelayEvent => GatewayDelayEvent,
+  EndEvent => GatewayEndEvent,
   EventData,
   EventState,
-  ScheduleEvent => GatewayScheduleEvent
+  RescheduleEvent => GatewayRescheduleEvent,
+  ScheduleEvent => GatewayScheduleEvent,
+  StartEvent => GatewayStartEvent
 }
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
@@ -53,6 +57,58 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                   )
               ) { eventCancelled =>
                 complete(eventCancelled.print)
+              }
+            }
+          }
+        } ~ pathPrefix("reschedule") {
+          post {
+            entity(Directives.as[String]) { data =>
+              onSuccess(
+                handler
+                  .rescheduleEvent(
+                    fromJsonString[GatewayRescheduleEvent](data)
+                  )
+              ) { eventRescheduled =>
+                complete(eventRescheduled.print)
+              }
+            }
+          }
+        } ~ pathPrefix("delay") {
+          post {
+            entity(Directives.as[String]) { data =>
+              onSuccess(
+                handler
+                  .delayEvent(
+                    fromJsonString[GatewayDelayEvent](data)
+                  )
+              ) { eventDalyed =>
+                complete(eventDalyed.print)
+              }
+            }
+          }
+        } ~ pathPrefix("start") {
+          post {
+            entity(Directives.as[String]) { data =>
+              onSuccess(
+                handler
+                  .startEvent(
+                    fromJsonString[GatewayStartEvent](data)
+                  )
+              ) { eventStarted =>
+                complete(eventStarted.print)
+              }
+            }
+          }
+        } ~ pathPrefix("end") {
+          post {
+            entity(Directives.as[String]) { data =>
+              onSuccess(
+                handler
+                  .endEvent(
+                    fromJsonString[GatewayEndEvent](data)
+                  )
+              ) { eventEnded =>
+                complete(eventEnded.print)
               }
             }
           }

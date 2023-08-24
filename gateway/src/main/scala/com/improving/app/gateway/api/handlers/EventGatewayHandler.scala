@@ -3,23 +3,39 @@ package com.improving.app.gateway.api.handlers
 import akka.actor.typed.ActorSystem
 import akka.grpc.GrpcClientSettings
 import akka.util.Timeout
-import com.improving.app.common.domain.util.GeneratedMessageUtil
 import com.improving.app.common.domain.{EventId, OrganizationId}
 import com.improving.app.gateway.domain.common.util.getHostAndPortForService
 import com.improving.app.gateway.domain.event.{
   AllEventIds => GatewayAllEventIds,
   CancelEvent => GatewayCancelEvent,
   CreateEvent => GatewayCreateEvent,
+  DelayEvent => GatewayDelayEvent,
+  EndEvent => GatewayEndEvent,
   EventCancelled,
   EventCreated,
   EventData,
+  EventDelayed,
+  EventEnded,
+  EventRescheduled,
   EventScheduled,
+  EventStarted,
   EventState,
-  ScheduleEvent => GatewayScheduleEvent
+  RescheduleEvent => GatewayRescheduleEvent,
+  ScheduleEvent => GatewayScheduleEvent,
+  StartEvent => GatewayStartEvent
 }
 import com.improving.app.gateway.domain.eventUtil._
 import com.improving.app.event.api.EventServiceClient
-import com.improving.app.event.domain.{CancelEvent, CreateEvent, GetEventData, ScheduleEvent}
+import com.improving.app.event.domain.{
+  CancelEvent,
+  CreateEvent,
+  DelayEvent,
+  EndEvent,
+  GetEventData,
+  RescheduleEvent,
+  ScheduleEvent,
+  StartEvent
+}
 import com.typesafe.scalalogging.StrictLogging
 
 import java.util.UUID
@@ -150,4 +166,30 @@ class EventGatewayHandler(grpcClientSettingsOpt: Option[GrpcClientSettings] = No
           .sequence(allIdsFut)
           .map(data => filterEventDataByOrgId(filterEventDataByStatus(data, status), orgId))
       )
+
+  def rescheduleEvent(in: GatewayRescheduleEvent): Future[EventRescheduled] =
+    eventClient
+      .rescheduleEvent(RescheduleEvent(in.eventId, in.start, in.end, in.onBehalfOf))
+      .map(response =>
+        EventRescheduled(response.eventId, response.info.map(_.toGatewayInfo), response.meta.map(_.toGatewayEventMeta))
+      )
+
+  def delayEvent(in: GatewayDelayEvent): Future[EventDelayed] =
+    eventClient
+      .delayEvent(DelayEvent(in.eventId, in.reason, in.expectedDuration, in.onBehalfOf))
+      .map(response =>
+        EventDelayed(response.eventId, response.info.map(_.toGatewayInfo), response.meta.map(_.toGatewayEventMeta))
+      )
+
+  def startEvent(in: GatewayStartEvent): Future[EventStarted] =
+    eventClient
+      .startEvent(StartEvent(in.eventId, in.onBehalfOf))
+      .map(response =>
+        EventStarted(response.eventId, response.info.map(_.toGatewayInfo), response.meta.map(_.toGatewayEventMeta))
+      )
+
+  def endEvent(in: GatewayEndEvent): Future[EventEnded] =
+    eventClient
+      .endEvent(EndEvent(in.eventId, in.onBehalfOf))
+      .map(response => EventEnded(response.eventId, response.meta.map(_.toGatewayEventMeta)))
 }
