@@ -1,4 +1,4 @@
-package com.improving.app.gatling.member
+package com.improving.app.gatling.scenarios.member
 
 import akka.http.scaladsl.model.ContentTypes
 import com.improving.app.common.domain.{EditableContact, MemberId, OrganizationId, TenantId}

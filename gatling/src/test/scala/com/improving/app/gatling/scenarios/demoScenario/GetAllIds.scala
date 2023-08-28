@@ -1,16 +1,14 @@
-package com.improving.app.gatling.demoScenario
+package com.improving.app.gatling.scenarios.demoScenario
 
 import com.improving.app.gateway.domain.event.EventState
 import com.improving.app.gateway.domain.organization.AllOrganizationIds
 import io.gatling.core.Predef._
 import io.gatling.core.controller.inject.open.OpenInjectionStep
-import io.gatling.core.structure.ChainBuilder
 import io.gatling.http.Predef._
 import io.gatling.http.protocol.HttpProtocolBuilder
 import io.gatling.http.request.builder.HttpRequestBuilder
 import scalapb.json4s.JsonFormat.fromJsonString
 
-import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
 class GetAllIds extends Simulation {
@@ -33,7 +31,7 @@ class GetAllIds extends Simulation {
   val getAllEventsScheduled: HttpRequestBuilder = http(s"StartScenario - GetAllEventsSched")
     .get(s"/event/allData/status/${EventState.EVENT_STATE_SCHEDULED}")
 
-  def getEventsScheduledForOrg: HttpRequestBuilder = http(s"StartScenario - GetEventsSchedForOrg #{id}")
+  val getEventsScheduledForOrg: HttpRequestBuilder = http(s"StartScenario - GetEventsSchedForOrg #{id}")
     .get(
       s"/event/allData/status/${EventState.EVENT_STATE_SCHEDULED}/forOrg/#{id}"
     )

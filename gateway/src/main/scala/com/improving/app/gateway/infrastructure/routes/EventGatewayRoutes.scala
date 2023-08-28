@@ -43,7 +43,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                     fromJsonString[GatewayScheduleEvent](data)
                   )
               ) { eventScheduled =>
-                complete(eventScheduled.print)
+                complete(eventScheduled.printAsResponse)
               }
             }
           }
@@ -56,7 +56,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                     fromJsonString[GatewayCancelEvent](data)
                   )
               ) { eventCancelled =>
-                complete(eventCancelled.print)
+                complete(eventCancelled.printAsResponse)
               }
             }
           }
@@ -69,7 +69,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                     fromJsonString[GatewayRescheduleEvent](data)
                   )
               ) { eventRescheduled =>
-                complete(eventRescheduled.print)
+                complete(eventRescheduled.printAsResponse)
               }
             }
           }
@@ -82,7 +82,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                     fromJsonString[GatewayDelayEvent](data)
                   )
               ) { eventDalyed =>
-                complete(eventDalyed.print)
+                complete(eventDalyed.printAsResponse)
               }
             }
           }
@@ -95,7 +95,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                     fromJsonString[GatewayStartEvent](data)
                   )
               ) { eventStarted =>
-                complete(eventStarted.print)
+                complete(eventStarted.printAsResponse)
               }
             }
           }
@@ -108,7 +108,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                     fromJsonString[GatewayEndEvent](data)
                   )
               ) { eventEnded =>
-                complete(eventEnded.print)
+                complete(eventEnded.printAsResponse)
               }
             }
           }
@@ -117,7 +117,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
             onSuccess(
               handler.getAllIds
             ) { allIds =>
-              complete(allIds.print)
+              complete(allIds.printAsResponse)
             }
           }
         } ~ pathPrefix("allData") {
@@ -130,7 +130,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                       handler.getAllIdsAndGetData(EventState.fromName(status), Some(OrganizationId(orgId)))
                     ) { eventDataFut =>
                       complete(
-                        eventDataFut.map(_.print)
+                        eventDataFut.map(_.printAsDataResponse)
                       )
                     }
                   }
@@ -140,7 +140,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                   handler.getAllIdsAndGetData(EventState.fromName(status))
                 ) { eventDataFut =>
                   complete(
-                    eventDataFut.map(_.print)
+                    eventDataFut.map(_.printAsDataResponse)
                   )
                 }
               }
@@ -149,7 +149,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
             onSuccess(
               handler.getAllIdsAndGetData()
             ) { eventDataFut =>
-              complete(eventDataFut.map(_.print))
+              complete(eventDataFut.map(_.printAsDataResponse))
             }
           }
         } ~ pathPrefix(Segment) { eventId =>
@@ -160,7 +160,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                   eventId
                 )
             ) { eventData =>
-              complete(eventData.print)
+              complete(eventData.printAsResponse)
             }
           }
         } ~ post {
@@ -172,7 +172,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                   fromJsonString[GatewayCreateEvent](data)
                 )
             ) { eventCreated =>
-              complete(eventCreated.print)
+              complete(eventCreated.printAsResponse)
             }
           }
         }

@@ -137,14 +137,7 @@ object Event extends StrictLogging {
                     case ScheduledEventState(info, meta) =>
                       command.request match {
                         case startEventCommand: StartEvent =>
-                          if (Instant.now().getEpochSecond > info.getExpectedStart.seconds)
-                            startEvent(info, meta, startEventCommand)
-                          else
-                            Left(
-                              StateError(
-                                s"${command.request.productPrefix} command cannot be used before an Event has started"
-                              )
-                            )
+                          startEvent(info, meta, startEventCommand)
                         case rescheduleEventCommand: RescheduleEvent =>
                           rescheduleEvent(info, meta, rescheduleEventCommand)
                         case delayEventCommand: DelayEvent   => delayEvent(Right(info), meta, delayEventCommand)
@@ -161,14 +154,7 @@ object Event extends StrictLogging {
                         case delayEventCommand: DelayEvent =>
                           delayEvent(Right(info), meta, delayEventCommand)
                         case endEventCommand: EndEvent =>
-                          if (Instant.now().getEpochSecond > info.getExpectedEnd.seconds)
-                            endEvent(meta, endEventCommand)
-                          else
-                            Left(
-                              StateError(
-                                s"${command.request.productPrefix} command cannot be used before an Event has started"
-                              )
-                            )
+                          endEvent(meta, endEventCommand)
                         case _ =>
                           Left(
                             StateError(
@@ -179,14 +165,7 @@ object Event extends StrictLogging {
                     case DelayedEventState(info, meta) =>
                       command.request match {
                         case startEventCommand: StartEvent =>
-                          if (Instant.now().getEpochSecond > info.getExpectedStart.seconds)
-                            startEvent(info, meta, startEventCommand)
-                          else
-                            Left(
-                              StateError(
-                                s"${command.request.productPrefix} command cannot be used before an Event has started"
-                              )
-                            )
+                          startEvent(info, meta, startEventCommand)
                         case cancelEventCommand: CancelEvent =>
                           cancelEvent(Right(info), meta, cancelEventCommand)
                         case rescheduleEventCommand: RescheduleEvent =>

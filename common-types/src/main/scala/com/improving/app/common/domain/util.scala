@@ -103,7 +103,18 @@ object util {
   }
 
   implicit class GeneratedMessageUtil[T <: GeneratedMessage](req: T) {
-    implicit def print: String = s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
+    implicit def printAsResponse: String = s"""\"${JsonFormat.toJsonString(req).replace("\"", "\\\"")}\""""
+    implicit def printAsDataResponse: String = s"""${JsonFormat
+        .toJsonString(req)
+        .replace("\\\\\\", "\\")
+        .replace("\"\\\"", "")
+        .replace("\\\"\"", "")}"""
+  }
+
+  implicit class StringUtil(str: String) {
+    implicit def forParsingAllIdsProtoResponse: String = str
+      .replace("\"", "")
+      .replace("\\", "\"")
   }
 
 }
