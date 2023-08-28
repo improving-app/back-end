@@ -1,19 +1,8 @@
-package com.improving.app.gatling.demoScenario.gen
+package com.improving.app.gatling
 
-import com.improving.app.common.domain.{
-  EditableAddress,
-  MemberId,
-  OrganizationId,
-  PostalCodeMessageImpl,
-  TenantId,
-  UsPostalCodeImpl
-}
-import com.improving.app.gateway.domain.organization.{
-  ActivateOrganization,
-  EditableOrganizationInfo,
-  EstablishOrganization
-}
-import com.improving.app.gatling.common.gen._
+import com.improving.app.common.domain._
+import com.improving.app.gateway.domain.organization.{ActivateOrganization, EditableOrganizationInfo, EstablishOrganization}
+import com.improving.app.gatling.gen._
 
 import scala.util.Random
 

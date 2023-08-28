@@ -1,17 +1,8 @@
-package com.improving.app.gatling.demoScenario.gen
+package com.improving.app.gatling
 
 import com.improving.app.common.domain.{MemberId, Sku}
 import com.improving.app.gateway.domain.event.CreateEvent
-import com.improving.app.gateway.domain.product.{
-  ActivateProduct,
-  CreateProduct,
-  EditableProductInfo,
-  OpenTicketDetails,
-  ProductDetails,
-  ReservedTicketDetails,
-  RestrictedTicketDetails,
-  TicketDetails
-}
+import com.improving.app.gateway.domain.product._
 
 import java.util.UUID
 import scala.util.Random

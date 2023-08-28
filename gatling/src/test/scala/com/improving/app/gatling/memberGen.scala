@@ -1,15 +1,9 @@
-package com.improving.app.gatling.demoScenario.gen
+package com.improving.app.gatling
 
-import com.improving.app.common.domain.{EditableContact, MemberId, TenantId}
-import com.improving.app.gateway.domain.member.{
-  ActivateMember,
-  EditableMemberInfo,
-  NotificationPreference,
-  RegisterMember
-}
+import com.improving.app.common.domain.MemberId
+import com.improving.app.gateway.domain.member.{ActivateMember, EditableMemberInfo, NotificationPreference, RegisterMember}
 import com.improving.app.gateway.domain.organization.EstablishOrganization
 import com.improving.app.gateway.domain.tenant.EstablishTenant
-import com.improving.app.gatling.common.gen._
 
 import java.util.UUID
 import scala.util.Random

@@ -1,7 +1,7 @@
-package com.improving.app.gatling.demoScenario
+package com.improving.app.gatling.scenarios.demoScenario
 
 import akka.http.scaladsl.model.ContentTypes
-import com.improving.app.common.domain.{EventId, MemberId, OrganizationId, Sku, StoreId, TenantId}
+import com.improving.app.common.domain._
 import com.improving.app.common.domain.util.GeneratedMessageUtil
 import com.improving.app.gateway.domain.event.{CreateEvent, ScheduleEvent}
 import com.improving.app.gateway.domain.member.{ActivateMember, RegisterMember}
@@ -9,12 +9,12 @@ import com.improving.app.gateway.domain.organization.{ActivateOrganization, Esta
 import com.improving.app.gateway.domain.product.{ActivateProduct, CreateProduct}
 import com.improving.app.gateway.domain.store.{CreateStore, MakeStoreReady}
 import com.improving.app.gateway.domain.tenant.{ActivateTenant, EstablishTenant}
-import com.improving.app.gatling.demoScenario.gen.eventGen.{genCreateEvents, genScheduleEvent}
-import com.improving.app.gatling.demoScenario.gen.memberGen.{genActivateMember, genRegisterMembers}
-import com.improving.app.gatling.demoScenario.gen.organizationGen.{genActivateOrgReqs, genEstablishOrg}
-import com.improving.app.gatling.demoScenario.gen.productGen.{genActivateProduct, genCreateProducts}
-import com.improving.app.gatling.demoScenario.gen.storeGen.{genCreateStores, genMakeStoreReady}
-import com.improving.app.gatling.demoScenario.gen.tenantGen.{genActivateTenantReqs, genEstablishTenantReqs}
+import com.improving.app.gatling.eventGen.{genCreateEvents, genScheduleEvent}
+import com.improving.app.gatling.memberGen.{genActivateMember, genRegisterMembers}
+import com.improving.app.gatling.organizationGen.{genActivateOrgReqs, genEstablishOrg}
+import com.improving.app.gatling.productGen.{genActivateProduct, genCreateProducts}
+import com.improving.app.gatling.storeGen.{genCreateStores, genMakeStoreReady}
+import com.improving.app.gatling.tenantGen.{genActivateTenantReqs, genEstablishTenantReqs}
 import io.gatling.core.Predef._
 import io.gatling.core.controller.inject.open.OpenInjectionStep
 import io.gatling.core.structure.ScenarioBuilder
@@ -48,7 +48,7 @@ class DemoScenarioGatewayStart extends Simulation {
       .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
       .body(
         StringBody(
-          req.print
+          req.printAsResponse
         )
       )
   )

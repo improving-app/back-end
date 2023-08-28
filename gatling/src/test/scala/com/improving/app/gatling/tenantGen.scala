@@ -1,17 +1,11 @@
-package com.improving.app.gatling.demoScenario.gen
+package com.improving.app.gatling
 
 import com.improving.app.common.domain._
-import com.improving.app.gateway.domain.tenant.{
-  ActivateTenant,
-  EditableTenantInfo,
-  EstablishTenant,
-  TenantOrganizationList
-}
-import com.improving.app.gatling.common.gen._
+import com.improving.app.gateway.domain.tenant.{ActivateTenant, EditableTenantInfo, EstablishTenant, TenantOrganizationList}
+import com.improving.app.gatling.gen._
 
 import java.time.LocalDateTime
 import java.util.UUID
-import scala.util.Random
 
 object tenantGen {
   def genEstablishTenantReqs(
