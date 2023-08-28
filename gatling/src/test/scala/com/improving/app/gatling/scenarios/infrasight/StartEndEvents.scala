@@ -98,7 +98,7 @@ class StartEndEvents extends Simulation {
       .pause(myPause)
   }
 
-  val scn: ChainBuilder = exec(getScn(1, 1 seconds))
+  val scn: ChainBuilder = exec(getScn(100, 1 seconds))
 
   private val longRunningScn = exec(getScn(100, 5 seconds))
     .exec(getScn(50, 4 seconds))
