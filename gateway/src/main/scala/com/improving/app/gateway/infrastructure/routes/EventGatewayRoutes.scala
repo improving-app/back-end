@@ -11,7 +11,6 @@ import com.improving.app.gateway.domain.event.{
   CreateEvent => GatewayCreateEvent,
   DelayEvent => GatewayDelayEvent,
   EndEvent => GatewayEndEvent,
-  EventData,
   EventState,
   RescheduleEvent => GatewayRescheduleEvent,
   ScheduleEvent => GatewayScheduleEvent,
@@ -21,7 +20,6 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport
 import io.circe.generic.codec.DerivedAsObjectCodec.deriveCodec
-import scalapb.json4s.JsonFormat
 import scalapb.json4s.JsonFormat.fromJsonString
 
 import scala.concurrent.ExecutionContext.Implicits.global

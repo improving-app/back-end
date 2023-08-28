@@ -29,9 +29,9 @@ class Populate extends Simulation {
 
   val numTenants = 2
   val numOrgsPerTenant = 1
-  val numMembersPerOrg = 2
-  val numEventsPerOrg = 2
-  val numStoresPerEvent = 2
+  val numMembersPerOrg = 10
+  val numEventsPerOrg = 10
+  val numStoresPerEvent = 1
   val numProductsPerEventStore = 2
 
   val tenantIds: Seq[Option[TenantId]] = (0 until numTenants).map(_ => Some(TenantId(UUID.randomUUID().toString)))
