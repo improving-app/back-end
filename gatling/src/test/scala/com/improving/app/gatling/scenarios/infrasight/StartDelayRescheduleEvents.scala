@@ -153,7 +153,7 @@ class StartDelayRescheduleEvents extends Simulation {
       .pause(myPause)
   }
 
-  val scn: ChainBuilder = exec(getScn(2, 1 nano))
+  val scn: ChainBuilder = exec(getScn(2, 1 seconds))
 
   private val longRunningScn = exec(getScn(100, 5 seconds))
     .exec(getScn(50, 4 seconds))
