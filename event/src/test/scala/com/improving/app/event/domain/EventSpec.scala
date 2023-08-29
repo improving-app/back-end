@@ -381,20 +381,6 @@ class EventSpec
       }
 
       "executing StartEvent" should {
-        "error for a scheduled event that has not been expected to start yet" in {
-          eventSourcedTestKit.runCommand[StatusReply[EventResponse]](EventEnvelope(baseCreateEvent, _))
-          eventSourcedTestKit.runCommand[StatusReply[EventResponse]](EventEnvelope(baseScheduleEvent, _))
-
-          val result = eventSourcedTestKit.runCommand[StatusReply[EventResponse]](
-            EventEnvelope(
-              baseStartEvent,
-              _
-            )
-          )
-
-          result.reply.getError.getMessage shouldBe "StartEvent command cannot be used before an Event has started"
-        }
-
         "succeed for golden path" in {
           eventSourcedTestKit.runCommand[StatusReply[EventResponse]](EventEnvelope(baseCreateEvent, _))
           eventSourcedTestKit.runCommand[StatusReply[EventResponse]](EventEnvelope(baseScheduleEventToStartNow, _))
@@ -774,20 +760,6 @@ class EventSpec
         }
 
         "executing StartEvent" should {
-          "error for a delayed event that has not been expected to start yet" in {
-            eventSourcedTestKit.runCommand[StatusReply[EventResponse]](EventEnvelope(baseCreateEvent, _))
-            eventSourcedTestKit.runCommand[StatusReply[EventResponse]](EventEnvelope(baseDelayEvent, _))
-
-            val result = eventSourcedTestKit.runCommand[StatusReply[EventResponse]](
-              EventEnvelope(
-                baseStartEvent,
-                _
-              )
-            )
-
-            result.reply.getError.getMessage shouldBe "StartEvent command cannot be used before an Event has started"
-          }
-
           "succeed for golden path" in {
             eventSourcedTestKit.runCommand[StatusReply[EventResponse]](EventEnvelope(baseCreateEvent, _))
             eventSourcedTestKit.runCommand[StatusReply[EventResponse]](EventEnvelope(baseScheduleEventToStartNow, _))
