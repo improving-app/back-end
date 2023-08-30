@@ -79,8 +79,8 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                   .delayEvent(
                     fromJsonString[GatewayDelayEvent](data)
                   )
-              ) { eventDalyed =>
-                complete(eventDalyed.printAsResponse)
+              ) { eventDelayed =>
+                complete(eventDelayed.printAsResponse)
               }
             }
           }
