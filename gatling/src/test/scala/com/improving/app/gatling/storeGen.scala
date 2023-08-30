@@ -1,13 +1,11 @@
-package com.improving.app.gatling.demoScenario.gen
+package com.improving.app.gatling
 
-import com.improving.app.common.domain.{EventId, MemberId, StoreId}
+import com.improving.app.common.domain.{MemberId, StoreId}
 import com.improving.app.gateway.domain.event.CreateEvent
-import com.improving.app.gateway.domain.store.{CreateStore, EditableStoreInfo, MakeStoreReady}
 import com.improving.app.gateway.domain.organization.EstablishOrganization
-import com.improving.app.gatling.common.gen._
+import com.improving.app.gateway.domain.store.{CreateStore, EditableStoreInfo, MakeStoreReady}
 
 import java.util.UUID
-import scala.util.Random
 
 object storeGen {
   def genCreateStores(

@@ -1,7 +1,7 @@
-package com.improving.app.gatling.demoScenario
+package com.improving.app.gatling.scenarios.infrasight
 
 import akka.http.scaladsl.model.ContentTypes
-import com.improving.app.common.domain.{EventId, MemberId, OrganizationId, Sku, StoreId, TenantId}
+import com.improving.app.common.domain._
 import com.improving.app.common.domain.util.GeneratedMessageUtil
 import com.improving.app.gateway.domain.event.{CreateEvent, ScheduleEvent}
 import com.improving.app.gateway.domain.member.{ActivateMember, RegisterMember}
@@ -9,12 +9,12 @@ import com.improving.app.gateway.domain.organization.{ActivateOrganization, Esta
 import com.improving.app.gateway.domain.product.{ActivateProduct, CreateProduct}
 import com.improving.app.gateway.domain.store.{CreateStore, MakeStoreReady}
 import com.improving.app.gateway.domain.tenant.{ActivateTenant, EstablishTenant}
-import com.improving.app.gatling.demoScenario.gen.eventGen.{genCreateEvents, genScheduleEvent}
-import com.improving.app.gatling.demoScenario.gen.memberGen.{genActivateMember, genRegisterMembers}
-import com.improving.app.gatling.demoScenario.gen.organizationGen.{genActivateOrgReqs, genEstablishOrg}
-import com.improving.app.gatling.demoScenario.gen.productGen.{genActivateProduct, genCreateProducts}
-import com.improving.app.gatling.demoScenario.gen.storeGen.{genCreateStores, genMakeStoreReady}
-import com.improving.app.gatling.demoScenario.gen.tenantGen.{genActivateTenantReqs, genEstablishTenantReqs}
+import com.improving.app.gatling.tenantGen._
+import com.improving.app.gatling.organizationGen._
+import com.improving.app.gatling.memberGen._
+import com.improving.app.gatling.eventGen._
+import com.improving.app.gatling.storeGen._
+import com.improving.app.gatling.productGen._
 import io.gatling.core.Predef._
 import io.gatling.core.controller.inject.open.OpenInjectionStep
 import io.gatling.core.structure.ScenarioBuilder
@@ -24,14 +24,14 @@ import scalapb.GeneratedMessage
 
 import java.util.UUID
 
-class DemoScenarioGatewayStart extends Simulation {
+class Populate extends Simulation {
   val httpProtocol: HttpProtocolBuilder = http.baseUrl("http://localhost:9000")
 
   val numTenants = 2
   val numOrgsPerTenant = 1
-  val numMembersPerOrg = 2
-  val numEventsPerOrg = 2
-  val numStoresPerEvent = 2
+  val numMembersPerOrg = 10
+  val numEventsPerOrg = 10
+  val numStoresPerEvent = 1
   val numProductsPerEventStore = 2
 
   val tenantIds: Seq[Option[TenantId]] = (0 until numTenants).map(_ => Some(TenantId(UUID.randomUUID().toString)))
@@ -43,12 +43,12 @@ class DemoScenarioGatewayStart extends Simulation {
   def createScn[T <: GeneratedMessage](scnId: String, path: String, req: T): ScenarioBuilder = scenario(
     s"${req.getClass.getSimpleName}-$scnId"
   ).exec(
-    http(s"StartScenario - ${req.getClass.getSimpleName}")
+    http(s"InfrasightPopulate - ${req.getClass.getSimpleName}")
       .post(path)
       .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
       .body(
         StringBody(
-          req.print
+          req.printAsResponse
         )
       )
   )
@@ -159,7 +159,7 @@ class DemoScenarioGatewayStart extends Simulation {
         s"GetMemberInfo-${req.memberId.map(_.id).getOrElse("MEMBERID NOT FOUND")}"
       )
         .exec(
-          http("StartScenario - GetMemberInfo")
+          http("InfrasightPopulate - GetMemberInfo")
             .get(s"/member/${req.memberId.getOrElse(MemberId("MEMBERID NOT FOUND")).id}")
             .headers(Map("Content-Type" -> ContentTypes.`application/json`.toString()))
         )

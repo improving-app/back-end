@@ -1,6 +1,5 @@
-package com.improving.app.gatling.common
+package com.improving.app.gatling
 
-import com.google.`type`.calendar_period.CalendarPeriod.WEEK
 import com.google.protobuf.timestamp.Timestamp
 
 import java.time.Instant
@@ -13,7 +12,7 @@ object gen {
   val lastNamesFile = "lastNames.txt"
   val cityStatesFile = "fakariaCityStates.txt"
   val addressesFile = "addresses.txt"
-  val eventsFile = "events.txt"
+  val eventNamesFile = "eventNames.txt"
 
   val firstNames: Seq[String] = Source.fromResource(firstNamesFile).getLines().toSeq
 
@@ -26,7 +25,8 @@ object gen {
       _.split(",").toSeq
     }
 
-  val events: Seq[String] = Source.fromResource(eventsFile).getLines().toSeq
+  val eventNames: Seq[String] = Source.fromResource(eventNamesFile).getLines().toSeq
+
   def repeatListUntilNAndShuffle[T](n: Int, source: Seq[T]): Seq[T] = {
     var ret: Seq[T] = source
     for (i <- 0 to n by source.size) {

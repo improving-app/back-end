@@ -4,6 +4,8 @@ package com.improving.app.gateway.domain.event;
 
 import "com/improving/app/common/domain/ids.proto";
 import "com/improving/app/gateway/domain/event/eventGatewayDomainObjects.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
 import "scalapb/validate.proto";
 
@@ -32,6 +34,10 @@ message EventRequestPB{
         CreateEvent create_event = 2;
         ScheduleEvent schedule_event = 3;
         CancelEvent cancel_event = 4;
+        RescheduleEvent reschedule_event = 5;
+        DelayEvent delay_event = 6;
+        StartEvent start_event = 7;
+        EndEvent end_event = 8;
     }
 }
 
@@ -69,4 +75,40 @@ message CancelEvent {
     common.domain.EventId event_id = 1;
     string reason = 2;
     common.domain.MemberId on_behalf_of = 3;
+}
+
+message RescheduleEvent {
+    option (scalapb.message) = {
+        extends: [ "EventCommand" ]
+    };
+    common.domain.EventId event_id = 1;
+    google.protobuf.Timestamp start = 2;
+    google.protobuf.Timestamp end = 3;
+    common.domain.MemberId on_behalf_of = 4;
+}
+
+message DelayEvent {
+    option (scalapb.message) = {
+        extends: [ "EventCommand" ]
+    };
+    common.domain.EventId event_id = 1;
+    string reason = 2;
+    google.protobuf.Duration expected_duration = 3;
+    common.domain.MemberId on_behalf_of = 4;
+}
+
+message StartEvent {
+    option (scalapb.message) = {
+        extends: [ "EventCommand" ]
+    };
+    common.domain.EventId event_id = 1;
+    common.domain.MemberId on_behalf_of = 2;
+}
+
+message EndEvent {
+    option (scalapb.message) = {
+        extends: [ "EventCommand" ]
+    };
+    common.domain.EventId event_id = 1;
+    common.domain.MemberId on_behalf_of = 2;
 }

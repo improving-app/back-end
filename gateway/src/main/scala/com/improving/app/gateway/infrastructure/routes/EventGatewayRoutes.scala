@@ -9,15 +9,17 @@ import com.improving.app.gateway.api.handlers.EventGatewayHandler
 import com.improving.app.gateway.domain.event.{
   CancelEvent => GatewayCancelEvent,
   CreateEvent => GatewayCreateEvent,
-  EventData,
+  DelayEvent => GatewayDelayEvent,
+  EndEvent => GatewayEndEvent,
   EventState,
-  ScheduleEvent => GatewayScheduleEvent
+  RescheduleEvent => GatewayRescheduleEvent,
+  ScheduleEvent => GatewayScheduleEvent,
+  StartEvent => GatewayStartEvent
 }
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport
 import io.circe.generic.codec.DerivedAsObjectCodec.deriveCodec
-import scalapb.json4s.JsonFormat
 import scalapb.json4s.JsonFormat.fromJsonString
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -39,7 +41,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                     fromJsonString[GatewayScheduleEvent](data)
                   )
               ) { eventScheduled =>
-                complete(eventScheduled.print)
+                complete(eventScheduled.printAsResponse)
               }
             }
           }
@@ -52,7 +54,59 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                     fromJsonString[GatewayCancelEvent](data)
                   )
               ) { eventCancelled =>
-                complete(eventCancelled.print)
+                complete(eventCancelled.printAsResponse)
+              }
+            }
+          }
+        } ~ pathPrefix("reschedule") {
+          post {
+            entity(Directives.as[String]) { data =>
+              onSuccess(
+                handler
+                  .rescheduleEvent(
+                    fromJsonString[GatewayRescheduleEvent](data)
+                  )
+              ) { eventRescheduled =>
+                complete(eventRescheduled.printAsResponse)
+              }
+            }
+          }
+        } ~ pathPrefix("delay") {
+          post {
+            entity(Directives.as[String]) { data =>
+              onSuccess(
+                handler
+                  .delayEvent(
+                    fromJsonString[GatewayDelayEvent](data)
+                  )
+              ) { eventDelayed =>
+                complete(eventDelayed.printAsResponse)
+              }
+            }
+          }
+        } ~ pathPrefix("start") {
+          post {
+            entity(Directives.as[String]) { data =>
+              onSuccess(
+                handler
+                  .startEvent(
+                    fromJsonString[GatewayStartEvent](data)
+                  )
+              ) { eventStarted =>
+                complete(eventStarted.printAsResponse)
+              }
+            }
+          }
+        } ~ pathPrefix("end") {
+          post {
+            entity(Directives.as[String]) { data =>
+              onSuccess(
+                handler
+                  .endEvent(
+                    fromJsonString[GatewayEndEvent](data)
+                  )
+              ) { eventEnded =>
+                complete(eventEnded.printAsResponse)
               }
             }
           }
@@ -61,7 +115,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
             onSuccess(
               handler.getAllIds
             ) { allIds =>
-              complete(allIds.print)
+              complete(allIds.printAsResponse)
             }
           }
         } ~ pathPrefix("allData") {
@@ -74,7 +128,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                       handler.getAllIdsAndGetData(EventState.fromName(status), Some(OrganizationId(orgId)))
                     ) { eventDataFut =>
                       complete(
-                        eventDataFut.map(_.print)
+                        eventDataFut.map(_.printAsDataResponse)
                       )
                     }
                   }
@@ -84,7 +138,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                   handler.getAllIdsAndGetData(EventState.fromName(status))
                 ) { eventDataFut =>
                   complete(
-                    eventDataFut.map(_.print)
+                    eventDataFut.map(_.printAsDataResponse)
                   )
                 }
               }
@@ -93,7 +147,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
             onSuccess(
               handler.getAllIdsAndGetData()
             ) { eventDataFut =>
-              complete(eventDataFut.map(_.print))
+              complete(eventDataFut.map(_.printAsDataResponse))
             }
           }
         } ~ pathPrefix(Segment) { eventId =>
@@ -104,7 +158,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                   eventId
                 )
             ) { eventData =>
-              complete(eventData.print)
+              complete(eventData.printAsResponse)
             }
           }
         } ~ post {
@@ -116,7 +170,7 @@ trait EventGatewayRoutes extends ErrorAccumulatingCirceSupport with StrictLoggin
                   fromJsonString[GatewayCreateEvent](data)
                 )
             ) { eventCreated =>
-              complete(eventCreated.print)
+              complete(eventCreated.printAsResponse)
             }
           }
         }

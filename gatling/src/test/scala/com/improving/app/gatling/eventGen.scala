@@ -1,9 +1,9 @@
-package com.improving.app.gatling.demoScenario.gen
+package com.improving.app.gatling
 
 import com.improving.app.common.domain.{EventId, MemberId}
 import com.improving.app.gateway.domain.event.{CreateEvent, EditableEventInfo, ScheduleEvent}
 import com.improving.app.gateway.domain.organization.EstablishOrganization
-import com.improving.app.gatling.common.gen._
+import com.improving.app.gatling.gen._
 
 import java.util.UUID
 import scala.util.Random
@@ -21,7 +21,7 @@ object eventGen {
           (0 until numEventsPerOrg).map(_ => creatingMember)
         )
         .zip(
-          repeatListUntilNAndShuffle(numEventsPerOrg, events).map(eventName =>
+          repeatListUntilNAndShuffle(numEventsPerOrg, eventNames).map(eventName =>
             s"$eventName ${UUID.randomUUID().toString.take(4)}"
           )
         )
