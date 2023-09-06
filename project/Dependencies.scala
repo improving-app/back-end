@@ -25,6 +25,7 @@ object Dependencies {
     val cats = "2.9.0"
     val circe = "0.14.5"
     val gatling = "3.9.5"
+    val dynamoDB = "1.3.0"
   }
 
   import Versions._
@@ -123,5 +124,9 @@ object Dependencies {
     "io.gatling.highcharts" % "gatling-charts-highcharts" % Versions.gatling % "test",
     "io.gatling" % "gatling-test-framework" % Versions.gatling % "test",
     "com.github.phisgr" % "gatling-grpc" % "0.16.0" % "test"
+  )
+
+  val dynamoDBDependencies: Seq[ModuleID] = Seq(
+    "com.typesafe.akka" %% "akka-persistence-dynamodb" % Versions.dynamoDB
   )
 }

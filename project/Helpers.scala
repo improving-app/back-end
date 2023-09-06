@@ -164,7 +164,7 @@ object C {
           "org.wvlet.airframe" %% "airframe-ulid" % V.airframeUlidVersion,
         ) ++ akkaHttpTestingDependencies ++ scalaPbDependencies ++ scalaPbValidationDependencies ++ Seq(
           scalaPbCompilerPlugin
-        ),
+        ) ++ dynamoDBDependencies,
         dockerSettings(port, artifactName),
       )
   }
